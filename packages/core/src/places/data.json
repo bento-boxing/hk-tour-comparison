@@ -1,0 +1,197 @@
+{
+  "countries": [
+    { "id": "japan", "nameZh": "日本", "nameEn": "Japan", "aliases": [] },
+    { "id": "korea", "nameZh": "韓國", "nameEn": "South Korea", "aliases": ["南韓"] },
+    { "id": "taiwan", "nameZh": "台灣", "nameEn": "Taiwan", "aliases": [] },
+    { "id": "thailand", "nameZh": "泰國", "nameEn": "Thailand", "aliases": [] },
+    { "id": "china", "nameZh": "中國", "nameEn": "China", "aliases": ["中國內地", "內地"] },
+    { "id": "vietnam", "nameZh": "越南", "nameEn": "Vietnam", "aliases": [] },
+    { "id": "singapore", "nameZh": "新加坡", "nameEn": "Singapore", "aliases": ["星加坡"] },
+    { "id": "malaysia", "nameZh": "馬來西亞", "nameEn": "Malaysia", "aliases": ["大馬"] },
+    { "id": "hongkong", "nameZh": "香港", "nameEn": "Hong Kong", "aliases": [] },
+    { "id": "macau", "nameZh": "澳門", "nameEn": "Macau", "aliases": [] }
+  ],
+  "regions": [
+    { "id": "japan-hokkaido", "countryId": "japan", "nameZh": "北海道", "nameEn": "Hokkaido", "aliases": [] },
+    { "id": "japan-tohoku", "countryId": "japan", "nameZh": "東北", "nameEn": "Tohoku", "aliases": [] },
+    { "id": "japan-kanto", "countryId": "japan", "nameZh": "關東", "nameEn": "Kanto", "aliases": [] },
+    { "id": "japan-chubu", "countryId": "japan", "nameZh": "中部北陸", "nameEn": "Chubu & Hokuriku", "aliases": ["北陸"] },
+    { "id": "japan-kansai", "countryId": "japan", "nameZh": "關西", "nameEn": "Kansai", "aliases": ["近畿"] },
+    { "id": "japan-chugoku", "countryId": "japan", "nameZh": "中國地方", "nameEn": "Chugoku", "aliases": [] },
+    { "id": "japan-shikoku", "countryId": "japan", "nameZh": "四國", "nameEn": "Shikoku", "aliases": [] },
+    { "id": "japan-kyushu", "countryId": "japan", "nameZh": "九州", "nameEn": "Kyushu", "aliases": [] },
+    { "id": "japan-okinawa", "countryId": "japan", "nameZh": "沖繩", "nameEn": "Okinawa", "aliases": ["沖縄"] },
+
+    { "id": "korea-seoul", "countryId": "korea", "nameZh": "首爾及京畿", "nameEn": "Seoul & Gyeonggi", "aliases": ["京畿", "京畿道"] },
+    { "id": "korea-gangwon", "countryId": "korea", "nameZh": "江原道", "nameEn": "Gangwon", "aliases": ["江原"] },
+    { "id": "korea-busan", "countryId": "korea", "nameZh": "釜山及慶尚", "nameEn": "Busan & Gyeongsang", "aliases": ["慶尚", "慶尚道"] },
+    { "id": "korea-jeju", "countryId": "korea", "nameZh": "濟州", "nameEn": "Jeju", "aliases": ["濟州島"] },
+
+    { "id": "taiwan-north", "countryId": "taiwan", "nameZh": "北部", "nameEn": "Northern Taiwan", "aliases": ["北台灣"] },
+    { "id": "taiwan-central", "countryId": "taiwan", "nameZh": "中部", "nameEn": "Central Taiwan", "aliases": ["中台灣"] },
+    { "id": "taiwan-south", "countryId": "taiwan", "nameZh": "南部", "nameEn": "Southern Taiwan", "aliases": ["南台灣"] },
+    { "id": "taiwan-east", "countryId": "taiwan", "nameZh": "東部", "nameEn": "Eastern Taiwan", "aliases": ["東台灣", "花東"] },
+
+    { "id": "thailand-bangkok", "countryId": "thailand", "nameZh": "曼谷及中部", "nameEn": "Bangkok & Central Thailand", "aliases": [] },
+    { "id": "thailand-north", "countryId": "thailand", "nameZh": "北部", "nameEn": "Northern Thailand", "aliases": [] },
+    { "id": "thailand-south", "countryId": "thailand", "nameZh": "南部海島", "nameEn": "Southern Islands", "aliases": [] },
+
+    { "id": "china-guangdong", "countryId": "china", "nameZh": "廣東", "nameEn": "Guangdong", "aliases": ["廣東省"] },
+    { "id": "china-beijing", "countryId": "china", "nameZh": "北京及華北", "nameEn": "Beijing & North China", "aliases": ["華北"] },
+    { "id": "china-shanghai", "countryId": "china", "nameZh": "上海及華東", "nameEn": "Shanghai & East China", "aliases": ["華東"] },
+    { "id": "china-sichuan", "countryId": "china", "nameZh": "四川重慶", "nameEn": "Sichuan & Chongqing", "aliases": ["四川", "川渝"] },
+    { "id": "china-yunnan", "countryId": "china", "nameZh": "雲南", "nameEn": "Yunnan", "aliases": ["雲南省"] },
+    { "id": "china-guangxi", "countryId": "china", "nameZh": "廣西", "nameEn": "Guangxi", "aliases": [] },
+    { "id": "china-fujian", "countryId": "china", "nameZh": "福建", "nameEn": "Fujian", "aliases": ["福建省"] },
+    { "id": "china-hunan", "countryId": "china", "nameZh": "湖南", "nameEn": "Hunan", "aliases": ["湖南省"] },
+    { "id": "china-shandong", "countryId": "china", "nameZh": "山東", "nameEn": "Shandong", "aliases": ["山東省"] },
+    { "id": "china-xinjiang", "countryId": "china", "nameZh": "新疆", "nameEn": "Xinjiang", "aliases": [] },
+    { "id": "china-tibet", "countryId": "china", "nameZh": "西藏", "nameEn": "Tibet", "aliases": [] },
+
+    { "id": "vietnam-north", "countryId": "vietnam", "nameZh": "北部", "nameEn": "Northern Vietnam", "aliases": ["北越"] },
+    { "id": "vietnam-central", "countryId": "vietnam", "nameZh": "中部", "nameEn": "Central Vietnam", "aliases": ["中越"] },
+    { "id": "vietnam-south", "countryId": "vietnam", "nameZh": "南部", "nameEn": "Southern Vietnam", "aliases": ["南越"] },
+
+    { "id": "singapore-singapore", "countryId": "singapore", "nameZh": "新加坡", "nameEn": "Singapore", "aliases": ["星加坡"] },
+
+    { "id": "malaysia-peninsular", "countryId": "malaysia", "nameZh": "西馬", "nameEn": "Peninsular Malaysia", "aliases": [] },
+    { "id": "malaysia-borneo", "countryId": "malaysia", "nameZh": "東馬", "nameEn": "Malaysian Borneo", "aliases": ["婆羅洲"] },
+
+    { "id": "hongkong-hongkong", "countryId": "hongkong", "nameZh": "香港", "nameEn": "Hong Kong", "aliases": [] },
+
+    { "id": "macau-macau", "countryId": "macau", "nameZh": "澳門", "nameEn": "Macau", "aliases": [] }
+  ],
+  "cities": [
+    { "id": "japan-hokkaido-sapporo", "regionId": "japan-hokkaido", "nameZh": "札幌", "nameEn": "Sapporo", "aliases": [] },
+    { "id": "japan-hokkaido-hakodate", "regionId": "japan-hokkaido", "nameZh": "函館", "nameEn": "Hakodate", "aliases": [] },
+    { "id": "japan-hokkaido-otaru", "regionId": "japan-hokkaido", "nameZh": "小樽", "nameEn": "Otaru", "aliases": [] },
+
+    { "id": "japan-tohoku-sendai", "regionId": "japan-tohoku", "nameZh": "仙台", "nameEn": "Sendai", "aliases": [] },
+
+    { "id": "japan-kanto-tokyo", "regionId": "japan-kanto", "nameZh": "東京", "nameEn": "Tokyo", "aliases": [] },
+    { "id": "japan-kanto-yokohama", "regionId": "japan-kanto", "nameZh": "橫濱", "nameEn": "Yokohama", "aliases": ["横濱", "横浜"] },
+    { "id": "japan-kanto-hakone", "regionId": "japan-kanto", "nameZh": "箱根", "nameEn": "Hakone", "aliases": [] },
+    { "id": "japan-kanto-nikko", "regionId": "japan-kanto", "nameZh": "日光", "nameEn": "Nikko", "aliases": [] },
+
+    { "id": "japan-chubu-nagoya", "regionId": "japan-chubu", "nameZh": "名古屋", "nameEn": "Nagoya", "aliases": [] },
+    { "id": "japan-chubu-kanazawa", "regionId": "japan-chubu", "nameZh": "金澤", "nameEn": "Kanazawa", "aliases": ["金沢"] },
+    { "id": "japan-chubu-takayama", "regionId": "japan-chubu", "nameZh": "高山", "nameEn": "Takayama", "aliases": ["飛驒高山", "飛騨高山"] },
+    { "id": "japan-chubu-mount-fuji", "regionId": "japan-chubu", "nameZh": "富士山", "nameEn": "Mount Fuji", "aliases": ["富士河口湖", "河口湖"] },
+
+    { "id": "japan-kansai-osaka", "regionId": "japan-kansai", "nameZh": "大阪", "nameEn": "Osaka", "aliases": [] },
+    { "id": "japan-kansai-kyoto", "regionId": "japan-kansai", "nameZh": "京都", "nameEn": "Kyoto", "aliases": [] },
+    { "id": "japan-kansai-nara", "regionId": "japan-kansai", "nameZh": "奈良", "nameEn": "Nara", "aliases": [] },
+    { "id": "japan-kansai-kobe", "regionId": "japan-kansai", "nameZh": "神戶", "nameEn": "Kobe", "aliases": ["神戸"] },
+    { "id": "japan-kansai-himeji", "regionId": "japan-kansai", "nameZh": "姬路", "nameEn": "Himeji", "aliases": ["姫路"] },
+    { "id": "japan-kansai-shirahama", "regionId": "japan-kansai", "nameZh": "白濱", "nameEn": "Shirahama", "aliases": ["白浜"] },
+
+    { "id": "japan-chugoku-hiroshima", "regionId": "japan-chugoku", "nameZh": "廣島", "nameEn": "Hiroshima", "aliases": ["広島"] },
+    { "id": "japan-chugoku-okayama", "regionId": "japan-chugoku", "nameZh": "岡山", "nameEn": "Okayama", "aliases": [] },
+
+    { "id": "japan-shikoku-takamatsu", "regionId": "japan-shikoku", "nameZh": "高松", "nameEn": "Takamatsu", "aliases": [] },
+    { "id": "japan-shikoku-matsuyama", "regionId": "japan-shikoku", "nameZh": "松山", "nameEn": "Matsuyama", "aliases": [] },
+
+    { "id": "japan-kyushu-fukuoka", "regionId": "japan-kyushu", "nameZh": "福岡", "nameEn": "Fukuoka", "aliases": [] },
+    { "id": "japan-kyushu-nagasaki", "regionId": "japan-kyushu", "nameZh": "長崎", "nameEn": "Nagasaki", "aliases": [] },
+    { "id": "japan-kyushu-kumamoto", "regionId": "japan-kyushu", "nameZh": "熊本", "nameEn": "Kumamoto", "aliases": [] },
+    { "id": "japan-kyushu-kagoshima", "regionId": "japan-kyushu", "nameZh": "鹿兒島", "nameEn": "Kagoshima", "aliases": ["鹿児島"] },
+    { "id": "japan-kyushu-beppu", "regionId": "japan-kyushu", "nameZh": "別府", "nameEn": "Beppu", "aliases": [] },
+    { "id": "japan-kyushu-yufuin", "regionId": "japan-kyushu", "nameZh": "由布院", "nameEn": "Yufuin", "aliases": ["湯布院"] },
+
+    { "id": "japan-okinawa-naha", "regionId": "japan-okinawa", "nameZh": "那霸", "nameEn": "Naha", "aliases": ["那覇"] },
+
+    { "id": "korea-seoul-seoul", "regionId": "korea-seoul", "nameZh": "首爾", "nameEn": "Seoul", "aliases": ["漢城"] },
+    { "id": "korea-seoul-nami-island", "regionId": "korea-seoul", "nameZh": "南怡島", "nameEn": "Nami Island", "aliases": [] },
+
+    { "id": "korea-gangwon-gangneung", "regionId": "korea-gangwon", "nameZh": "江陵", "nameEn": "Gangneung", "aliases": [] },
+
+    { "id": "korea-busan-busan", "regionId": "korea-busan", "nameZh": "釜山", "nameEn": "Busan", "aliases": [] },
+    { "id": "korea-busan-gyeongju", "regionId": "korea-busan", "nameZh": "慶州", "nameEn": "Gyeongju", "aliases": [] },
+    { "id": "korea-busan-daegu", "regionId": "korea-busan", "nameZh": "大邱", "nameEn": "Daegu", "aliases": [] },
+
+    { "id": "korea-jeju-jeju", "regionId": "korea-jeju", "nameZh": "濟州", "nameEn": "Jeju", "aliases": ["濟州島"] },
+
+    { "id": "taiwan-north-taipei", "regionId": "taiwan-north", "nameZh": "台北", "nameEn": "Taipei", "aliases": [] },
+    { "id": "taiwan-north-jiufen", "regionId": "taiwan-north", "nameZh": "九份", "nameEn": "Jiufen", "aliases": [] },
+    { "id": "taiwan-north-yilan", "regionId": "taiwan-north", "nameZh": "宜蘭", "nameEn": "Yilan", "aliases": [] },
+
+    { "id": "taiwan-central-taichung", "regionId": "taiwan-central", "nameZh": "台中", "nameEn": "Taichung", "aliases": [] },
+    { "id": "taiwan-central-sun-moon-lake", "regionId": "taiwan-central", "nameZh": "日月潭", "nameEn": "Sun Moon Lake", "aliases": [] },
+    { "id": "taiwan-central-alishan", "regionId": "taiwan-central", "nameZh": "阿里山", "nameEn": "Alishan", "aliases": [] },
+
+    { "id": "taiwan-south-kaohsiung", "regionId": "taiwan-south", "nameZh": "高雄", "nameEn": "Kaohsiung", "aliases": [] },
+    { "id": "taiwan-south-tainan", "regionId": "taiwan-south", "nameZh": "台南", "nameEn": "Tainan", "aliases": [] },
+    { "id": "taiwan-south-kenting", "regionId": "taiwan-south", "nameZh": "墾丁", "nameEn": "Kenting", "aliases": [] },
+
+    { "id": "taiwan-east-hualien", "regionId": "taiwan-east", "nameZh": "花蓮", "nameEn": "Hualien", "aliases": [] },
+    { "id": "taiwan-east-taitung", "regionId": "taiwan-east", "nameZh": "台東", "nameEn": "Taitung", "aliases": [] },
+
+    { "id": "thailand-bangkok-bangkok", "regionId": "thailand-bangkok", "nameZh": "曼谷", "nameEn": "Bangkok", "aliases": [] },
+    { "id": "thailand-bangkok-pattaya", "regionId": "thailand-bangkok", "nameZh": "芭堤雅", "nameEn": "Pattaya", "aliases": ["芭達雅"] },
+    { "id": "thailand-bangkok-hua-hin", "regionId": "thailand-bangkok", "nameZh": "華欣", "nameEn": "Hua Hin", "aliases": [] },
+
+    { "id": "thailand-north-chiang-mai", "regionId": "thailand-north", "nameZh": "清邁", "nameEn": "Chiang Mai", "aliases": [] },
+    { "id": "thailand-north-chiang-rai", "regionId": "thailand-north", "nameZh": "清萊", "nameEn": "Chiang Rai", "aliases": [] },
+
+    { "id": "thailand-south-phuket", "regionId": "thailand-south", "nameZh": "布吉", "nameEn": "Phuket", "aliases": ["普吉", "布吉島", "普吉島"] },
+    { "id": "thailand-south-koh-samui", "regionId": "thailand-south", "nameZh": "蘇梅", "nameEn": "Koh Samui", "aliases": ["蘇梅島"] },
+    { "id": "thailand-south-krabi", "regionId": "thailand-south", "nameZh": "喀比", "nameEn": "Krabi", "aliases": ["甲米"] },
+
+    { "id": "china-guangdong-guangzhou", "regionId": "china-guangdong", "nameZh": "廣州", "nameEn": "Guangzhou", "aliases": [] },
+    { "id": "china-guangdong-shenzhen", "regionId": "china-guangdong", "nameZh": "深圳", "nameEn": "Shenzhen", "aliases": [] },
+    { "id": "china-guangdong-zhuhai", "regionId": "china-guangdong", "nameZh": "珠海", "nameEn": "Zhuhai", "aliases": [] },
+    { "id": "china-guangdong-chaozhou", "regionId": "china-guangdong", "nameZh": "潮州", "nameEn": "Chaozhou", "aliases": [] },
+    { "id": "china-guangdong-shantou", "regionId": "china-guangdong", "nameZh": "汕頭", "nameEn": "Shantou", "aliases": [] },
+
+    { "id": "china-beijing-beijing", "regionId": "china-beijing", "nameZh": "北京", "nameEn": "Beijing", "aliases": [] },
+    { "id": "china-beijing-tianjin", "regionId": "china-beijing", "nameZh": "天津", "nameEn": "Tianjin", "aliases": [] },
+
+    { "id": "china-shanghai-shanghai", "regionId": "china-shanghai", "nameZh": "上海", "nameEn": "Shanghai", "aliases": [] },
+    { "id": "china-shanghai-hangzhou", "regionId": "china-shanghai", "nameZh": "杭州", "nameEn": "Hangzhou", "aliases": [] },
+    { "id": "china-shanghai-suzhou", "regionId": "china-shanghai", "nameZh": "蘇州", "nameEn": "Suzhou", "aliases": [] },
+    { "id": "china-shanghai-nanjing", "regionId": "china-shanghai", "nameZh": "南京", "nameEn": "Nanjing", "aliases": [] },
+
+    { "id": "china-sichuan-chengdu", "regionId": "china-sichuan", "nameZh": "成都", "nameEn": "Chengdu", "aliases": [] },
+    { "id": "china-sichuan-chongqing", "regionId": "china-sichuan", "nameZh": "重慶", "nameEn": "Chongqing", "aliases": [] },
+    { "id": "china-sichuan-jiuzhaigou", "regionId": "china-sichuan", "nameZh": "九寨溝", "nameEn": "Jiuzhaigou", "aliases": ["九寨"] },
+
+    { "id": "china-yunnan-kunming", "regionId": "china-yunnan", "nameZh": "昆明", "nameEn": "Kunming", "aliases": [] },
+    { "id": "china-yunnan-dali", "regionId": "china-yunnan", "nameZh": "大理", "nameEn": "Dali", "aliases": [] },
+    { "id": "china-yunnan-lijiang", "regionId": "china-yunnan", "nameZh": "麗江", "nameEn": "Lijiang", "aliases": [] },
+
+    { "id": "china-guangxi-guilin", "regionId": "china-guangxi", "nameZh": "桂林", "nameEn": "Guilin", "aliases": [] },
+    { "id": "china-guangxi-yangshuo", "regionId": "china-guangxi", "nameZh": "陽朔", "nameEn": "Yangshuo", "aliases": [] },
+
+    { "id": "china-fujian-xiamen", "regionId": "china-fujian", "nameZh": "廈門", "nameEn": "Xiamen", "aliases": [] },
+
+    { "id": "china-hunan-zhangjiajie", "regionId": "china-hunan", "nameZh": "張家界", "nameEn": "Zhangjiajie", "aliases": [] },
+    { "id": "china-hunan-changsha", "regionId": "china-hunan", "nameZh": "長沙", "nameEn": "Changsha", "aliases": [] },
+
+    { "id": "china-shandong-qingdao", "regionId": "china-shandong", "nameZh": "青島", "nameEn": "Qingdao", "aliases": [] },
+    { "id": "china-shandong-penglai", "regionId": "china-shandong", "nameZh": "蓬萊", "nameEn": "Penglai", "aliases": [] },
+
+    { "id": "china-xinjiang-urumqi", "regionId": "china-xinjiang", "nameZh": "烏魯木齊", "nameEn": "Urumqi", "aliases": [] },
+
+    { "id": "china-tibet-lhasa", "regionId": "china-tibet", "nameZh": "拉薩", "nameEn": "Lhasa", "aliases": [] },
+
+    { "id": "vietnam-north-hanoi", "regionId": "vietnam-north", "nameZh": "河內", "nameEn": "Hanoi", "aliases": [] },
+    { "id": "vietnam-north-ha-long-bay", "regionId": "vietnam-north", "nameZh": "下龍灣", "nameEn": "Ha Long Bay", "aliases": ["下龍"] },
+
+    { "id": "vietnam-central-da-nang", "regionId": "vietnam-central", "nameZh": "峴港", "nameEn": "Da Nang", "aliases": [] },
+    { "id": "vietnam-central-hoi-an", "regionId": "vietnam-central", "nameZh": "會安", "nameEn": "Hoi An", "aliases": [] },
+
+    { "id": "vietnam-south-ho-chi-minh-city", "regionId": "vietnam-south", "nameZh": "胡志明市", "nameEn": "Ho Chi Minh City", "aliases": ["胡志明", "西貢"] },
+
+    { "id": "singapore-singapore-singapore", "regionId": "singapore-singapore", "nameZh": "新加坡", "nameEn": "Singapore", "aliases": ["星加坡"] },
+
+    { "id": "malaysia-peninsular-kuala-lumpur", "regionId": "malaysia-peninsular", "nameZh": "吉隆坡", "nameEn": "Kuala Lumpur", "aliases": [] },
+    { "id": "malaysia-peninsular-penang", "regionId": "malaysia-peninsular", "nameZh": "檳城", "nameEn": "Penang", "aliases": ["檳榔嶼"] },
+    { "id": "malaysia-peninsular-malacca", "regionId": "malaysia-peninsular", "nameZh": "馬六甲", "nameEn": "Malacca", "aliases": ["麻六甲"] },
+
+    { "id": "malaysia-borneo-sabah", "regionId": "malaysia-borneo", "nameZh": "沙巴", "nameEn": "Sabah", "aliases": ["亞庇"] },
+
+    { "id": "hongkong-hongkong-hongkong", "regionId": "hongkong-hongkong", "nameZh": "香港", "nameEn": "Hong Kong", "aliases": [] },
+
+    { "id": "macau-macau-macau", "regionId": "macau-macau", "nameZh": "澳門", "nameEn": "Macau", "aliases": [] }
+  ]
+}
