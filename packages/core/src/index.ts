@@ -9,3 +9,5 @@ export * from './normalise';
 export * from './chain';
 export * from './price';
 export * from './chain-url';
+export * from './destination';
+export * from './suggest';
