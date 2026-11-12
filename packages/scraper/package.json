@@ -8,6 +8,10 @@
   },
   "dependencies": {
     "@hktours/core": "workspace:*",
-    "@hktours/db": "workspace:*"
+    "@hktours/db": "workspace:*",
+    "robots-parser": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
   }
 }
