@@ -17,7 +17,7 @@ const NO_ROBOTS_STATUSES = [404, 410];
 
 export interface FetcherOptions {
   userAgent?: string;                 // defaults to USER_AGENT
-  delayMs?: number;                   // per site, between the starts of consecutive requests; defaults to REQUEST_DELAY_MS
+  delayMs?: number;                   // per site, from the end of one request to the start of the next; defaults to REQUEST_DELAY_MS
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
 }
@@ -31,24 +31,31 @@ export function siteOf(url: URL): string {
   return url.hostname.toLowerCase().replace(/^www\./, '');
 }
 
-/** What one HTTP request came back with. The body is read only for a 200. */
+/**
+ * What one HTTP request came back with. The body is read only for a 200.
+ * `refused`: the request was never sent because its site was refused while it waited.
+ */
 type Answer =
   | { kind: 'response'; status: number; location: string | null; body: string | null }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string }
+  | { kind: 'refused'; why: string };
 
 /**
- * What one origin's robots.txt lets us do. `refused` means nothing at all may be
- * requested from the origin (robots.txt unreadable, or Crawl-delay over the cap).
+ * What one origin's robots.txt lets us do. A non-null `refusal` means no page at all
+ * may be requested from the origin (robots.txt unreadable, or Crawl-delay over the cap),
+ * and says why.
  */
-interface OriginRules { refused: boolean; isAllowed(url: string): boolean; crawlDelayMs: number }
+interface OriginRules { refusal: string | null; isAllowed(url: string): boolean; crawlDelayMs: number }
 
 /**
- * Runs one task at a time for one site, starting each at least `minGapMs`
- * after the previous one started and only after it has finished.
+ * Runs one task at a time for one site, starting each at least `minGapMs` after
+ * the previous one finished (so also at least `minGapMs` after it started).
+ * Counting from the finish keeps the gap the server sees at or above `minGapMs`
+ * even when one request took longer to reach it (a new connection, say) than the next.
  */
 class SiteQueue {
   private tail: Promise<unknown> = Promise.resolve();
-  private lastStart = -Infinity;
+  private lastEnd = -Infinity;
 
   constructor(public minGapMs: number) {}
 
@@ -56,21 +63,25 @@ class SiteQueue {
     const result = this.tail.then(async () => {
       // Timers can fire a fraction of a millisecond early, so re-check before starting.
       for (let wait = this.waitMs(); wait > 0; wait = this.waitMs()) await sleep(wait);
-      this.lastStart = performance.now();
-      return task();
+      try {
+        return await task();
+      } finally {
+        this.lastEnd = performance.now();
+      }
     });
     this.tail = result.catch(() => undefined);
     return result;
   }
 
   private waitMs(): number {
-    return this.lastStart + this.minGapMs - performance.now();
+    return this.lastEnd + this.minGapMs - performance.now();
   }
 }
 
 const isRedirect = (status: number) => [301, 302, 303, 307, 308].includes(status);
-const isRetryable = (answer: Answer) => answer.kind === 'error' || answer.status >= 500;
-const describe = (answer: Answer) => (answer.kind === 'error' ? answer.message : `HTTP ${answer.status}`);
+const isRetryable = (answer: Answer) => answer.kind === 'error' || (answer.kind === 'response' && answer.status >= 500);
+const describe = (answer: Answer) =>
+  (answer.kind === 'error' ? answer.message : answer.kind === 'refused' ? answer.why : `HTTP ${answer.status}`);
 
 /** The URL as a parsed http(s) URL, or null. */
 function httpUrl(url: string, base?: URL): URL | null {
@@ -101,6 +112,8 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
 
   const queues = new Map<string, SiteQueue>();              // by site
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
+  /** Sites that must get no more page requests, with why. Once refused, a site stays refused. */
+  const refusedSites = new Map<string, string>();
 
   function queueFor(url: URL): SiteQueue {
     const site = siteOf(url);
@@ -109,9 +122,14 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     return queue;
   }
 
-  /** One HTTP request, through its site's queue. Never throws. */
-  function request(url: URL): Promise<Answer> {
+  /**
+   * One HTTP request, through its site's queue. Never throws. A page request whose
+   * site was refused while it waited in the queue is not sent.
+   */
+  function request(url: URL, isPage: boolean): Promise<Answer> {
     return queueFor(url).run(async (): Promise<Answer> => {
+      const siteRefusal = isPage ? refusedSites.get(siteOf(url)) : undefined;
+      if (siteRefusal !== undefined) return { kind: 'refused', why: siteRefusal };
       try {
         const res = await fetch(url, {
           headers: { 'user-agent': userAgent },
@@ -128,11 +146,11 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   }
 
   /** One request, tried again up to MAX_RETRIES times after a network error or 5xx. 4xx is final. */
-  async function requestWithRetries(url: URL): Promise<Answer> {
-    let answer = await request(url);
+  async function requestWithRetries(url: URL, isPage: boolean): Promise<Answer> {
+    let answer = await request(url, isPage);
     for (let retry = 1; retry <= MAX_RETRIES && isRetryable(answer); retry++) {
       log(`retry ${retry}/${MAX_RETRIES} ${url.href}: ${describe(answer)}`);
-      answer = await request(url);
+      answer = await request(url, isPage);
     }
     return answer;
   }
@@ -140,44 +158,55 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   /**
    * Requests `start`, following up to MAX_REDIRECTS redirects. Before each hop,
    * `whyNot` says whether that URL may be requested at all (null) or why not.
-   * Returns the 200 body, or why there is none.
+   * Returns the 200 body, or why there is none and the URL (`at`) where that happened.
    */
-  async function getFollowingRedirects<Why extends string>(start: URL, whyNot: (url: URL) => Promise<Why | null>): Promise<
-    { body: string } | { failure: Answer | Why | 'redirects' }
-  > {
+  async function getFollowingRedirects(
+    start: URL, isPage: boolean, whyNot: (url: URL) => Promise<string | null>,
+  ): Promise<{ body: string } | { failure: Answer | string; at: URL }> {
     let url = start;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const refusal = await whyNot(url);
-      if (refusal !== null) return { failure: refusal };
-      const answer = await requestWithRetries(url);
+      if (refusal !== null) return { failure: refusal, at: url };
+      const answer = await requestWithRetries(url, isPage);
       if (answer.kind === 'response' && answer.status === 200) return { body: answer.body ?? '' };
       const next = answer.kind === 'response' && isRedirect(answer.status) && answer.location !== null
         ? httpUrl(answer.location, url)
         : null;
-      if (next === null) return { failure: answer };
+      if (next === null) return { failure: answer, at: url };
       url = next;
     }
-    return { failure: 'redirects' };
+    return { failure: 'too many redirects', at: url };
   }
 
-  /** Rules that refuse every request to an origin; `why` is logged once, here. */
-  function refuseAll(origin: string, why: string): OriginRules {
+  /** Rules that refuse every page request to one origin; logged once, here. */
+  function refuseOrigin(origin: string, why: string): OriginRules {
     log(`not crawling ${origin}: ${why}`);
-    return { refused: true, isAllowed: () => false, crawlDelayMs: 0 };
+    return { refusal: `origin ${origin} is not crawled: ${why}`, isAllowed: () => false, crawlDelayMs: 0 };
   }
 
-  async function loadRules(origin: string): Promise<OriginRules> {
+  /** Refuses every later page request to any origin of the site; logged once, here. */
+  function refuseSite(url: URL, why: string): OriginRules {
+    const site = siteOf(url);
+    log(`not crawling site ${site}: ${why}`);
+    const refusal = `site ${site} is not crawled: ${why}`;
+    refusedSites.set(site, refusal);
+    return { refusal, isAllowed: () => false, crawlDelayMs: 0 };
+  }
+
+  async function loadRules(originUrl: URL): Promise<OriginRules> {
+    const { origin } = originUrl;
     const robotsUrl = new URL('/robots.txt', origin);
-    const result = await getFollowingRedirects(robotsUrl, async () => null);
+    const result = await getFollowingRedirects(robotsUrl, false, async () => null);
     if ('body' in result) {
       const robots = robotsParser(robotsUrl.href, result.body);
       const crawlDelaySeconds = robots.getCrawlDelay(userAgent) ?? 0;
       const crawlDelayMs = Number.isFinite(crawlDelaySeconds) ? crawlDelaySeconds * 1000 : 0;
       if (crawlDelayMs > MAX_CRAWL_DELAY_MS) {
-        return refuseAll(origin, `robots.txt Crawl-delay ${crawlDelaySeconds} s is over ${MAX_CRAWL_DELAY_MS / 1000} s`);
+        return refuseSite(originUrl,
+          `robots.txt at ${origin} asks for Crawl-delay ${crawlDelaySeconds} s, over the ${MAX_CRAWL_DELAY_MS / 1000} s cap`);
       }
       return {
-        refused: false,
+        refusal: null,
         // undefined means the URL is not on this origin; never treat that as allowed.
         isAllowed: url => robots.isAllowed(url, userAgent) === true,
         crawlDelayMs,
@@ -185,9 +214,9 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     }
     const { failure } = result;
     if (typeof failure !== 'string' && failure.kind === 'response' && NO_ROBOTS_STATUSES.includes(failure.status)) {
-      return { refused: false, isAllowed: () => true, crawlDelayMs: 0 };
+      return { refusal: null, isAllowed: () => true, crawlDelayMs: 0 };
     }
-    return refuseAll(origin, `robots.txt unreadable (${typeof failure === 'string' ? failure : describe(failure)})`);
+    return refuseOrigin(origin, `robots.txt unreadable (${typeof failure === 'string' ? failure : describe(failure)})`);
   }
 
   /**
@@ -197,7 +226,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   function rulesFor(url: URL): Promise<OriginRules> {
     let originRules = rules.get(url.origin);
     if (!originRules) {
-      originRules = loadRules(url.origin).then(loaded => {
+      originRules = loadRules(url).then(loaded => {
         const queue = queueFor(url);
         queue.minGapMs = Math.max(queue.minGapMs, loaded.crawlDelayMs);
         return loaded;
@@ -207,11 +236,19 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     return originRules;
   }
 
-  /** null when robots.txt lets us request the URL, otherwise why not. */
-  async function whyNotAllowed(url: URL): Promise<'refused' | 'disallowed' | null> {
+  /**
+   * null when the page may be requested, otherwise why not. A refused site is refused
+   * before its origin's robots.txt is even read; the site is checked again after reading,
+   * since reading it (or another origin's) may have refused the site meanwhile.
+   */
+  async function whyNotAllowed(url: URL): Promise<string | null> {
+    const site = siteOf(url);
+    const before = refusedSites.get(site);
+    if (before !== undefined) return before;
     const originRules = await rulesFor(url);
-    if (originRules.refused) return 'refused';
-    return originRules.isAllowed(url.href) ? null : 'disallowed';
+    const refusal = refusedSites.get(site) ?? originRules.refusal;
+    if (refusal !== null) return refusal;
+    return originRules.isAllowed(url.href) ? null : 'disallowed by robots.txt';
   }
 
   return {
@@ -221,14 +258,12 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
         log(`not an http(s) URL: ${url}`);
         return null;
       }
-      const result = await getFollowingRedirects(start, whyNotAllowed);
+      const result = await getFollowingRedirects(start, true, whyNotAllowed);
       if ('body' in result) return result.body;
-      const { failure } = result;
-      if (failure === 'refused') return null; // already logged once for the origin
-      const why = failure === 'disallowed' ? 'disallowed by robots.txt'
-        : failure === 'redirects' ? 'too many redirects'
-        : describe(failure);
-      log(`not fetched ${url}: ${why}`);
+      const { failure, at } = result;
+      const why = typeof failure === 'string' ? failure : describe(failure);
+      const where = at.href === start.href ? '' : ` (redirected to ${at.href})`;
+      log(`not fetched ${url}${where}: ${why}`);
       return null;
     },
   };
