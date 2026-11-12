@@ -1,0 +1,13 @@
+{
+  "name": "@hktours/scraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@hktours/core": "workspace:*",
+    "@hktours/db": "workspace:*"
+  }
+}
