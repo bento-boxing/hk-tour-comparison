@@ -195,6 +195,7 @@ it('waits for a slow request to finish before starting the next', async () => {
   const [slow] = requestsTo('/slow');
   const [a] = requestsTo('/a');
   expect(a.start).toBeGreaterThanOrEqual(slow.end);
+  expect(a.start - slow.end).toBeGreaterThanOrEqual(45); // the delay counts from the end of the slow request
 });
 
 it('returns null for 404 without retrying', async () => {
@@ -276,18 +277,90 @@ it('waits longer when robots.txt asks for a longer Crawl-delay', async () => {
   }
 });
 
-it('does not crawl a site whose Crawl-delay is over the cap, and says why once', async () => {
+const glacialHandler: Handler = (req, res) =>
+  (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nCrawl-delay: 31') : send(res, 200, 'ok'));
+
+it('does not crawl a site whose Crawl-delay is over the cap, says why once, and names each skipped URL', async () => {
   expect(MAX_CRAWL_DELAY_MS).toBe(30_000);
-  const glacial = await startServer((req, res) =>
-    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nCrawl-delay: 31') : send(res, 200, 'ok')));
+  const glacial = await startServer(glacialHandler);
   try {
     expect(await f.fetchText(glacial.url('/a'))).toBeNull();
     expect(await f.fetchText(glacial.url('/b'))).toBeNull();
     expect(glacial.requests.map(r => r.path)).toEqual(['/robots.txt']);
-    expect(logLines.filter(line => /crawl-delay/i.test(line))).toHaveLength(1);
-    expect(logLines).toHaveLength(1);
+    expect(logLines.filter(line => line.startsWith('not crawling'))).toHaveLength(1);
+    expect(logLines.filter(line => /crawl-delay 31/i.test(line))).toHaveLength(3); // the site line and one per URL
+    for (const path of ['/a', '/b']) {
+      const lines = logLines.filter(line => line.includes(glacial.url(path)));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatch(/Crawl-delay 31/);
+    }
   } finally {
     await glacial.close();
+  }
+});
+
+it('a Crawl-delay over the cap on one port refuses the whole site, other ports included', async () => {
+  const glacial = await startServer(glacialHandler);
+  const plain = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 200, 'ok')));
+  try {
+    expect(await f.fetchText(glacial.url('/a'))).toBeNull();
+    expect(await f.fetchText(plain.url('/a'))).toBeNull();
+    expect(await f.fetchText(plain.url('/b'))).toBeNull();
+    expect(plain.requests).toEqual([]); // not even its robots.txt: the whole site is refused
+    for (const path of ['/a', '/b']) {
+      expect(logLines.filter(line => line.includes(plain.url(path)) && /Crawl-delay 31/.test(line))).toHaveLength(1);
+    }
+  } finally {
+    await glacial.close();
+    await plain.close();
+  }
+});
+
+it('a page already queued when its site is refused is not sent', async () => {
+  const glacial = await startServer(glacialHandler);
+  const plain = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 200, 'ok')));
+  try {
+    expect(await f.fetchText(plain.url('/a'))).toBe('ok'); // before the refusal: fine
+    // plain's rules are known, so /b queues at once, behind glacial's robots.txt, which refuses the site.
+    const bodies = await Promise.all([f.fetchText(glacial.url('/a')), f.fetchText(plain.url('/b'))]);
+    expect(bodies).toEqual([null, null]);
+    expect(plain.requests.map(r => r.path)).toEqual(['/robots.txt', '/a']);
+    expect(glacial.requests.map(r => r.path)).toEqual(['/robots.txt']);
+  } finally {
+    await glacial.close();
+    await plain.close();
+  }
+});
+
+it('a refused site reached through a redirect is not requested, and the requested URL is logged', async () => {
+  const glacial = await startServer(glacialHandler);
+  const hopping = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: glacial.url('/a') })));
+  try {
+    const start = hopping.url('/go');
+    expect(await f.fetchText(start)).toBeNull();
+    expect(glacial.requests.map(r => r.path)).toEqual(['/robots.txt']);
+    const lines = logLines.filter(line => line.includes(start));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(glacial.url('/a'));
+    expect(lines[0]).toMatch(/Crawl-delay 31/);
+  } finally {
+    await glacial.close();
+    await hopping.close();
+  }
+});
+
+it('a page on an origin with unreadable robots.txt is logged by URL', async () => {
+  const broken = await startServer((_req, res) => send(res, 500));
+  try {
+    expect(await f.fetchText(broken.url('/a'))).toBeNull();
+    const lines = logLines.filter(line => line.includes(broken.url('/a')));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/robots\.txt unreadable/);
+  } finally {
+    await broken.close();
   }
 });
 
