@@ -1,0 +1,111 @@
+OWNER DECISION PENDING
+
+# Jetour 捷旅 (`jetour`): operator investigation
+
+- Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`); pages fetched 2026-11-12 22:13–22:38 UTC.
+- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **10 of 10**.
+
+## Recommendation
+
+**PROCEED.** Jetour publishes no website terms of use; the only terms it links are booking terms. Neither booking-terms document has a clause about automated access, scraping, crawling, copying or reproduction of site content. robots.txt allows everything, and every needed fact is in the tour page itself.
+
+- The only rights notice on the site is the footer line, which is a copyright notice and not a use restriction:
+
+  > 2026© 捷旅集團     牌照號碼：353020
+
+- Not read: the privacy policy's single post (`/privacy-policy` is an index whose only entry is `個人資料收集及使用`, about collecting customers' personal data). A privacy policy is not expected to restrict site use, but it was not checked.
+
+## Terms of use
+
+Footer links, all read 2026-11-13: `責任及細則` → `https://www.jetour.com.hk/terms-and-condition` (an index of two posts) and `私隱政策` → `https://www.jetour.com.hk/privacy-policy` (an index of one post).
+
+- `https://www.jetour.com.hk/terms-and-condition/post/tour-terms-and-conditions` (`旅行團責任及細則`): booking, payment, cancellation and liability terms for tours. **No clause about website use, automated access, copying or reproduction.** The only mentions of web sites are references for customers (`https://www.travelhealth.gov.hk/`, `https://www.tia.org.hk/…`).
+- `https://www.jetour.com.hk/terms-and-condition/post/demo-2` (`自遊行/郵輪船票責任及細則`): booking terms for packages and cruise tickets. **No such clause.** Its only mention of web pages: `所有遊輪、自駕遊、當地自費遊或火車証之責任細則 均以其所屬公司所刊登之條款為準，詳情請瀏覽該公司 之網頁或向「本公司」職員查詢。`
+
+## robots.txt (`https://www.jetour.com.hk/robots.txt`)
+
+```
+User-agent: *
+Disallow:
+
+Sitemap: https://www.jetour.com.hk/sitemap.xml
+```
+
+Everything is allowed. No Crawl-delay.
+
+## `/tour/THB`: one tour, not a list (settled)
+
+`https://www.jetour.com.hk/tour/<CODE>` is **one tour product** (`THB` = `8天從容慢遊・東北冰雪童話`) with **several departures** in a booking table. Each departure has its own group code (`26T1222THB`, `26T1226THB`: `yy` + `T` + `mmdd` + product code). The many prices the plan's author saw are the "from" price plus, for each departure, the offer price, the struck-through original, and four passenger-type prices (`成人(佔半房)`, `小童(佔床)`, `小童(不佔床)`, `成人(單人房)`), each also with its original. The 2 dates are the 2 departures.
+
+The **lists** of tours for a destination are the `/tour/dest/<region>` and `/tour/dest/<region>/<country>` pages (e.g. page 1 of 3 of `/tour/dest/china` shows 12 tours as cards linking to `/tour/<CODE>`). They are not needed: the sitemap lists every `/tour/<CODE>` directly.
+
+## Tour pages in the sitemap
+
+`https://www.jetour.com.hk/sitemap.xml` is one `urlset` with 1,394 URLs:
+
+- **`/tour/<one path segment>`: 452** tour pages. Codes are mostly 3–5 capital letters (`THB`, `TSEQ`), some with a hyphen (`HKWA-HKWAJ`, `TUNA-TUNAJ`) or a lower-case letter (`EIMz`). **One is not a code:** `/tour/江門,新會,珠海美食純玩之旅`, an empty page (see the edge fixture).
+- `/tour/dest/…`: 216 destination list pages (two or three segments after `/tour/`). Not tour pages.
+- `/cruise-tour/<CODE>`: 259 cruise-and-tour packages; `/cruise/…`: 465 cruises; plus 1 `/seminar/…` and 1 `/cruise-company/…`. Out of scope unless the owner decides otherwise.
+
+## Where each fact comes from
+
+Everything is in the tour page HTML. No separate request is needed. The scripts carry no data (Cloudflare Rocket Loader retypes them as `<hash>-text/javascript`).
+
+| Fact | Selector |
+|---|---|
+| Tour code | `.tour_location .card_tag` (`THB`); departure group codes in `.booking-table--reference--number.visible-desktop` |
+| Title | `h1.title` (`8天從容慢遊・東北冰雪童話`, days included); `.tour_location .location_name` without days; `<title>` adds ` - Jetour 捷旅` |
+| Days | leading `N天` of `h1.title`; or the number of `.days__items` |
+| Nights | not stated |
+| Day headings | `.days__list--works .days__items`, each with `.day--name` (`第1天`), `.day--title` (`出發前往哈爾濱`) and `.day--trip-work` (stops: `香港 ~ 哈爾濱`, separated by ` ~ `, sometimes with `：` and a list) |
+| Start / end point | day 1 `.day--trip-work` first stop and last day's last stop (`香港`). Day 1 prose says where the group meets (below). |
+| "From" price | `.booking--price` (`HKD 20,998 +`) |
+| Departure dates | `.booking-table--body .booking-table--row` → `.booking-table--start--date span:last-child` (`2026年12月22日 (二)`); return date in `.booking-table--end--date span:last-child` |
+| Per-date price | the row's `.booking-table--price.visible-desktop`: either plain text `HKD 2,798 +`, or three spans: a label (`限時優惠` / `早鳥優惠`), the price `HKD 20,998 +`, and the struck original `span.text-decoration-line-through` `HKD 22,998+`. Prices differ per date (TSEQ: 2,798 and 3,198). |
+| Full / closed | the last class of the row's `.booking-table--status.visible-desktop` and its text: `OK` 收客中, `FORMING_A_TOUR` 即將成團, `TOUR_IS_FORMED` 已成團 (seen on tour pages); `ALMOST_FULL` 尚餘少量 and `FULLED` 額滿候補 (the status filter on `/tour/dest/china`; not seen on a tour page). |
+| No departures | `.booking-table--row .empty-data` with text `沒有數據。` |
+
+Caution: the destination list card for `TNA` carried the label `全團滿額` (all full), but the `TNA` tour page shows all six departures as `FORMING_A_TOUR` / `即將成團`. The card label is a marketing tag; use the tour page's status classes.
+
+## Gathering / departure point text (exact)
+
+- `THB`: day 1 stops `香港 ~ 哈爾濱`; prose `是日集合於香港國際機場，由專業領隊陪同下乘搭豪華客機飛住哈爾濱。抵達後，客人如需要可於棉衣商場補充禦寒物品。`
+- `TSEQ`: day 1 stops `香港 ~ 杭州/上海 ~ 洛克·外灘源(ROCKBUND)`; prose `是日集合於香港國際機場，由專業領隊陪同搭乘直航客機飛往杭州/上海。`
+- `TNA`: day 1 stops `香港 ~ 成都 ~ 文殊坊`; prose `是日集合於香港國際機場，由專業領隊陪同下，乘搭豪華客機直飛成都。`; last day `早餐後，指定時間集合乘專車前往機場乘豪華客機飛返香港。`
+- No `集合地點` or `出發地點` label exists. The meeting point appears only in day-1 prose, which `trimFixture` cuts to its first 20 characters (`是日集合於香港國際機場，由專業領隊陪同下…`). The place survives the cut in these samples.
+
+## Number and date formats
+
+- Dates: `2026年12月22日 (二)`: full year, zero-padded month and day, weekday in brackets. Return dates cross the year (`2027年01月02日 (六)`).
+- Prices: ASCII digits with a comma and a trailing `+`, written both `HKD 20,998 +` and `HKD 22,998+` (the space before `+` varies). No full-width digits seen.
+- A day title contains zero-width spaces (U+200B): `長廣溪​​​​濕地公園` on TSEQ day 3.
+
+## Fixtures (`packages/scraper/src/operators/jetour/fixtures/`)
+
+Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`).
+
+| File | Source | Why |
+|---|---|---|
+| `multi-city.html` | `/tour/THB` | 8 days, Harbin / Mohe / Arctic Village; 2 departures with offer + struck prices; return date in the next year |
+| `simple.html` | `/tour/TSEQ` | The shortest and cheapest tour found (6 days, Jiangnan); plain prices that differ per date; statuses `FORMING_A_TOUR` and `TOUR_IS_FORMED`. **Not a true one-or-two-place tour** (it visits Shanghai, Wuxi, Huzhou, Hangzhou, Puyuan); no such Jetour tour was found within the budget. |
+| `edge.html` | `/tour/江門,新會,珠海美食純玩之旅` | Empty tour page: no code, no departures (`沒有數據。`), no days, price `HKD 0 +`. A parser should return null. |
+
+Checked by eye: no personal data. Phone numbers present are the company's published hotline and WhatsApp numbers. No hand trimming was needed.
+
+Also fetched but not saved: `/tour/TNA` (8 days, six departures from 2026-11-27 to 2027-02-19, all `即將成團`).
+
+## Every URL fetched (10 page fetches; robots.txt not counted)
+
+| # | UTC | URL | Result |
+|---|---|---|---|
+| – | 22:13:21 | https://www.jetour.com.hk/robots.txt | 200 |
+| 1 | 22:13:52 | https://www.jetour.com.hk/sitemap.xml | 200 |
+| 2 | 22:16:12 | https://www.jetour.com.hk/tour/THB | 200 |
+| 3 | 22:29:37 | https://www.jetour.com.hk/terms-and-condition | 200 (index) |
+| 4 | 22:29:41 | https://www.jetour.com.hk/tour/dest/china | 200 (list) |
+| 5 | 22:33:23 | https://www.jetour.com.hk/terms-and-condition/post/tour-terms-and-conditions | 200 |
+| 6 | 22:35:28 | https://www.jetour.com.hk/tour/TNA | 200 |
+| 7 | 22:35:32 | https://www.jetour.com.hk/tour/TSEQ | 200 |
+| 8 | 22:35:35 | https://www.jetour.com.hk/terms-and-condition/post/demo-2 | 200 |
+| 9 | 22:35:39 | https://www.jetour.com.hk/privacy-policy | 200 (index) |
+| 10 | 22:37:37 | https://www.jetour.com.hk/tour/江門,新會,珠海美食純玩之旅 | 200 |
