@@ -20,7 +20,8 @@ export const SNAPSHOT_KEEP_NIGHTS = 8;
  * window". Snapshots outside the window, or whose date is not a real
  * `YYYY-MM-DD` date, are ignored.
  *
- * currentPriceHkd is tonight's from-price. Returns null when there is nothing to compare with.
+ * currentPriceHkd is tonight's from-price. Returns null when there is nothing to compare with,
+ * or when tonight's price or the baseline's price is not a finite number.
  */
 export function comparePrice(currentPriceHkd: number, snapshots: PriceSnapshot[], today: IsoDate): PriceChange | null {
   const weekAgo = addDays(today, -7);
@@ -33,6 +34,7 @@ export function comparePrice(currentPriceHkd: number, snapshots: PriceSnapshot[]
     if (baseline === null || snapshot.date < baseline.date) baseline = snapshot;
   }
   if (baseline === null) return null;
+  if (!Number.isFinite(currentPriceHkd) || !Number.isFinite(baseline.priceHkd)) return null;
 
   const sinceDate = baseline.date;
   const diff = currentPriceHkd - baseline.priceHkd;
