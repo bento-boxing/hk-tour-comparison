@@ -24,7 +24,55 @@ OWNER DECISION PENDING
 
 ## robots.txt (`https://www.egltours.com/robots.txt`, read 2026-11-13)
 
-`User-agent: *` disallows, among others: `/cas-b2c/`, `/itour/`, `/tour/fitPaxInfo`, `/tour/tourPaxInfo`, `/travel/pages/tour_view/`, `/travel/pdf/`, `/pdf_src/tour/tourpdf/`, `/EGLTBS/`, `/website/search-result/*`, `/website/location-search-result/*`, `/website/search-result-cruise/*`, `/nfit-cart-b2c-web/`, `/cart-tbs/`, `/cart-guru/`, `/tour/indexOnline3in1`. **`/website/itinerary/` and `/api/` are allowed.** No Crawl-delay.
+The complete `User-agent: *` group, verbatim from the saved file (lines 1–41 of 83; the group runs until the next `User-agent` line, and the comments inside it are part of the file):
+
+```
+User-agent: *
+Disallow: /cas-b2c/
+Disallow: /cas-protect-url/
+Disallow: /cas5-b2c/
+Disallow: /egltours/MecmsRs.do
+Disallow: /egltours/showAfterSalesForm.do
+Disallow: /egltours/showFitTeaPartyLogin.do
+Disallow: /itour/
+Disallow: /tour/fitPaxInfo
+Disallow: /tour/questionnaire/
+Disallow: /tour/showPaymentForm.action
+Disallow: /tour/tourPaxInfo
+Disallow: /travel/pages/tour_view/
+Disallow: /travel/saveCallcenter
+Disallow: /travel/travel/mice/mail.jsp
+Disallow: /travel/travel/swt/mail.jsp
+Disallow: /travel/travel/swt/swt_contactus.jsp
+Disallow: /travel/travel/yep/mail.jsp
+Disallow: /travel/pdf/
+Disallow: /pdf_src/visa/
+Disallow: /pdf_src/tour/tourpdf/
+Disallow: /EGLTBS/
+
+# Comment SEO-addon at 2024 suggest by agency
+Disallow: /local-travel/search/*
+Disallow: /trip-packages/flight?scopes=*
+Disallow: /trip-packages/hotel?scope=*
+Disallow: /trip-packages/related_packages/*
+
+# Comment SEO-addon at 2024
+Disallow: /website/search-result/*
+Disallow: /website/location-search-result/*
+Disallow: /website/search-result-cruise/*
+
+# Create Payment Request to Payment Gateway
+Disallow: /nfit-cart-b2c-web/
+Disallow: /cart-tbs/
+Disallow: /cart-guru/
+
+# Added 2026 - member / online service pages, no SEO value
+Disallow: /tour/indexOnline3in1
+```
+
+The rest of the file is the AI-crawler groups quoted above (`OAI-SearchBot`, `ChatGPT-User`, `Claude-SearchBot`, `Claude-User` and `PerplexityBot` allowed; `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `CCBot`, `Bytespider` and `meta-externalagent` disallowed from `/`) and `Sitemap: https://www.egltours.com/sitemap.xml`. Our User-Agent `tour-comparison-bot/0.1` matches none of the named groups, so only the `User-agent: *` group applies to it.
+
+No rule in that group matches `/website/itinerary/` or `/api/` (no `Disallow` line begins with either, and no wildcard rule can match them), so **`/website/itinerary/<CODE>` and `/api/v1/tours/<CODE>/dates` are allowed.** No Crawl-delay.
 
 ## Tour pages in the sitemap
 
@@ -75,7 +123,15 @@ Sample response (abridged):
 
 ## Fixtures (`packages/scraper/src/operators/egl/fixtures/`)
 
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`). The date JSON files are the raw API responses, copied unchanged: they hold only codes, dates, prices and flags.
+These fixtures are held outside the repository until the owner decides on this operator; they are committed to this path only if it is approved.
+
+Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`), with **no `--keep` selector**. EGL's day headings are not element text: the accordion element `.block-item--daily-itinerary-plan-accordion` is empty in the HTML, and the headings (`title`, `journeyTextRows[][].location`) live only in its `data-daily-itinerary-plans-json` attribute, where strings are cut only above 120 characters. The longest heading string in the three samples is 30 characters, so none is cut (checked: 61 heading strings, 0 ending in `…`). A `--keep` selector would not change them, because it applies to element text and to page-data strings that repeat a kept element's text. If a longer heading appears, the keep mechanism would need to cover that attribute, which it does not today. Regenerate with:
+
+```
+pnpm --filter @hktours/scraper fixture --from <saved itinerary page> <output>
+```
+
+The date JSON files are the raw API responses, copied unchanged: they hold only codes, dates, prices and flags.
 
 | File | Source | Why |
 |---|---|---|

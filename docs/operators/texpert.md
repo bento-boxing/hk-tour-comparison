@@ -84,11 +84,19 @@ The server-rendered calendar (`td[data-day="2026-11-27"]`, `data-disabled="true"
 
 - Data: ISO dates and integer prices in the flight data and JSON-LD.
 - Visible text: prices `HKD 1,999` (ASCII, comma). Related-tour cards list dates as `12/24` and `2/3` (**month/day, no year**). Calendar labels read `2026年11月25日 星期三`. No full-width digits seen.
-- Day headings longer than 60 characters are cut in the fixtures' HTML. The same heading is also in the flight data, where it is cut only if over 120 characters (whole for `1272`, cut for `1386` and `1359`). Parser tests should not assert more than a heading's first 20 characters.
+- Day headings are long (up to 147 characters in the samples). The fixtures keep them whole, both in the HTML and where the flight data repeats them (see Fixtures).
 
 ## Fixtures (`packages/scraper/src/operators/texpert/fixtures/`)
 
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>`. `trimFixture` keeps the flight data merged into a single `self.__next_f.push([1,"…"])` script, with strings over 120 characters and text rows cut.
+These fixtures are held outside the repository until the owner decides on this operator; they are committed to this path only if it is approved.
+
+Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` and one `--keep` selector for the day headings. To regenerate:
+
+```
+pnpm --filter @hktours/scraper fixture --keep 'details summary h3' --from <saved tour page> <output>
+```
+
+then remove the two tracing meta tags by hand (below). `trimFixture` keeps the flight data merged into a single `self.__next_f.push([1,"…"])` script, with strings over 120 characters and text rows cut. Text inside `details summary h3` is cut only above 300 characters, and a flight data string that repeats such a text exactly is kept up to 300 characters too. Checked after regenerating: all 8 day headings are whole in the HTML (longest 147 characters, none ends in `…`), and the only flight data strings over 120 characters are day headings: `1386` day 1 (135 characters, as `children`) and `1359` day 1 (147 characters, as `children` and as an image `fallbackAlt`).
 
 | File | Source | Why |
 |---|---|---|

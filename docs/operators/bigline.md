@@ -1,6 +1,6 @@
 OWNER DECISION PENDING
 
-DATES NOT AVAILABLE WITHIN THE RULES
+DATES SOURCE UNVERIFIED (api.biglinehk.com robots.txt not read; host not cleared by the owner)
 
 # Big Line Holiday 大航假期 (`bigline`): operator investigation
 
@@ -11,7 +11,7 @@ DATES NOT AVAILABLE WITHIN THE RULES
 
 **HOLD.** Two reasons:
 
-1. **Departure dates, prices and day headings are not in any page on `bigline.hk`.** The tour pages are a Nuxt 3 app that loads all tour data in the browser from a different host, **`https://api.biglinehk.com/`**. That host was not among the hosts cleared for this task, so its robots.txt was not read and it was not requested. Whether it allows our User-Agent, or needs a token, is unknown. The page itself shows the data only in a real browser running its scripts. This matches the brief's `DATES NOT AVAILABLE WITHIN THE RULES` case, hence the line at the top.
+1. **Departure dates, prices and day headings are not in any page on `bigline.hk`.** The tour pages are a Nuxt 3 app that loads all tour data in the browser from a different host, **`https://api.biglinehk.com/`**. That host was not among the hosts cleared for this task, so its robots.txt was not read and it was not requested. Whether it allows our User-Agent, or needs a login, a browser or a token, is unknown: nothing seen so far shows that it does. The tour page is rendered in the browser: its scripts request the data from that host after the page loads, so the HTML as served contains none of it. Hence the line at the top: where the dates come from is known only as far as the host, and that host has not been checked against the rules.
 2. **The terms could not be read.** The user agreement page (`《用戶協議》` → `https://bigline.hk/user-agreement?protocolId=1`) is loaded the same way: its HTML has no agreement text. No clause can be quoted. The only rights text on the site is the footer:
 
    > 大航假期 Copyright © 2026 Big Line Holiday Limited. All rights reserved
@@ -59,7 +59,7 @@ No prices or dates are in the pages, so nothing to report. The SEO text uses ASC
 
 ## Fixtures
 
-**None saved**, because the facts are not reachable within the rules (as the brief directs).
+**None saved**: none of the facts is in the pages that were cleared and fetched, and the API host that serves them has not been checked.
 
 ## Every URL fetched (9 page fetches; robots.txt not counted)
 
