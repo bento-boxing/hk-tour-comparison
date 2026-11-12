@@ -82,7 +82,13 @@ Caution: the destination list card for `TNA` carried the label `全團滿額` (a
 
 ## Fixtures (`packages/scraper/src/operators/jetour/fixtures/`)
 
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`).
+Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`), with two `--keep` selectors so the day headings and stop lines are not cut at 60 characters (only above 300). To regenerate:
+
+```
+pnpm --filter @hktours/scraper fixture --keep .day--title --keep .day--trip-work --from <saved tour page> <output>
+```
+
+`.day--trip-work` is the stop line (`無錫 ~ 長廣溪濕地公園 ~ … ~ 太湖漁人碼頭燈光夜秀`, up to 66 characters in TSEQ); `.day--title` is the day title (up to 18 characters, kept for safety). Checked after regenerating: none of the 14 `.day--trip-work` lines in the three fixtures ends in `…`.
 
 | File | Source | Why |
 |---|---|---|
