@@ -4,3 +4,5 @@ export * from './types';
 export * from './schema';
 export * from './places/index';
 export * from './stops';
+export * from './start-point';
+export * from './normalise';
