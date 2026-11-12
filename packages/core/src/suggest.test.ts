@@ -51,14 +51,26 @@ it('a region name shared by several countries suggests each of them', () => {
   expect(labels('中部').slice(0, 2)).toEqual(['台灣 → 中部', '越南 → 中部']);
 });
 it('exact matches come before prefix matches, prefix before contains', () => {
-  // 京都 starts with 京; cities 東京, 北京, 南京 only contain it; then regions containing it:
-  // 北京及華北 is already given by 北京, 首爾及京畿 is new (its alias 京畿 is not a name, so no prefix match)
+  // city 京都 starts with 京; region alias 京畿 starts with 京; cities 東京, 北京, 南京 only contain it
   expect(suggestRegions('京', places)).toEqual([
     { destination: { countryId: 'japan', regionId: 'japan-kansai' }, label: '日本 → 關西', via: '京都' },
+    { destination: { countryId: 'korea', regionId: 'korea-seoul' }, label: '韓國 → 首爾及京畿', via: null },
     { destination: { countryId: 'japan', regionId: 'japan-kanto' }, label: '日本 → 關東', via: '東京' },
     { destination: { countryId: 'china', regionId: 'china-beijing' }, label: '中國 → 北京及華北', via: '北京' },
     { destination: { countryId: 'china', regionId: 'china-shanghai' }, label: '中國 → 上海及華東', via: '南京' },
-    { destination: { countryId: 'korea', regionId: 'korea-seoul' }, label: '韓國 → 首爾及京畿', via: null },
+  ]);
+});
+it('aliases count in prefix matches for regions and countries', () => {
+  // 婆羅洲 is an alias of 東馬; 中國內地 is an alias of 中國
+  expect(suggestRegions('婆羅', places)).toEqual([
+    { destination: { countryId: 'malaysia', regionId: 'malaysia-borneo' }, label: '馬來西亞 → 東馬', via: null },
+  ]);
+  expect(labels('中國內')).toEqual(['中國 → 全部地區']);
+});
+it('aliases count in substring matches, and via is still the city nameZh', () => {
+  // 口湖 is inside the aliases 富士河口湖 and 河口湖 of 富士山, and no name starts with it
+  expect(suggestRegions('口湖', places)).toEqual([
+    { destination: { countryId: 'japan', regionId: 'japan-chubu' }, label: '日本 → 中部北陸', via: '富士山' },
   ]);
 });
 it('normalises 臺 in the query', () => { expect(labels('臺北')[0]).toBe('台灣 → 北部'); });

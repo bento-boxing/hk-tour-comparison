@@ -13,12 +13,10 @@ export const ALL_REGIONS_LABEL = '全部地區';
 type Place = { nameZh: string; nameEn: string; aliases: string[] };
 type NameTest = (name: string) => boolean;
 
-const normalisedNames = (raw: string[]) => raw.map(normaliseName).filter(n => n !== '');
-/** A place's "name": Chinese and English. */
-const names = (p: Place) => normalisedNames([p.nameZh, p.nameEn]);
-const namesAndAliases = (p: Place) => normalisedNames([p.nameZh, p.nameEn, ...p.aliases]);
+/** Every normalised name a place answers to: Chinese, English and aliases. */
+const namesOf = (p: Place) => [p.nameZh, p.nameEn, ...p.aliases].map(normaliseName).filter(n => n !== '');
 
-function matching<T extends Place>(items: T[], namesOf: (p: Place) => string[], test: NameTest): T[] {
+function matching<T extends Place>(items: T[], test: NameTest): T[] {
   return items.filter(p => namesOf(p).some(test));
 }
 
@@ -53,21 +51,21 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   const startsWith: NameTest = n => n.startsWith(q);
   const contains: NameTest = n => n.includes(q);
 
-  // 1–3: exact name or alias.
-  matching(cities, namesAndAliases, equals).forEach(addCity);
-  matching(regions, namesAndAliases, equals).forEach(r => addRegion(r));
-  for (const country of matching(countries, namesAndAliases, equals)) {
+  // Every rule matches nameZh, nameEn and aliases.
+  // 1–3: exact city, region, country.
+  matching(cities, equals).forEach(addCity);
+  matching(regions, equals).forEach(r => addRegion(r));
+  for (const country of matching(countries, equals)) {
     addAllRegions(country);
     index.regionsOf(country.id).forEach(r => addRegion(r));
   }
-  // 4: city name or alias starts with the query.
-  matching(cities, namesAndAliases, startsWith).forEach(addCity);
-  // 5: region, then country, name starts with the query.
-  matching(regions, names, startsWith).forEach(r => addRegion(r));
-  matching(countries, names, startsWith).forEach(addAllRegions);
-  // 6: city, then region, name contains the query.
-  matching(cities, names, contains).forEach(addCity);
-  matching(regions, names, contains).forEach(r => addRegion(r));
+  // 4–5: city, region, then country starts with the query.
+  matching(cities, startsWith).forEach(addCity);
+  matching(regions, startsWith).forEach(r => addRegion(r));
+  matching(countries, startsWith).forEach(addAllRegions);
+  // 6: city, then region, contains the query.
+  matching(cities, contains).forEach(addCity);
+  matching(regions, contains).forEach(r => addRegion(r));
 
   return results.slice(0, limit);
 }
