@@ -16,8 +16,9 @@ export const MAX_PARSE_FAILURE_RATE = 0.2;
 /**
  * Decides whether one operator's run is trustworthy enough to save.
  * Returns every reason that applies, in a fixed order; ok only when there are none.
- * Ratios are compared as integer divisions so exact boundaries (60%, 20%) are not
- * disturbed by floating-point multiplication.
+ * Each rule divides one count by the other and compares the quotient with the limit,
+ * rather than multiplying a count by 0.6 or 0.2. Division of two whole numbers is
+ * correctly rounded, so a quotient of exactly 60% or 20% equals the limit and passes.
  */
 export function checkRun(input: RunCheckInput): { ok: boolean; reasons: RunFailureReason[] } {
   const { toursNormalised, tourPagesFetched, parseFailures, previousGoodCount } = input;

@@ -91,7 +91,7 @@ it('saves good tours and reports ok', async () => {
     { ok: true, reasons: [], pages_fetched: 5, parse_failures: 1, tours_saved: 4, run_date: NIGHT_1 },
   ]);
   expect(logMentions(pageUrl('N'), 'null')).toBe(true);    // one line for the failure, with its URL and reason
-  expect(logLines.at(-1)).toMatch(/^jetour: ok, 4 tours saved, 5 tour pages, 1 parse failure/); // final summary line
+  expect(logLines.at(-1)).toBe('jetour: ok, 4 tours saved, 5 tour pages, 1 parse failure, 0 unmatched names'); // final summary line
 });
 
 it('two valid tours and one null page is too many parse failures to save', async () => {
@@ -114,6 +114,25 @@ it('a tour with no upcoming departures is skipped, not a failure', async () => {
   expect(outcome).toMatchObject({ ok: true, toursSaved: 1 });
   expect(await activeCodes()).toEqual(['A']);
   expect(await scrapeRuns()).toMatchObject([{ pages_fetched: 2, parse_failures: 0 }]);
+  expect(logLines.at(-1)).toBe('jetour: ok, 1 tour saved, 2 tour pages, 0 parse failures, 0 unmatched names');
+});
+
+it('a tour page with no day headings is a parse failure', async () => {
+  const pages = site([...goodTours(9), ['BARE', tour('BARE', { dayHeadings: [] })]]);
+  const outcome = await run(pages);
+  expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 }); // 1 in 10 is under the 20% limit
+  expect(await activeCodes()).not.toContain('BARE');
+  expect(await savedTours()).toHaveLength(9);
+  expect(await scrapeRuns()).toMatchObject([{ pages_fetched: 10, parse_failures: 1 }]);
+  expect(await unmatchedPlaces()).toEqual([]);
+  expect(logMentions(pageUrl('BARE'), 'no-stops')).toBe(true);
+  expect(logLines.at(-1)).toBe('jetour: ok, 9 tours saved, 10 tour pages, 1 parse failure, 0 unmatched names');
+});
+
+it('a single unmatched name reads in the singular', async () => {
+  const pages = site([['A', tour('A', { dayHeadings: ['香港 → 大阪', '大阪 → 亞特蘭提斯'] })]]);
+  await run(pages);
+  expect(logLines.at(-1)).toBe('jetour: ok, 1 tour saved, 1 tour page, 0 parse failures, 1 unmatched name');
 });
 
 it('a tour whose headings match no place is a parse failure and its names are logged', async () => {
