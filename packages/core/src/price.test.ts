@@ -33,6 +33,20 @@ it('ignores snapshots whose date is not a real YYYY-MM-DD date', () => {
   expect(comparePrice(5000, [...junk, s('2026-11-08', 5300)], today))
     .toEqual({ kind: 'lower', diffHkd: 300, sinceDate: '2026-11-08' });
 });
+it('ignores an invalid date that sorts inside the week', () => {
+  // Window is 2026-02-24..2026-03-02. By string order '2026-02-30' is inside it and
+  // older than the valid snapshot, so without the date check it would be the baseline.
+  expect(comparePrice(5000, [s('2026-02-30', 4000), s('2026-03-01', 5200)], '2026-03-03'))
+    .toEqual({ kind: 'lower', diffHkd: 200, sinceDate: '2026-03-01' });
+});
+it.each([
+  ['current price NaN', NaN, 5000],
+  ['current price Infinity', Infinity, 5000],
+  ['baseline price NaN', 5000, NaN],
+  ['baseline price -Infinity', 5000, -Infinity],
+])('null when a price is not a finite number (%s)', (_n, current, baseline) => {
+  expect(comparePrice(current, [s('2026-11-05', baseline)], today)).toBeNull();
+});
 it('uses yesterday when it is the only snapshot in the week', () => {
   expect(comparePrice(5000, [s('2026-11-11', 4800)], today))
     .toEqual({ kind: 'higher', diffHkd: 200, sinceDate: '2026-11-11' });
