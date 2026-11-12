@@ -32,8 +32,8 @@ function upcomingDepartures(departures: ScrapedDeparture[], today: IsoDate): Scr
 
 /** today: 'YYYY-MM-DD' in Hong Kong. Departures before today are dropped. */
 export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: IsoDate): NormaliseResult {
-  const start = normaliseStartPoint(scraped.startPoint);
-  const end = normaliseStartPoint(scraped.endPoint);
+  const start = normaliseStartPoint(scraped.startPoint, index);
+  const end = normaliseStartPoint(scraped.endPoint, index);
 
   const excluded = [HONG_KONG_CITY_ID];
   if (start.kind === 'sz' || end.kind === 'sz') excluded.push(SHENZHEN_CITY_ID);

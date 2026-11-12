@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { normaliseTour, places } from './index';
+import { normaliseTour, places, buildPlacesIndex } from './index';
 import type { ScrapedTour } from './index';
 
 /** The valid tour from schema.test.ts, with a Japan route and one past departure. */
@@ -51,6 +51,18 @@ it('drops Shenzhen from the route for a Shenzhen-start tour', () => {
   const r = normaliseTour({ ...base, startPoint: '深圳灣口岸', dayHeadings: ['深圳 → 桂林', '桂林 → 深圳'] }, places, today);
   expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangxi-guilin']);
   expect(r.ok && r.tour.start.kind).toBe('sz');
+});
+it('normalises a tour starting at a foreign airport as an other start', () => {
+  const r = normaliseTour({ ...base, startPoint: '東京成田機場集合' }, places, today);
+  expect(r.ok && r.tour.start).toEqual({ kind: 'other', label: '東京成田機場集合' });
+});
+it('passes its own index to the start-point rule', () => {
+  const withoutTokyo = buildPlacesIndex({
+    ...places.data,
+    cities: places.data.cities.filter(c => c.id !== 'japan-kanto-tokyo'),
+  });
+  const r = normaliseTour({ ...base, startPoint: '東京成田機場集合' }, withoutTokyo, today);
+  expect(r.ok && r.tour.start).toEqual({ kind: 'hk', label: null });
 });
 it('reports the raw headings, cut to 40 characters, when nothing was flagged unmatched', () => {
   const heading = 'x'.repeat(45);
