@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 import { expect, it } from 'vitest';
-import { trimFixture } from './trim-fixture';
+import { KEEP_TEXT_LIMIT, trimFixture } from './trim-fixture';
 
 it('removes images, styles, svg, iframes and comments', () => {
   const out = trimFixture('<div><!-- x --><style>a{}</style><img src="a.jpg"><svg></svg><iframe></iframe><p>5日4夜</p></div>');
@@ -24,12 +24,13 @@ it('keeps a script that assigns one object literal as page state', () => {
   expect(out).not.toContain('f(a)');
 });
 
-it('keeps a Nuxt 2 state script, a function call returning the state, and cuts its long strings', () => {
-  const state = `window.__NUXT__=(function(a,b){return {data:[{code:"ABC",desc:"${'x'.repeat(130)}"}]}}("y",2));`;
-  const out = trimFixture(`<script>${state}</script>`);
-  expect(out).toContain('code:"ABC"');
-  expect(out).toContain(`desc:"${'x'.repeat(20)}…"`);
-  expect(out).toContain('("y",2));');
+it('keeps a script that assigns one array literal', () => {
+  expect(trimFixture('<script>var tours = [{"code":"ABC"}];</script>')).toBe('<script>var tours = [{"code":"ABC"}];</script>');
+});
+
+it('drops a script that assigns the result of a function call, which is code', () => {
+  const state = 'window.__NUXT__=(function(a,b){return {data:[{code:"ABC"}]}}("y",2));';
+  expect(trimFixture(`<script>${state}</script><p>x</p>`)).toBe('<p>x</p>');
 });
 
 it('drops a script that assigns an object and then runs code', () => {
@@ -135,4 +136,34 @@ it('still cuts long text inside pre', () => {
 
 it('removes src and srcset attributes from elements that are kept', () => {
   expect(trimFixture('<source src="a" srcset="b"><a href="/tour/X">X</a>')).toBe('<source><a href="/tour/X">X</a>');
+});
+
+it('removes every inline event handler attribute', () => {
+  const html = '<form onsubmit="return send(this)" ONCLICK="go()"><input onchange="c()" name="q"><button onClick="z()">ok</button></form>';
+  expect(trimFixture(html)).toBe('<form><input name="q"><button>ok</button></form>');
+});
+
+it('keeps text inside elements matching a keep selector up to KEEP_TEXT_LIMIT characters', () => {
+  const stops = '無錫 ~ 長廣溪濕地公園 ~ 太湖珍珠館(購物店) ~ 紫砂博物館(購物店) ~ 湖州(車程約2.5小時) ~ 太湖漁人碼頭燈光夜秀';
+  const prose = '一'.repeat(61);
+  const html = `<div class="day--trip-work">${stops}</div><h3 class="day"><span>Day 1</span><span>${prose}</span></h3><p>${prose}</p>`;
+  expect(trimFixture(html, { keepSelectors: ['.day--trip-work', 'h3.day'] })).toBe(
+    `<div class="day--trip-work">${stops}</div><h3 class="day"><span>Day 1</span><span>${prose}</span></h3><p>${'一'.repeat(20)}…</p>`,
+  );
+});
+
+it('cuts text inside kept elements only above KEEP_TEXT_LIMIT characters', () => {
+  expect(KEEP_TEXT_LIMIT).toBe(300);
+  const opts = { keepSelectors: ['h3'] };
+  expect(trimFixture(`<h3>${'一'.repeat(300)}</h3>`, opts)).toBe(`<h3>${'一'.repeat(300)}</h3>`);
+  expect(trimFixture(`<h3>${'一'.repeat(301)}</h3>`, opts)).toBe(`<h3>${'一'.repeat(20)}…</h3>`);
+});
+
+it('keeps the text of kept elements whole where flight data repeats it, and still cuts other long strings', () => {
+  const heading = `福田口岸集合 > ${'長沙 > '.repeat(30)}衡陽東`;
+  const row = `4c:["$","h3",null,{"children":${JSON.stringify(heading)},"desc":"${'描'.repeat(121)}"}]\n`;
+  const html = `<html><body><h3>${heading}</h3>${push(row)}</body></html>`;
+  const out = trimFixture(html, { keepSelectors: ['h3'] });
+  expect(load(out)('h3').text()).toBe(heading);
+  expect(flightPayload(out)).toBe(`4c:["$","h3",null,{"children":${JSON.stringify(heading)},"desc":"${'描'.repeat(20)}…"}]\n`);
 });

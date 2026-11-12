@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "scripts",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["scripts"],
+  "references": [{ "path": "./tsconfig.json" }]
+}

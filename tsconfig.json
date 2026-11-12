@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/db" },
-    { "path": "./packages/scraper" }
+    { "path": "./packages/scraper" },
+    { "path": "./packages/scraper/tsconfig.scripts.json" }
   ]
 }
