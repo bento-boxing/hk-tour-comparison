@@ -6,12 +6,18 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "fixture": "node --import tsx scripts/save-fixture.ts"
+  },
   "dependencies": {
     "@hktours/core": "workspace:*",
     "@hktours/db": "workspace:*",
+    "cheerio": "^1.2.0",
+    "domhandler": "^5.0.3",
     "robots-parser": "^3.0.1"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43"
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.15"
   }
 }
