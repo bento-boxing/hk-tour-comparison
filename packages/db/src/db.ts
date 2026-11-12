@@ -30,6 +30,50 @@ export function transactionDb(handle: TransactionHandle): Db {
   return tx;
 }
 
+/** The parts of a checked-out pg.PoolClient that runPgTransaction uses. Internal: a test seam. */
+export interface PgClientLike {
+  query(sql: string, params?: unknown[]): Promise<{ rows: unknown[] }>;
+  on(event: 'error', listener: (err: Error) => void): unknown;
+  removeListener(event: 'error', listener: (err: Error) => void): unknown;
+  release(err?: Error | boolean): void;
+}
+
+/** The part of a pg.Pool that runPgTransaction uses. Internal: a test seam. */
+export interface PgPoolLike {
+  connect(): Promise<PgClientLike>;
+}
+
+/** Runs fn on one pooled client inside BEGIN/COMMIT; rolls back and rethrows if fn throws. Internal. */
+export async function runPgTransaction<T>(pool: PgPoolLike, fn: (tx: Db) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  let broken: Error | undefined;
+  // pg-pool removes its own 'error' listener while a client is checked out, and pg's
+  // Client emits 'error' after a dropped connection. Unheard, that event kills the
+  // process; heard, the query in flight still rejects and the client is destroyed.
+  const onError = (err: Error) => { broken = err; };
+  client.on('error', onError);
+  try {
+    await client.query('begin');
+    const result = await fn(transactionDb({
+      query: async (sql, params) => (await client.query(sql, params)).rows,
+      exec: async sql => { await client.query(sql); },
+    }));
+    await client.query('commit');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('rollback');
+    } catch (rollbackErr) {
+      // The connection is unusable; destroy it instead of returning it to the pool.
+      broken ??= rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr));
+    }
+    throw err;
+  } finally {
+    client.removeListener('error', onError);
+    client.release(broken);
+  }
+}
+
 /** A Db backed by a pg connection pool (at most 3 connections). */
 export function createPgDb(connectionString: string): Db {
   const pool = new pg.Pool({ connectionString, max: 3 });
@@ -40,29 +84,7 @@ export function createPgDb(connectionString: string): Db {
   return {
     query: async <T>(sql: string, params?: unknown[]) => (await pool.query(sql, params)).rows as T[],
 
-    async transaction(fn) {
-      const client = await pool.connect();
-      let broken: Error | undefined;
-      try {
-        await client.query('begin');
-        const result = await fn(transactionDb({
-          query: async (sql, params) => (await client.query(sql, params)).rows,
-          exec: async sql => { await client.query(sql); },
-        }));
-        await client.query('commit');
-        return result;
-      } catch (err) {
-        try {
-          await client.query('rollback');
-        } catch (rollbackErr) {
-          // The connection is unusable; destroy it instead of returning it to the pool.
-          broken = rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr));
-        }
-        throw err;
-      } finally {
-        client.release(broken);
-      }
-    },
+    transaction: fn => runPgTransaction(pool, fn),
 
     // With no parameters pg uses the simple query protocol, which accepts several statements.
     exec: async sql => { await pool.query(sql); },
