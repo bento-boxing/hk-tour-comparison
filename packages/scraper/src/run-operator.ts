@@ -16,6 +16,25 @@ export interface RunDeps {
 
 export interface RunOutcome { operatorId: OperatorId; ok: boolean; reasons: string[]; toursSaved: number }
 
+/** `1 tour saved`, `2 tours saved`. */
+function count(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
+/** The run's final log line, e.g. `jetour: ok, 1 tour saved, 2 tour pages, 0 parse failures, 0 unmatched names`. */
+function summaryLine(
+  operatorId: OperatorId, result: string,
+  toursSaved: number, pagesFetched: number, parseFailures: number, unmatched: number,
+): string {
+  return [
+    `${operatorId}: ${result}`,
+    count(toursSaved, 'tour saved', 'tours saved'),
+    count(pagesFetched, 'tour page', 'tour pages'),
+    count(parseFailures, 'parse failure', 'parse failures'),
+    count(unmatched, 'unmatched name', 'unmatched names'),
+  ].join(', ');
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -57,7 +76,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     const reasons = ['discover-error'];
     const stats: RunStats = { startedAt, finishedAt: now(), pagesFetched: 0, parseFailures: 0 };
     await recordFailedRun(db, { operatorId, runDate: today, stats, reasons });
-    log(`${operatorId}: failed (${reasons.join(', ')}), 0 tours saved, 0 tour pages, 0 parse failures`);
+    log(summaryLine(operatorId, `failed (${reasons.join(', ')})`, 0, 0, 0, 0));
     return { operatorId, ok: false, reasons, toursSaved: 0 };
   }
 
@@ -123,7 +142,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   }
   const toursSaved = check.ok ? tours.size : 0;
 
-  log(`${operatorId}: ${check.ok ? 'ok' : `failed (${reasons.join(', ')})`}, ${toursSaved} tours saved, `
-    + `${pagesFetched} tour pages, ${parseFailures} parse failures, ${unmatchedNames.length} unmatched names`);
+  log(summaryLine(operatorId, check.ok ? 'ok' : `failed (${reasons.join(', ')})`,
+    toursSaved, pagesFetched, parseFailures, unmatchedNames.length));
   return { operatorId, ok: check.ok, reasons, toursSaved };
 }

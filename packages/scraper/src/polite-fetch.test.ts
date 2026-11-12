@@ -2,7 +2,9 @@ import { it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
-import { createFetcher, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT } from './polite-fetch';
+import {
+  createFetcher, siteOf, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
+} from './polite-fetch';
 import type { Fetcher } from './types';
 
 interface RecordedRequest { path: string; userAgent: string | undefined; start: number; end: number }
@@ -110,11 +112,58 @@ it('never follows a redirect to a disallowed path', async () => {
   expect(await f.fetchText(url('/to-private'))).toBeNull();
   expect(requestsTo('/to-private')).toHaveLength(1);
   expect(main.requests.some(r => r.path === '/private/x')).toBe(false);
+  for (const r of main.requests) expect(r.userAgent).toBe('test-bot/0.1');
 });
 
-it('follows an allowed redirect politely', async () => {
+it('follows an allowed redirect politely, with the User-Agent on every hop', async () => {
   expect(await f.fetchText(url('/to-a'))).toBe('ok-a');
+  expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/to-a', '/a']);
+  for (const r of main.requests) expect(r.userAgent).toBe('test-bot/0.1');
   expectSpacedAndSerial(main.requests, 190);
+});
+
+/** Two servers on the same host (127.0.0.1) and different ports: one site, so one queue. */
+async function withSecondPort(run: (other: TestServer) => Promise<void>): Promise<void> {
+  const other = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow: /private/') : send(res, 200, `other${req.url}`)));
+  try {
+    await run(other);
+  } finally {
+    await other.close();
+  }
+}
+
+it('spaces requests across ports of one host when a redirect crosses them', async () => {
+  await withSecondPort(async other => {
+    const hopping = await startServer((req, res) =>
+      (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: other.url('/a') })));
+    try {
+      expect(await f.fetchText(hopping.url('/go'))).toBe('other/a');
+      const all = [...hopping.requests, ...other.requests];
+      expect(all.map(r => r.path).sort()).toEqual(['/a', '/go', '/robots.txt', '/robots.txt']);
+      for (const r of all) expect(r.userAgent).toBe('test-bot/0.1');
+      expectSpacedAndSerial(all, 190);
+    } finally {
+      await hopping.close();
+    }
+  });
+});
+
+it('never overlaps concurrent requests to two ports of one host', async () => {
+  await withSecondPort(async other => {
+    const bodies = await Promise.all([f.fetchText(url('/a')), f.fetchText(other.url('/a'))]);
+    expect(bodies).toEqual(['ok-a', 'other/a']);
+    const all = [...main.requests, ...other.requests];
+    expect(all).toHaveLength(4); // a robots.txt and a page on each port
+    expectSpacedAndSerial(all, 190);
+  });
+});
+
+it('queues www.<host> and <host> as one site, whatever the scheme or port', () => {
+  expect(siteOf(new URL('https://WWW.Example.com:8443/x'))).toBe('example.com');
+  expect(siteOf(new URL('http://example.com/y'))).toBe('example.com');
+  expect(siteOf(new URL('http://shop.example.com/y'))).toBe('shop.example.com');
+  expect(siteOf(new URL('http://127.0.0.1:1234/'))).toBe('127.0.0.1');
 });
 
 it('fetches robots.txt once per host', async () => {
@@ -224,6 +273,21 @@ it('waits longer when robots.txt asks for a longer Crawl-delay', async () => {
     expectSpacedAndSerial(slowHost.requests.filter(r => r.path !== '/robots.txt'), 390);
   } finally {
     await slowHost.close();
+  }
+});
+
+it('does not crawl a site whose Crawl-delay is over the cap, and says why once', async () => {
+  expect(MAX_CRAWL_DELAY_MS).toBe(30_000);
+  const glacial = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nCrawl-delay: 31') : send(res, 200, 'ok')));
+  try {
+    expect(await f.fetchText(glacial.url('/a'))).toBeNull();
+    expect(await f.fetchText(glacial.url('/b'))).toBeNull();
+    expect(glacial.requests.map(r => r.path)).toEqual(['/robots.txt']);
+    expect(logLines.filter(line => /crawl-delay/i.test(line))).toHaveLength(1);
+    expect(logLines).toHaveLength(1);
+  } finally {
+    await glacial.close();
   }
 });
 
