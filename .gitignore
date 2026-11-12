@@ -34,3 +34,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# project
+node_modules
+dist
+.next
+*.tsbuildinfo
+.env*
+!.env.example
+storage/
+.superpowers/
+.tools/
+
+# local tooling and editor files (never commit)
+.claude/
+.idea
+.mcp.json
+.bashrc
+.bash_profile
+.profile
+.gitconfig
+.gitmodules
+.ripgreprc
+.vscode
+.zprofile
+.zshrc
