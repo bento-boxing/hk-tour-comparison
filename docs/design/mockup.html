@@ -1,0 +1,150 @@
+<style>
+.tc{--charcoal:#50514f;--ash:#cbd4c2;--snow:#fffcff;--cerulean:#247ba0;--khaki:#c3b299;
+background:var(--snow);color:var(--charcoal);padding:20px;border-radius:8px;border:1px solid var(--ash);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.tc *{box-sizing:border-box}
+.tc .bar{background:var(--charcoal);color:var(--snow);margin:-20px -20px 18px;padding:12px 20px;border-radius:8px 8px 0 0;display:flex;gap:22px;align-items:center;font-size:14px}
+.tc .bar b{font-size:17px;letter-spacing:1px}
+.tc .bar span{opacity:.75}
+.tc .bar .cur{opacity:1;border-bottom:2px solid var(--khaki);padding-bottom:2px}
+.tc .search{max-width:520px}
+.tc .search input{width:100%;padding:11px 14px;border:2px solid var(--cerulean);border-radius:8px;font-size:15px;background:#fff;color:var(--charcoal)}
+.tc .sugg{background:#fff;border:1px solid var(--ash);border-radius:8px;margin-top:4px;box-shadow:0 6px 18px rgba(80,81,79,.12);overflow:hidden}
+.tc .sugg div{padding:9px 14px;font-size:14px;border-bottom:1px solid #e9ede4}
+.tc .sugg div:last-child{border:0}
+.tc .sugg .hit{background:#e6f1f6}
+.tc .sugg .hit b{color:var(--cerulean)}
+.tc .sugg small{color:#85867f}
+.tc .filters{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.tc .f{background:#fff;border:1px solid var(--khaki);border-radius:999px;padding:6px 13px;font-size:13px}
+.tc .f.on{background:var(--cerulean);color:var(--snow);border-color:var(--cerulean)}
+.tc .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.tc .card{background:#fff;border-radius:10px;border:1px solid var(--ash);border-left:5px solid var(--c);padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+.tc .top{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.tc .op{background:var(--c);color:#fff;padding:2px 9px;border-radius:4px;font-weight:600}
+.tc .reg{color:#7b7c76}
+.tc .route{font-size:17px;font-weight:700;line-height:1.5}
+.tc .route span{color:var(--khaki);font-weight:400;margin:0 3px}
+.tc .meta{display:flex;justify-content:space-between;align-items:flex-end}
+.tc .days{font-size:13px}
+.tc .price{font-size:22px;font-weight:800;color:var(--cerulean)}
+.tc .price small{font-size:12px;font-weight:500;color:#7b7c76}
+.tc .delta{font-size:12px;text-align:right}
+.tc .down{color:#1f7a4d}.tc .up{color:#a8432a}.tc .same{color:#8f908a}
+.tc .dates{display:flex;flex-wrap:wrap;gap:5px}
+.tc .d{font-size:12px;background:var(--ash);border-radius:4px;padding:3px 7px}
+.tc .d.more{background:none;color:#7b7c76}
+.tc .foot{font-size:11px;color:#8f908a;display:flex;justify-content:space-between}
+.tc .foot .go{color:var(--cerulean);font-weight:600}
+.tc h4{margin:0 0 10px;font-size:15px}
+.tc .chain{display:flex;align-items:stretch;margin-bottom:16px;flex-wrap:wrap;background:#f1f3ed;border-radius:10px;padding:14px}
+.tc .leg{background:#fff;border:1px solid var(--ash);border-left:5px solid var(--c);border-radius:10px;padding:10px 14px;min-width:210px}
+.tc .leg b{display:block;font-size:14px}
+.tc .leg small{color:#7b7c76;font-size:12px}
+.tc .gap{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 12px;font-size:12px}
+.tc .gap .line{width:70px;border-top:2px dashed var(--khaki);margin:4px 0}
+.tc .gapbox{background:#fff;border:2px solid var(--cerulean);color:var(--cerulean);border-radius:6px;padding:3px 8px;font-weight:700}
+.tc .leg.next{border:2px dashed var(--khaki);background:transparent;display:flex;align-items:center;color:#7b7c76;font-size:13px}
+.tc .total{margin-left:auto;align-self:center;text-align:right;font-size:13px}
+.tc .total b{font-size:20px;color:var(--cerulean);display:block}
+.tc .legend{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-top:14px;align-items:center}
+</style>
+
+<h2>Version 2 — your colour palette</h2>
+<p class="subtitle">Site colours: charcoal, ash grey, snow, cerulean, khaki beige. Operator tags use separate bright colours so they never blend into the site. Sample data, not real tours.</p>
+
+<div class="section">
+<div class="mockup">
+  <div class="mockup-header">Screen 1 — Search and results (搜尋結果)</div>
+  <div class="mockup-body"><div class="tc">
+    <div class="bar"><b>旅行團比較</b><span class="cur">搜尋旅行團</span><span>連續行程</span></div>
+    <div class="search">
+      <input value="大阪" readonly>
+      <div class="sugg">
+        <div class="hit"><b>日本 → 關西</b> <small>包括 大阪、京都、奈良、神戶</small></div>
+        <div>日本 → 全部地區</div>
+      </div>
+    </div>
+    <div class="filters">
+      <span class="f on">日本 → 關西 ✕</span>
+      <span class="f">出發日期：12月</span>
+      <span class="f">日數：4–6日</span>
+      <span class="f">價錢：HK$5,000–12,000</span>
+      <span class="f">旅行社：全部</span>
+      <span class="f">排序：價錢 低→高</span>
+    </div>
+    <div class="grid">
+      <div class="card" style="--c:#d62839">
+        <div class="top"><span class="op">東瀛遊</span><span class="reg">日本 · 關西</span></div>
+        <div class="route">大阪<span>→</span>京都<span>→</span>奈良<span>→</span>神戶</div>
+        <div class="meta"><div class="days">5日4夜</div>
+          <div><div class="price">HK$7,999<small> 起</small></div><div class="delta down">↓ HK$500　比7日前</div></div></div>
+        <div class="dates"><span class="d">12/18</span><span class="d">12/20</span><span class="d">12/23</span><span class="d">12/27</span><span class="d more">+9 個出發日</span></div>
+        <div class="foot"><span>更新：今日 03:10</span><span class="go">前往東瀛遊網站 ↗</span></div>
+      </div>
+      <div class="card" style="--c:#ee7b06">
+        <div class="top"><span class="op">捷旅</span><span class="reg">日本 · 關西</span></div>
+        <div class="route">大阪<span>→</span>京都<span>→</span>白濱<span>→</span>大阪</div>
+        <div class="meta"><div class="days">5日4夜</div>
+          <div><div class="price">HK$8,499<small> 起</small></div><div class="delta same">— 與7日前相同</div></div></div>
+        <div class="dates"><span class="d">12/19</span><span class="d">12/24</span><span class="d">12/26</span><span class="d more">+4 個出發日</span></div>
+        <div class="foot"><span>更新：今日 03:14</span><span class="go">前往捷旅網站 ↗</span></div>
+      </div>
+      <div class="card" style="--c:#7d3cc8">
+        <div class="top"><span class="op">專業旅運</span><span class="reg">日本 · 關西</span></div>
+        <div class="route">大阪<span>→</span>姬路<span>→</span>京都<span>→</span>名古屋</div>
+        <div class="meta"><div class="days">6日5夜</div>
+          <div><div class="price">HK$9,880<small> 起</small></div><div class="delta up">↑ HK$300　比7日前</div></div></div>
+        <div class="dates"><span class="d">12/21</span><span class="d">12/28</span><span class="d more">+2 個出發日</span></div>
+        <div class="foot"><span>更新：今日 03:21</span><span class="go">前往專業旅運網站 ↗</span></div>
+      </div>
+    </div>
+    <div class="legend"><span>旅行社顏色：</span>
+      <span class="op" style="--c:#d62839">東瀛遊</span><span class="op" style="--c:#ee7b06">捷旅</span><span class="op" style="--c:#7d3cc8">專業旅運</span><span class="op" style="--c:#2a9d4b">大航假期</span>
+      <span style="color:#8f908a">日後可加：</span><span class="op" style="--c:#d6338a">＋</span><span class="op" style="--c:#b8860b">＋</span><span class="op" style="--c:#0f8b8d">＋</span>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="mockup">
+  <div class="mockup-header">Screen 2 — Chaining (連續行程)</div>
+  <div class="mockup-body"><div class="tc">
+    <div class="bar"><b>旅行團比較</b><span>搜尋旅行團</span><span class="cur">連續行程</span></div>
+    <h4>你的行程</h4>
+    <div class="chain">
+      <div class="leg" style="--c:#d62839"><b>大阪 → 京都 → 奈良 → 神戶</b><small>東瀛遊 · 12/18 – 12/22 · HK$7,999</small></div>
+      <div class="gap"><span>休息</span><div class="line"></div><span class="gapbox">1 – 3 日 ▾</span></div>
+      <div class="leg next">＋ 從下方選擇下一個旅行團<br>可出發日：12/23 – 12/25</div>
+      <div class="total">目前合計<b>HK$7,999</b>5日</div>
+    </div>
+    <h4>可接續的旅行團（12/23 – 12/25 出發）</h4>
+    <div class="filters">
+      <span class="f">目的地：全部</span>
+      <span class="f">日數：全部</span>
+      <span class="f">價錢：全部</span>
+      <span class="f">旅行社：全部</span>
+      <span class="f on">排除：日本 ✕</span>
+      <span class="f">排序：目的地</span>
+    </div>
+    <div class="grid">
+      <div class="card" style="--c:#ee7b06">
+        <div class="top"><span class="op">捷旅</span><span class="reg">韓國 · 首爾</span></div>
+        <div class="route">首爾<span>→</span>南怡島<span>→</span>江原道</div>
+        <div class="meta"><div class="days">5日4夜</div>
+          <div><div class="price">HK$5,699<small> 起</small></div><div class="delta down">↓ HK$200　比7日前</div></div></div>
+        <div class="dates"><span class="d">12/24</span><span class="d">12/25</span></div>
+        <div class="foot"><span>休息 1–2 日後出發</span><span class="go">加入行程 ＋</span></div>
+      </div>
+      <div class="card" style="--c:#2a9d4b">
+        <div class="top"><span class="op">大航假期</span><span class="reg">台灣 · 北部</span></div>
+        <div class="route">台北<span>→</span>九份<span>→</span>宜蘭</div>
+        <div class="meta"><div class="days">4日3夜</div>
+          <div><div class="price">HK$3,980<small> 起</small></div><div class="delta same">— 與7日前相同</div></div></div>
+        <div class="dates"><span class="d">12/23</span></div>
+        <div class="foot"><span>休息 1 日後出發</span><span class="go">加入行程 ＋</span></div>
+      </div>
+    </div>
+  </div></div>
+</div>
+</div>
