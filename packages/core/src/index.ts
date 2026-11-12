@@ -7,3 +7,4 @@ export * from './stops';
 export * from './start-point';
 export * from './normalise';
 export * from './chain';
+export * from './price';
