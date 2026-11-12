@@ -13,5 +13,10 @@
   "devDependencies": {
     "typescript": "^6.0.3",
     "vitest": "^4.1.12"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "^20.19.43"
+    }
   }
 }
