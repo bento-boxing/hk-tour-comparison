@@ -235,11 +235,16 @@ function groupBy<R extends { id: string }, T>(rows: R[], map: (row: R) => T): Ma
   return groups;
 }
 
-/** All operators in the canonical order, with their freshness as an ISO UTC timestamp (null before any good run). */
-export async function getOperators(db: Db): Promise<OperatorInfo[]> {
+/**
+ * All operators in the canonical order, with their freshness as an ISO UTC timestamp (null before any good run).
+ * `onlyWithGoodRun` keeps those that have had at least one good run (the ones that can have tours), as the
+ * website's operator filter offers; anything that looks an operator up by id wants the full list.
+ */
+export async function getOperators(db: Db, opts: { onlyWithGoodRun?: boolean } = {}): Promise<OperatorInfo[]> {
   const rows = await db.query<{ id: OperatorId; name_zh: string; name_en: string; color: string; last_good_run_at: string | null }>(
     `select id, name_zh, name_en, color, ${isoUtc('last_good_run_at')} as last_good_run_at
      from operators
+     ${opts.onlyWithGoodRun ? 'where last_good_run_at is not null' : ''}
      order by array_position($1::text[], id), id`,
     [[...OPERATOR_IDS]],
   );

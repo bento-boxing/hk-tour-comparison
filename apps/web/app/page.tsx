@@ -31,7 +31,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     return <p className={styles.error} role="alert">{t('search.error')}</p>;
   }
 
-  const { state, tours, total, operators } = data;
+  const { state, tours, total, operators, filterOperators } = data;
   const destination = state.filters.destination ?? null;
   return (
     <>
@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
         <Suspense fallback={null}><DestinationPanelsConnected value={destination} /></Suspense>
       </div>
-      <FilterBarConnected state={state} operators={operators} today={today} />
+      <FilterBarConnected state={state} operators={filterOperators} today={today} />
       <ResultsConnected tours={tours} total={total} operators={operators} today={today} />
       <Pager state={state} total={total} t={t} />
     </>

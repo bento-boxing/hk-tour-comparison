@@ -59,6 +59,7 @@ it('an empty address has no legs and no list, with the operators', async () => {
   expect(data).toMatchObject({ legs: [], droppedCount: 0, departWindow: null, next: null, full: false });
   expect(data.address).toEqual({ chain: { legs: [], gap: { min: 1, max: 3 } }, search: { filters: {}, sort: 'price', page: 1 } });
   expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+  expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // all four have run here
 });
 
 it('a valid two-leg chain resolves, with the tours that can follow it', async () => {
@@ -216,5 +217,29 @@ describe('a leg whose tour has since been deactivated', () => {
     expect(data.address.chain.legs).toEqual([{ tourKey: 'egl:KIX5', departure: '2026-12-18' }]);
     expect(data.departWindow).toEqual({ from: '2026-12-24', to: '2026-12-26' });
     expect(data.next).toEqual({ tours: [], total: 0 });
+  });
+});
+
+describe('the operator filter', () => {
+  // Only Jetour and Travel Expert have ever had a good run, as at launch.
+  let launch: Db;
+  beforeAll(async () => {
+    launch = await createTestDb();
+    await save(launch, 'jetour', [OSA6, FAR]);
+    await save(launch, 'texpert', [SEL5]);
+  });
+  afterAll(async () => { await launch.close(); });
+
+  it('offers only operators that have had a good run; every operator stays available for lookups', async () => {
+    const data = await loadChainPage(launch, query('legs=jetour:OSA6@2026-12-20&gap=1-3'), today);
+    expect(legKeys(data)).toEqual(['jetour:OSA6@2026-12-20']);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert']);
+    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+  });
+
+  it('an operator the address selects stays offered, so the selection can be seen and undone', async () => {
+    const data = await loadChainPage(launch, query('legs=jetour:OSA6@2026-12-20&gap=1-3&op=egl'), today);
+    expect(data.address.search.filters.operators).toEqual(['egl']);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert']);
   });
 });

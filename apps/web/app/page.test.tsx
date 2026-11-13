@@ -1,5 +1,6 @@
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { isIsoDate } from '@hktours/core';
 import type { Db, TourCardData } from '@hktours/db/read';
 import { I18nProvider } from '../lib/i18n-client';
@@ -35,6 +36,7 @@ const data: SearchPageData = {
   state: { filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'days', page: 1 },
   tours: [tour], total: 30,
   operators: [{ id: 'egl', nameZh: '東瀛遊', nameEn: 'EGL Tours', color: '#d62839', lastGoodRunAt: null }],
+  filterOperators: [{ id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06', lastGoodRunAt: '2026-11-11T19:10:00Z' }],
 };
 
 async function renderPage(params: Record<string, string | string[] | undefined>) {
@@ -126,4 +128,14 @@ it('a page past the last says so neutrally, with the link back to page 1, not th
   expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/?dest=japan-kansai&sort=days');
+});
+
+it('the filter bar offers filterOperators; the cards look operators up in the full list', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(data);
+  await renderPage({});
+  expect(within(screen.getByRole('article')).getByText('東瀛遊')).toBeInTheDocument(); // egl's card, from `operators`
+  await userEvent.setup().click(screen.getByRole('button', { name: '旅行社：全部' }));
+  const dialog = screen.getByRole('dialog', { name: '旅行社' });
+  expect(within(dialog).getAllByRole('checkbox').map(box => box.parentElement?.textContent)).toEqual(['捷旅']);
 });

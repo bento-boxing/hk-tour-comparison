@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { IsoDate, NormalisedTour, OperatorId, ScrapedDeparture, Stop } from '@hktours/core';
 import type { Db } from './db';
 import { createTestDb } from './test-db';
-import { saveOperatorRun, type RunStats } from './save-run';
+import { recordFailedRun, saveOperatorRun, type RunStats } from './save-run';
 import {
   searchTours, getToursByKeys, getOperators, PAGE_SIZE,
   type SortKey, type TourCardData, type TourFilters,
@@ -404,8 +404,35 @@ describe('before any run', () => {
       expect(ops.map(o => [o.id, o.lastGoodRunAt])).toEqual([
         ['egl', null], ['jetour', null], ['texpert', null], ['bigline', null],
       ]);
+      expect(await getOperators(db, { onlyWithGoodRun: true })).toEqual([]);
     } finally {
       await db.close();
     }
+  });
+});
+
+describe('operators with a good run', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await createTestDb();
+    await save(db, 'texpert', [SEL5]);
+    await save(db, 'jetour', [TYO_KIX]);
+    // A failed run is not a good run.
+    await recordFailedRun(db, { operatorId: 'egl', runDate: today, stats: stats(RUN_FINISHED), reasons: ['no-tours'] });
+  });
+  afterAll(async () => { await db.close(); });
+
+  it('onlyWithGoodRun lists the operators that have had a good run, in the canonical order', async () => {
+    expect(await getOperators(db, { onlyWithGoodRun: true })).toEqual([
+      { id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06', lastGoodRunAt: RUN_FINISHED },
+      { id: 'texpert', nameZh: '專業旅運', nameEn: 'Travel Expert', color: '#7d3cc8', lastGoodRunAt: RUN_FINISHED },
+    ]);
+  });
+
+  it('without the option, every operator is still listed', async () => {
+    expect((await getOperators(db)).map(o => [o.id, o.lastGoodRunAt])).toEqual([
+      ['egl', null], ['jetour', RUN_FINISHED], ['texpert', RUN_FINISHED], ['bigline', null],
+    ]);
+    expect((await getOperators(db, { onlyWithGoodRun: false })).map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
   });
 });
