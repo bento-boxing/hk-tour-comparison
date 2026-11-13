@@ -1,0 +1,97 @@
+{
+  "detail": {
+    "code": 200,
+    "data": {
+      "id": 22042,
+      "memberFee": null,
+      "availableMonths": [],
+      "basic": {
+        "tourNo": "LENCH15-00",
+        "nameCn": "<北歐+冰島>  北極光 帝王蟹 玻璃屋破冰船動感15天之旅Bigline Signature   (丹麥 挪威 瑞典 芬蘭 藍湖溫泉 黃金瀑布水簾洞瀑布 金環之旅 哈士奇犬雪橇之旅聖誕老人村 馴鹿場北極圈動物園)",
+        "tourDays": 15
+      },
+      "projectItinerary": {
+        "dailyTripList": [
+          {
+            "days": 1,
+            "tripContent": "D1 香港機場集合 | 哥本哈根"
+          },
+          {
+            "days": 2,
+            "tripContent": "D2 【美人魚像 | 市政大廈 | 皇家劇院 | 國會大廈 | 新港運河】外觀"
+          },
+          {
+            "days": 3,
+            "tripContent": "D3 哥本哈根 | 冰島 | 雷克雅維克 | 市內觀光"
+          },
+          {
+            "days": 4,
+            "tripContent": "D4 雷克雅維克 | 斯高嘉霍斯瀑布 | 賽爾約蘭特霍斯瀑布 | 黑沙灘 | 玄武岩柱群拍攝地之一"
+          },
+          {
+            "days": 5,
+            "tripContent": "間歇噴泉 | 古佛斯瀑布】"
+          },
+          {
+            "days": 6,
+            "tripContent": "D6 早上自由活動 | 藍湖溫泉 | 雷克雅維克"
+          },
+          {
+            "days": 7,
+            "tripContent": "D7 奥斯陸 | 奥斯陸歌劇院 | 阿克什胡斯城堡 | 維格蘭公園 | 維京博物館"
+          },
+          {
+            "days": 8,
+            "tripContent": "D8 希爾克內斯"
+          },
+          {
+            "days": 9,
+            "tripContent": "D9 薩米博物館 | 馴鹿場"
+          },
+          {
+            "days": 10,
+            "tripContent": "D10 北極圈動物園 | 凱米冰雪城堡 | 晚上乘車追蹤如夢似幻極光"
+          },
+          {
+            "days": 11,
+            "tripContent": "D11 破冰船 | 聖誕老人村 | 聖誕老人郵局北極圈66緯度 | 包北極證書 | 入住玻璃屋頂酒店"
+          },
+          {
+            "days": 12,
+            "tripContent": "D12 哈士奇犬場 | 體驗哈士奇犬雪橇之旅 | 打卡熱點「世界最北北極圈麥當勞」 | 呂勒奥 | 斯德哥爾摩"
+          },
+          {
+            "days": 13,
+            "tripContent": "D13 市政廳"
+          },
+          {
+            "days": 14,
+            "tripContent": "D14 赫爾辛基 | 赫爾辛基大教堂 | [途經 | 國會大厦 | 烏斯別斯基東正教教堂] | 岩石教堂 | 香港"
+          },
+          {
+            "days": 15,
+            "tripContent": "D15 香港"
+          }
+        ]
+      },
+      "signUp": {
+        "settlementCurrencyCode": "HKD",
+        "locationGroupList": [
+          {
+            "locationName": "香港國際機場"
+          },
+          {
+            "locationName": "香港國際機場T1-E區"
+          },
+          {
+            "locationName": "香港國際機場T1-J區"
+          },
+          {
+            "locationName": "香港國際機場T1-D區"
+          }
+        ]
+      }
+    }
+  },
+  "months": []
+}
