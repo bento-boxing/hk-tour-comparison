@@ -81,7 +81,19 @@ function price(value: unknown, allowText = false): number | null {
   return null;
 }
 
-interface DayPlan { dayNumber: number; title: string; stops: string[] }
+interface DayPlan {
+  dayNumber: number; title: string; stops: string[];
+  /** True when the day lists a meal or a hotel (any text in `breakfast`, `lunch`, `dinner` or `accomodation`). */
+  hasMealsOrHotel: boolean;
+}
+
+/** The fields of a day plan that hold its meals and hotel (HTML; `accomodation` is the site's spelling). */
+const MEAL_AND_HOTEL_FIELDS = ['breakfast', 'lunch', 'dinner', 'accomodation'] as const;
+
+/** True when the HTML value has any text once its tags are removed. */
+function hasText(value: unknown): boolean {
+  return typeof value === 'string' && clean(value.replace(/<[^>]*>/g, '')) !== '';
+}
 
 /** The day plans in day order, or null when the attribute is missing or not a JSON array. */
 function dayPlans($: CheerioAPI): DayPlan[] | null {
@@ -94,8 +106,45 @@ function dayPlans($: CheerioAPI): DayPlan[] | null {
       stops: asArray(plan.journeyTextRows).flatMap(row => asArray(row))
         .map(stop => (isObject(stop) && typeof stop.location === 'string' ? clean(stop.location) : ''))
         .filter(stop => stop !== ''),
+      hasMealsOrHotel: MEAL_AND_HOTEL_FIELDS.some(field => hasText(plan[field])),
     }))
     .sort((a, b) => a.dayNumber - b.dayNumber);
+}
+
+/** `【ASCB08】`: a day written for one variant of an itinerary shared by two tours, named by its code without the first two letters. */
+const VARIANT_TAG = /^【([A-Z0-9]{4,8})】\s*/;
+
+function variantTag(plan: DayPlan): string | null {
+  return VARIANT_TAG.exec(plan.title)?.[1] ?? VARIANT_TAG.exec(plan.stops[0] ?? '')?.[1] ?? null;
+}
+
+/**
+ * This tour's days of an itinerary shared by two variants (HTASCB08 and HTASCB10 list one plan, with day 8
+ * given twice, tagged `【ASCB08】` and `【ASCB10】`). Only when a day is tagged with this tour's code: days tagged
+ * with another code are dropped, the tag is removed, and with a hero day count the untagged days after it
+ * (the longer variant's) are dropped. Any other plan list is returned unchanged.
+ */
+function ownVariant(plans: DayPlan[], code: string, days: number | null): DayPlan[] {
+  const tags = plans.map(variantTag);
+  const ours = (tag: string | null) => tag !== null && code.endsWith(tag);
+  if (!tags.some(ours)) return plans;
+  const untag = (text: string) => text.replace(VARIANT_TAG, '');
+  return plans
+    .filter((plan, i) => (tags[i] === null ? days === null || plan.dayNumber <= days : ours(tags[i])))
+    .map(plan => ({ ...plan, title: untag(plan.title), stops: plan.stops.map(untag).filter(stop => stop !== '') }));
+}
+
+/**
+ * The plans without a closing arrival day: when the flight home lands after midnight, the page adds a day
+ * after the tour's last (`平安抵港` and a note), with no meal and no hotel. Dropped only when it is the one
+ * day past the hero day count; anything else is left for the day-count check.
+ */
+function withoutArrivalDay(plans: DayPlan[], days: number | null): DayPlan[] {
+  const last = plans.at(-1);
+  const beforeLast = plans.at(-2);
+  if (days === null || last === undefined || beforeLast === undefined) return plans;
+  const isArrival = last.dayNumber === days + 1 && beforeLast.dayNumber === days && !last.hasMealsOrHotel;
+  return isArrival ? plans.slice(0, -1) : plans;
 }
 
 /** The places of the transport block under the heading (`出發交通資料` or `回程交通資料`), in order. */
@@ -143,12 +192,16 @@ interface Dates { departures: ScrapedDeparture[]; fromPriceHkd: number | null }
 /**
  * The dates JSON (`{"data":{"productCode","currency","sellingPrice","dates":[…]}}`) for the tour `code`:
  * every date not marked `isFull` or `isOffline` (the site's calendar lets neither be chosen), with its
- * `sellingPrice`. null when it is not that JSON, or does not say it is for this tour and in HKD.
+ * `sellingPrice`. No departures for the "no available dates" answer (empty code, currency and dates).
+ * null when it is not that JSON, or otherwise does not say it is for this tour and in HKD.
  */
 function readDates(datesJson: string | null, code: string): Dates | null {
   const response = parseJson(datesJson);
   const data = isObject(response) ? response.data : undefined;
   if (!isObject(data) || !Array.isArray(data.dates)) return null;
+  // A tour with nothing on sale is answered with an empty code and currency (`status: "No Available Dates"`).
+  const noDates = data.dates.length === 0 && data.productCode === '' && data.currency === '';
+  if (noDates) return { departures: [], fromPriceHkd: null };
   if (data.productCode !== code || data.currency !== CURRENCY) return null;
   const departures: ScrapedDeparture[] = [];
   for (const row of data.dates.filter(isObject)) {
@@ -161,7 +214,8 @@ function readDates(datesJson: string | null, code: string): Dates | null {
 
 /**
  * One EGL `/website/itinerary/<CODE>` page and its dates JSON as a ScrapedTour; null when the page has no
- * tour code or day count, its day counts disagree, or the dates JSON is missing or not for this tour.
+ * tour code or day count, its day counts disagree (after dropping another variant's days and a closing
+ * arrival day), or the dates JSON is missing or not for this tour.
  * `_today` is accepted for the shared parser signature; every date in the dates JSON carries its year.
  */
 export function parse(html: string, datesJson: string | null, url: string, _today?: IsoDate): ScrapedTour | null {
@@ -171,11 +225,13 @@ export function parse(html: string, datesJson: string | null, url: string, _toda
   const dates = readDates(datesJson, code);
   if (dates === null) return null;
 
-  const plans = dayPlans($);
-  if (plans === null) return null;
-  const heroDays = HERO_DAYS.exec(clean($(`p:has(> ${HERO_PRICE})`).first().text()))?.[1];
+  const listed = dayPlans($);
+  if (listed === null) return null;
+  const hero = HERO_DAYS.exec(clean($(`p:has(> ${HERO_PRICE})`).first().text()))?.[1];
+  const heroDays = hero !== undefined ? Number(hero) : null;
+  const plans = withoutArrivalDay(ownVariant(listed, code, heroDays), heroDays);
   const planDays = plans.length > 0 ? plans[plans.length - 1].dayNumber : 0;
-  const days = heroDays !== undefined ? Number(heroDays) : planDays;
+  const days = heroDays ?? planDays;
   if (!(days > 0)) return null;
   if (planDays > 0 && planDays !== days) return null; // hero and itinerary disagree
 

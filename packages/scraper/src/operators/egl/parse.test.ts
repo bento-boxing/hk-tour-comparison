@@ -140,6 +140,20 @@ describe('the dates JSON', () => {
   ])('returns null when the dates JSON is %s', (_, datesJson) => {
     expect(parse(multiCity, datesJson, MULTI_URL, CAPTURED)).toBeNull();
   });
+  it('reads the "no available dates" answer (no code, no currency, no dates) as a tour with no departures', () => {
+    // The answer the API gave on 2026-11-13 for tours with nothing on sale (HTENBT12, HTCWGK07).
+    const none = JSON.stringify({ isSuccess: true, messages: ['Ok'], data: {
+      productCode: '', queryDateTime: '', currency: '', sellingPrice: null, originalPrice: null,
+      status: 'No Available Dates', dates: [], exchangeRates: [],
+    } });
+    const t = parse(multiCity, none, MULTI_URL, CAPTURED)!;
+    expect(t).toMatchObject({ code: 'HTJSJG06', departures: [], fromPriceHkd: 16899 });
+    expect(normaliseTour(t, places, CAPTURED)).toMatchObject({ ok: false, reason: 'no-departures' });
+  });
+  it('still returns null for an answer without a code or currency that lists dates', () => {
+    expect(parse(multiCity, response([row('2026-12-21')], { productCode: '', currency: '' }), MULTI_URL, CAPTURED)).toBeNull();
+    expect(parse(multiCity, response([], { productCode: '', currency: 'HKD' }), MULTI_URL, CAPTURED)).toBeNull();
+  });
   it('falls back to the dates JSON\'s from price when the page has none', () => {
     const html = multiCity.replace('"price":"16899"', '"price":""');
     expect(html).not.toBe(multiCity);
@@ -232,6 +246,49 @@ describe('code and days', () => {
   it('returns null when the hero and the day plans disagree, or neither gives a day count', () => {
     expect(parseInline(page({ days: 5, plans: [plan(1, '', ['大阪']), plan(2, '', ['京都'])] }))).toBeNull();
     expect(parseInline(page({ days: null, plans: [] }))).toBeNull();
+  });
+  describe('an arrival day after the last day (a late flight home, landing after midnight)', () => {
+    const meals = (breakfast: string, lunch = '', dinner = '') => ({ breakfast, lunch, dinner });
+    const arrival = { ...plan(3, '平安抵達香港', ['平安抵港，開心行程結束!']), ...meals('') };
+    const days12 = [{ ...plan(1, '', ['香港', '大阪']), ...meals('---', '<p>拉麵</p>') }, { ...plan(2, '', ['大阪', '香港']), ...meals('<p>酒店早餐</p>') }];
+    it('is dropped when it has no meals and no hotel: the hero day count stands', () => {
+      const t = parseInline(page({ days: 2, plans: [...days12, arrival] }));
+      expect(t).toMatchObject({ days: 2, dayHeadings: ['香港 → 大阪', '大阪 → 香港'] });
+    });
+    it('is dropped when it is empty', () => {
+      expect(parseInline(page({ days: 2, plans: [...days12, { ...plan(3, ''), ...meals('') }] }))?.days).toBe(2);
+    });
+    it('is not dropped when it has a meal or a hotel: the counts disagree, null', () => {
+      expect(parseInline(page({ days: 2, plans: [...days12, { ...arrival, ...meals('<p>酒店早餐</p>') }] }))).toBeNull();
+      expect(parseInline(page({ days: 2, plans: [...days12, { ...arrival, accomodation: '<p>酒店</p>' }] }))).toBeNull();
+    });
+    it('only one day past the hero count is dropped', () => {
+      const day4 = { ...arrival, dayNumber: 4 };
+      expect(parseInline(page({ days: 2, plans: [...days12, arrival, day4] }))).toBeNull();
+      expect(parseInline(page({ days: 2, plans: [...days12, day4] }))).toBeNull();
+    });
+  });
+  describe('an itinerary shared by two variants, days tagged 【code without its first two letters】', () => {
+    // As on HTASCB08 (2026-11-13): the 8-day and the 10-day tour share one plan list; day 8 is given twice.
+    const shared = [
+      plan(1, '出發', ['香港', '悉尼']),
+      plan(2, '', ['悉尼', '凱恩斯']),
+      plan(3, '【TEST03】3天行程完滿結束', ['【TEST03】凱恩斯', '香港']),
+      plan(3, '【TEST05】墨爾本', ['【TEST05】凱恩斯', '墨爾本']),
+      plan(4, '', ['墨爾本']),
+      plan(5, '', ['墨爾本', '香港']),
+    ];
+    it('keeps the untagged days up to the hero count and the days tagged for this tour, without the tag', () => {
+      const t = parseInline(page({ code: 'HTTEST03', days: 3, plans: shared }), 'HTTEST03');
+      expect(t).toMatchObject({ days: 3, dayHeadings: ['香港 → 悉尼', '悉尼 → 凱恩斯', '凱恩斯 → 香港'] });
+    });
+    it('reads the longer variant the same way', () => {
+      const t = parseInline(page({ code: 'HTTEST05', days: 5, plans: shared }), 'HTTEST05');
+      expect(t).toMatchObject({ days: 5, dayHeadings: ['香港 → 悉尼', '悉尼 → 凱恩斯', '凱恩斯 → 墨爾本', '墨爾本', '墨爾本 → 香港'] });
+    });
+    it('ignores tags when none is this tour\'s', () => {
+      expect(parseInline(page({ code: 'HTTEST04', days: 3, plans: shared }), 'HTTEST04')).toBeNull();
+    });
   });
   it('returns null when the day plans are not JSON, without throwing', () => {
     const html = page({ plans: [] }).replace(/data-daily-itinerary-plans-json="[^"]*"/, 'data-daily-itinerary-plans-json="[{oops"');
