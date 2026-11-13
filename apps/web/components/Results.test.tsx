@@ -91,3 +91,18 @@ it('picking a date on a card navigates to the chain page with that leg', async (
   expect(url.pathname).toBe('/chain');
   expect(Object.fromEntries(url.searchParams)).toEqual({ legs: 'egl:KIX5@2026-12-18', gap: '1-3' });
 });
+
+it('a footer note per card replaces its updated text', () => {
+  render(<Results {...props} footNote={tour => (tour.key === 'egl:KIX5' ? '休息 1 日後出發' : undefined)} />);
+  const [first, second] = screen.getAllByRole('article');
+  expect(first).toHaveTextContent('休息 1 日後出發');
+  expect(first).not.toHaveTextContent('更新：');
+  expect(second).toHaveTextContent('更新：');
+});
+
+it('an empty message replaces the default one and its clear link', () => {
+  render(<Results {...props} tours={[]} total={0} empty={<p>這段休息期內沒有可接續的旅行團</p>} />);
+  expect(screen.getByText('這段休息期內沒有可接續的旅行團')).toBeInTheDocument();
+  expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
+  expect(screen.queryByRole('link')).toBeNull();
+});

@@ -1,0 +1,53 @@
+/* Mockup Screen 2: .chain, .leg, .gap, .gapbox, .leg.next and .total, with the theme tokens. */
+.chain {
+  display: flex; align-items: stretch; flex-wrap: wrap; margin-bottom: 16px;
+  background: var(--panel); border-radius: var(--radius-card); padding: 14px;
+  /* Not in the mockup: a little space between rows once the strip wraps. */
+  row-gap: 10px;
+}
+
+.leg {
+  background: var(--surface); border: 1px solid var(--ash); border-left: 5px solid var(--c);
+  border-radius: var(--radius-card); padding: 10px 14px; min-width: 210px;
+}
+/* Mockup .leg b */
+.route { display: block; font-size: 14px; font-weight: 700; }
+/* Mockup .leg small: #7b7c76, darkened to --text-muted for contrast as on the cards. */
+.facts { color: var(--text-muted); font-size: 12px; }
+
+.gap {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: 0 12px; font-size: 12px;
+}
+.line { width: 70px; border-top: 2px dashed var(--khaki); margin: 4px 0; }
+.gapbox {
+  background: var(--surface); border: 2px solid var(--cerulean); color: var(--cerulean);
+  border-radius: 6px; padding: 3px 8px; font-weight: 700;
+}
+
+.leg.next {
+  border: 2px dashed var(--khaki); background: transparent; display: flex; align-items: center;
+  color: var(--text-muted); font-size: 13px;
+}
+
+.total { margin-left: auto; align-self: center; text-align: right; font-size: 13px; }
+/* Mockup .total b */
+.totalPrice { font-size: 20px; color: var(--cerulean); display: block; }
+/* 起 after an inexact total, as on the card's price. */
+.from { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+
+/* Not in the mockup: the remove-last control, a quiet text button under the total. */
+.remove {
+  display: block; margin: 6px 0 0 auto; padding: 2px 0; border: 0; background: none;
+  color: var(--cerulean); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer;
+}
+.remove:hover { color: var(--charcoal); }
+.remove:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+
+/* Phones: one column, the connectors still between the boxes; the total below, still on the right. */
+@media (max-width: 639px) {
+  .chain { flex-direction: column; }
+  .leg { min-width: 0; }
+  .gap { padding: 4px 0; }
+  .total { margin-left: 0; align-self: stretch; }
+}

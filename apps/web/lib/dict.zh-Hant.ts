@@ -79,6 +79,25 @@ const zh = {
   'pager.page': '第 {page} / {pages} 頁',
   'pager.first': '回到第 1 頁',
   'pager.label': '分頁',
+  'chain.empty': '先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。',
+  'chain.dropped': '部分旅行團已下架或日期已不適用，已從行程中移除。',
+  'chain.yours': '你的行程',
+  'chain.rest': '休息',
+  'chain.restDays': '休息 {n} 日',
+  'chain.gapMin': '最少',
+  'chain.gapMax': '最多',
+  'chain.days': '日',
+  'chain.pickNext': '＋ 從下方選擇下一個旅行團',
+  'chain.window': '可出發日：{from} – {to}',
+  'chain.total': '目前合計',
+  'chain.totalDays': '{days}日',
+  'chain.totalSpan': '{days}日（連休息共{span}日）',
+  'chain.removeLast': '移除最後一程',
+  'chain.nextHeading': '可接續的旅行團（{from} – {to} 出發）',
+  'chain.afterRest': '休息 {n} 日後出發',
+  'chain.afterRestRange': '休息 {a}–{b} 日後出發',
+  'chain.full': '行程已達上限（8 程）。', // 8 is MAX_CHAIN_LEGS (pinned by a test)
+  'chain.noNext': '這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。',
 };
 
 export default zh;

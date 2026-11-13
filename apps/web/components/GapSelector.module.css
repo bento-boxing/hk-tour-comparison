@@ -1,0 +1,14 @@
+/* The content of the mockup's .gapbox ('1 – 3 日 ▾'): the box itself is ChainStrip's .gapbox. */
+.gap { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.field { display: inline-flex; }
+/* 最少 / 最多 name the selects for screen readers; the mockup shows only the numbers. */
+.label {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* Native selects (keyboard and screen-reader support for free), in the box's cerulean bold text. */
+.select {
+  font: inherit; color: inherit; background: transparent; border: 0; border-radius: 4px;
+  padding: 0 2px; cursor: pointer;
+}
+.select:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
