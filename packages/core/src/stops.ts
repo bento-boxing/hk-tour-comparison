@@ -9,11 +9,11 @@ const DEFAULT_EXCLUDED_CITY_IDS = ['hongkong-hongkong-hongkong'];
 /** `第一天`, `第1天`, `第 1 日`, `Day 1`, `DAY1`, `D1`, then any `:` `：` `-` or spaces. */
 const DAY_MARKER = /^\s*(?:第\s*[0-9０-９一二三四五六七八九十〇零兩]+\s*[天日]|d(?:ay)?\s*[0-9０-９]+)[\s:：-]*/i;
 const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
-/** Arrow-type separators between heading segments, plus U+FE0F so the emoji form ✈️ splits like ✈. */
-const SEGMENT_SEPARATORS = /[→➝⇒✈～~\-－–—>＞｜|\uFE0F]+/;
-/** Separators between the places of one segment: list marks and whitespace. */
-const TOKEN_SEPARATORS = /[/／、，,\s]+/;
-/** A segment naming a connection (`途經巴黎轉機`, `中轉深圳北/廣州南`) is not a visit. */
+/** Separators between heading chunks: arrow-type marks, list marks and whitespace, plus U+FE0F so ✈️ splits like ✈. */
+const CHUNK_SEPARATORS = /[→➝⇒✈～~\-－–—>＞｜|、，,\s\uFE0F]+/;
+/** Separators between the alternatives of one chunk (`深圳北/廣州南`). */
+const ALTERNATIVE_SEPARATORS = /[/／]+/;
+/** A chunk naming a connection (`途經巴黎轉機`, `中轉深圳北/廣州南`) is not a visit, nor are its alternatives. */
 const TRANSIT_WORDS = ['轉機', '中轉', '轉乘', '過境'];
 const CJK = /\p{Script=Han}/u;
 const IGNORED_WORDS = [
@@ -21,14 +21,14 @@ const IGNORED_WORDS = [
   '市內觀光', '送機', '接機', '晚餐', '午餐', '早餐',
 ];
 
-/** The place tokens of a heading: without its day marker, bracketed notes and transit segments. */
+/** The place tokens of a heading: without its day marker, bracketed notes and transit chunks. */
 function tokensOf(heading: string): string[] {
   return heading
     .replace(DAY_MARKER, '')
     .replace(BRACKETED, ' ')
-    .split(SEGMENT_SEPARATORS)
-    .filter(segment => !TRANSIT_WORDS.some(word => segment.includes(word)))
-    .flatMap(segment => segment.split(TOKEN_SEPARATORS))
+    .split(CHUNK_SEPARATORS)
+    .filter(chunk => !TRANSIT_WORDS.some(word => chunk.includes(word)))
+    .flatMap(chunk => chunk.split(ALTERNATIVE_SEPARATORS))
     .filter(token => token !== '');
 }
 
@@ -109,10 +109,11 @@ function withoutRepeats(stops: Stop[]): Stop[] {
 
 /**
  * Where the route's single foreign outlier is, or -1: the one stop in a country no other stop is in,
- * neither first nor last, amid at least three other stops all in one other country. Such a stop is
- * almost always an exact-name collision (塔林, the Shaolin Pagoda Forest, read as Tallinn).
+ * neither first nor last, amid at least three other stops all in one other country. Only a place named
+ * by a collisionNames entry counts (塔林, the Shaolin Pagoda Forest, read as Tallinn): real cross-border
+ * stops such as Kirkenes on a Lapland tour look the same.
  */
-function loneForeignStopAt(route: Stop[]): number {
+function loneForeignStopAt(route: Stop[], isCollision: (stop: Stop) => boolean): number {
   const stopsPerCountry = new Map<string, number>();
   for (const stop of route) stopsPerCountry.set(stop.countryId, (stopsPerCountry.get(stop.countryId) ?? 0) + 1);
   if (stopsPerCountry.size !== 2) return -1;
@@ -121,11 +122,11 @@ function loneForeignStopAt(route: Stop[]): number {
     : secondCount === 1 && firstCount >= 3 ? secondCountry : undefined;
   if (loneCountry === undefined) return -1;
   const at = route.findIndex(stop => stop.countryId === loneCountry);
-  return at === 0 || at === route.length - 1 ? -1 : at;
+  return at === 0 || at === route.length - 1 || !isCollision(route[at]) ? -1 : at;
 }
 
 /**
- * The route the day headings name. Transit segments give no stops; a single foreign outlier (see
+ * The route the day headings name. Transit chunks give no stops; a single foreign outlier (see
  * loneForeignStopAt) is removed and its name reported as unmatched, for review.
  * excludeCityIds: places never shown on a route (Hong Kong, and the tour's start/end city).
  */
@@ -175,10 +176,14 @@ export function extractStops(
 
   const excluded = new Set(excludeCityIds);
   let route = withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId)));
-  const outlierAt = loneForeignStopAt(route);
+  const collisionNames = new Set((index.data.collisionNames ?? []).map(normaliseName));
+  const placeOf = (stop: Stop): City | Region =>
+    stop.cityId !== null ? index.city(stop.cityId)! : index.region(stop.regionId)!;
+  const isCollision = (stop: Stop) =>
+    [placeOf(stop).nameZh, ...placeOf(stop).aliases].some(name => collisionNames.has(normaliseName(name)));
+  const outlierAt = loneForeignStopAt(route, isCollision);
   if (outlierAt !== -1) {
-    const { cityId, regionId } = route[outlierAt];
-    unmatched.push(cityId !== null ? index.city(cityId)!.nameZh : index.region(regionId)!.nameZh);
+    unmatched.push(placeOf(route[outlierAt]).nameZh);
     route = withoutRepeats(route.filter((_, at) => at !== outlierAt));
   }
   return { stops: route, unmatched: [...new Set(unmatched)] };
