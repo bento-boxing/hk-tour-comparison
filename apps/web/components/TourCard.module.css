@@ -5,8 +5,9 @@
   padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
 }
 
-/* Everything except the add button; lays out the mockup's rows with the card's own 9px gap. */
-.link { color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 9px; min-width: 0; border-radius: 6px; }
+/* Everything except the add button (the link, or a plain block for a non-https address); the mockup's rows with the card's own 9px gap. */
+.body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.link { color: inherit; text-decoration: none; border-radius: 6px; }
 .link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 4px; }
 .link:hover .go { text-decoration: underline; }
 

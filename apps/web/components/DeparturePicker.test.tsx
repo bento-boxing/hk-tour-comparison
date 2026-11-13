@@ -2,7 +2,7 @@ import { it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IsoDate, ScrapedDeparture } from '@hktours/core';
-import { DeparturePicker } from './DeparturePicker';
+import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { translate, type T } from '../lib/i18n';
 
 const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
@@ -14,11 +14,11 @@ const departures: ScrapedDeparture[] = [
 ];
 
 let onPick: ReturnType<typeof vi.fn<(date: IsoDate) => void>>;
-let onClose: ReturnType<typeof vi.fn<() => void>>;
+let onClose: ReturnType<typeof vi.fn<(reason: PickerCloseReason) => void>>;
 let user: ReturnType<typeof userEvent.setup>;
 beforeEach(() => {
   onPick = vi.fn<(date: IsoDate) => void>();
-  onClose = vi.fn<() => void>();
+  onClose = vi.fn<(reason: PickerCloseReason) => void>();
   user = userEvent.setup();
 });
 
@@ -63,6 +63,7 @@ it('closes on Escape', async () => {
   renderPicker();
   await user.keyboard('{Escape}');
   expect(onClose).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledWith('escape');
   expect(onPick).not.toHaveBeenCalled();
 });
 
@@ -72,12 +73,14 @@ it('closes on a click outside, not on a click inside', async () => {
   expect(onClose).not.toHaveBeenCalled();
   await user.click(screen.getByText('outside'));
   expect(onClose).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledWith('outside');
 });
 
 it('has a close button', async () => {
   renderPicker();
   await user.click(screen.getByRole('button', { name: '關閉' }));
   expect(onClose).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledWith('closeButton');
 });
 
 it('focuses the first date on open', () => {
