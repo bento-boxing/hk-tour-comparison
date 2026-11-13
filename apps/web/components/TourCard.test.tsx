@@ -16,7 +16,7 @@ const tour: TourCardData = {
   days: 5, nights: 4,
   stops: [kansai('japan-kansai-osaka'), kansai('japan-kansai-kyoto'), kansai('japan-kansai-nara'), kansai('japan-kansai-kobe')],
   start: { kind: 'hk', label: null }, end: { kind: 'hk', label: null },
-  fromPriceHkd: 7999, windowPriceHkd: 7999,
+  fromPriceHkd: 7999, windowPriceHkd: 7999, fallbackPriceHkd: 7499,
   departures: [
     { date: '2026-12-18', priceHkd: 7999 }, { date: '2026-12-20', priceHkd: 8299 },
     { date: '2026-12-23', priceHkd: 8299 }, { date: '2026-12-27', priceHkd: null },
@@ -82,6 +82,53 @@ it('gives the link a short accessible name instead of the whole card text', () =
   expect(screen.getByRole('link')).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
 });
 
+it('joins the route in the link name with the dictionary separator', () => {
+  const tEn: T = (key, vars) => translate('en', key, vars);
+  render(<TourCard {...props} t={tEn} />);
+  expect(screen.getByRole('link')).toHaveAccessibleName('東瀛遊: 大阪, 京都, 奈良, 神戶, 5D4N, from HK$7,999');
+});
+
+it('describes the link with the price change and the dates', () => {
+  render(<TourCard {...props} />);
+  const link = screen.getByRole('link');
+  expect(link).toHaveAccessibleDescription(/↓ HK\$500\s比7日前/);
+  expect(link).toHaveAccessibleDescription(/12\/18.*12\/27.*\+2 個出發日/);
+  expect(link).not.toHaveAccessibleDescription(/出發$|解散/);
+});
+
+it('describes the link with the start or end note when there is one', () => {
+  render(<TourCard {...props} tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }} />);
+  expect(screen.getByRole('link')).toHaveAccessibleDescription(/澳門出發 · 珠海解散/);
+});
+
+it('a card with no change line and no dates has no dangling description ids', () => {
+  render(<TourCard {...props} tour={{ ...tour, priceChange: null, departures: [] }} />);
+  expect(screen.getByRole('link')).not.toHaveAttribute('aria-describedby');
+});
+
+it.each(['javascript:alert(1)', 'data:text/html,x', 'http://example.com', '/website/itinerary/KIX5'])(
+  'a non-https url (%s) gives no link, and the rest of the card still works',
+  async url => {
+    const onAdd = vi.fn();
+    const { container } = render(<TourCard {...props} tour={{ ...tour, url }} onAdd={onAdd} />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(container.querySelector('[href]')).toBeNull();
+    expect(screen.queryByText('前往東瀛遊網站 ↗')).toBeNull(); // no promise of a link that is not there
+    expect(screen.getByText('更新：今日 03:10')).toBeInTheDocument();
+    expect(screen.getByRole('heading')).toHaveTextContent('大阪→京都→奈良→神戶');
+    expect(screen.getByText(/HK\$7,999/)).toBeInTheDocument();
+    expect(screen.getByText('12/18')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
+    expect(onAdd).toHaveBeenCalledWith('2026-12-18');
+  },
+);
+
+it('accepts an https url in any letter case', () => {
+  render(<TourCard {...props} tour={{ ...tour, url: 'HTTPS://www.egltours.com/x' }} />);
+  expect(screen.getByRole('link')).toHaveAttribute('href', 'HTTPS://www.egltours.com/x');
+});
+
 it('uses the operator colour for the tag and the left border', () => {
   const { container } = render(<TourCard {...props} />);
   const card = container.querySelector('article')!;
@@ -94,9 +141,20 @@ it('uses the operator colour for the tag and the left border', () => {
 });
 
 it('takes the colour from the operator record, so a new operator needs no CSS', () => {
-  const { container } = render(<TourCard {...props} operator={{ ...operator, color: '#0f8b8d' }} />);
-  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('#0f8b8d');
+  const { container } = render(<TourCard {...props} operator={{ ...operator, color: '#0F8B8D' }} />);
+  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('#0F8B8D');
 });
+
+it.each(['red;position:fixed;inset:0', 'red', '#fff', '#d62839;', 'url(x)', ''])(
+  'a colour that is not #rrggbb (%j) falls back to charcoal',
+  color => {
+    const { container } = render(<TourCard {...props} operator={{ ...operator, color }} />);
+    const card = container.querySelector('article')!;
+    expect(card.style.getPropertyValue('--c')).toBe('var(--charcoal)');
+    expect(card.style.position).toBe('');
+    expect(card.getAttribute('style')).not.toMatch(/position|inset/);
+  },
+);
 
 it('has no add button without onAdd', () => {
   render(<TourCard {...props} />);
@@ -137,10 +195,23 @@ it('the picker works from the keyboard and Escape returns focus to the add butto
   await user.keyboard('{Enter}');
   expect(button).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('button', { name: /2026年12月18日/ })).toHaveFocus();
+  const focus = vi.spyOn(button, 'focus');
   await user.keyboard('{Escape}');
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(button).toHaveFocus();
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   expect(onAdd).not.toHaveBeenCalled();
+});
+
+it('the close button returns focus to the add button without scrolling', async () => {
+  render(<TourCard {...props} onAdd={vi.fn()} />);
+  const button = screen.getByRole('button', { name: '加入行程 ＋' });
+  await user.click(button);
+  const focus = vi.spyOn(button, 'focus');
+  await user.click(screen.getByRole('button', { name: '關閉' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(button).toHaveFocus();
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
 });
 
 it('clicking the add button again closes the picker', async () => {
@@ -152,21 +223,34 @@ it('clicking the add button again closes the picker', async () => {
   expect(screen.queryByRole('dialog')).toBeNull();
 });
 
-it('clicking outside the picker closes it without adding', async () => {
+it('clicking outside the picker closes it without adding or moving focus back', async () => {
   const onAdd = vi.fn();
   render(<><p>elsewhere</p><TourCard {...props} onAdd={onAdd} /></>);
-  await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+  const button = screen.getByRole('button', { name: '加入行程 ＋' });
+  await user.click(button);
+  const focus = vi.spyOn(button, 'focus');
   await user.click(screen.getByText('elsewhere'));
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(onAdd).not.toHaveBeenCalled();
+  expect(focus).not.toHaveBeenCalled();
+  expect(button).not.toHaveFocus();
 });
 
-it('the picker lists every departure, with the from-price and 起 for an unpriced date', async () => {
+it('pressing another control outside leaves focus on that control', async () => {
+  render(<><input aria-label="elsewhere" /><TourCard {...props} onAdd={vi.fn()} /></>);
+  await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+  await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('textbox', { name: 'elsewhere' })).toHaveFocus();
+});
+
+it('the picker lists every departure, with the stored fallback price and 起 for an unpriced date', async () => {
   render(<TourCard {...props} onAdd={vi.fn()} />);
   await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
   const dialog = screen.getByRole('dialog');
   expect(dialog.querySelectorAll('li')).toHaveLength(6);
-  expect(screen.getByRole('button', { name: /2026年12月27日/ })).toHaveTextContent('HK$7,999 起');
+  // fallbackPriceHkd (7,499), not fromPriceHkd (7,999).
+  expect(screen.getByRole('button', { name: /2026年12月27日/ })).toHaveTextContent('HK$7,499 起');
 });
 
 it('hides the price change when the window price differs from the from-price', () => {

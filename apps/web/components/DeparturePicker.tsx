@@ -7,9 +7,12 @@ import { formatPrice } from '../lib/format';
 import { departureDateText } from '../lib/card-text';
 import styles from './DeparturePicker.module.css';
 
+/** How the picker was closed, so the opener can decide where focus goes ('outside': leave it where the visitor pressed). */
+export type PickerCloseReason = 'escape' | 'closeButton' | 'outside';
+
 export interface DeparturePickerProps {
   departures: ScrapedDeparture[]; fallbackPriceHkd: number; today: IsoDate; t: T;
-  onPick: (date: IsoDate) => void; onClose: () => void;
+  onPick: (date: IsoDate) => void; onClose: (reason: PickerCloseReason) => void;
 }
 
 /**
@@ -33,7 +36,7 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
 
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
-      if (e.target instanceof Node && !rootRef.current?.contains(e.target)) onCloseRef.current();
+      if (e.target instanceof Node && !rootRef.current?.contains(e.target)) onCloseRef.current('outside');
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => { document.removeEventListener('pointerdown', onPointerDown); };
@@ -41,7 +44,7 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
 
   // On the dialog, not the document, so Escape pressed in another widget stays with that widget.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape' && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); onClose(); }
+    if (e.key === 'Escape' && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); onClose('escape'); }
   };
 
   // Past dates cannot be booked. With an unusable `today` nothing is hidden.
@@ -51,7 +54,7 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
     <div ref={rootRef} role="dialog" aria-labelledby={titleId} className={styles.picker} onKeyDown={onKeyDown}>
       <div className={styles.head}>
         <span id={titleId} className={styles.title}>{t('picker.title')}</span>
-        <button ref={closeRef} type="button" className={styles.close} aria-label={t('picker.close')} onClick={onClose}>✕</button>
+        <button ref={closeRef} type="button" className={styles.close} aria-label={t('picker.close')} onClick={() => onClose('closeButton')}>✕</button>
       </div>
       <ul className={styles.list}>
         {upcoming.map((d, i) => (
