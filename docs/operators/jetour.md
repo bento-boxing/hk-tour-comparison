@@ -119,3 +119,24 @@ Also fetched but not saved: `/tour/TNA` (8 days, six departures from 2026-11-27 
 | 8 | 22:35:35 | https://www.jetour.com.hk/terms-and-condition/post/demo-2 | 200 |
 | 9 | 22:35:39 | https://www.jetour.com.hk/privacy-policy | 200 (index) |
 | 10 | 22:37:37 | https://www.jetour.com.hk/tour/江門,新會,珠海美食純玩之旅 | 200 |
+
+## Practice crawl (Task 19)
+
+`pnpm scrape --operator jetour --dry-run`, run once on **2026-11-13** (Hong Kong), 01:51–02:20 UTC, through `createFetcher` (one fetcher, about 3.5 s per page). No 403, 429, bot challenge, retry or unfetched page.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | 451 |
+| Tour pages fetched | 451 |
+| Tours saved (to the throwaway database) | 0: the run failed its checks (`too-many-parse-failures`) |
+| Parse failures | 312 (69.2%): 311 `no-stops`, 1 `parser returned null` (`/tour/TCPA-1`) |
+| Skipped, no upcoming departures | 107 (not failures) |
+| Tours that normalised | 32 |
+
+**Cause:** missing places, not the parser. Jetour sells many long-haul tours (Europe, Africa, the Americas, Oceania, the Middle East, Central Asia) and many to Chinese provinces the seed list did not have; their day lines named no known place.
+
+**After extending the places list** (same task, commit `feat(core): extend places list from operator dry runs`): pages were not re-crawled. The dry run prints each page's day headings, so the saved output was re-processed offline with the new list: **1 parse failure in 451 pages (0.2%)**, the `TCPA-1` page the parser rejects; 343 tours would normalise. Estimate only: departures and prices of the 311 former `no-stops` pages are as parsed, but the checks were not re-run against a live crawl.
+
+Known limits seen in the output:
+- **Transit stops.** Long-haul day lines name the connecting city (`途經巴黎轉機`, `經巴黎或阿姆斯特丹轉機`, `香港 ~ 巴黎 ~ 利馬`, `杜邦力夫 伊斯坦堡`), so Paris, Amsterdam or Istanbul appear on routes of tours that only change planes there (23 Latin American tours name a Paris or Amsterdam connection, e.g. `QSB`, `QPD`, `QCC`; some Balkan tours connect in Istanbul, e.g. `EBD`, `BBZEX`). Not a place-list problem; left for the owner.
+- **Attractions dominate the unmatched names** (`舊城區`, `大教堂`, `教堂橋`, `獅子紀念碑`...): expected, they stay unmatched.
