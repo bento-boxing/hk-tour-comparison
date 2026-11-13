@@ -44,6 +44,7 @@ export function parseArgs(argv: string[]): CliArgs | { error: string } {
     const arg = argv[i];
     if (arg === '--') continue; // pnpm may pass one through
     if (arg === '--dry-run') {
+      if (dryRun) return { error: '--dry-run is given twice' };
       dryRun = true;
       continue;
     }
@@ -54,6 +55,7 @@ export function parseArgs(argv: string[]): CliArgs | { error: string } {
       if (operator !== undefined) return { error: '--operator is given twice' };
       operator = value;
     } else {
+      if (limit !== null) return { error: '--limit is given twice' };
       if (!/^[1-9][0-9]*$/.test(value)) return { error: `--limit must be a whole number from 1, not ${value}` };
       limit = Number(value);
     }

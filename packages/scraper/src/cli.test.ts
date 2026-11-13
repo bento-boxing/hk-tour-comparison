@@ -98,6 +98,12 @@ describe('parseArgs', () => {
     [['--operator', '--dry-run']], [['--operator', 'jetour', '--dry-run', '--limit']],
     [['--operator', 'jetour', '--dry-run', '--limit', '2.5']], [['--operator', 'jetour', '--operator', 'texpert']],
   ])('parseArgs(%j) is an error', argv => { expect(parseArgs(argv)).toHaveProperty('error'); });
+
+  it.each([
+    [['--operator', 'jetour', '--dry-run', '--limit', '5', '--limit', '20'], { error: '--limit is given twice' }],
+    [['--operator', 'jetour', '--dry-run', '--limit', '5', '--limit', '5'], { error: '--limit is given twice' }],
+    [['--operator', 'jetour', '--dry-run', '--dry-run'], { error: '--dry-run is given twice' }],
+  ])('parseArgs(%j) rejects a repeated option', (argv, expected) => { expect(parseArgs(argv)).toEqual(expected); });
 });
 
 describe('runCli', () => {

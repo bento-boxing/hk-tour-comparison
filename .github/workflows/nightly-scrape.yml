@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Installs the pnpm version named in package.json "packageManager".
       - uses: pnpm/action-setup@v6
@@ -48,6 +50,8 @@ jobs:
         operator: [jetour, texpert]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Installs the pnpm version named in package.json "packageManager".
       - uses: pnpm/action-setup@v6

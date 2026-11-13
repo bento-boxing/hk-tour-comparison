@@ -140,9 +140,9 @@ Removed by hand after trimming: the `<meta name="sentry-trace">` and `<meta name
 
 **Cause:** mostly missing places (Guangdong towns such as 順德, 肇慶, 中山, 清遠, 增城, 從化, 韶關, 開平, 台山; 賀州 and 梧州 in Guangxi; Hainan; Hubei; Phu Quoc).
 
-**After extending the places list:** pages were not re-crawled; the dry run's printed day headings were re-processed offline with the new list: **1 parse failure in 117 pages (0.9%)**, 113 tours would normalise. The one left, `383-guangdong-province-tour-2-day-fairy-tale-late-autumn-red` (YASR02R), names its places only inside `【】` brackets, which the extractor drops (`新會`), and otherwise 南沙 (a district).
+**After extending the places list:** pages were not re-crawled; the dry run's printed day headings were re-processed offline with the new list: **1 parse failure in 117 pages (0.9%)**, 113 tours would normalise. The one left, `1383-guangdong-province-tour-2-day-fairy-tale-late-autumn-red` (YASR02R), names its places only inside `【】` brackets, which the extractor drops (`新會`), and otherwise 南沙 (a district).
 
 Heading problems seen (parser or headings, not places), recorded for the owner:
-- **Line breaks inside words.** The `details summary h3` text keeps the page's line wrapping as spaces, which split names in two: `前往江 門`, `從化溫 泉小鎮`, `長白 山人參`, `紅 葉`. A name split this way is not matched (`江 門` gives `江` and `門`). The pages above still matched through other names, but this will cost matches.
+- **Line breaks inside words.** The `details summary h3` text keeps the page's line wrapping as spaces, which split names in two: `前往江 門`, `從化溫 泉小鎮`, `長白 山人參`, `紅 葉`. A name split this way is not matched (`江 門` gives `江` and `門`). The pages above still matched through other names, but this will cost matches. Since Task 19 fix round 1 the parser removes a space between two Chinese characters when it builds `dayHeadings` (`江 門` → `江門`); other spaces stay.
 - **Prose headings.** Short tours put the whole day in the heading, so meals, shows and slogans (`結束愉快旅程！`, `網紅打卡點`, `永春` from `龍舟、永春、香雲紗` meaning Wing Chun, not 永春 in Fujian) dominate the unmatched names. 永春 was deliberately not added.
 - **Transit and meeting points.** `中轉深圳北/廣州南`, `乘車返回深圳` put Shenzhen or Guangzhou on routes of tours that only pass through; `黃金海岸` (a beach in Quanzhou) matches Gold Coast exactly, which `notPlaces` cannot prevent.
