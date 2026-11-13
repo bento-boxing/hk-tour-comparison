@@ -9,9 +9,14 @@ export type T = (key: DictKey, vars?: TranslateVars) => string;
 
 const dictionaries: Record<Locale, Record<DictKey, string>> = { 'zh-Hant': zh, en };
 
-/** 'en' only when DEV_LOCALE === 'en' and VERCEL_ENV !== 'production'. Otherwise 'zh-Hant'. */
+/**
+ * 'en' only when DEV_LOCALE === 'en' and VERCEL_ENV !== 'production'. Otherwise 'zh-Hant'.
+ * On Vercel (VERCEL === '1') a missing or empty VERCEL_ENV counts as production.
+ */
 export function getLocale(env: Record<string, string | undefined>): Locale {
-  return env.DEV_LOCALE === 'en' && env.VERCEL_ENV !== 'production' ? 'en' : 'zh-Hant';
+  const onVercelWithoutEnv = env.VERCEL === '1' && !env.VERCEL_ENV;
+  const production = env.VERCEL_ENV === 'production' || onVercelWithoutEnv;
+  return env.DEV_LOCALE === 'en' && !production ? 'en' : 'zh-Hant';
 }
 
 /** Replaces {name} placeholders; a placeholder with no value is left as written. */
