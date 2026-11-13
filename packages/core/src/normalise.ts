@@ -67,15 +67,16 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   const { unmatched } = extracted;
   const stops = withoutStatedEnds(extracted.stops, start, end, index);
 
+  // A tour with nothing to book is skipped whatever its route: no-departures comes before no-stops.
+  const departures = upcomingDepartures(scraped.departures, today);
+  if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched };
+
   if (stops.length === 0) {
     const reported = unmatched.length > 0
       ? unmatched
       : scraped.dayHeadings.map(heading => [...heading].slice(0, MAX_UNMATCHED_HEADING_LENGTH).join(''));
     return { ok: false, reason: 'no-stops', unmatched: reported };
   }
-
-  const departures = upcomingDepartures(scraped.departures, today);
-  if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched };
 
   const fromPriceHkd = departures.reduce<number | null>((low, d) => lowerPrice(low, d.priceHkd), null)
     ?? scraped.fromPriceHkd;
