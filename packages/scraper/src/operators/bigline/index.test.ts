@@ -42,7 +42,7 @@ it('a run over answers full of names, notes, suppliers and costs saves and logs 
     {
       ...biglineScraper,
       discover: async () => ids.map(id => `https://bigline.hk/tour-group/${id}`),
-      fetchPage: createFetchPage({ today: () => TODAY }),
+      fetchPage: createFetchPage(),
       minExpectedTours: undefined,
     },
     { db, fetcher, index: places, today: TODAY, now: () => new Date('2026-11-13T18:00:00Z'), log: line => logs.push(line) },

@@ -30,7 +30,11 @@ function fakeFetcher(detail: unknown, months: Record<string, unknown> = {}, opts
   return { fetcher, asked };
 }
 
-const fetchPage = () => createFetchPage({ today: () => TODAY });
+/** A fresh fetchPage (its own refusal counts), run on TODAY. */
+const fetchPage = () => {
+  const run = createFetchPage();
+  return (fetcher: Fetcher, url: string) => run(fetcher, url, TODAY);
+};
 const posted = (asked: Asked[]) => asked.filter(a => a.method === 'POST').map(a => (a.body as { yearMonth: string }).yearMonth);
 
 describe('monthsToRequest', () => {
@@ -61,7 +65,7 @@ describe('fetchPage', () => {
       { method: 'POST', url: DATES_URL, body: { pageNo: 1, productId: '9109', yearMonth: '2026-11', pageSize: 1000 } },
       { method: 'POST', url: DATES_URL, body: { pageNo: 1, productId: '9109', yearMonth: '2026-12', pageSize: 1000 } },
     ]);
-    expect(splitTour(text!)).toEqual({
+    expect(splitTour(text as string)).toEqual({
       detail: publicDetail(rawDetail()),
       months: [
         { yearMonth: '2026-11', dates: publicDates(months['2026-11']) },
@@ -85,7 +89,7 @@ describe('fetchPage', () => {
     const { fetcher, asked } = fakeFetcher(rawDetail({ availableMonths: ['2026-10'] }), {}, { canPost: false });
     const text = await fetchPage()(fetcher, PAGE);
     expect(asked.map(a => a.method)).toEqual(['GET']);
-    expect(splitTour(text!)?.months).toEqual([]);
+    expect(splitTour(text as string)?.months).toEqual([]);
   });
   it('is null, with no POST, when the detail cannot be fetched', async () => {
     const { fetcher, asked } = fakeFetcher(undefined);
@@ -94,7 +98,7 @@ describe('fetchPage', () => {
   });
   it.each([
     ['refuses (code 401)', { code: 401, msg: '未授权' }, /code 401/],
-    ['reports another error (code 500)', { code: 500, msg: '404 NOT_FOUND' }, /code 500/],
+    ['reports another error (code 500)', { code: 500, msg: 'server error' }, /code 500/],
     ['answers without a code', { data: {} }, /code none/],
     ['answers with a page that is not JSON', '<html>blocked</html>', /not JSON/],
   ])('fails the tour, with no POST, when the API %s', async (_name, answer, message) => {
@@ -118,22 +122,60 @@ describe('fetchPage', () => {
     const { fetcher } = fakeFetcher({ code: 401, msg: SECRETS[1] });
     await expect(fetchPage()(fetcher, PAGE)).rejects.toThrow(/^(?!.*SALE-REMARK)/s);
   });
-  it('after three refusals in a row sends nothing more, for any tour', async () => {
+  it('after three refused details in a row sends nothing more, for any tour', async () => {
     const run = fetchPage();
     const refusing = fakeFetcher({ code: 401, msg: '未授权' });
     for (let i = 0; i < 3; i++) await expect(run(refusing.fetcher, PAGE)).rejects.toThrow(/code 401/);
     const fine = fakeFetcher(rawDetail({ availableMonths: [] }));
-    await expect(run(fine.fetcher, PAGE)).rejects.toThrow(/refused 3 requests in a row/);
+    await expect(run(fine.fetcher, PAGE)).rejects.toThrow(/refused 3 tour detail requests in a row/);
     expect(refusing.asked).toHaveLength(3);
     expect(fine.asked).toEqual([]);
   });
-  it('a good answer between refusals starts the count again; a not-found code is not a refusal', async () => {
+  it('a detail the fetcher gave up on (null: HTTP 401/403/429, network) counts toward the same three', async () => {
     const run = fetchPage();
-    const refusing = fakeFetcher({ code: 401 });
-    const notFound = fakeFetcher({ code: 500, msg: '404 NOT_FOUND' });
-    const fine = fakeFetcher(rawDetail({ availableMonths: [] }));
-    for (const f of [refusing, refusing, fine, refusing, notFound, refusing]) await run(f.fetcher, PAGE).catch(() => null);
-    expect(await run(fine.fetcher, PAGE)).not.toBeNull();
+    const unanswered = fakeFetcher(undefined);
+    for (let i = 0; i < 3; i++) expect(await run(unanswered.fetcher, PAGE)).toBeNull();
+    await expect(run(unanswered.fetcher, PAGE)).rejects.toThrow(/in a row/);
+    expect(unanswered.asked).toHaveLength(3);
+  });
+  it.each([
+    ['refused (code 401)', { code: 401, msg: '未授权' }],
+    ['not answered (null)', undefined],
+  ])('when every details answers but every dates POST is %s, it stops after three tours', async (_name, refusal) => {
+    const run = fetchPage();
+    const datesRefused = fakeFetcher(rawDetail({ availableMonths: ['2026-11', '2026-12'] }), { '2026-11': refusal, '2026-12': refusal });
+    for (let i = 0; i < 3; i++) await run(datesRefused.fetcher, PAGE).catch(() => null);
+    expect(datesRefused.asked.map(a => a.method)).toEqual(['GET', 'POST', 'GET', 'POST', 'GET', 'POST']);
+    for (let i = 0; i < 5; i++) await expect(run(datesRefused.fetcher, PAGE)).rejects.toThrow(/refused 3 dates requests in a row/);
+    expect(datesRefused.asked).toHaveLength(6); // nothing more was sent
+  });
+  it('a success resets only the count of its own kind', async () => {
+    const run = fetchPage();
+    const detailRefused = fakeFetcher({ code: 401 });
+    const datesRefused = fakeFetcher(rawDetail({ availableMonths: ['2026-11'] }), { '2026-11': { code: 401 } });
+    const noMonths = fakeFetcher(rawDetail({ availableMonths: [] }));
+    const datesFine = fakeFetcher(rawDetail({ availableMonths: ['2026-11'] }), { '2026-11': rawDates([]) });
+    // Two refused details, then a good detail with refused dates: the detail count starts again, the dates count is 1.
+    for (const f of [detailRefused, detailRefused, datesRefused]) await run(f.fetcher, PAGE).catch(() => null);
+    // Two more refused details (detail count 2) and a refused dates (dates count 2): still sending.
+    for (const f of [detailRefused, detailRefused, datesRefused]) await run(f.fetcher, PAGE).catch(() => null);
+    // A tour with no months resets the detail count only; a good dates answer resets the dates count.
+    expect(await run(noMonths.fetcher, PAGE)).not.toBeNull();
+    expect(await run(datesFine.fetcher, PAGE)).not.toBeNull();
+    for (const f of [detailRefused, detailRefused, datesRefused, datesRefused]) await run(f.fetcher, PAGE).catch(() => null);
+    expect(await run(noMonths.fetcher, PAGE)).not.toBeNull(); // detail 0 after the dates tours, dates 2: still sending
+    await run(datesRefused.fetcher, PAGE).catch(() => null); // dates 3
+    await expect(run(noMonths.fetcher, PAGE)).rejects.toThrow(/refused 3 dates requests in a row/);
+  });
+  it('a detail answering code 500 "404 NOT_FOUND" means the tour is gone: a skip, no POST, not a refusal', async () => {
+    const run = fetchPage();
+    const gone = fakeFetcher({ code: 500, msg: '404 NOT_FOUND' });
+    for (let i = 0; i < 4; i++) expect(await run(gone.fetcher, PAGE)).toEqual({ skip: 'gone' });
+    expect(gone.asked.map(a => a.method)).toEqual(['GET', 'GET', 'GET', 'GET']);
+  });
+  it('only that exact not-found answer is gone; another code 500 fails the tour', async () => {
+    await expect(fetchPage()(fakeFetcher({ code: 500, msg: 'NOT_FOUND_ELSEWHERE' }).fetcher, PAGE)).rejects.toThrow(/code 500/);
+    await expect(fetchPage()(fakeFetcher({ code: 404, msg: '404 NOT_FOUND' }).fetcher, PAGE)).rejects.toThrow(/code 404/);
   });
   it('counts a page that is not JSON as a refusal (a block page)', async () => {
     const run = fetchPage();
@@ -141,6 +183,13 @@ describe('fetchPage', () => {
     for (let i = 0; i < 3; i++) await run(blocked.fetcher, PAGE).catch(() => null);
     await expect(run(blocked.fetcher, PAGE)).rejects.toThrow(/in a row/);
     expect(blocked.asked).toHaveLength(3);
+  });
+  it('a refused month counts toward the dates count once, and asks for no later month', async () => {
+    const run = fetchPage();
+    const detail = rawDetail({ availableMonths: ['2026-11', '2026-12', '2027-01'] });
+    const refused = fakeFetcher(detail, { '2026-11': rawDates([]), '2026-12': { code: 429 } });
+    for (let i = 0; i < 3; i++) await expect(run(refused.fetcher, PAGE)).rejects.toThrow(/code 429/);
+    expect(posted(refused.asked)).toEqual(['2026-11', '2026-12', '2026-11', '2026-12', '2026-11', '2026-12']);
   });
   it('fails the tour, without a request, for a URL that is not a Big Line tour page', async () => {
     const { fetcher, asked } = fakeFetcher(rawDetail());
@@ -151,10 +200,10 @@ describe('fetchPage', () => {
     const { fetcher } = fakeFetcher(rawDetail(), {}, { canPost: false });
     await expect(fetchPage()(fetcher, PAGE)).rejects.toThrow(/cannot POST/);
   });
-  it('asks for months from the current Hong Kong month by default', async () => {
-    const { fetcher, asked } = fakeFetcher(rawDetail({ availableMonths: ['2000-01', '2999-12'] }), { '2999-12': rawDates([]) });
-    expect(await createFetchPage()(fetcher, PAGE)).not.toBeNull();
-    expect(posted(asked)).toEqual(['2999-12']);
+  it('asks for months from the month of the today it is given (the run\'s, in Hong Kong)', async () => {
+    const { fetcher, asked } = fakeFetcher(rawDetail({ availableMonths: ['2027-02', '2027-03'] }), { '2027-03': rawDates([]) });
+    expect(await createFetchPage()(fetcher, PAGE, '2027-03-31')).not.toBeNull();
+    expect(posted(asked)).toEqual(['2027-03']);
   });
 });
 

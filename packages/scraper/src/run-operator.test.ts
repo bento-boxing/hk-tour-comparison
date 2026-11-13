@@ -169,6 +169,38 @@ describe('a scraper that fetches each page itself (fetchPage)', () => {
     expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
     expect(logMentions(pageUrl('T1'), 'not fetched (fetch threw: boom)')).toBe(true);
   });
+
+  it('is given the run\'s today (Hong Kong), not the wall clock', async () => {
+    const pages = site(goodTours(1));
+    const days: string[] = [];
+    const recording: Partial<OperatorScraper> = {
+      fetchPage: async (fetcher, url, today) => { days.push(today); return fetcher.fetchText(url); },
+    };
+    await runOperator(fakeScraper(pages, recording), deps(fakeFetcher(pages), NIGHT_2));
+    expect(days).toEqual([NIGHT_2]);
+  });
+
+  it('a page fetchPage reports gone is skipped: neither fetched nor a fetch failure', async () => {
+    const pages = site(goodTours(4));
+    const gone: Partial<OperatorScraper> = {
+      fetchPage: async (fetcher, url) => (url === pageUrl('T1') ? { skip: 'gone' } : fetcher.fetchText(url)),
+    };
+    const outcome = await runOperator(fakeScraper(pages, gone), deps(fakeFetcher(pages)));
+    expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 3 });
+    expect(await scrapeRuns()).toMatchObject([{ ok: true, pages_fetched: 3, parse_failures: 0 }]);
+    expect(logLines).toContain(`jetour: skipped ${pageUrl('T1')}: gone`);
+    expect(logMentions(pageUrl('T1'), 'not fetched')).toBe(false);
+  });
+
+  it('gone pages do not count toward the fetch-failure limit', async () => {
+    const pages = site(goodTours(10));
+    const goneUrls = [pageUrl('T1'), pageUrl('T2'), pageUrl('T3')];
+    const gone: Partial<OperatorScraper> = {
+      fetchPage: async (fetcher, url) => (goneUrls.includes(url) ? { skip: 'gone' } : fetcher.fetchText(url)),
+    };
+    const outcome = await runOperator(fakeScraper(pages, gone), deps(fakeFetcher(pages)));
+    expect(outcome).toMatchObject({ ok: true, toursSaved: 7 });
+  });
 });
 
 it('a fetcher that throws, against its contract, counts as a page not fetched for a scraper without fetchPage', async () => {
