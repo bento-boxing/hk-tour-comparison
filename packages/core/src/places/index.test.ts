@@ -91,6 +91,12 @@ describe('places', () => {
       expect(places.findCity(entry), entry).toEqual([]);
     }
   });
+  it('every collisionNames entry is a city name or alias', () => {
+    // 塔林 (Tallinn; the Shaolin Pagoda Forest, Travel Expert TZZA06R/TZZB08R) and 黃金海岸 (Gold Coast; a beach in Quanzhou, TXXF04R)
+    const collisionNames = places.data.collisionNames ?? [];
+    expect(collisionNames).toEqual(expect.arrayContaining(['塔林', '黃金海岸']));
+    for (const entry of collisionNames) expect(places.findCity(entry), entry).not.toEqual([]);
+  });
   it('no country or region name reads as a city elsewhere through a name it contains', () => {
     // e.g. 北海道 contains 北海 (Beihai) and 突尼斯 contains 尼斯 (Nice): a heading naming the
     // region or country must not put a city of another place on the route.
