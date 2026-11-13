@@ -1,12 +1,12 @@
 /**
  * `pnpm scrape --operator <id> [--dry-run] [--limit N]`: one operator's nightly run.
- * Needs DATABASE_URL unless --dry-run. Exit codes: 0 ok, 1 the run failed its checks,
- * 2 bad usage or missing configuration.
+ * Needs DATABASE_URL unless --dry-run; DATABASE_CA_CERT, when set, verifies the database server.
+ * Exit codes: 0 ok, 1 the run failed its checks, 2 bad usage or missing or invalid configuration.
  */
 import { pathToFileURL } from 'node:url';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { OPERATOR_IDS, places, todayInHongKong, type OperatorId } from '@hktours/core';
-import { createPgDb, type Db } from '@hktours/db';
+import { createPgDb, normaliseCaCert, type Db } from '@hktours/db';
 import { createDryRunDb, latestRunSummary } from './dry-run-db';
 import { describePage, formatUnmatched, recordDryRun, unmatchedCounts } from './dry-run-report';
 import { SCRAPERS } from './operators';
@@ -22,7 +22,8 @@ export interface CliDeps {
   scrapers: Partial<Record<OperatorId, OperatorScraper>>;
   /** Called once per process: every request of the run goes through this one fetcher. */
   makeFetcher: () => Fetcher;
-  makeDb: (databaseUrl: string) => Promise<Db>;
+  /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
+  makeDb: (databaseUrl: string, ca: string | undefined) => Promise<Db>;
   makeDryRunDb: () => Promise<Db>;
   print: (line: string) => void;
   now: () => Date;
@@ -91,7 +92,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   const {
     scrapers = SCRAPERS,
     makeFetcher = () => createFetcher({ log: print }),
-    makeDb = async (url: string) => createPgDb(url),
+    makeDb = async (url: string, ca: string | undefined) => createPgDb(url, { ca }),
     makeDryRunDb = createDryRunDb,
     now = () => new Date(),
     installProxy = installEnvProxy,
@@ -113,13 +114,22 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
     print('DATABASE_URL is not set: a real run needs it (or pass --dry-run)');
     return 2;
   }
+  let ca: string | undefined;
+  if (!args.dryRun) {
+    try {
+      ca = normaliseCaCert(env.DATABASE_CA_CERT);
+    } catch (err) {
+      print((err as Error).message); // names the variable, never its value
+      return 2;
+    }
+  }
 
   if (proxyWanted(env)) installProxy(env);
   const fetcher = makeFetcher();
   const today = todayInHongKong(now());
 
   if (!args.dryRun) {
-    const db = await makeDb(databaseUrl!);
+    const db = await makeDb(databaseUrl!, ca);
     try {
       const outcome = await runOperator(scraper, { db, fetcher, index: places, today, now, log: print });
       return outcome.ok ? 0 : 1;

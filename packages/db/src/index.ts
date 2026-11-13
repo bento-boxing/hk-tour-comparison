@@ -1,4 +1,4 @@
-export { createPgDb, type Db } from './db';
+export { createPgDb, normaliseCaCert, type Db, type PgDbOptions } from './db';
 export { migrate } from './migrate';
 export {
   saveOperatorRun, recordFailedRun, previousGoodTourCount,
