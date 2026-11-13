@@ -14,14 +14,16 @@ export function routeNames(stops: Stop[], places: PlacesIndex): string[] {
 
 /**
  * The first `country · region` of the route, e.g. '日本 · 關西', and '日本 · 關西 +2' when two more
- * regions follow. Empty for a tour without stops. `t` defaults to the public zh-Hant text.
+ * regions follow; just '法國' when the region's name is the country's. Empty for a tour without stops.
+ * `t` defaults to the public zh-Hant text.
  */
 export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT('zh-Hant')): string {
   const [first, ...rest] = tourRegions(stops);
   if (!first) return '';
   const country = places.country(first.countryId)?.nameZh ?? first.countryId;
   const region = first.regionId === null ? null : places.region(first.regionId)?.nameZh ?? first.regionId;
-  const label = region === null ? country : `${country} · ${region}`;
+  // A region named like its country (法國 · 法國) is not named twice.
+  const label = region === null || region === country ? country : `${country} · ${region}`;
   return rest.length === 0 ? label : `${label} ${t('card.moreRegions', { n: rest.length })}`;
 }
 

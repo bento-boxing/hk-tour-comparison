@@ -1,8 +1,9 @@
 import { it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { places, ALL_REGIONS_LABEL, type Destination } from '@hktours/core';
+import { places, suggestRegions, ALL_REGIONS_LABEL, type Destination } from '@hktours/core';
 import { DestinationPanels } from './DestinationPanels';
+import { destinationLabel } from './DestinationSearch';
 import { translate, type T } from '../lib/i18n';
 
 const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
@@ -62,13 +63,15 @@ it('offers all regions first', async () => {
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
-it('a single-region country selects straight away', async () => {
-  const [onlyRegion, ...others] = places.regionsOf('singapore');
-  expect(others).toHaveLength(0); // the case this test is about
+it('a single-region country selects the whole country straight away, as the search bar does', async () => {
+  expect(places.regionsOf('singapore')).toHaveLength(1); // the case this test is about
   renderPanels();
   await open();
   await user.click(screen.getByRole('button', { name: '新加坡' }));
-  expect(onSelect).toHaveBeenCalledWith({ countryId: 'singapore', regionId: onlyRegion.id });
+  const whole: Destination = { countryId: 'singapore', regionId: null };
+  expect(onSelect).toHaveBeenCalledWith(whole);
+  expect(destinationLabel(whole, places)).toBe(`新加坡 → ${ALL_REGIONS_LABEL}`);
+  expect(suggestRegions('新加坡', places).map(s => s.destination)).toEqual([whole]);
   expect(screen.queryByRole('button', { name: '全部地區' })).not.toBeInTheDocument();
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });

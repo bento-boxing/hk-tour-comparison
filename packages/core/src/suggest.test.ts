@@ -29,18 +29,28 @@ it('English matching ignores case and spaces, and labels stay Chinese', () => {
   expect(labels('OSAKA')[0]).toBe('日本 → 關西');
   expect(labels('tok')[0]).toBe('日本 → 關東');
   expect(labels('japan')[0]).toBe('日本 → 全部地區');
-  expect(labels('hong kong')[0]).toBe('香港 → 香港');
+  expect(labels('hong kong')[0]).toBe('香港 → 全部地區');
 });
 it('nothing for empty, whitespace or unknown input', () => {
   expect(labels('')).toEqual([]); expect(labels('   ')).toEqual([]); expect(labels('亞特蘭提斯')).toEqual([]);
 });
+// Task 3's shared-name index: 聖城 in 甲國/甲區 and 乙國/乙區, each country with one region.
+const oneRegionEach = {
+  countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
+  regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] }, { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] }],
+  cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: '', aliases: [] }, { id: 'b-r-x', regionId: 'b-r', nameZh: '聖城', nameEn: '', aliases: [] }],
+};
+// The same, with a second region in each country.
+const twoRegionsEach = {
+  ...oneRegionEach,
+  regions: [
+    ...oneRegionEach.regions,
+    { id: 'a-s', countryId: 'a', nameZh: '甲二區', nameEn: '', aliases: [] }, { id: 'b-s', countryId: 'b', nameZh: '乙二區', nameEn: '', aliases: [] },
+  ],
+};
+
 it('same-named cities in two countries give two distinguishable labels', () => {
-  // tiny index from Task 3's shared-name test: 聖城 in 甲國/甲區 and 乙國/乙區
-  const idx = buildPlacesIndex({
-    countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
-    regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] }, { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] }],
-    cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: '', aliases: [] }, { id: 'b-r-x', regionId: 'b-r', nameZh: '聖城', nameEn: '', aliases: [] }],
-  });
+  const idx = buildPlacesIndex(twoRegionsEach);
   // Each exact city row is followed by its own country's 全部地區 row.
   expect(suggestRegions('聖城', idx)).toEqual([
     { destination: { countryId: 'a', regionId: 'a-r' }, label: '甲國 → 甲區', via: '聖城' },
@@ -111,4 +121,44 @@ it('prefix and contains matches do not add a country-wide row', () => {
 it('the country-wide rows count towards the limit', () => {
   expect(suggestRegions('大阪', places, 1).map(s => s.label)).toEqual(['日本 → 關西']);
   expect(suggestRegions('北部', places, 3).map(s => s.label)).toEqual(['台灣 → 北部', '台灣 → 全部地區', '泰國 → 北部']);
+});
+
+it('a single-region country gives one country-wide row, never a region row as well', () => {
+  // 新加坡 is a city, the only region and the country; 巴黎 is a city in 法國's only region.
+  expect(suggestRegions('新加坡', places)).toEqual([
+    { destination: { countryId: 'singapore', regionId: null }, label: `新加坡 → ${ALL_REGIONS_LABEL}`, via: '新加坡' },
+  ]);
+  expect(suggestRegions('巴黎', places)).toEqual([
+    { destination: { countryId: 'france', regionId: null }, label: `法國 → ${ALL_REGIONS_LABEL}`, via: '巴黎' },
+  ]);
+  expect(suggestRegions('Paris', places)).toEqual(suggestRegions('巴黎', places));
+  // 法國 matches the region and the country, but not a city: no via.
+  expect(suggestRegions('法國', places)).toEqual([
+    { destination: { countryId: 'france', regionId: null }, label: `法國 → ${ALL_REGIONS_LABEL}`, via: null },
+  ]);
+  expect(labels('france')).toEqual(['法國 → 全部地區']);
+});
+it('single-region countries reached by prefix or contains matches also give the country-wide row, keeping via', () => {
+  const l = suggestRegions('巴', places);
+  expect(l.slice(0, 2)).toEqual([
+    { destination: { countryId: 'france', regionId: null }, label: '法國 → 全部地區', via: '巴黎' },
+    { destination: { countryId: 'germany', regionId: null }, label: '德國 → 全部地區', via: '巴登巴登' },
+  ]);
+  expect(l.every(s => s.destination.regionId === null)).toBe(true);
+  // 雲南 is a region of multi-region 中國, so it stays a region row.
+  expect(labels('瑞')).toEqual(['中國 → 雲南', '瑞士 → 全部地區', '瑞典 → 全部地區']);
+});
+it('same-named cities in two single-region countries give one row per country', () => {
+  expect(suggestRegions('聖城', buildPlacesIndex(oneRegionEach))).toEqual([
+    { destination: { countryId: 'a', regionId: null }, label: `甲國 → ${ALL_REGIONS_LABEL}`, via: '聖城' },
+    { destination: { countryId: 'b', regionId: null }, label: `乙國 → ${ALL_REGIONS_LABEL}`, via: '聖城' },
+  ]);
+});
+it('no suggestion list holds a region row of a single-region country', () => {
+  const single = new Set(places.data.countries.filter(c => places.regionsOf(c.id).length === 1).map(c => c.id));
+  for (const q of ['新加坡', '香港', '澳門', '法國', '德國', '瑞', '巴', '亞', '斯', 'a', 'ber']) {
+    for (const s of suggestRegions(q, places, 100)) {
+      if (single.has(s.destination.countryId)) expect(s.destination.regionId, `${q}: ${s.label}`).toBeNull();
+    }
+  }
 });

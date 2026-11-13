@@ -17,7 +17,7 @@ const DEFAULT_HIDDEN = ['hongkong'];
 
 /**
  * The `按國家選擇` button and its panel: step one lists countries, step two that country's regions
- * with `全部地區` first. A country with one region is selected straight from step one.
+ * with `全部地區` first. A country with one region is selected straight from step one, as the whole country.
  */
 export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds = DEFAULT_HIDDEN }: DestinationPanelsProps) {
   const panelId = useId();
@@ -54,8 +54,8 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
   };
 
   const chooseCountry = (id: string) => {
-    const regions = places.regionsOf(id);
-    if (regions.length === 1) return choose({ countryId: id, regionId: regions[0].id });
+    // One region: the whole country, which the search bar also offers as `<country> → 全部地區`.
+    if (places.regionsOf(id).length === 1) return choose({ countryId: id, regionId: null });
     focusNext.current = '[data-first]';
     setCountryId(id);
   };

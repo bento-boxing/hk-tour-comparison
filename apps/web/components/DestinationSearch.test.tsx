@@ -19,11 +19,15 @@ const renderSearch = (value: Destination | null = null, index = places) =>
   render(<DestinationSearch places={index} t={tZh} value={value} onSelect={onSelect} />);
 
 // Task 3's shared-name index: 聖城 in 甲國/甲區 and 乙國/乙區. 甲區 has five cities for the hint tests.
+// Each country has a second, empty region, so its regions get region rows (a single-region country
+// is offered only as 全部地區).
 const tiny = buildPlacesIndex({
   countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
   regions: [
     { id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] },
     { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] },
+    { id: 'a-s', countryId: 'a', nameZh: '甲二區', nameEn: '', aliases: [] },
+    { id: 'b-s', countryId: 'b', nameZh: '乙二區', nameEn: '', aliases: [] },
   ],
   cities: [
     { id: 'a-r-1', regionId: 'a-r', nameZh: '一城', nameEn: '', aliases: [] },
@@ -59,6 +63,16 @@ it('the hint separator comes from the dictionary', async () => {
   render(<DestinationSearch places={tiny} t={tEn} value={null} onSelect={onSelect} />);
   await user.type(screen.getByRole('combobox'), '甲區');
   expect(screen.getAllByRole('option')[0]).toHaveTextContent('甲國 → 甲區 Includes 一城, 二城, 三城, 四城');
+});
+
+it('a city in a single-region country suggests the whole country once', async () => {
+  renderSearch();
+  const input = screen.getByRole('combobox');
+  await user.type(input, '巴黎');
+  expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['法國 → 全部地區']);
+  await user.click(screen.getAllByRole('option')[0]);
+  expect(onSelect).toHaveBeenCalledWith({ countryId: 'france', regionId: null });
+  expect(input).toHaveValue('法國 → 全部地區');
 });
 
 it('selecting an option reports the destination and fills the input', async () => {
