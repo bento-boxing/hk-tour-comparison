@@ -328,6 +328,12 @@ describe('extractStops on crawled headings', () => {
     expect(r.unmatched).toEqual(expectedUnmatched);
   });
 
+  it('does not read 蘇州河 (Suzhou Creek, Shanghai) as Suzhou (Jetour TSSKQ, TSDQ)', () => {
+    expect(names(extractStops(['香港 ~ 洛克·外灘源 ~ 漫步蘇州河畔賞玉蘭花', '上海 ~ 思南公館片區 ~ 無錫'], places))).toEqual(['上海', '無錫']);
+    expect(names(extractStops(['無錫 ~ 蠡湖風景區 ~ 太湖珍珠館 ~ 紫砂博物館 ~ 上海 ~ 洛克·外灘源 ~ 蘇州河畔 ~ 黃河路美食街'], places)))
+      .toEqual(['無錫', '上海']);
+  });
+
   it('does not read the show 《廣州起義》 as a visit to Guangzhou (Travel Expert YASJ03R, YBDB03R)', () => {
     // a staged show at a theme park on a Shunde tour
     expect(names(extractStops(['酒店自助早餐→約10:30離開酒店→重本包門票暢玩 【廣東千古情景區】帶你一秒穿越至武術街、風情街、 椰風海韻街等多個大型場景街道，沉浸式體驗大型實景劇場《廣州起義》；5D全方位視覺盛宴《大地震》 等多個表演令你目不暇接→午餐【貴賓園區內自理】 →入住酒店→晚餐【酒店豐富自助晚餐】→自由活動。'], places))).toEqual([]);
