@@ -7,13 +7,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "fixture": "node --import tsx scripts/save-fixture.ts"
+    "fixture": "node --import tsx scripts/save-fixture.ts",
+    "scrape": "node --import tsx src/cli.ts"
   },
   "dependencies": {
     "@hktours/core": "workspace:*",
     "@hktours/db": "workspace:*",
     "cheerio": "^1.2.0",
-    "robots-parser": "^3.0.1"
+    "robots-parser": "^3.0.1",
+    "undici": "^7.30.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

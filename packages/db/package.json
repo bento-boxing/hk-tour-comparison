@@ -7,13 +7,17 @@
     ".": "./src/index.ts",
     "./test": "./src/test-db.ts"
   },
+  "scripts": {
+    "migrate": "node --import tsx src/migrate-cli.ts"
+  },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@hktours/core": "workspace:*",
     "@types/pg": "^8.23.1",
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.16",
-    "@types/node": "^20.19.43"
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.15"
   }
 }
