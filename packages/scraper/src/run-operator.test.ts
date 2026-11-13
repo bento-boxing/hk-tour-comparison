@@ -1,4 +1,4 @@
-import { it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { places, type IsoDate, type OperatorId, type ScrapedTour } from '@hktours/core';
 import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
@@ -126,6 +126,49 @@ it('3 pages in 10 that cannot be fetched fail the run: nothing saved, last night
   ]);
   expect(logLines.at(-1)).toBe(
     'jetour: failed (too-many-fetch-failures), 0 tours saved, 7 tour pages, 0 parse failures, 0 unmatched names');
+});
+
+describe('a scraper that fetches each page itself (fetchPage)', () => {
+  /** fetchPage asks the fetcher for the page and for `<url>/extra`, and gives parse the page only when both came back. */
+  const twoRequests: Partial<OperatorScraper> = {
+    fetchPage: async (fetcher, url) => {
+      const page = await fetcher.fetchText(url);
+      if (page === null) return null;
+      return (await fetcher.fetchText(`${url}/extra`)) === null ? null : page;
+    },
+  };
+  const withExtras = (pages: Site, missing: string[] = []) =>
+    new Map([...pages, ...[...pages.keys()].filter(url => !missing.includes(url)).map(url => [`${url}/extra`, 'x'] as [string, string])]);
+
+  it('makes every request through the run\'s fetcher, and parses what fetchPage returns', async () => {
+    const pages = site(goodTours(2));
+    const fetcher = fakeFetcher(withExtras(pages));
+    const outcome = await runOperator(fakeScraper(pages, twoRequests), deps(fetcher));
+    expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 2 });
+    expect(fetcher.asked).toEqual([pageUrl('T1'), `${pageUrl('T1')}/extra`, pageUrl('T2'), `${pageUrl('T2')}/extra`]);
+  });
+
+  it('a page whose second request fails is a page not fetched, counted toward the fetch-failure limit', async () => {
+    const pages = site(goodTours(10));
+    const missing = [pageUrl('T1'), pageUrl('T2'), pageUrl('T3')];
+    const outcome = await runOperator(fakeScraper(pages, twoRequests), deps(fakeFetcher(withExtras(pages, missing))));
+    expect(outcome).toEqual({ operatorId: 'jetour', ok: false, reasons: ['too-many-fetch-failures'], toursSaved: 0 });
+    expect(await scrapeRuns()).toMatchObject([{ ok: false, pages_fetched: 7, parse_failures: 0 }]);
+    expect(logMentions(pageUrl('T1'), 'not fetched')).toBe(true);
+  });
+
+  it('a fetchPage that throws counts as a page not fetched, not a crash', async () => {
+    const pages = site(goodTours(10));
+    const throwing: Partial<OperatorScraper> = {
+      fetchPage: async (fetcher, url) => {
+        if (url === pageUrl('T1')) throw new Error('boom');
+        return fetcher.fetchText(url);
+      },
+    };
+    const outcome = await runOperator(fakeScraper(pages, throwing), deps(fakeFetcher(pages)));
+    expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
+    expect(logMentions(pageUrl('T1'), 'not fetched', 'boom')).toBe(true);
+  });
 });
 
 it('a tour with no upcoming departures is skipped, not a failure', async () => {
