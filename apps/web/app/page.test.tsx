@@ -96,3 +96,23 @@ it('shows the error message when the database is unreachable', async () => {
   expect(container.textContent).not.toMatch(/ECONNREFUSED|5432|at /);
   expect(consoleError).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ['the connection timeout', Object.assign(new Error('Connection terminated due to connection timeout'), {})],
+  ['the statement timeout', Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })],
+])('shows the error message when the database hits %s', async (_, err) => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockRejectedValue(err);
+  const { container } = await renderPage({});
+  expect(screen.getByText(ERROR)).toBeInTheDocument();
+  expect(container.textContent).not.toMatch(/timeout|57014/);
+  expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('search page'), err);
+});
+
+it('passes the same today to the filter bar as to the loader', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...data, state: { filters: { dateFrom: '2099-12-01' }, sort: 'price', page: 1 } });
+  await renderPage({});
+  // 2099 is never the current year, so the pill shows it.
+  expect(screen.getByRole('button', { name: '出發日期：2099/12/1 –' })).toBeInTheDocument();
+});

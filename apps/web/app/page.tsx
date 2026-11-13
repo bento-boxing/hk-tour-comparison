@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
         <Suspense fallback={null}><DestinationPanelsConnected value={destination} /></Suspense>
       </div>
-      <FilterBarConnected state={state} operators={operators} />
+      <FilterBarConnected state={state} operators={operators} today={today} />
       <ResultsConnected tours={tours} total={total} operators={operators} today={today} />
       <Pager state={state} total={total} t={t} />
     </>

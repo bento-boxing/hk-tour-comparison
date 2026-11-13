@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type FocusEvent, type ReactNode } from 'react';
+import { usePopoverDismiss, type DismissReason } from '../lib/use-popover-dismiss';
 import styles from './FilterBar.module.css';
 
-/** How a popover was closed ('outside': focus stays where the visitor pressed; otherwise it returns to the pill). */
-type CloseReason = 'escape' | 'done' | 'outside';
+/** How a popover was closed ('outside': focus stays where it went; otherwise it returns to the pill). */
+type CloseReason = DismissReason | 'done';
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled])';
 
@@ -16,26 +17,36 @@ export interface FilterPopoverProps {
   /** Filled (cerulean) when the pill's filter is set. */
   on: boolean;
   wide?: boolean;
+  /** Controlled by the filter bar, which keeps at most one popover open. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** The popover's content; call `done` after applying a choice to close it and return focus to the pill. */
   children: (done: () => void) => ReactNode;
 }
 
 /**
- * A filter pill (mockup `.f`) that opens a non-modal dialog below it. Works the same way as the card's
- * DeparturePicker: focus moves to the first control inside; Escape inside it, or pressing the pill again,
- * closes it and returns focus to the pill; a press outside closes it and leaves focus where the visitor pressed.
+ * A filter pill (mockup `.f`) that opens a non-modal dialog below it, dismissed like the card's
+ * DeparturePicker (lib/use-popover-dismiss): focus moves to the first control inside; Escape inside it,
+ * or pressing the pill again, closes it and returns focus to the pill; a press outside, or focus moving
+ * to anything other than the popover and its pill (Tab), closes it and leaves focus where it went.
  */
-export function FilterPopover({ label, title, on, wide, children }: FilterPopoverProps) {
-  const [open, setOpen] = useState(false);
+export function FilterPopover({ label, title, on, wide, open, onOpenChange, children }: FilterPopoverProps) {
   const pillRef = useRef<HTMLButtonElement>(null);
 
   const close = (reason: CloseReason) => {
-    setOpen(false);
+    onOpenChange(false);
     if (reason !== 'outside') pillRef.current?.focus({ preventScroll: true });
   };
 
+  // focusout bubbles, so this sees focus leaving the pill or anything in the popover. A null relatedTarget
+  // (the window lost focus, or a press on something unfocusable, which the pointerdown rule handles) keeps it open.
+  const onBlur = (e: FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget;
+    if (open && next instanceof Node && !e.currentTarget.contains(next)) close('outside');
+  };
+
   return (
-    <div className={styles.slot}>
+    <div className={styles.slot} onBlur={onBlur}>
       <button
         ref={pillRef}
         type="button"
@@ -46,7 +57,7 @@ export function FilterPopover({ label, title, on, wide, children }: FilterPopove
         // While open, a press on the pill must not count as "outside" (which would close the popover only
         // for this click to reopen it): the click below closes it instead.
         onPointerDown={e => { if (open) e.stopPropagation(); }}
-        onClick={() => (open ? close('done') : setOpen(true))}
+        onClick={() => (open ? close('done') : onOpenChange(true))}
       >
         {label}
       </button>
@@ -59,30 +70,14 @@ export function FilterPopover({ label, title, on, wide, children }: FilterPopove
   );
 }
 
-function PopoverPanel({ title, wide, onClose, children }: { title: string; wide?: boolean; onClose: (reason: CloseReason) => void; children: ReactNode }) {
+function PopoverPanel({ title, wide, onClose, children }: { title: string; wide?: boolean; onClose: (reason: DismissReason) => void; children: ReactNode }) {
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-
-  // Read through a ref so the document listener below is attached once, not on every render.
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; });
+  const onKeyDown = usePopoverDismiss(rootRef, onClose);
 
   useEffect(() => {
     rootRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
   }, []);
-
-  useEffect(() => {
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.target instanceof Node && !rootRef.current?.contains(e.target)) onCloseRef.current('outside');
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => { document.removeEventListener('pointerdown', onPointerDown); };
-  }, []);
-
-  // On the dialog, not the document, so Escape pressed in another widget stays with that widget.
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape' && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); onClose('escape'); }
-  };
 
   return (
     <div
