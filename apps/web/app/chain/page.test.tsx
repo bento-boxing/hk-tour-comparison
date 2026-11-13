@@ -1,4 +1,4 @@
-import { it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate, MAX_CHAIN_LEGS, type ChainState } from '@hktours/core';
@@ -28,6 +28,10 @@ const { default: ChainPage } = await import('./page');
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
 const today = '2026-11-12';
+// The page takes today from the clock (todayInHongKong()), so the clock is pinned to that day:
+// otherwise the December 2026 fixture dates would fall in the past and the expectations with them.
+beforeAll(() => { vi.setSystemTime(new Date('2026-11-12T04:00:00Z')); }); // 12:00 in Hong Kong
+afterAll(() => { vi.useRealTimers(); });
 
 const card = (key: string, operatorId: TourCardData['operatorId'], days: number, departures: TourCardData['departures'], price: number): TourCardData => ({
   key, operatorId, url: `https://example.test/${key}`, title: key, days, nights: days - 1,
