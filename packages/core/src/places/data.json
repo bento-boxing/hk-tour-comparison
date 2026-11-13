@@ -292,6 +292,8 @@
     { "id": "japan-hokkaido-sapporo", "regionId": "japan-hokkaido", "nameZh": "札幌", "nameEn": "Sapporo", "aliases": [] },
     { "id": "japan-hokkaido-hakodate", "regionId": "japan-hokkaido", "nameZh": "函館", "nameEn": "Hakodate", "aliases": [] },
     { "id": "japan-hokkaido-otaru", "regionId": "japan-hokkaido", "nameZh": "小樽", "nameEn": "Otaru", "aliases": [] },
+    { "id": "japan-hokkaido-noboribetsu", "regionId": "japan-hokkaido", "nameZh": "登別", "nameEn": "Noboribetsu", "aliases": [] },
+    { "id": "japan-hokkaido-kitahiroshima", "regionId": "japan-hokkaido", "nameZh": "北廣島", "nameEn": "Kitahiroshima", "aliases": ["北広島"] },
 
     { "id": "japan-tohoku-sendai", "regionId": "japan-tohoku", "nameZh": "仙台", "nameEn": "Sendai", "aliases": [] },
 
@@ -304,6 +306,7 @@
     { "id": "japan-chubu-kanazawa", "regionId": "japan-chubu", "nameZh": "金澤", "nameEn": "Kanazawa", "aliases": ["金沢"] },
     { "id": "japan-chubu-takayama", "regionId": "japan-chubu", "nameZh": "高山", "nameEn": "Takayama", "aliases": ["飛驒高山", "飛騨高山"] },
     { "id": "japan-chubu-mount-fuji", "regionId": "japan-chubu", "nameZh": "富士山", "nameEn": "Mount Fuji", "aliases": ["富士河口湖", "河口湖"] },
+    { "id": "japan-chubu-shizuoka", "regionId": "japan-chubu", "nameZh": "靜岡", "nameEn": "Shizuoka", "aliases": ["静岡"] },
 
     { "id": "japan-kansai-osaka", "regionId": "japan-kansai", "nameZh": "大阪", "nameEn": "Osaka", "aliases": [] },
     { "id": "japan-kansai-kyoto", "regionId": "japan-kansai", "nameZh": "京都", "nameEn": "Kyoto", "aliases": [] },
@@ -1328,6 +1331,6 @@
     { "id": "china-hainan-wenchang", "regionId": "china-hainan", "nameZh": "文昌", "nameEn": "Wenchang", "aliases": [] },
     { "id": "china-hainan-wanning", "regionId": "china-hainan", "nameZh": "萬寧", "nameEn": "Wanning", "aliases": [] }
   ],
-  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院"],
+  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰"],
   "collisionNames": ["塔林", "黃金海岸"]
 }
