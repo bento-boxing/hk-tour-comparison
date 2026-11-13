@@ -266,6 +266,31 @@ describe('extractStops drops a single foreign outlier with a collision name', ()
     expect(names(extractStops(['香港 ~ 拿坡里', '巴里 ~ 乘意大利高鐵至羅馬', '羅馬 ~ 鬥獸場、西班牙階梯 ~ 許願泉 ~ 梵蒂岡 ~ 聖彼得大教堂', '羅馬 ~ 全日自由活動 ~ 香港'], places)))
       .toEqual(['拿坡里', '巴里', '羅馬', '梵蒂岡', '羅馬']);
   });
+
+  it('removes 塔林 (the Shaolin Pagoda Forest) from a Henan tour (Travel Expert TZZA06R)', () => {
+    const r = extractStops([
+      '香港西九龍站 (乘高鐵，直車或中轉車) > 鄭州 > 如意湖漫步、外觀河南藝術中心',
+      '鄭州 > 輝縣 > 太行聖境【回龍天界山】 (包環保車，回龍掛壁公路、雲峰畫廊360度觀太行、遠眺老爺頂) > 登封',
+      '登封 > 少林寺 (包電瓶車+耳機)、塔林、觀看武術表演 > 嵩陽書院 > 洛陽',
+      '洛陽 > 龍門石窟 (包往返電瓶車+耳機) > 十字老街 > 鄭州',
+      '洛陽 > 開封府 > 清明上河園 > 鄭州',
+      '鄭州 (乘高鐵，直車或中轉車) > 香港西九龍站',
+    ], places);
+    expect(names(r)).toEqual(['鄭州', '登封', '洛陽', '鄭州', '洛陽', '開封', '鄭州']);
+    expect(r.unmatched).toContain('塔林');
+    expect(r.stops.every(stop => stop.countryId === 'china')).toBe(true);
+  });
+
+  it('removes 黃金海岸 (a beach in Quanzhou) from a Fujian tour (Travel Expert TXXF04R)', () => {
+    const r = extractStops([
+      '香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺> 黃金海岸> 永寧古城',
+      '泉州> 晉江> 梧林古村落(包電瓶車)(羅馬式洋樓朝東樓、 西班牙風格僑批樓、碉樓槍樓、百年榕村德衛宅) > 蟳埔民俗文化村(安排做對非遺體驗“簪花”) > 洛陽橋> 泉州> 泉州南少林寺(觀賞《南少林武術表演》)',
+      '泉州> 廈門> 園博苑(觀賞落羽彬) > 入住波特曼七星灣 酒店酒店> 下午自由活動(體驗以其獨特的法式風情和 海濱度假體驗而聞名的酒店+怡海小鎮)',
+      '廈門> 山海健康步道臨海線，盼歸塔> 七彩環島路> 外觀廈門標誌性建築【雙子塔】> 廈門(乘高鐵) 中轉深圳北/廣州南 > 香港西九龍站',
+    ], places);
+    expect(names(r)).toEqual(['泉州', '晉江', '泉州', '廈門']);
+    expect(r.unmatched).toContain('黃金海岸');
+  });
 });
 
 describe('extractStops on crawled headings', () => {
