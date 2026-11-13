@@ -37,6 +37,7 @@ export function recordDryRun(scraper: OperatorScraper, limit: number | null): Dr
       id: scraper.id,
       minExpectedTours: scraper.minExpectedTours,
       fetchPage: scraper.fetchPage,
+      requestHeaders: scraper.requestHeaders,
       async discover(fetcher) {
         const urls = [...new Set(await scraper.discover(fetcher))];
         discovered = urls.length;

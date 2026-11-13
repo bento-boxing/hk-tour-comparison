@@ -32,10 +32,13 @@ export interface FetcherOptions {
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
   /**
-   * Extra request headers for one page URL, sent on every page request (each redirect hop is asked
-   * for its own), never on robots.txt. They cannot replace the User-Agent: any user-agent key is dropped.
+   * Extra request headers by host name (`api.example.com`, any case): sent on every page request (GET or
+   * POST) to exactly that host, never to any other host, not even a redirect hop to one (each hop is
+   * matched on its own host), and never on robots.txt. They cannot replace the User-Agent (or a POST's
+   * Content-Type). Headers that cannot be sent (an invalid name or value, or one that throws when read)
+   * fail that one request, logged, without sending it; it is not retried.
    */
-  extraHeaders?: (url: URL) => Record<string, string>;
+  extraHeaders?: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
 
 /** createFetcher's fetcher: pages as text, or as raw bytes for binary files such as PDFs. */
@@ -46,7 +49,8 @@ export interface PoliteFetcher extends Fetcher {
    * POSTs `body` as JSON (Content-Type: application/json) and returns the 200 answer's text, or null
    * (logged). Same robots.txt check, site queue, spacing, extraHeaders and pushback counting as a GET,
    * but sent exactly once: a POST may not be safe to repeat, so it is never retried (not even after
-   * a network error or 5xx), and a redirect answer is not followed.
+   * a network error, timeout or 5xx), and a redirect answer is not followed. A body JSON.stringify
+   * cannot turn into JSON is not sent, and robots.txt is not even asked.
    */
   postJson(url: string, body: unknown): Promise<string | null>;
 }
@@ -66,12 +70,13 @@ export function siteOf(url: URL): string {
 /**
  * What one HTTP request came back with. The body is read only for a 200.
  * `retryAfter`: the response carried a Retry-After header.
- * `refused`: the request was never sent because its site was refused while it waited.
+ * `not-sent`: the request was never sent, because its site was refused while it waited, or its
+ * extra headers could not be sent. Final: not retried.
  */
 type Answer =
   | { kind: 'response'; status: number; location: string | null; body: Uint8Array | null; retryAfter: boolean }
   | { kind: 'error'; message: string }
-  | { kind: 'refused'; why: string };
+  | { kind: 'not-sent'; why: string };
 
 /**
  * What one origin's robots.txt lets us do. A non-null `refusal` means no page at all
@@ -118,7 +123,7 @@ const isRetryable = (answer: Answer) => answer.kind === 'error'
 /** UTF-8 with replacement characters, as Response.text() decodes. */
 const decodeText = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 const describe = (answer: Answer) =>
-  (answer.kind === 'error' ? answer.message : answer.kind === 'refused' ? answer.why : `HTTP ${answer.status}`);
+  (answer.kind === 'error' ? answer.message : answer.kind === 'not-sent' ? answer.why : `HTTP ${answer.status}`);
 
 /** The URL as a parsed http(s) URL, or null. */
 function httpUrl(url: string, base?: URL): URL | null {
@@ -146,7 +151,8 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
-  const extraHeaders = opts.extraHeaders ?? (() => ({}));
+  /** By lower-cased host name. */
+  const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([host, headers]) => [host.toLowerCase(), headers]));
 
   const queues = new Map<string, SiteQueue>();              // by site
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
@@ -182,20 +188,37 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   }
 
   /**
+   * The headers for one request: the extra headers declared for exactly this URL's host (page requests
+   * only), then a POST's Content-Type and the User-Agent, set last so nothing can replace them. Throws
+   * when the extra headers cannot be sent.
+   */
+  function headersFor(url: URL, isPage: boolean, post: boolean): Headers {
+    const headers = new Headers(isPage ? extraHeaders.get(url.hostname.toLowerCase()) : undefined);
+    if (post) headers.set('content-type', 'application/json');
+    headers.set('user-agent', userAgent);
+    return headers;
+  }
+
+  /**
    * One HTTP request, through its site's queue. Never throws. A page request whose
-   * site was refused while it waited in the queue is not sent. Page answers count toward
-   * the site's pushback (robots.txt answers do not). Page requests carry extraHeaders; `post`
-   * makes it a POST with that JSON body.
+   * site was refused while it waited in the queue is not sent, nor is one whose extra headers
+   * cannot be sent. Page answers count toward the site's pushback (robots.txt answers do not).
+   * Page requests carry their host's extraHeaders; `post` makes it a POST with that JSON body.
    */
   function request(url: URL, isPage: boolean, post?: PostJson): Promise<Answer> {
     return queueFor(url).run(async (): Promise<Answer> => {
       const siteRefusal = isPage ? refusedSites.get(siteOf(url)) : undefined;
-      if (siteRefusal !== undefined) return { kind: 'refused', why: siteRefusal };
+      if (siteRefusal !== undefined) return { kind: 'not-sent', why: siteRefusal };
+      let headers: Headers;
+      try {
+        headers = headersFor(url, isPage, post !== undefined);
+      } catch (error) {
+        // Only the error's name: the message may quote a header value.
+        const name = error instanceof Error ? error.name : typeof error;
+        return { kind: 'not-sent', why: `the extra headers for ${url.hostname} cannot be sent (${name}), so nothing was sent` };
+      }
       let res: Response;
       try {
-        const headers = new Headers(isPage ? extraHeaders(url) : {});
-        if (post) headers.set('content-type', 'application/json');
-        headers.set('user-agent', userAgent); // last, so nothing can replace it
         res = await fetch(url, {
           method: post ? 'POST' : 'GET',
           body: post?.json,
@@ -347,12 +370,23 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
 
   /** See PoliteFetcher.postJson: checked like a page, sent once, never retried or redirected. */
   async function postJson(url: string, body: unknown): Promise<string | null> {
+    let json: string | undefined;
+    try {
+      json = JSON.stringify(body);
+    } catch (error) {
+      log(`not fetched ${url} (POST): the body is not JSON (${error instanceof Error ? error.name : typeof error})`);
+      return null;
+    }
+    if (json === undefined) {
+      log(`not fetched ${url} (POST): the body is not JSON (${typeof body})`);
+      return null;
+    }
     const target = httpUrl(url);
     if (target === null) {
       log(`not an http(s) URL: ${url}`);
       return null;
     }
-    const answer = await whyNotAllowed(target) ?? await request(target, true, { json: JSON.stringify(body) });
+    const answer = await whyNotAllowed(target) ?? await request(target, true, { json });
     if (typeof answer !== 'string' && answer.kind === 'response' && answer.status === 200) {
       return decodeText(answer.body ?? new Uint8Array());
     }
