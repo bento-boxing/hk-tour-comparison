@@ -43,6 +43,12 @@ it.each([
   const r = normaliseTour({ ...base, ...patch }, places, today);
   expect(r).toMatchObject({ ok: false, reason });
 });
+it('skips a tour with no upcoming departures as no-departures even when no stop matches, still reporting unmatched names', () => {
+  const r = normaliseTour({ ...base, dayHeadings: ['香港 → 亞特蘭提斯'], departures: [{ date: '2026-11-11', priceHkd: 5000 }] }, places, today);
+  expect(r).toEqual({ ok: false, reason: 'no-departures', unmatched: ['亞特蘭提斯'] });
+  expect(normaliseTour({ ...base, dayHeadings: [], departures: [] }, places, today))
+    .toEqual({ ok: false, reason: 'no-departures', unmatched: [] });
+});
 it('reports unmatched names on rejection', () => {
   const r = normaliseTour({ ...base, dayHeadings: ['香港 → 亞特蘭提斯'] }, places, today);
   expect(r.unmatched).toEqual(['亞特蘭提斯']);
