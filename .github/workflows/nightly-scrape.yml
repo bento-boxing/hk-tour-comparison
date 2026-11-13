@@ -4,9 +4,8 @@ name: nightly-scrape
 # every approved operator. A job killed by its timeout has saved nothing (saving is one
 # transaction at the end), so last night's data stays. A failed job makes GitHub email the owner.
 on:
-  # Enabled in Task 26, once the DATABASE_URL repository secret exists.
-  # schedule:
-  #   - cron: '17 18 * * *'   # 18:17 UTC = 02:17 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
+  schedule:
+    - cron: '17 18 * * *'   # 18:17 UTC = 02:17 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
   workflow_dispatch:
 
 permissions:
