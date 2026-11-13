@@ -294,8 +294,8 @@ describe('SCRAPERS', () => {
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
   });
 
-  it('gives each operator a floor for runs with no history, about a third of the tour pages seen', () => {
-    expect(SCRAPERS.jetour?.minExpectedTours).toBe(150);
+  it('gives each operator a floor for runs with no history, about a third of the tours seen with dates on sale', () => {
+    expect(SCRAPERS.jetour?.minExpectedTours).toBe(35);
     expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
   });
 
