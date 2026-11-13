@@ -1,4 +1,9 @@
 /* No mockup screen for the panels: the toggle matches the search field's height, choices use the mockup's .f pills. */
+/*
+ * From 640px the button sits beside the search box, so the panel is right-aligned under it and opens leftwards.
+ * The button ends inside the page's 20px gutter, and the search box (280–520px, growing to fill the row) puts it
+ * at least ~600px from the page's left edge, so a 480px panel stays on screen. Below 640px see the end of the file.
+ */
 .panels { position: relative; }
 
 .toggle {
@@ -8,7 +13,7 @@
 .toggle[aria-expanded='true'] { border-color: var(--cerulean); color: var(--cerulean); }
 
 .panel {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 10;
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 10;
   width: 480px; max-width: calc(100vw - 32px); padding: 12px 14px;
   /*
    * The grouped country list is taller than a phone screen: the panel scrolls itself, up and down only,
@@ -40,3 +45,13 @@
 .current, .current:hover { background: var(--cerulean); border-color: var(--cerulean); color: var(--snow); }
 
 .toggle:focus-visible, .back:focus-visible, .chip:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+
+/*
+ * Phones and narrow windows: the button may sit beside the search box or wrap below it, so the panel hangs off
+ * the search row instead (each page's .searchRow is position: relative), from its left edge, as the filter
+ * popovers hang off the filter bar. With max-width calc(100vw - 32px) it ends 16px from the right edge.
+ */
+@media (max-width: 639px) {
+  .panels { position: static; }
+  .panel { left: 0; right: auto; }
+}

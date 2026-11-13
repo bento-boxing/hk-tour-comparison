@@ -2,7 +2,8 @@
 .heading { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 
 /* As on the search page: the search bar (mockup .search, max 520px) with the 按國家選擇 button beside it. */
-.searchRow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+/* position: relative: on phones the 按國家選擇 panel hangs off this row (DestinationPanels.module.css). */
+.searchRow { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
 .searchBox { flex: 1 1 280px; max-width: 520px; }
 
 /* Not in the mockup: the removal notice, the empty and full states, and the error, in the search page's panel style. */

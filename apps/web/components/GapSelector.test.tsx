@@ -56,12 +56,24 @@ describe('the fields', () => {
     expect(max()).toHaveFocus();
   });
 
+  const css = () => readFileSync(join(__dirname, 'GapSelector.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const inputRule = () => /^[^@]*?\.input \{([^}]*)\}/.exec(css())?.[1] ?? '';
+
   it('are narrow, at least 44 px tall, and use only theme colours', () => {
-    const css = readFileSync(join(__dirname, 'GapSelector.module.css'), 'utf8').replace(/\s+/g, ' ');
-    expect(css).toMatch(/\.input \{[^}]*min-height: 44px/);
-    expect(css).toMatch(/\.input \{[^}]*width: [^;]*ch/);
-    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
-    expect(css).not.toMatch(/rgb|hsl/i);
+    expect(inputRule()).toContain('min-height: 44px;');
+    expect(inputRule()).toMatch(/width: [^;]*ch/);
+    expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(css()).not.toMatch(/rgb|hsl/i);
+  });
+
+  it('are marked as editable by a dotted cerulean underline (khaki is too faint on white)', () => {
+    expect(inputRule()).toContain('border-bottom: 2px dotted var(--cerulean);');
+    expect(css()).not.toContain('--khaki');
+  });
+
+  it('use the text size of the box, and 16 px only on phones (to stop iOS zooming in)', () => {
+    expect(inputRule()).not.toContain('font-size');
+    expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.input \{ font-size: 16px; \} \}/);
   });
 });
 
@@ -102,6 +114,15 @@ describe('applying', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith({ min: 1, max: 10 });
     expect(max()).toHaveFocus();
+  });
+
+  it('Enter then leaving the field applies once', async () => {
+    renderGap();
+    await typeInto(max(), '6');
+    await user.keyboard('{Enter}');
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 6 });
   });
 
   it('leaving the field applies the typed value', async () => {
@@ -196,6 +217,37 @@ describe('the address', () => {
     rerender(<GapSelector gap={{ min: 2, max: 8 }} onChange={onChange} t={t} />);
     expect(min()).toHaveValue('2');
     expect(max()).toHaveValue('8');
+  });
+
+  it('an applied value shows until the address arrives, then the address shows', async () => {
+    const { rerender } = renderGap();
+    await typeInto(max(), '5');
+    await user.keyboard('{Enter}');
+    expect(max()).toHaveValue('5');
+    rerender(<GapSelector gap={{ min: 1, max: 5 }} onChange={onChange} t={t} />);
+    expect(max()).toHaveValue('5');
+    rerender(<GapSelector gap={{ min: 1, max: 4 }} onChange={onChange} t={t} />);
+    expect(max()).toHaveValue('4');
+  });
+
+  it('a competing navigation that lands on the old gap shows the old gap, not the value applied here', async () => {
+    const { rerender } = renderGap();
+    await typeInto(max(), '5');
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 5 });
+    // Another push, built from the stale address, wins: a new address arrives with the same 1–3.
+    rerender(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
+    expect(min()).toHaveValue('1');
+    expect(max()).toHaveValue('3');
+  });
+
+  it('typing the old value again while a change is on its way applies it, so it wins', async () => {
+    renderGap();
+    await typeInto(max(), '5');
+    await user.keyboard('{Enter}');
+    await typeInto(max(), '3');
+    await user.keyboard('{Enter}');
+    expect(onChange.mock.calls).toEqual([[{ min: 1, max: 5 }], [{ min: 1, max: 3 }]]);
   });
 
   it('a new gap from the address leaves a field being typed in alone', async () => {

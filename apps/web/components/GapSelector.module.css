@@ -7,13 +7,19 @@
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 /*
- * Typed numbers in the box's cerulean bold text: room for two digits, 44px tall for touch, 16px so iOS
- * does not zoom in on focus. A khaki underline (the gap line's colour) shows the number can be typed over.
+ * Typed numbers in the box's cerulean bold text, at the box's size: room for two digits, 44px tall for touch.
+ * A dotted cerulean underline shows the number can be typed over (khaki would be too faint on white); solid
+ * while the field has focus.
  */
 .input {
   width: calc(2ch + 12px); min-height: 44px; padding: 0 6px; margin: 0;
-  border: 0; border-bottom: 2px solid var(--khaki); border-radius: 0; background: transparent;
-  font: inherit; font-size: 16px; color: inherit; text-align: center;
+  border: 0; border-bottom: 2px dotted var(--cerulean); border-radius: 0; background: transparent;
+  font: inherit; color: inherit; text-align: center;
 }
-.input:focus { border-bottom-color: var(--cerulean); }
+.input:focus { border-bottom-style: solid; }
 .input:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+
+/* Phones: 16px stops iOS zooming into the field on focus, as in the filter bar. */
+@media (max-width: 639px) {
+  .input { font-size: 16px; }
+}
