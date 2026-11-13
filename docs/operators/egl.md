@@ -170,15 +170,21 @@ Sample response (abridged):
 
 ## Fixtures (`packages/scraper/src/operators/egl/fixtures/`)
 
-These fixtures are held outside the repository until the owner decides on this operator; they are committed to this path only if it is approved.
-
-**Before they are committed** (controller ruling, 2026-11-12): the day-plan JSON in `data-daily-itinerary-plans-json` must not carry day prose. The values of `description` (up to 102 characters in the held copies) and `accomodation` (up to 120) must be cut to their first 20 characters plus `…`, and so must any other key holding free text rather than a heading, place, meal label or date (`lunch` and `dinner` reach 70 characters and should be looked at then). This is to be done by a tested `trimFixture` option, not by hand, and the option used is to be recorded here. `title` and `location` stay whole. The option has not been written yet, because EGL is not approved.
-
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`), with **no `--keep` selector**. EGL's day headings are not element text: the accordion element `.block-item--daily-itinerary-plan-accordion` is empty in the HTML, and the headings (`title`, `journeyTextRows[][].location`) live only in its `data-daily-itinerary-plans-json` attribute, where strings are cut only above 120 characters. The longest heading string in the three samples is 30 characters, so none is cut (checked: 61 heading strings, 0 ending in `…`). A `--keep` selector would not change them, because it applies to element text and to page-data strings that repeat a kept element's text. If a longer heading appears, the keep mechanism would need to cover that attribute, which it does not today. Regenerate with:
+Committed after the owner's approval (2026-11-13). The copies held outside the repository (`.superpowers/held-fixtures/egl/fixtures/`, trimmed with the earlier `--keep`-free mode) were re-trimmed in **allow-list mode** (`trimFixture`'s `allow` option), the standard the Jetour and Travel Expert fixtures were brought to: only the text `parse.ts` reads is kept, and every other text node, JSON string and text-carrying attribute is emptied. This replaces the 2026-11-12 ruling's cut of `description`, `accomodation`, `lunch` and `dinner` to 20 characters: those values are now empty. Trimming the untrimmed saved pages (under `.superpowers/raw-pages/egl/`, outside git: `itin-HTJSJG06.html` → `multi-city.html`, `itin-HTGSZK02.html` → `simple.html`, `itin-MTJ3TA06.html` → `edge.html`) with the same command gives the same files apart from blank lines. To regenerate:
 
 ```
-pnpm --filter @hktours/scraper fixture --from <saved itinerary page> <output>
+LD='script[type="application/ld+json"]'
+PLANS='.block-item--daily-itinerary-plan-accordion'
+pnpm --filter @hktours/scraper fixture \
+  --allow 'p:has(> .block-item--itinerary-hero-price)' \
+  --allow '[data-hiifly-fill-tile] > p' \
+  --allow '[data-hiifly-fill-tile] + * p.egl-h5' \
+  --allow-key-in "$LD" '@type' --allow-key-in "$LD" name --allow-key-in "$LD" price \
+  --allow-key-in "$PLANS" title --allow-key-in "$PLANS" location \
+  --from <saved itinerary page> <output>
 ```
+
+The allow-list, one line per thing `parse.ts` reads: the hero line with the day count (`6天．`), the two transport headings (`出發交通資料`, `回程交通資料`) and the places of the blocks after them (`p.egl-h5`, for the start and end points); in the JSON-LD `@type` (to find the `Product`), `name` (title) and `price` (the "from" price); in the day-plan JSON attribute `title` and `location` (the day's stops). The tour code is in the `data-tour-code` attribute, which holds no Chinese text and is kept as it is; `dayNumber` and the other numbers and booleans are always kept. `--allow-key-in` (added for EGL) limits a key to the JSON of the elements its selector matches: the page also uses `title` and `name` for gallery captions, image names and the navigation settings, which the parser does not read and which are emptied. The heading strings are cut only above 300 characters (`KEEP_TEXT_LIMIT`); the longest is 30.
 
 The date JSON files are the raw API responses, copied unchanged: they hold only codes, dates, prices and flags.
 
@@ -188,7 +194,7 @@ The date JSON files are the raw API responses, copied unchanged: they hold only 
 | `simple.html` + `simple.dates.json` | `/website/itinerary/HTGSZK02` | 2 days, one place (中山); gathers in Shenzhen; 11 dates, two at a higher price |
 | `edge.html` + `edge.dates.json` | `/website/itinerary/MTJ3TA06` | **Starts in Macau** (Air Macau); every day `title` is empty, only stops are given |
 
-Checked by eye: no personal data (only the company's published hotlines). No hand trimming was needed. Long day descriptions inside the day-plan JSON attribute are cut by `trimFixture` (strings over 120 characters); image URLs (not images) remain in that JSON.
+Checked after trimming (2026-11-13): the only Chinese text left is the hero line, the transport headings and places, the JSON-LD title and brand name (`東瀛遊 EGL Tours`), the day titles and stops, and twelve UI labels that are JSON keys (not values) of the page's translations script, such as `客戶意見表` (the longest is 14 characters). No run of 25 or more Chinese characters and punctuation; no images, styles, code scripts or inline event handlers; no personal data; LF line endings. Image URLs remain in the JSON. No hand trimming was needed.
 
 ## Every URL fetched (Task 14: 10 page fetches; Task 14b: 1; terms PDFs: 10; robots.txt not counted)
 

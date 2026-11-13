@@ -1,0 +1,63 @@
+{
+  "sourceUrl": "https://www.egltours.com/website/itinerary/MTJ3TA06",
+  "verifiedByOwner": false,
+  "notes": "Flies from Macau: the transport blocks give 澳門 as origin and return destination, so start and end are kind other, label 澳門, and the 澳門 at either end of the stop lines is not a stop. Every day title is empty; the headings are the stop lines. Route: 東京 (東京成田機場), 箱根 (day 2), 靜岡 (day 3 親手沖泡靜岡綠茶體驗; 靜岡 was added to places data.json). Not on the route: 新橫濱拉麵博物館 is written in 【】 and bracketed text is dropped by the shared rules; 三島 (day 5), 新宿 (day 5, Tokyo) and 酒酒井 (day 6, Chiba) are not in the places list. Departures: all six dates at 12299.",
+  "scraped": {
+    "operatorId": "egl",
+    "code": "MTJ3TA06",
+    "url": "https://www.egltours.com/website/itinerary/MTJ3TA06",
+    "title": "【澳門航空】直航東京、箱根、靜岡、 富士山開心六天之旅",
+    "days": 6,
+    "nights": null,
+    "dayHeadings": [
+      "澳門 → 東京成田機場 → 【新橫濱拉麵博物館】",
+      "箱根雕刻之森美術館 → 大涌谷地獄谷泉眼 → 箱根山纜車",
+      "親手沖泡靜岡綠茶體驗 → 世界最長木造步道 → 花鳥天堂",
+      "S-PULSE夢幻廣場 → 櫻桃小丸子樂園 → 乘坐駿河灣渡輪 → 修善寺人氣竹林",
+      "日本最長三島SKY WALK → 時尚新據點新宿自由購物",
+      "酒酒井OUTLET購物城 → 機場 → 澳門"
+    ],
+    "startPoint": "澳門",
+    "endPoint": "澳門",
+    "fromPriceHkd": 12299,
+    "departures": [
+      {
+        "date": "2026-11-22",
+        "priceHkd": 12299
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": 12299
+      },
+      {
+        "date": "2026-12-05",
+        "priceHkd": 12299
+      },
+      {
+        "date": "2026-12-09",
+        "priceHkd": 12299
+      },
+      {
+        "date": "2026-12-12",
+        "priceHkd": 12299
+      },
+      {
+        "date": "2026-12-15",
+        "priceHkd": 12299
+      }
+    ]
+  },
+  "stopNames": [
+    "東京",
+    "箱根",
+    "靜岡"
+  ],
+  "unmatched": [
+    "大涌谷地獄谷泉眼",
+    "世界最長木造步道",
+    "花鳥天堂",
+    "櫻桃小丸子樂園",
+    "乘坐駿河灣渡輪",
+    "修善寺人氣竹林"
+  ]
+}

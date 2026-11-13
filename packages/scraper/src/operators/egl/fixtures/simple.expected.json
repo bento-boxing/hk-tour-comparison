@@ -1,0 +1,74 @@
+{
+  "sourceUrl": "https://www.egltours.com/website/itinerary/HTGSZK02",
+  "verifiedByOwner": false,
+  "notes": "Gathers in Shenzhen: the start point is the first place of 出發交通資料, 深圳羅湖口岸(地面)門前廣場(EGL旗號集合), without its bracketed notes; the end point is the last place of 回程交通資料, 深圳灣口岸 及 羅湖口岸 (解散), without (解散). Both classify as Shenzhen, so Shenzhen is not a stop. The 中途站 (a second pick-up at 深圳灣口岸) is not the start. Route: 中山 only; 小阿勒泰 (a nickname for 金鐘湖 in day 1's stop) was added to notPlaces, as otherwise 阿勒泰 (Altay, Xinjiang) would have matched. Departures: all eleven dates, 499 except 2026-12-25 and 2026-12-26 at 799; from price 499 (JSON-LD offers.price).",
+  "scraped": {
+    "operatorId": "egl",
+    "code": "HTGSZK02",
+    "url": "https://www.egltours.com/website/itinerary/HTGSZK02",
+    "title": "週末狂熱《唔使早起身中午出發》 中山奢華五星x秋日花海休閒純玩2天",
+    "days": 2,
+    "nights": null,
+    "dayHeadings": [
+      "深圳羅湖口岸 → 深圳灣口岸 → 中山 → 潮流首站：【富逸城 Top Park】 → 中山版小阿勒泰「金鐘湖·觀賞粉黛亂子草花海 / 黃金水杉林」 → 酒店",
+      "酒店 → 中山永安新城皇冠假日酒店「健康素食自助午餐」 → 【香山藏蜂閣】香山綠肺·山林佳蜜 ＞ 乘坐旅遊專車 → 深圳灣口岸 及 深圳羅湖口岸(解散)"
+    ],
+    "startPoint": "深圳羅湖口岸門前廣場",
+    "endPoint": "深圳灣口岸 及 羅湖口岸",
+    "fromPriceHkd": 499,
+    "departures": [
+      {
+        "date": "2026-11-21",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-11-27",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-11-28",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-04",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-05",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-11",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-12",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-19",
+        "priceHkd": 499
+      },
+      {
+        "date": "2026-12-25",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-26",
+        "priceHkd": 799
+      }
+    ]
+  },
+  "stopNames": [
+    "中山"
+  ],
+  "unmatched": [
+    "潮流首站：",
+    "黃金水杉林」",
+    "乘坐旅遊專車"
+  ]
+}
