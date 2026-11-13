@@ -54,6 +54,7 @@ const data: ChainPageData = {
   address: { chain, search: { filters: { excludeCountryIds: ['japan'] }, sort: 'price', page: 1 } },
   legs, droppedCount: 0, departWindow: { from: '2026-12-24', to: '2026-12-26' },
   next: { tours: [B, C], total: 30 }, full: false, operators,
+  filterOperators: [operators[1], operators[2]], // jetour and texpert
 };
 
 async function renderPage(params: Record<string, string | string[] | undefined>) {
@@ -254,4 +255,15 @@ it('a page past the last says so neutrally, with the link back to page 1 that ke
   expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
   expect(screen.queryByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。')).toBeNull();
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
+});
+
+it('the filter bar offers filterOperators; the strip and cards look operators up in the full list', async () => {
+  mocks.loadChainPage.mockResolvedValue(data);
+  await renderPage({});
+  expect(screen.getByText('東瀛遊 · 12/18 – 12/22 · HK$7,999')).toBeInTheDocument(); // egl's leg, from `operators`
+  const [, tpe] = screen.getAllByRole('article');
+  expect(within(tpe).getByText('大航假期')).toBeInTheDocument(); // bigline's card, from `operators`
+  await userEvent.setup().click(screen.getByRole('button', { name: '旅行社：全部' }));
+  const dialog = screen.getByRole('dialog', { name: '旅行社' });
+  expect(within(dialog).getAllByRole('checkbox').map(box => box.parentElement?.textContent)).toEqual(['捷旅', '專業旅運']);
 });

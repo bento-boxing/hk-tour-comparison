@@ -3,6 +3,7 @@ import { getOperators, getToursByKeys, searchTours, type Db, type OperatorInfo, 
 import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
 import { parseSearchParams } from './search-params';
+import { filterBarOperators } from './search-page-data';
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -21,7 +22,10 @@ export interface ChainPageData {
   next: { tours: TourCardData[]; total: number } | null;
   /** MAX_CHAIN_LEGS legs: no more can be added. */
   full: boolean;
+  /** Every operator, for looking one up by id (the strip's and cards' names and colours). */
   operators: OperatorInfo[];
+  /** The operators the filter bar offers: see filterBarOperators. */
+  filterOperators: OperatorInfo[];
 }
 
 /** The first value of a parameter, when it is a string at all; null otherwise. */
@@ -52,10 +56,12 @@ export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate): Pro
   // The departure window comes from the gap, so from/to in the address are not read.
   const search = parseSearchParams(raw, places, { includeDates: false });
 
-  const [tours, operators] = await Promise.all([
+  const [tours, operators, withGoodRun] = await Promise.all([
     getToursByKeys(db, decoded.legs.map(l => l.tourKey), today),
     getOperators(db),
+    getOperators(db, { onlyWithGoodRun: true }),
   ]);
+  const filterOperators = filterBarOperators(operators, withGoodRun, search.filters.operators);
   const resolved = resolveChain(decoded, tours, today);
   const { legs } = resolved;
   const droppedCount = resolved.droppedCount + unreadable;
@@ -73,5 +79,5 @@ export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate): Pro
     })
     : null;
 
-  return { address, legs, droppedCount, departWindow, next, full, operators };
+  return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators };
 }

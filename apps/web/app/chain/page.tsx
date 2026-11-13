@@ -34,7 +34,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
     return <p className={styles.error} role="alert">{t('search.error')}</p>;
   }
 
-  const { address, legs, droppedCount, departWindow, next, full, operators } = data;
+  const { address, legs, droppedCount, departWindow, next, full, operators, filterOperators } = data;
   const lastLeg = legs.at(-1);
   const date = (d: string) => formatChipDate(d, today);
 
@@ -64,7 +64,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
                 <div className={styles.searchBox}><ChainDestinationSearchConnected address={address} /></div>
                 <ChainDestinationPanelsConnected address={address} />
               </div>
-              <ChainFilterBarConnected address={address} operators={operators} today={today} />
+              <ChainFilterBarConnected address={address} operators={filterOperators} today={today} />
               <ChainResultsConnected
                 address={address} lastEndDate={lastLeg.endDate}
                 tours={next.tours} total={next.total} operators={operators} today={today}

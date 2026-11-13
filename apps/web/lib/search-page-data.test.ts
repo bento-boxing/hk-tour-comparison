@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { it, expect, beforeAll, afterAll } from 'vitest';
+import { it, expect, beforeAll, afterAll, describe } from 'vitest';
 import type { NormalisedTour, OperatorId, ScrapedDeparture, Stop } from '@hktours/core';
 import { saveOperatorRun, PAGE_SIZE, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
@@ -53,6 +53,7 @@ it('an empty address lists every tour by price, with the operators', async () =>
   expect(keys(data)).toEqual(['bigline:SEL5', 'texpert:LAST4', 'egl:KIX5', 'jetour:MID6']);
   expect(data.total).toBe(4);
   expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+  expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // all four have run here
 });
 
 it('the nonsense address page=-1&sort=x&dest=<b> gives the default list', async () => {
@@ -96,4 +97,29 @@ it('a page beyond the last gives no tours but still the total', async () => {
 it('a database error is passed to the caller', async () => {
   const broken: Db = { ...db, query: () => Promise.reject(new Error('connection refused')) };
   await expect(loadSearchPage(broken, {}, today)).rejects.toThrow('connection refused');
+});
+
+describe('the operator filter', () => {
+  // Only Jetour and Travel Expert have ever had a good run, as at launch.
+  let launch: Db;
+  beforeAll(async () => {
+    launch = await createTestDb();
+    const stats = { startedAt: new Date('2026-11-12T18:00:00Z'), finishedAt: new Date('2026-11-12T18:30:00Z'), pagesFetched: 1, parseFailures: 0 };
+    await saveOperatorRun(launch, { operatorId: 'jetour', runDate: today, tours: [MID], unmatched: [], stats });
+    await saveOperatorRun(launch, { operatorId: 'texpert', runDate: today, tours: [LAST], unmatched: [], stats });
+  });
+  afterAll(async () => { await launch.close(); });
+
+  it('offers only operators that have had a good run; every operator stays available for lookups', async () => {
+    const data = await loadSearchPage(launch, {}, today);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert']);
+    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+  });
+
+  it('an operator the address selects stays offered, so the selection can be seen and undone', async () => {
+    const data = await loadSearchPage(launch, { op: 'bigline,texpert' }, today);
+    expect(data.state.filters.operators).toEqual(['texpert', 'bigline']);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert', 'bigline']);
+    expect(keys(data)).toEqual(['texpert:LAST4']);
+  });
 });
