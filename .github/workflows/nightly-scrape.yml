@@ -1,0 +1,64 @@
+name: nightly-scrape
+
+# Each night between 02:00 and 05:00 Hong Kong time: apply pending migrations, then scrape
+# every approved operator. A job killed by its timeout has saved nothing (saving is one
+# transaction at the end), so last night's data stays. A failed job makes GitHub email the owner.
+on:
+  # Enabled in Task 26, once the DATABASE_URL repository secret exists.
+  # schedule:
+  #   - cron: '0 18 * * *'   # 18:00 UTC = 02:00 Hong Kong
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-scrape
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs the pnpm version named in package.json "packageManager".
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  scrape:
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 170 # must be finished by 05:00 Hong Kong
+    strategy:
+      fail-fast: false # one operator failing must not stop the others
+      matrix:
+        # Every key of SCRAPERS in packages/scraper/src/operators/index.ts.
+        operator: [jetour, texpert]
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs the pnpm version named in package.json "packageManager".
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm scrape --operator ${{ matrix.operator }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

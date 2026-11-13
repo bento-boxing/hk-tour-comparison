@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ScrapedTour } from '@hktours/core';
 import type { Db } from '@hktours/db';
@@ -251,5 +252,12 @@ describe('SCRAPERS', () => {
   it('holds exactly the approved operators, each under its own id', () => {
     expect(Object.keys(SCRAPERS).sort()).toEqual(['jetour', 'texpert']);
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
+  });
+
+  it('the nightly workflow scrapes every registered operator', async () => {
+    const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
+    const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
+    expect(matrix, 'operator matrix line').not.toBeNull();
+    expect(matrix![1].split(',').map(id => id.trim()).sort()).toEqual(Object.keys(SCRAPERS).sort());
   });
 });
