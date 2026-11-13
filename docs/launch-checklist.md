@@ -88,6 +88,20 @@ The route on each card comes from the day-by-day headings. Three rules decide wh
 - [ ] **A plane or train change is not a stop.** Any part of a heading containing 轉機, 中轉, 轉乘 or 過境 (for example `途經巴黎轉機`, `中轉深圳北/廣州南`) gives no stop. If you disagree, connection cities appear on routes as if they were visited.
 - [ ] **A single foreign stop in a one-country tour is a name collision.** When one stop, neither the first nor the last, is in a different country from at least three other stops that are all in one country, it is treated as a place that only has the same name as a foreign city, and it is dropped (and written to the unmatched list for review). **In the code as it is now, this applies only to names on a short list of known collisions, currently 塔林 and 黃金海岸** (`collisionNames` in `packages/core/src/places/data.json`). Example: 塔林 on an all-China tour is the Shaolin Pagoda Forest, not Tallinn. It was narrowed to that list because, applied to every name, it also removed real day trips across a border (Kirkenes on Finnish Lapland tours, Vaduz, Tirano, the Vatican, San Marino).
 
+### Jetour pages without departure dates (decides whether Jetour's numbers can be trusted)
+
+- [ ] **78% of Jetour's tour pages (353 of 453) showed no departure dates when fetched.** The saved pages carry Jetour's own `沒有數據。` ("no data") text where the dates would be and no sign of dates being loaded by script, and two crawls on 13 November gave about the same count (about 351 and 353; see `docs/operators/jetour.md`), but nobody has compared one with a browser. **Open three Jetour tours that the scraper says have no dates, and confirm the live page shows no departure dates either.** If any of them shows dates in the browser, the scraper is missing them, and most of Jetour's tours would be missing from the site: tell the assistant which tours.
+
+  How to find such tours: a Jetour tour with no dates is never saved, so it is **not in the database** and does not appear on the comparison site. Two ways:
+  - **A short dry run** on your computer (after `pnpm install`; it fetches about 20 pages from Jetour, politely, and writes nothing to any database): `pnpm scrape --operator jetour --dry-run --limit 20`. Each page without dates is printed as `jetour: skipped <address>: no-departures`, and its `page {…}` line says `"result":"no-departures"`. Open three of those addresses. The run takes a minute or two. It ends with `run checks: failed (below-minimum)` (or `failed (no-tours, below-minimum)` if none of the 20 had dates) and pnpm reports the command as failed. **That is expected**: 20 pages give far fewer tours than the first-run minimum of 35 (see 3.4). It is not a fault.
+  - **From Jetour's own site**, once 3.4 has saved data: pick tours from Jetour's listing pages and check whether each appears on the comparison site. To see the Jetour tours that were saved, in Supabase → SQL Editor:
+
+    ```sql
+    select code, title, url from tours where operator_id = 'jetour' and active order by code;
+    ```
+
+    A Jetour tour that is not in this list either had no dates on sale when it was fetched or could not be read. Open its Jetour page and check whether it shows departure dates.
+
 ---
 
 ## 2. Decide on the two operators not included
@@ -121,19 +135,29 @@ Do these in order. Steps 3.1 to 3.3 can be done any time; the scrape (3.4) needs
 - [ ] Sign in at supabase.com and create a new project on the **Free** plan.
   - Region: **Southeast Asia (Singapore)**, the closest Supabase region to Hong Kong.
   - Database password: choose one with **letters and digits only**. Symbols such as `@ : / # ?` would have to be specially encoded inside the connection string, and are an easy mistake. Keep the password in your password manager.
-- [ ] Copy the **connection pooler** string in **transaction mode**: in the project, click **Connect** (top of the page) and choose the connection string for the **Transaction pooler**. It looks something like `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`; the part to check is port **6543**, which is transaction mode. Replace `[YOUR-PASSWORD]` with your password. This is the string the scraper and the website use, because it works from GitHub Actions and Vercel's serverless functions. Do not add anything to the end of it (such as `?sslmode=...`): the code was not tested with that.
+- [ ] Copy the **connection pooler** string in **transaction mode**: in the project, click **Connect** (top of the page) and choose the connection string for the **Transaction pooler**. It looks something like `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`; the part to check is port **6543**, which is transaction mode. Replace `[YOUR-PASSWORD]` with your password. This is the string the scraper and the website use, because it works from GitHub Actions and Vercel's serverless functions. Use it as Supabase gives it; you do not need to add anything about SSL. **TLS (encryption) is always used for a hosted database**: the code turns it on for any database that is not on your own computer, and any SSL setting in the string (such as `?sslmode=require` or `?sslmode=disable`) is removed and has no effect.
 - [ ] Keep this string out of the repository and out of chat. Store it in your password manager.
+- [ ] **Download the database's CA certificate (optional, recommended).** With it, the code also checks that the server it reaches really is your Supabase database (it verifies the server's identity). Without it the connection is still encrypted, but the server's identity is not verified, and the website and each scrape job log one line that says so:
+
+  ```
+  postgres: the database connection is encrypted but the server's identity is not verified; set DATABASE_CA_CERT to the database's CA certificate (PEM text) to verify it.
+  ```
+
+  - In the Supabase dashboard, open the project's **database settings** and find the **SSL** section, which has a button to download the certificate (something like Project Settings → Database → SSL Configuration → Download certificate). The exact menu wording may differ: the assistant could not check it.
+  - The downloaded file is plain text. Opened in a text editor, it starts with `-----BEGIN CERTIFICATE-----` and ends with `-----END CERTIFICATE-----`. That whole text, with both of those lines and its line breaks, is the value called **`DATABASE_CA_CERT`** in 3.3 and 3.6. It holds no password, but there is no need to commit it.
 
 ### 3.2 Create the tables (optional: the workflow in 3.4 does the same)
 
 The nightly workflow's first job runs the same command, so you can skip this and let step 3.4 create the tables. Run it here if you want to see it work first.
 
 - [ ] On your computer, in the repository folder, with Node.js 20.19 or later: `corepack enable`, then `pnpm install`.
-- [ ] Run, with your real string in place of `…` and the quotes kept:
+- [ ] Run, with your real string in place of `…`, the path of the certificate file from 3.1 in place of `<certificate file>`, and the quotes kept:
 
   ```sh
-  DATABASE_URL='…' pnpm db:migrate
+  DATABASE_URL='…' DATABASE_CA_CERT="$(cat '<certificate file>')" pnpm db:migrate
   ```
+
+  If you did not download the certificate, leave out the `DATABASE_CA_CERT="…"` part; the command then also prints the "not verified" line from 3.1 before its other output.
 
   (The command stays in your shell history. In bash and zsh, starting the line with a space usually keeps it out; otherwise clear the history entry afterwards.)
 
@@ -151,18 +175,22 @@ The nightly workflow's first job runs the same command, so you can skip this and
 ### 3.3 Add the GitHub secret
 
 - [ ] GitHub → the repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**. Name: `DATABASE_URL`. Value: the pooler string from 3.1. Save.
+- [ ] Optional, recommended: a second repository secret the same way. Name: `DATABASE_CA_CERT`. Value: the certificate text from 3.1, pasted whole, from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`. The nightly workflow passes it to both of its jobs. If this secret does not exist, the jobs still run, with an encrypted but unverified connection.
 - [ ] GitHub → your profile picture → **Settings** → **Notifications** → **Actions**: make sure you get emails for **failed workflows**. A failed nightly run is how you hear that something is wrong.
 
 ### 3.4 Run the scrape once by hand (the smoke test)
 
-Every test so far used an in-memory database. This run is the **first time the code talks to a real Postgres server** (through the `pg` driver), so treat it as the test of that part.
+Every test so far used an in-memory database. This run is the **first time the code talks to a real Postgres server** (through the `pg` driver), and the first real test of the encrypted connection, so treat it as the test of that part.
 
 - [ ] GitHub → **Actions** → **nightly-scrape** (left list) → **Run workflow** → branch `main` → **Run workflow**.
 - [ ] Expected:
   - The **migrate** job passes. Its `pnpm db:migrate` step prints `applied 1 migration:` / `0001_init.sql`, or `no migrations to apply` if you did 3.2.
   - Then two **scrape** jobs start, one for `jetour` and one for `texpert`. Each must finish within 170 minutes (the job limit). From the practice runs, expect about 30 minutes of fetching for Jetour (about 450 pages, about 3.5 seconds each) and about 7 minutes for Travel Expert (117 pages), plus the time to save to the database, which has not been measured against a real server.
-  - The last line of each scrape job's `pnpm scrape` step looks like `jetour: ok, 450 tours saved, 451 tour pages, 1 parse failure, 900 unmatched names` (your numbers will differ). `ok` is what matters.
-- [ ] **Check Jetour's tour count.** Jetour's sitemap (its list of pages) is rebuilt from time to time, and while it is being rebuilt it lists only a few tours: one practice run on 13 November caught it listing one tour instead of about 450. On later nights the run checks refuse a run with far fewer tours than the last good one, but **this first run has nothing to compare with**, so a partial list would pass and save only those few tours. So check the Jetour job's last line: it should say about 450 `tour pages` and a similar number of `tours saved` (Travel Expert: about 117 pages and 110 tours). If Jetour shows far fewer, or `failed (no-tours)`, run the workflow again an hour or two later and tell the assistant what you saw. Do not turn on the schedule (3.5) until Jetour has had one full run.
+  - The last line of each scrape job's `pnpm scrape` step looks like `jetour: ok, 99 tours saved, 453 tour pages, 1 parse failure, 900 unmatched names` (your numbers will differ). `ok` is what matters.
+  - If you did not add the `DATABASE_CA_CERT` secret, the `pnpm db:migrate` step and each `pnpm scrape` step also print the "not verified" line from 3.1. That is expected.
+- [ ] **Check the tour counts.** Jetour's sitemap (its list of pages) is rebuilt from time to time, and while it is being rebuilt it lists only a few tours: one practice run on 13 November caught it listing one tour instead of about 450. On later nights the run checks refuse a run that saves fewer than 60% of the tours of the last good run (when that run saved at least 20). **A first run has no last good run to compare with**, so it must instead save at least a fixed number of tours, `minExpectedTours` in `packages/scraper/src/operators/<id>/index.ts`: **35 for Jetour and 40 for Travel Expert** (values at commit `5bb3a72`). A first run that saves fewer fails with `below-minimum`, and none of its tours is saved.
+  - Most Jetour pages have no departure dates on sale, and a page with none is skipped, not counted as a failure: the log shows it as `jetour: skipped <address>: no-departures`, and hundreds of those lines are normal for Jetour. The test crawl on 13 November read 453 Jetour pages and found **99 tours** with dates; Travel Expert's read 117 pages and 112 tours. So expect about 450 `tour pages` and roughly 100 `tours saved` for Jetour, and about 117 pages and 112 tours for Travel Expert. The numbers move as dates go on and off sale.
+  - A partial sitemap that still yields 35 or more Jetour tours would pass, so look at `tour pages` too. If Jetour shows far fewer than about 450 `tour pages`, or either job ends `failed (below-minimum)` or `failed (no-tours)`, run the workflow again an hour or two later and tell the assistant what you saw. Do not turn on the schedule (3.5) until both operators have had one full run.
 - [ ] Afterwards, in Supabase → **SQL Editor**, run:
 
   ```sql
@@ -177,9 +205,18 @@ Every test so far used an in-memory database. This run is the **first time the c
   Expected: one row for `jetour` and one for `texpert`, each with `ok = true` and `reasons` empty (`{}`).
 - [ ] **If a job fails**, open it, click the failed step, and send the assistant:
   - which job and step failed (`migrate`, or `scrape (jetour)` / `scrape (texpert)`, and the step name);
-  - the last 30 or so lines of that step's log, including the error message. Each page that failed is listed with a reason (`parse failure <address>: <reason>`), and the final line gives the run's reasons (`no-tours`, `tour-count-dropped` or `too-many-parse-failures`).
+  - the last 30 or so lines of that step's log, including the error message. Each page that failed is listed with a reason (`parse failure <address>: <reason>`), and the final line gives the run's reasons, one or more of:
+    - `no-tours`: no tour could be read at all;
+    - `below-minimum`: a first run (no good run before it) saved fewer tours than the operator's `minExpectedTours`;
+    - `tour-count-dropped`: fewer than 60% of the last good run's tours, when that run saved at least 20;
+    - `too-many-parse-failures`: more than 20% of the tour pages fetched could not be read.
 
-  Messages that point to the connection rather than the code: `password authentication failed` (wrong password in the string), `Tenant or user not found` (the user part must be `postgres.<project-ref>`), `timeout exceeded when trying to connect` (the database could not be reached within 8 seconds: check the address and that the project is not paused), anything mentioning SSL or certificates.
+  Messages that point to the connection rather than the code:
+  - `password authentication failed` (wrong password in the string), `Tenant or user not found` (the user part must be `postgres.<project-ref>`), `timeout exceeded when trying to connect` (the database could not be reached within 8 seconds: check the address and that the project is not paused).
+  - `The database connection string is not a valid Postgres URL`: the `DATABASE_URL` secret is not a `postgresql://…` string. The message never shows the string.
+  - `DATABASE_CA_CERT is not a PEM certificate`: the `DATABASE_CA_CERT` secret is not the whole certificate text. The job stops before connecting (exit code 2). Paste it again from the file.
+  - A certificate error, for example `self-signed certificate in certificate chain`, `unable to get local issuer certificate` or `Hostname/IP does not match certificate's altnames`: the certificate in `DATABASE_CA_CERT` does not verify the server. Check that it was downloaded from this project. If it still fails, delete the `DATABASE_CA_CERT` secret (the connection then stays encrypted, but unverified) and send the assistant the error.
+  - Anything else mentioning SSL or TLS.
 
   Do not loosen the run checks in `packages/scraper/src/check-run.ts` to make a run pass; the assistant should fix the parser or the places list instead.
 
@@ -212,7 +249,7 @@ Only after 3.4 passed for both operators.
   - **Root Directory**: `apps/web`.
   - **Framework Preset**: Next.js (it should be picked automatically).
   - **Install Command** and **Build Command**: leave them at their defaults at first. The repository is a pnpm workspace (`pnpm-lock.yaml` and `pnpm-workspace.yaml` at the top level, `packageManager: pnpm@10.34.9` in the top-level `package.json`), and `pnpm install` run inside `apps/web` installs the whole workspace. The build is `next build`, the same as the GitHub CI build that already passes. If the build log shows `npm install` or `yarn` instead of `pnpm install`, or fails with `Cannot find module '@hktours/core'` (or `@hktours/db`), set Install Command to `pnpm install --frozen-lockfile` and redeploy. I am not certain whether this override is needed; the default may be enough.
-  - **Environment Variables**: add `DATABASE_URL` with the pooler string from 3.1, for **Production** and **Preview**. Do **not** add `DEV_LOCALE` here.
+  - **Environment Variables**: add `DATABASE_URL` with the pooler string from 3.1, for **Production** and **Preview**. If you downloaded the certificate in 3.1, also add `DATABASE_CA_CERT` with the certificate text, pasted whole, for the same two. Do **not** add `DEV_LOCALE` here.
   - Click **Deploy**.
 - [ ] After the project exists, in the project's **Settings**:
   - **Build and Deployment** → Root Directory section: **"Include files outside the root directory in the Build Step"** must be **on**. The website uses the code in `packages/core` and `packages/db` directly from source (`transpilePackages` in `apps/web/next.config.ts`), so the build needs files outside `apps/web`. It is normally on by default; check it.
@@ -220,8 +257,30 @@ Only after 3.4 passed for both operators.
   - **Functions** → **Function Region**: **Singapore (sin1)**, next to the database.
   - **Environment Variables**: if you want to see the developer English text, add `DEV_LOCALE` = `en` for **Preview** or **Development** only, never **Production**. (The code ignores it in Production anyway, but do not rely on that.)
   - After changing any setting or variable, go to **Deployments** → the latest one → **Redeploy**, because settings apply only to new builds.
-- [ ] Expected: the deployment finishes, and opening the production address shows the search page in Traditional Chinese with tours from 捷旅 and 專業旅運 (if 3.4 saved data). If the page shows `暫時未能載入資料，請稍後再試。`, the site could not read the database: check `DATABASE_URL` in Vercel and send the assistant the error from the deployment's **Logs** tab (not the string).
+- [ ] Expected: the deployment finishes, and opening the production address shows the search page in Traditional Chinese with tours from 捷旅 and 專業旅運 (if 3.4 saved data). If the page shows `暫時未能載入資料，請稍後再試。`, the site could not read the database: check `DATABASE_URL` and `DATABASE_CA_CERT` in Vercel and send the assistant the error from the deployment's **Logs** tab (not the string). The messages listed in 3.4 mean the same here.
+  - If the Logs say `DATABASE_CA_CERT is not a PEM certificate`, the field probably lost the certificate's line breaks. Enter the value again as one line with the two characters `\n` in place of each line break; on a Mac or Linux, `awk '{printf "%s\\n", $0}' '<certificate file>'` prints it in that form, ready to copy. Then redeploy.
+  - Without `DATABASE_CA_CERT`, the Logs show the "not verified" line from 3.1 once each time the site starts up. That is expected.
 - [ ] Optional safeguard: in Supabase → SQL Editor, run `ALTER ROLE postgres SET statement_timeout = '20s';` (`postgres` is the part of the pooler user name before the dot). It makes the database itself stop any single statement after 20 seconds; the code already gives up on its side after 20 seconds. It applies to new connections, including your own SQL Editor sessions.
+
+### 3.7 Add the example settings file (any time)
+
+`apps/web/.env.example` is a template for anyone who runs the website on their own computer. The assistant could not create it, because its tools are not allowed to write files whose names start with `.env`. It holds no secrets.
+
+- [ ] Create `apps/web/.env.example` with exactly this content:
+
+  ```
+  # Copy this file to .env.local (git-ignored) and fill it in. Never commit a real connection string.
+
+  # Postgres connection string. On Supabase: the connection pooler string, transaction mode.
+  DATABASE_URL=
+
+  # Optional, recommended for a hosted database: its CA certificate (PEM text; \n may stand for each line break).
+  DATABASE_CA_CERT=
+
+  # DEV_LOCALE=en  (developer English; ignored in production)
+  ```
+
+- [ ] Commit it: `git add apps/web/.env.example`, `git commit -m "docs: example settings file for the website"`, `git push`. `.gitignore` ignores every other `.env…` file but lets this one name through (`!.env.example`), so `git add` accepts it. Never put a real connection string in it: the repository is public.
 
 ---
 
@@ -235,7 +294,7 @@ Do this on the live site, with `docs/design/mockup.html` (the approved mockup) o
 - [ ] A country with only one region shows once, as `<country> → 全部地區` (for example typing `巴黎` gives just `法國 → 全部地區`), and its cards read `法國`, not `法國 · 法國`.
 - [ ] `按國家選擇` (country, then region) reaches the same result as the search box.
 - [ ] The filters `出發日期`, `日數`, `價錢`, `旅行社` and all four sort orders (`價錢 低→高`, `日數 短→長`, `出發日期 早→遲`, `目的地`) change the list, change the page address, and are still set after a reload.
-- [ ] The `旅行社` filter lists all four operators, including 東瀛遊 and 大航假期, which have no tours. Decide whether that is acceptable (see section 6).
+- [ ] The `旅行社` filter lists only operators that have had a successful scrape: after 3.4, 捷旅 and 專業旅運. 東瀛遊 and 大航假期 are not offered, as they have no tours.
 - [ ] Every card shows: the operator tag, `country · region` (with `+N` when the tour covers more regions), the route, the length, the lowest price with `起`, the 7-day price comparison when there is history (none on the first night), date chips with `+N 個出發日`, the `更新：…` time, `前往<operator>網站 ↗`, and the `加入行程 ＋` button. Nothing else: no photos, no descriptions. Jetour and Travel Expert pages do not state nights, so lengths read `8日` rather than `8日7夜`.
 - [ ] Clicking a card opens the operator's page in a new tab; `加入行程 ＋` does not, and opens `選擇出發日期` instead.
 - [ ] A chain of three legs can be built on `連續行程`: after a tour ending on the 22nd with a rest of 1–3 days, the next departures offered are the 24th to the 26th (the rest is counted in full free days). The totals add up. Copying the page address into a private window shows the same chain.
@@ -298,8 +357,8 @@ Things you should know before sharing the link. Nothing here needs action unless
 - Travel Expert's prices exclude a service fee (HK$80 to HK$160 on the saved pages) paid locally.
 - Some real places seen in Travel Expert tours are not yet in the places list (for example 百色, 羅平, 曲靖, 彌勒, 金門). Tours whose headings name only places in brackets (`【…】`) cannot be read and are counted as parse failures (one Travel Expert tour in the last practice run).
 - Hong Kong meeting points written without `香港` (for example a street in 尖沙咀) would be shown as a non-Hong Kong start. None of the current Jetour or Travel Expert pages does this.
-- **Jetour's sitemap is incomplete while the site rebuilds it** (see 3.4). If a rebuild overlaps a nightly run, that run is refused and the previous night's Jetour data stays, so Jetour's tours are a day older than usual. When the rebuilds happen is not known (they were seen around 22:00 and 03:49–04:10 UTC; the nightly run starts at 18:00 UTC).
-- The `旅行社` filter lists 東瀛遊 and 大航假期 although they have no tours, because the database lists all four operators. Choosing one of them gives no results. The assistant can hide operators with no tours if you prefer.
+- **Jetour's sitemap is incomplete while the site rebuilds it** (see 3.4). If a rebuild overlaps a nightly run, that run is refused (`tour-count-dropped`; on the very first run, `below-minimum`) and the previous night's Jetour data stays, so Jetour's tours are a day older than usual. A first run during a rebuild that still yields at least 35 tours would pass; that is why 3.4 asks you to check the page count. When the rebuilds happen is not known: one was seen at about **midday Hong Kong time** (03:49–04:10 UTC, that is 11:49–12:10 in Hong Kong), and an earlier sitemap's newest entries were stamped around 22:00 UTC (06:00 in Hong Kong). The nightly run starts at 02:00 Hong Kong time (18:00 UTC). A run that lands inside a rebuild fails its checks and keeps the previous data.
+- The `旅行社` filter offers only operators with at least one successful run (`last_good_run_at` set in the `operators` table). An address that already selects another operator (an old or hand-made link with, for example, `op=egl`) still shows that operator in the filter, so the choice can be seen and removed; it gives no results.
 
 ### Legal
 
@@ -320,7 +379,7 @@ Things you should know before sharing the link. Nothing here needs action unless
 
 - **Node 20 is past its end of life** (April 2026). The project targets Node 20 (`.nvmrc` is `20`, and the CI and nightly workflows use it) only because that is what the machine it was built on had. Moving to Node 22 or 24 is a small follow-up the assistant can do.
 - The connection to Postgres (the `pg` driver) was first exercised in 3.4; all earlier tests used an in-memory database. A fault in that path shows up in the first run, not in the tests.
-- The code does not ask for an encrypted (SSL) connection to the database, and it was not tested with one. If you want to require encrypted connections in Supabase's settings, ask the assistant to add it to the code first, or the site and the scraper will stop connecting.
+- **The database connection is always encrypted (TLS)** unless the database is on the same computer (`localhost`, `127.0.0.1`, `::1` or a local socket). SSL settings in `DATABASE_URL` are removed and cannot turn this off. With `DATABASE_CA_CERT` set, the server's certificate is checked against it; without it, the connection is encrypted but the server's identity is not verified. This was tested against the database driver's own handling of these settings only, with no real database; 3.4 is its first real test. Because TLS is always on, turning on a Supabase option to accept only SSL connections (if your project offers one, probably in the same SSL section) should not stop the site or the scraper from connecting; the assistant could not try it.
 - The places list (`packages/core/src/places/data.json`) is kept by hand and grows from the unmatched review.
 - Each night's save for an operator is one database transaction with several statements per tour. Its speed against the real database is unknown until 3.4.
 - A future database change (migration) that takes longer than 20 seconds would be cut off by the code's 20-second limit and would need to be run differently.
