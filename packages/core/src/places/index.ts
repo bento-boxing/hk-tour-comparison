@@ -7,6 +7,11 @@ export interface PlacesData {
   countries: Country[]; regions: Region[]; cities: City[];
   /** Names that contain a city name but are not that city, e.g. 松山湖 (Dongguan), which contains 松山. */
   notPlaces?: string[];
+  /**
+   * Exact city names known to collide with a place elsewhere, e.g. 塔林 (Tallinn, and the Shaolin Pagoda Forest
+   * in Henan). A lone foreign stop named so amid a one-country route is dropped (see extractStops).
+   */
+  collisionNames?: string[];
 }
 
 export interface PlacesIndex {

@@ -124,17 +124,18 @@ describe('extractStops', () => {
 });
 
 describe('extractStops drops transit', () => {
-  // A heading segment (text between arrow-type separators) naming a connection is not a visit.
+  // A chunk (text between arrow-type separators, whitespace, 、 ， or ,) naming a connection is not a visit;
+  // its slash-joined alternatives go with it.
   it.each([
     // Jetour QSB, day 1: Paris is only where the plane is changed
     ['香港 ~ 布宜諾斯艾利斯 ~ 途經巴黎轉機', ['布宜諾斯艾利斯'], []],
-    // Jetour QSB-type wording with a space before 轉機
-    ['香港 ~ 利馬 ~ 途經巴黎 轉機', ['利馬'], []],
-    // Jetour: both alternatives of the connection drop, spaces inside the segment notwithstanding
-    ['聖地牙哥 ~ 經巴黎 或 阿姆斯特丹 轉機', ['聖地牙哥'], []],
+    // Jetour QPE, day 1: Rio, before a space in the same arrow segment, is kept
+    ['香港 ~ 里約熱內盧 途經巴黎轉機', ['里約熱內盧'], []],
     // Travel Expert TXXF04R, day 1: both stations of the 中轉 drop (the bracket goes first, as always)
     ['香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺', ['泉州'], ['洛伽寺']],
-    // Travel Expert: 經廣州南中轉 is a segment of its own
+    // Travel Expert TXXF04R, day 4: 廈門 before the 中轉 chunk is kept
+    ['廈門> 七彩環島路> 外觀廈門標誌性建築【雙子塔】> 廈門(乘高鐵) 中轉深圳北/廣州南 > 香港西九龍站', ['廈門'], ['七彩環島路']],
+    // Travel Expert TGGK06R: 經廣州南中轉 is a chunk of its own
     ['深圳福田口岸集合 > (乘地鐵) 深圳北站 > (乘動車) 經廣州南中轉 > (乘動車) 廣西「百色」', ['深圳'], ['廣西「百色」']],
     ['大阪 → 轉乘新幹線 → 京都', ['大阪', '京都'], []],
     ['大阪 → 過境東京 → 京都', ['大阪', '京都'], []],
@@ -144,13 +145,28 @@ describe('extractStops drops transit', () => {
     expect(r.unmatched).toEqual(expectedUnmatched);
   });
 
-  it('leaves a segment without transit wording alone', () => {
-    // Jetour QSB, day 2: Paris named plainly is still read
+  it('keeps 韶關 on Travel Expert YASP03R: the day-1 chunk 轉乘高鐵前往韶關 drops, the day-3 station reads', () => {
+    const r = extractStops([
+      '深圳福田口岸集合→乘地鐵前往深圳北站→轉乘高鐵前往韶關(約1.5小時)→午餐【於高鐵自理】→轉乘當地旅遊大巴→前往【莽山五指峰景區】',
+      '#同仁堂(購物店)→被稱為 “郴州版鳳凰古城”【裕後街】→晚餐特別安排',
+      '酒店自助早餐→工業旅遊示範點【湖南白銀博覽館】→【萬華岩】(重本包門票)洞內燈光下鐘乳石形態各異→午餐【福城農家土雞宴】→前往韶關站乘坐高鐵返回深圳北→轉乘地鐵返回福田關口散團。結束愉快行程！',
+    ], places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']);
+    expect(names(r)).toEqual(['郴州', '韶關']);
+  });
+
+  it('keeps a city a space away from the transit word (a known limit)', () => {
+    // Jetour QSC and others write 途經巴黎 轉機 / 經巴黎 或 阿姆斯特丹 轉機: only the 轉機 chunk drops
+    expect(names(extractStops(['香港 ~ 利馬 ~ 途經巴黎 轉機'], places))).toEqual(['利馬', '巴黎']);
+    expect(names(extractStops(['聖地牙哥 ~ 經巴黎 或 阿姆斯特丹 轉機'], places))).toEqual(['聖地牙哥', '巴黎', '阿姆斯特丹']);
+  });
+
+  it('leaves a chunk without transit wording alone', () => {
+    // Jetour QSB, day 2: Paris named plainly is still read (a known limit: flight connections named plainly)
     expect(names(extractStops(['巴黎 ~ 布宜諾斯艾利斯'], places))).toEqual(['巴黎', '布宜諾斯艾利斯']);
     expect(names(extractStops(['香港 ~ 巴黎 ~ 利馬'], places))).toEqual(['巴黎', '利馬']);
   });
 
-  it('drops only the segment with transit wording, not the whole heading', () => {
+  it('drops only the chunk with transit wording, not the whole heading', () => {
     // Jetour: the connection is the last segment of a day that visits Mexico City
     const r = extractStops(['墨西哥城 ~ 憲法廣場 ~ 總統府 ~ 香港 ~ 途經巴黎轉機'], places);
     expect(names(r)).toEqual(['墨西哥城']);
@@ -158,61 +174,97 @@ describe('extractStops drops transit', () => {
   });
 });
 
-describe('extractStops drops a single foreign outlier', () => {
+describe('extractStops drops a single foreign outlier with a collision name', () => {
+  // 甲國 has four cities; 乙國 has 撞名城 (a known collision), 別名城 (one by its alias 撞名別稱) and 乙城 (not one).
+  const index = buildPlacesIndex({
+    countries: [
+      { id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] },
+      { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] },
+      { id: 'c', nameZh: '丙國', nameEn: 'C', aliases: [] },
+    ],
+    regions: [
+      { id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'AR', aliases: [] },
+      { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: 'BR', aliases: [] },
+      { id: 'c-r', countryId: 'c', nameZh: '丙區', nameEn: 'CR', aliases: [] },
+    ],
+    cities: [
+      { id: 'a-r-1', regionId: 'a-r', nameZh: '甲一', nameEn: 'A1', aliases: [] },
+      { id: 'a-r-2', regionId: 'a-r', nameZh: '甲二', nameEn: 'A2', aliases: [] },
+      { id: 'a-r-3', regionId: 'a-r', nameZh: '甲三', nameEn: 'A3', aliases: [] },
+      { id: 'a-r-4', regionId: 'a-r', nameZh: '甲四', nameEn: 'A4', aliases: [] },
+      { id: 'b-r-x', regionId: 'b-r', nameZh: '撞名城', nameEn: 'BX', aliases: [] },
+      { id: 'b-r-y', regionId: 'b-r', nameZh: '別名城', nameEn: 'BY', aliases: ['撞名別稱'] },
+      { id: 'b-r-z', regionId: 'b-r', nameZh: '乙城', nameEn: 'BZ', aliases: [] },
+      { id: 'c-r-1', regionId: 'c-r', nameZh: '丙一', nameEn: 'C1', aliases: [] },
+    ],
+    collisionNames: ['撞名城', '撞名別稱'],
+  });
+  const run = (heading: string) => extractStops([heading], index);
+
   it.each([
-    // lone Korean stop amid three or more Japanese ones, neither first nor last: removed and reported
-    [['大阪 → 京都 → 首爾 → 奈良 → 神戶'], ['大阪', '京都', '奈良', '神戶'], ['首爾']],
-    [['大阪 → 首爾 → 京都 → 奈良'], ['大阪', '京都', '奈良'], ['首爾']],                   // exactly three others
+    // a lone stop on the list amid three or more stops of one other country, neither first nor last
+    ['甲一 → 甲二 → 撞名城 → 甲三 → 甲四', ['甲一', '甲二', '甲三', '甲四'], ['撞名城']],
+    ['甲一 → 撞名城 → 甲二 → 甲三', ['甲一', '甲二', '甲三'], ['撞名城']],                  // exactly three others
+    ['甲一 → 甲二 → 別名城 → 甲三', ['甲一', '甲二', '甲三'], ['別名城']],                  // listed through an alias
     // a repeat made consecutive by the removal collapses, as with excluded cities
-    [['大阪 → 京都 → 首爾 → 京都 → 奈良'], ['大阪', '京都', '奈良'], ['首爾']],
-  ])('extractStops(%j)', (headings, expectedNames, expectedUnmatched) => {
-    const r = extractStops(headings, places);
-    expect(names(r)).toEqual(expectedNames);
+    ['甲一 → 甲二 → 撞名城 → 甲二 → 甲三', ['甲一', '甲二', '甲三'], ['撞名城']],
+  ])('removes the outlier in %j', (heading, expectedNames, expectedUnmatched) => {
+    const r = run(heading);
+    expect(names(r, index)).toEqual(expectedNames);
     expect(r.unmatched).toEqual(expectedUnmatched);
   });
 
   it.each([
-    [['首爾 → 大阪 → 京都 → 奈良'], ['首爾', '大阪', '京都', '奈良']],                     // the first stop
-    [['大阪 → 京都 → 奈良 → 首爾'], ['大阪', '京都', '奈良', '首爾']],                     // the last stop
-    [['大阪 → 首爾 → 京都'], ['大阪', '首爾', '京都']],                                     // fewer than three others
-    [['大阪 → 京都 → 首爾 → 台北 → 台中'], ['大阪', '京都', '首爾', '台北', '台中']],       // others in two countries
-    [['大阪 → 首爾 → 京都 → 首爾 → 奈良'], ['大阪', '首爾', '京都', '首爾', '奈良']],       // the country occurs twice
-  ])('keeps the foreign stop in %j', (headings, expectedNames) => {
-    const r = extractStops(headings, places);
-    expect(names(r)).toEqual(expectedNames);
+    ['甲一 → 甲二 → 乙城 → 甲三 → 甲四', ['甲一', '甲二', '乙城', '甲三', '甲四']],              // not on the list
+    ['撞名城 → 甲一 → 甲二 → 甲三', ['撞名城', '甲一', '甲二', '甲三']],                      // the first stop
+    ['甲一 → 甲二 → 甲三 → 撞名城', ['甲一', '甲二', '甲三', '撞名城']],                      // the last stop
+    ['甲一 → 撞名城 → 甲二', ['甲一', '撞名城', '甲二']],                                      // fewer than three others
+    ['甲一 → 甲二 → 撞名城 → 甲三 → 丙一 → 甲四', ['甲一', '甲二', '撞名城', '甲三', '丙一', '甲四']], // others in two countries
+    ['甲一 → 撞名城 → 甲二 → 乙城 → 甲三', ['甲一', '撞名城', '甲二', '乙城', '甲三']],        // its country occurs twice
+  ])('keeps the foreign stop in %j', (heading, expectedNames) => {
+    const r = run(heading);
+    expect(names(r, index)).toEqual(expectedNames);
     expect(r.unmatched).toEqual([]);
   });
 
   it('counts stops after exclusions', () => {
-    // Hong Kong is excluded, so Seoul is not the first stop here
-    expect(names(extractStops(['香港 → 大阪 → 首爾 → 京都 → 奈良'], places))).toEqual(['大阪', '京都', '奈良']);
-    // and with Hong Kong excluded only three stops remain: Seoul is the last one, so it stays
-    expect(names(extractStops(['大阪 → 京都 → 首爾 → 香港'], places))).toEqual(['大阪', '京都', '首爾']);
+    const excluded = ['a-r-4'];
+    // with 甲四 excluded only two other stops remain, so 撞名城 stays
+    expect(names(extractStops(['甲四 → 甲一 → 撞名城 → 甲二'], index, excluded), index)).toEqual(['甲一', '撞名城', '甲二']);
+    // and here, with 甲四 excluded, 撞名城 becomes the last stop, so it stays
+    expect(names(extractStops(['甲一 → 甲二 → 甲三 → 撞名城 → 甲四'], index, excluded), index))
+      .toEqual(['甲一', '甲二', '甲三', '撞名城']);
   });
 
-  it('removes 塔林 (the Shaolin Pagoda Forest) from a Henan tour (Travel Expert TZZA06R)', () => {
-    const r = extractStops([
-      '香港西九龍站 (乘高鐵，直車或中轉車) > 鄭州 > 如意湖漫步、外觀河南藝術中心',
-      '鄭州 > 輝縣 > 太行聖境【回龍天界山】 (包環保車，回龍掛壁公路、雲峰畫廊360度觀太行、遠眺老爺頂) > 登封',
-      '登封 > 少林寺 (包電瓶車+耳機)、塔林、觀看武術表演 > 嵩陽書院 > 洛陽',
-      '洛陽 > 龍門石窟 (包往返電瓶車+耳機) > 十字老街 > 鄭州',
-      '洛陽 > 開封府 > 清明上河園 > 鄭州',
-      '鄭州 (乘高鐵，直車或中轉車) > 香港西九龍站',
-    ], places);
-    expect(names(r)).toEqual(['鄭州', '登封', '洛陽', '鄭州', '洛陽', '開封', '鄭州']);
-    expect(r.unmatched).toContain('塔林');
-    expect(r.stops.every(stop => stop.countryId === 'china')).toBe(true);
+  it('treats a missing collisionNames list as empty', () => {
+    const { collisionNames: _ignored, ...withoutList } = index.data;
+    expect(names(extractStops(['甲一 → 甲二 → 撞名城 → 甲三'], buildPlacesIndex(withoutList)), index))
+      .toEqual(['甲一', '甲二', '撞名城', '甲三']);
   });
 
-  it('removes 黃金海岸 (a beach in Quanzhou) from a Fujian tour (Travel Expert TXXF04R)', () => {
+  it('keeps Kirkenes on a Lapland tour (headings from Jetour BNFB)', () => {
     const r = extractStops([
-      '香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺> 黃金海岸> 永寧古城',
-      '泉州> 晉江> 梧林古村落(包電瓶車)(羅馬式洋樓朝東樓、 西班牙風格僑批樓、碉樓槍樓、百年榕村德衛宅) > 蟳埔民俗文化村(安排做對非遺體驗“簪花”) > 洛陽橋> 泉州> 泉州南少林寺(觀賞《南少林武術表演》)',
-      '泉州> 廈門> 園博苑(觀賞落羽彬) > 入住波特曼七星灣 酒店酒店> 下午自由活動(體驗以其獨特的法式風情和 海濱度假體驗而聞名的酒店+怡海小鎮)',
-      '廈門> 山海健康步道臨海線，盼歸塔> 七彩環島路> 外觀廈門標誌性建築【雙子塔】> 廈門(乘高鐵) 中轉深圳北/廣州南 > 香港西九龍站',
+      '香港 ~ 羅凡尼米', '羅凡尼米 ~ 馴鹿園 ~ 聖誕老人村', '羅凡尼米 ~ 凱米 ~ 破冰船 ~ 雪地體驗365 ~ 羅凡尼米',
+      '羅凡尼米 ~ 拉努阿 ~ 野生動物園 ~ 薩利色爾卡', '薩利色爾卡 ~ 哈士奇雪橇犬場 ~ 冰湖垂釣 ~ 極光之夜',
+      '薩利色爾卡 ~ 基凱尼斯 ~ 365雪景酒店 ~ 帝王蟹之旅', '基凱尼斯 ~ 伊納里 ~ 薩米博物館 ~ 薩利色爾卡',
+      '薩利色爾卡 ~ 伊瓦洛 ~ 赫爾辛基', '赫爾辛基 ~ 上午自由活動 ~ 聖殿廣場教堂 ~ 參議院廣場 ~ 香港', '香港',
     ], places);
-    expect(names(r)).toEqual(['泉州', '晉江', '泉州', '廈門']);
-    expect(r.unmatched).toContain('黃金海岸');
+    expect(names(r)).toEqual(['羅凡尼米', '凱米', '羅凡尼米', '拉努阿', '薩利色爾卡', '基凱尼斯', '伊納里', '薩利色爾卡', '伊瓦洛', '赫爾辛基']);
+  });
+
+  it('keeps Vaduz on a Swiss tour (headings from Jetour ESZZX)', () => {
+    const r = extractStops([
+      '香港 ~ 蘇黎世 ~ 蘇黎世大教堂 ~ 施圖斯 ~ 聖加倫', '聖加倫 ~ 聖加倫大教堂 ~ 華多茲 ~ 庫爾',
+      '庫爾 ~ 乘坐冰河列車頭等艙 ~ 布里格 ~ 盧加柏', '琉森 ~ 沙夫豪森 ~ 萊茵河瀑布 ~ 施泰因小鎮 ~ 蘇黎世', '蘇黎世 ~ 香港',
+    ], places);
+    expect(names(r)).toEqual(['蘇黎世', '施圖斯', '聖加倫', '華多茲', '庫爾', '布里格', '盧加柏', '琉森', '沙夫豪森', '施泰因', '蘇黎世']);
+  });
+
+  it('keeps Tirano and the Vatican on otherwise one-country routes (headings from Jetour ESZDX, EINA)', () => {
+    expect(names(extractStops(['香港 ~ 蘇黎世 ~ 聖加倫', '聖莫理茲 ~ 蓬特雷西納 ~ 伯連那快車 ~ 蒂拉諾 ~ 盧加諾', '盧加諾 ~ 蘇黎世'], places)))
+      .toEqual(['蘇黎世', '聖加倫', '聖莫里茲', '蓬特雷西納', '蒂拉諾', '盧加諾', '蘇黎世']);
+    expect(names(extractStops(['香港 ~ 拿坡里', '巴里 ~ 乘意大利高鐵至羅馬', '羅馬 ~ 鬥獸場、西班牙階梯 ~ 許願泉 ~ 梵蒂岡 ~ 聖彼得大教堂', '羅馬 ~ 全日自由活動 ~ 香港'], places)))
+      .toEqual(['拿坡里', '巴里', '羅馬', '梵蒂岡', '羅馬']);
   });
 });
 
