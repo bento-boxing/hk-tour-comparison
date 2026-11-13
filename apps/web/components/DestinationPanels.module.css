@@ -1,0 +1,32 @@
+/* No mockup screen for the panels: the toggle matches the search field's height, choices use the mockup's .f pills. */
+.panels { position: relative; }
+
+.toggle {
+  padding: 12px 16px; border: 1px solid var(--khaki); border-radius: 8px; background: var(--surface);
+  font: inherit; font-size: 14px; color: var(--charcoal); cursor: pointer; white-space: nowrap;
+}
+.toggle[aria-expanded='true'] { border-color: var(--cerulean); color: var(--cerulean); }
+
+.panel {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 10;
+  width: 480px; max-width: calc(100vw - 32px); padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--ash); border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);
+}
+.head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; }
+.back {
+  padding: 4px 8px; border: 0; border-radius: 4px; background: none;
+  font: inherit; color: var(--cerulean); cursor: pointer;
+}
+.back:hover { background: var(--hit); }
+.country { font-weight: 700; }
+
+.list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.chip {
+  padding: 7px 14px; border: 1px solid var(--khaki); border-radius: var(--radius-pill); background: var(--surface);
+  font: inherit; font-size: 14px; color: var(--charcoal); cursor: pointer;
+}
+.chip:hover { background: var(--hit); }
+.current, .current:hover { background: var(--cerulean); border-color: var(--cerulean); color: var(--snow); }
+
+.toggle:focus-visible, .back:focus-visible, .chip:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }

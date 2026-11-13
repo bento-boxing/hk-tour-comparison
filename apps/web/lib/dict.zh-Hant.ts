@@ -8,6 +8,13 @@ const zh = {
   'length.days': '{days}日',
   'updated.today': '更新：今日 {time}',
   'updated.on': '更新：{month}月{day}日 {time}',
+  'dest.placeholder': '輸入國家、地區或城市',
+  'dest.none': '沒有相符地區',
+  'dest.includes': '包括 {cities}',
+  'dest.clear': '清除',
+  'dest.byCountry': '按國家選擇',
+  'dest.allRegions': '全部地區', // must equal ALL_REGIONS_LABEL in @hktours/core (pinned by a test)
+  'dest.back': '← 返回',
 };
 
 export default zh;
