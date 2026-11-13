@@ -10,6 +10,12 @@
 .panel {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 10;
   width: 480px; max-width: calc(100vw - 32px); padding: 12px 14px;
+  /*
+   * The grouped country list is taller than a phone screen: the panel scrolls itself, up and down only,
+   * without passing the scroll on to the page. dvh follows the phone's address bar; vh is the fallback.
+   */
+  max-height: min(70vh, 32rem); max-height: min(70dvh, 32rem);
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--ash); border-radius: 8px;
   box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);
 }
