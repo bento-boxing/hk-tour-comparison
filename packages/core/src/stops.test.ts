@@ -123,6 +123,99 @@ describe('extractStops', () => {
   });
 });
 
+describe('extractStops drops transit', () => {
+  // A heading segment (text between arrow-type separators) naming a connection is not a visit.
+  it.each([
+    // Jetour QSB, day 1: Paris is only where the plane is changed
+    ['香港 ~ 布宜諾斯艾利斯 ~ 途經巴黎轉機', ['布宜諾斯艾利斯'], []],
+    // Jetour QSB-type wording with a space before 轉機
+    ['香港 ~ 利馬 ~ 途經巴黎 轉機', ['利馬'], []],
+    // Jetour: both alternatives of the connection drop, spaces inside the segment notwithstanding
+    ['聖地牙哥 ~ 經巴黎 或 阿姆斯特丹 轉機', ['聖地牙哥'], []],
+    // Travel Expert TXXF04R, day 1: both stations of the 中轉 drop (the bracket goes first, as always)
+    ['香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺', ['泉州'], ['洛伽寺']],
+    // Travel Expert: 經廣州南中轉 is a segment of its own
+    ['深圳福田口岸集合 > (乘地鐵) 深圳北站 > (乘動車) 經廣州南中轉 > (乘動車) 廣西「百色」', ['深圳'], ['廣西「百色」']],
+    ['大阪 → 轉乘新幹線 → 京都', ['大阪', '京都'], []],
+    ['大阪 → 過境東京 → 京都', ['大阪', '京都'], []],
+  ])('extractStops([%j])', (heading, expectedNames, expectedUnmatched) => {
+    const r = extractStops([heading], places);
+    expect(names(r)).toEqual(expectedNames);
+    expect(r.unmatched).toEqual(expectedUnmatched);
+  });
+
+  it('leaves a segment without transit wording alone', () => {
+    // Jetour QSB, day 2: Paris named plainly is still read
+    expect(names(extractStops(['巴黎 ~ 布宜諾斯艾利斯'], places))).toEqual(['巴黎', '布宜諾斯艾利斯']);
+    expect(names(extractStops(['香港 ~ 巴黎 ~ 利馬'], places))).toEqual(['巴黎', '利馬']);
+  });
+
+  it('drops only the segment with transit wording, not the whole heading', () => {
+    // Jetour: the connection is the last segment of a day that visits Mexico City
+    const r = extractStops(['墨西哥城 ~ 憲法廣場 ~ 總統府 ~ 香港 ~ 途經巴黎轉機'], places);
+    expect(names(r)).toEqual(['墨西哥城']);
+    expect(r.unmatched).toEqual(['憲法廣場', '總統府']);
+  });
+});
+
+describe('extractStops drops a single foreign outlier', () => {
+  it.each([
+    // lone Korean stop amid three or more Japanese ones, neither first nor last: removed and reported
+    [['大阪 → 京都 → 首爾 → 奈良 → 神戶'], ['大阪', '京都', '奈良', '神戶'], ['首爾']],
+    [['大阪 → 首爾 → 京都 → 奈良'], ['大阪', '京都', '奈良'], ['首爾']],                   // exactly three others
+    // a repeat made consecutive by the removal collapses, as with excluded cities
+    [['大阪 → 京都 → 首爾 → 京都 → 奈良'], ['大阪', '京都', '奈良'], ['首爾']],
+  ])('extractStops(%j)', (headings, expectedNames, expectedUnmatched) => {
+    const r = extractStops(headings, places);
+    expect(names(r)).toEqual(expectedNames);
+    expect(r.unmatched).toEqual(expectedUnmatched);
+  });
+
+  it.each([
+    [['首爾 → 大阪 → 京都 → 奈良'], ['首爾', '大阪', '京都', '奈良']],                     // the first stop
+    [['大阪 → 京都 → 奈良 → 首爾'], ['大阪', '京都', '奈良', '首爾']],                     // the last stop
+    [['大阪 → 首爾 → 京都'], ['大阪', '首爾', '京都']],                                     // fewer than three others
+    [['大阪 → 京都 → 首爾 → 台北 → 台中'], ['大阪', '京都', '首爾', '台北', '台中']],       // others in two countries
+    [['大阪 → 首爾 → 京都 → 首爾 → 奈良'], ['大阪', '首爾', '京都', '首爾', '奈良']],       // the country occurs twice
+  ])('keeps the foreign stop in %j', (headings, expectedNames) => {
+    const r = extractStops(headings, places);
+    expect(names(r)).toEqual(expectedNames);
+    expect(r.unmatched).toEqual([]);
+  });
+
+  it('counts stops after exclusions', () => {
+    // Hong Kong is excluded, so Seoul is not the first stop here
+    expect(names(extractStops(['香港 → 大阪 → 首爾 → 京都 → 奈良'], places))).toEqual(['大阪', '京都', '奈良']);
+    // and with Hong Kong excluded only three stops remain: Seoul is the last one, so it stays
+    expect(names(extractStops(['大阪 → 京都 → 首爾 → 香港'], places))).toEqual(['大阪', '京都', '首爾']);
+  });
+
+  it('removes 塔林 (the Shaolin Pagoda Forest) from a Henan tour (Travel Expert TZZA06R)', () => {
+    const r = extractStops([
+      '香港西九龍站 (乘高鐵，直車或中轉車) > 鄭州 > 如意湖漫步、外觀河南藝術中心',
+      '鄭州 > 輝縣 > 太行聖境【回龍天界山】 (包環保車，回龍掛壁公路、雲峰畫廊360度觀太行、遠眺老爺頂) > 登封',
+      '登封 > 少林寺 (包電瓶車+耳機)、塔林、觀看武術表演 > 嵩陽書院 > 洛陽',
+      '洛陽 > 龍門石窟 (包往返電瓶車+耳機) > 十字老街 > 鄭州',
+      '洛陽 > 開封府 > 清明上河園 > 鄭州',
+      '鄭州 (乘高鐵，直車或中轉車) > 香港西九龍站',
+    ], places);
+    expect(names(r)).toEqual(['鄭州', '登封', '洛陽', '鄭州', '洛陽', '開封', '鄭州']);
+    expect(r.unmatched).toContain('塔林');
+    expect(r.stops.every(stop => stop.countryId === 'china')).toBe(true);
+  });
+
+  it('removes 黃金海岸 (a beach in Quanzhou) from a Fujian tour (Travel Expert TXXF04R)', () => {
+    const r = extractStops([
+      '香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺> 黃金海岸> 永寧古城',
+      '泉州> 晉江> 梧林古村落(包電瓶車)(羅馬式洋樓朝東樓、 西班牙風格僑批樓、碉樓槍樓、百年榕村德衛宅) > 蟳埔民俗文化村(安排做對非遺體驗“簪花”) > 洛陽橋> 泉州> 泉州南少林寺(觀賞《南少林武術表演》)',
+      '泉州> 廈門> 園博苑(觀賞落羽彬) > 入住波特曼七星灣 酒店酒店> 下午自由活動(體驗以其獨特的法式風情和 海濱度假體驗而聞名的酒店+怡海小鎮)',
+      '廈門> 山海健康步道臨海線，盼歸塔> 七彩環島路> 外觀廈門標誌性建築【雙子塔】> 廈門(乘高鐵) 中轉深圳北/廣州南 > 香港西九龍站',
+    ], places);
+    expect(names(r)).toEqual(['泉州', '晉江', '泉州', '廈門']);
+    expect(r.unmatched).toContain('黃金海岸');
+  });
+});
+
 describe('extractStops with notPlaces', () => {
   // 松山 is a city; 松山湖 contains it but is not it.
   const index = buildPlacesIndex({

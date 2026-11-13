@@ -9,19 +9,26 @@ const DEFAULT_EXCLUDED_CITY_IDS = ['hongkong-hongkong-hongkong'];
 /** `第一天`, `第1天`, `第 1 日`, `Day 1`, `DAY1`, `D1`, then any `:` `：` `-` or spaces. */
 const DAY_MARKER = /^\s*(?:第\s*[0-9０-９一二三四五六七八九十〇零兩]+\s*[天日]|d(?:ay)?\s*[0-9０-９]+)[\s:：-]*/i;
 const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
-/** The listed separators and whitespace, plus U+FE0F so the emoji form ✈️ splits like ✈. */
-const SEPARATORS = /[→➝⇒✈～~\-－–—>＞/／、，,｜|\s️]+/;
+/** Arrow-type separators between heading segments, plus U+FE0F so the emoji form ✈️ splits like ✈. */
+const SEGMENT_SEPARATORS = /[→➝⇒✈～~\-－–—>＞｜|\uFE0F]+/;
+/** Separators between the places of one segment: list marks and whitespace. */
+const TOKEN_SEPARATORS = /[/／、，,\s]+/;
+/** A segment naming a connection (`途經巴黎轉機`, `中轉深圳北/廣州南`) is not a visit. */
+const TRANSIT_WORDS = ['轉機', '中轉', '轉乘', '過境'];
 const CJK = /\p{Script=Han}/u;
 const IGNORED_WORDS = [
   '機場', '酒店', '自由活動', '全日', '原居地', '啟程', '回程', '返港', '抵達', '出發',
   '市內觀光', '送機', '接機', '晚餐', '午餐', '早餐',
 ];
 
+/** The place tokens of a heading: without its day marker, bracketed notes and transit segments. */
 function tokensOf(heading: string): string[] {
   return heading
     .replace(DAY_MARKER, '')
     .replace(BRACKETED, ' ')
-    .split(SEPARATORS)
+    .split(SEGMENT_SEPARATORS)
+    .filter(segment => !TRANSIT_WORDS.some(word => segment.includes(word)))
+    .flatMap(segment => segment.split(TOKEN_SEPARATORS))
     .filter(token => token !== '');
 }
 
@@ -90,7 +97,38 @@ function sameStop(a: Stop, b: Stop): boolean {
   return a.cityId !== null || b.cityId !== null ? a.cityId === b.cityId : a.regionId === b.regionId;
 }
 
-/** excludeCityIds: places never shown on a route (Hong Kong, and the tour's start/end city). */
+/** The stops without consecutive repeats. */
+function withoutRepeats(stops: Stop[]): Stop[] {
+  const route: Stop[] = [];
+  for (const stop of stops) {
+    const previous = route[route.length - 1];
+    if (previous === undefined || !sameStop(previous, stop)) route.push(stop);
+  }
+  return route;
+}
+
+/**
+ * Where the route's single foreign outlier is, or -1: the one stop in a country no other stop is in,
+ * neither first nor last, amid at least three other stops all in one other country. Such a stop is
+ * almost always an exact-name collision (塔林, the Shaolin Pagoda Forest, read as Tallinn).
+ */
+function loneForeignStopAt(route: Stop[]): number {
+  const stopsPerCountry = new Map<string, number>();
+  for (const stop of route) stopsPerCountry.set(stop.countryId, (stopsPerCountry.get(stop.countryId) ?? 0) + 1);
+  if (stopsPerCountry.size !== 2) return -1;
+  const [[firstCountry, firstCount], [secondCountry, secondCount]] = [...stopsPerCountry];
+  const loneCountry = firstCount === 1 && secondCount >= 3 ? firstCountry
+    : secondCount === 1 && firstCount >= 3 ? secondCountry : undefined;
+  if (loneCountry === undefined) return -1;
+  const at = route.findIndex(stop => stop.countryId === loneCountry);
+  return at === 0 || at === route.length - 1 ? -1 : at;
+}
+
+/**
+ * The route the day headings name. Transit segments give no stops; a single foreign outlier (see
+ * loneForeignStopAt) is removed and its name reported as unmatched, for review.
+ * excludeCityIds: places never shown on a route (Hong Kong, and the tour's start/end city).
+ */
 export function extractStops(
   dayHeadings: string[],
   index: PlacesIndex,
@@ -136,11 +174,12 @@ export function extractStops(
   }
 
   const excluded = new Set(excludeCityIds);
-  const route: Stop[] = [];
-  for (const stop of stops) {
-    if (stop.cityId !== null && excluded.has(stop.cityId)) continue;
-    const previous = route[route.length - 1];
-    if (previous === undefined || !sameStop(previous, stop)) route.push(stop);
+  let route = withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId)));
+  const outlierAt = loneForeignStopAt(route);
+  if (outlierAt !== -1) {
+    const { cityId, regionId } = route[outlierAt];
+    unmatched.push(cityId !== null ? index.city(cityId)!.nameZh : index.region(regionId)!.nameZh);
+    route = withoutRepeats(route.filter((_, at) => at !== outlierAt));
   }
   return { stops: route, unmatched: [...new Set(unmatched)] };
 }
