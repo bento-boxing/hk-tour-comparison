@@ -2,7 +2,8 @@ import { it, expect } from 'vitest';
 import { decodeChain, places, DEFAULT_GAP, MAX_CHAIN_LEGS } from '@hktours/core';
 import { parseSearchParams } from './search-params';
 import {
-  chainHref, chainPageHref, chainStartHref, withGap, withLegAdded, withoutLastLeg, withPage, withSearch, type ChainAddress,
+  chainHref, chainPageHref, chainStartHref, withDestination, withGap, withLegAdded, withoutLastLeg, withPage, withSearch,
+  type ChainAddress,
 } from './chain-href';
 
 it('chainStartHref starts a chain with one leg and the default gap', () => {
@@ -85,4 +86,16 @@ it('changing a filter or the sort keeps the legs and gap and goes back to page 1
 it('paging keeps everything else', () => {
   expect(chainPageHref(withPage(address, 4))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}&page=4`);
   expect(chainPageHref(withPage(address, 1))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}`);
+});
+
+it('choosing a destination replaces it, keeps the legs, gap and other filters, and goes back to page 1', () => {
+  const next = withDestination(address, { countryId: 'japan', regionId: 'japan-kansai' });
+  expect(next.search.filters.destination).toEqual({ countryId: 'japan', regionId: 'japan-kansai' });
+  expect(chainPageHref(next)).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&dest=japan-kansai&ex=japan&dmax=6&op=jetour&sort=days`);
+});
+
+it('clearing the destination leaves the key out entirely, back on page 1', () => {
+  const next = withDestination(address, null);
+  expect(Object.hasOwn(next.search.filters, 'destination')).toBe(false);
+  expect(chainPageHref(next)).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan&dmax=6&op=jetour&sort=days');
 });

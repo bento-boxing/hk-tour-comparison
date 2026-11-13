@@ -56,7 +56,7 @@ const legKeys = (data: ChainPageData) => data.legs.map(l => `${l.tour.key}@${l.d
 
 it('an empty address has no legs and no list, with the operators', async () => {
   const data = await loadChainPage(db, {}, today);
-  expect(data).toMatchObject({ legs: [], droppedCount: 0, window: null, next: null, full: false });
+  expect(data).toMatchObject({ legs: [], droppedCount: 0, departWindow: null, next: null, full: false });
   expect(data.address).toEqual({ chain: { legs: [], gap: { min: 1, max: 3 } }, search: { filters: {}, sort: 'price', page: 1 } });
   expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
 });
@@ -69,17 +69,17 @@ it('a valid two-leg chain resolves, with the tours that can follow it', async ()
   expect(data.legs.map(l => [l.endDate, l.priceHkd, l.priceIsExact, l.gapBefore])).toEqual([
     ['2026-12-22', 7999, true, null], ['2026-12-29', 5699, false, 2],
   ]);
-  expect(data.window).toEqual({ from: '2026-12-31', to: '2027-01-02' });
+  expect(data.departWindow).toEqual({ from: '2026-12-31', to: '2027-01-02' });
   expect(data.next).toEqual({ tours: [], total: 0 });
   const earlier = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,texpert:SEL5@2026-12-24&gap=1-3'), today);
-  expect(earlier.window).toEqual({ from: '2026-12-30', to: '2027-01-01' });
+  expect(earlier.departWindow).toEqual({ from: '2026-12-30', to: '2027-01-01' });
   expect(nextKeys(earlier)).toEqual(['jetour:FAR4']);
 });
 
 it('the window for the next leg follows the gap definition: a tour ending on the 22nd with gap 1–3 gives the 24th to the 26th', async () => {
   const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3'), today);
   expect(data.legs[0].endDate).toBe('2026-12-22');
-  expect(data.window).toEqual({ from: '2026-12-24', to: '2026-12-26' });
+  expect(data.departWindow).toEqual({ from: '2026-12-24', to: '2026-12-26' });
   expect(nextKeys(data)).toEqual(['texpert:SEL5', 'jetour:OSA6']); // by price
   expect(data.next?.total).toBe(2);
   // Each card lists only the departures inside the window, and its price is the window's.
@@ -91,7 +91,7 @@ it('the window for the next leg follows the gap definition: a tour ending on the
 
 it('gap 0–0 gives the day after the last leg ends: the 23rd', async () => {
   const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=0-0'), today);
-  expect(data.window).toEqual({ from: '2026-12-23', to: '2026-12-23' });
+  expect(data.departWindow).toEqual({ from: '2026-12-23', to: '2026-12-23' });
   expect(nextKeys(data)).toEqual(['bigline:TPE4']);
 });
 
@@ -122,12 +122,14 @@ it.each([
   ['legs=egl:NOPE@2026-12-18', 'an unknown tour', 1],
   ['legs=egl:KIX5@2026-12-19', 'a date the tour does not offer', 1],
   ['legs=egl:KIX5@2026-11-01', 'a departure before today', 1],
-  ['legs=%%%', 'garbage', 0],
-  ['legs=egl:KIX5@2026-02-30', 'an impossible date', 0],
+  // Legs that decodeChain cannot read count as dropped too, so the visitor sees the notice.
+  ['legs=%%%', 'garbage', 1],
+  ['legs=egl:KIX5@2026-02-30', 'an impossible date', 1],
   ['legs=', 'an empty value', 0],
+  ['legs=,', 'only a comma', 0],
 ])('the hand-broken address %s (%s) gives no legs and no list', async (text, _, dropped) => {
   const data = await loadChainPage(db, query(text), today);
-  expect(data).toMatchObject({ legs: [], droppedCount: dropped, window: null, next: null, full: false });
+  expect(data).toMatchObject({ legs: [], droppedCount: dropped, departWindow: null, next: null, full: false });
   expect(data.address.chain.legs).toEqual([]);
 });
 
@@ -136,16 +138,42 @@ it.each([
   ['gap=abc', { min: 1, max: 3 }, { from: '2026-12-24', to: '2026-12-26' }],
   ['gap=-1-5', { min: 1, max: 3 }, { from: '2026-12-24', to: '2026-12-26' }],
   ['gap=0-99', { min: 0, max: 30 }, { from: '2026-12-23', to: '2027-01-22' }],
-])('the hand-broken %s falls back to a valid gap', async (gapText, gap, window) => {
+])('the hand-broken %s falls back to a valid gap', async (gapText, gap, departWindow) => {
   const data = await loadChainPage(db, query(`legs=egl:KIX5@2026-12-18&${gapText}`), today);
   expect(data.address.chain.gap).toEqual(gap);
-  expect(data.window).toEqual(window);
+  expect(data.departWindow).toEqual(departWindow);
   expect(data.legs).toHaveLength(1);
+});
+
+it('a leg decodeChain cannot read is dropped with the legs after it, and counted for the notice', async () => {
+  const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,egl:BAD CODE@2026-12-24,texpert:SEL5@2026-12-24'), today);
+  expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+  expect(data.droppedCount).toBe(2);
+  expect(data.address.chain.legs).toEqual([{ tourKey: 'egl:KIX5', departure: '2026-12-18' }]);
+});
+
+it('cut-off legs and legs resolveChain drops add up', async () => {
+  const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,egl:NOPE@2026-12-24,junk,texpert:SEL5@2026-12-24'), today);
+  expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+  expect(data.droppedCount).toBe(3); // NOPE by resolveChain; junk and SEL5 cut off by decodeChain
+});
+
+it('garbage after a valid leg keeps the leg and shows the notice', async () => {
+  const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,%%%'), today);
+  expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+  expect(data.droppedCount).toBe(1);
+});
+
+it('a trailing comma is not a dropped leg', async () => {
+  const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,'), today);
+  expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+  expect(data.droppedCount).toBe(0);
 });
 
 it('a repeated parameter uses its first value', async () => {
   const data = await loadChainPage(db, { legs: ['egl:KIX5@2026-12-18', 'texpert:SEL5@2026-12-24'], gap: ['0-0', '5-5'] }, today);
   expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+  expect(data.droppedCount).toBe(0);
   expect(data.address.chain.gap).toEqual({ min: 0, max: 0 });
 });
 
@@ -154,10 +182,12 @@ it(`a chain of ${MAX_CHAIN_LEGS} legs is full: no window and no list; more legs 
   const legs = dates.map(d => `bigline:DAY1@${d}`).join(',');
   const data = await loadChainPage(db, query(`legs=${legs}&gap=0-0`), today);
   expect(data.legs).toHaveLength(MAX_CHAIN_LEGS);
-  expect(data.droppedCount).toBe(0);
-  expect(data).toMatchObject({ full: true, window: null, next: null });
+  expect(data.droppedCount).toBe(0); // legs past the limit are ignored, not reported
+  const garbageTail = await loadChainPage(db, query(`legs=${legs},%%%&gap=0-0`), today);
+  expect(garbageTail).toMatchObject({ droppedCount: 0, full: true });
+  expect(data).toMatchObject({ full: true, departWindow: null, next: null });
   const shorter = await loadChainPage(db, query(`legs=${dates.slice(0, MAX_CHAIN_LEGS - 1).map(d => `bigline:DAY1@${d}`).join(',')}&gap=0-0`), today);
-  expect(shorter).toMatchObject({ full: false, window: { from: '2027-01-17', to: '2027-01-17' } });
+  expect(shorter).toMatchObject({ full: false, departWindow: { from: '2027-01-17', to: '2027-01-17' } });
   expect(nextKeys(shorter)).toEqual([]);
 });
 
@@ -184,7 +214,7 @@ describe('a leg whose tour has since been deactivated', () => {
     expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
     expect(data.droppedCount).toBe(2);
     expect(data.address.chain.legs).toEqual([{ tourKey: 'egl:KIX5', departure: '2026-12-18' }]);
-    expect(data.window).toEqual({ from: '2026-12-24', to: '2026-12-26' });
+    expect(data.departWindow).toEqual({ from: '2026-12-24', to: '2026-12-26' });
     expect(data.next).toEqual({ tours: [], total: 0 });
   });
 });

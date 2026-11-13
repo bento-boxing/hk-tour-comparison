@@ -16,7 +16,7 @@ export interface ChainStripProps {
   /** The rest wanted before the next leg. */
   gap: { min: number; max: number };
   /** Where the next leg can depart; null (a full chain) hides the gap selector and the placeholder. */
-  window: { from: IsoDate; to: IsoDate } | null;
+  departWindow: { from: IsoDate; to: IsoDate } | null;
   onGapChange: (gap: { min: number; max: number }) => void;
   onRemoveLast: () => void;
 }
@@ -29,7 +29,7 @@ const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
  * dates and price; `休息 n 日` between legs; after the last, the gap selector and the dashed placeholder
  * with the next window; on the right the running total and the remove-last button.
  */
-export function ChainStrip({ legs, operators, places, today, t, gap, window, onGapChange, onRemoveLast }: ChainStripProps) {
+export function ChainStrip({ legs, operators, places, today, t, gap, departWindow, onGapChange, onRemoveLast }: ChainStripProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   const totals = chainTotals(legs);
   const date = (d: IsoDate) => formatChipDate(d, today);
@@ -61,7 +61,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, window, onG
         );
       })}
 
-      {window && (
+      {departWindow && (
         <>
           <div className={styles.gap}>
             <span aria-hidden="true">{t('chain.rest')}</span>
@@ -72,7 +72,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, window, onG
             <span>
               {t('chain.pickNext')}
               <br />
-              <span>{t('chain.window', { from: date(window.from), to: date(window.to) })}</span>
+              <span>{t('chain.window', { from: date(departWindow.from), to: date(departWindow.to) })}</span>
             </span>
           </div>
         </>

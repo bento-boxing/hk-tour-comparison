@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
@@ -7,8 +6,9 @@ import { requestDb } from '../../lib/db';
 import { formatChipDate } from '../../lib/format';
 import { chainPageHref, withPage } from '../../lib/chain-href';
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
-import { DestinationPanelsConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
-import { ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected } from '../../components/ChainConnected';
+import {
+  ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
+} from '../../components/ChainConnected';
 import { Pager } from '../../components/Pager';
 import styles from './page.module.css';
 
@@ -34,7 +34,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
     return <p className={styles.error} role="alert">{t('search.error')}</p>;
   }
 
-  const { address, legs, droppedCount, window, next, full, operators } = data;
+  const { address, legs, droppedCount, departWindow, next, full, operators } = data;
   const lastLeg = legs.at(-1);
   const date = (d: string) => formatChipDate(d, today);
 
@@ -50,21 +50,19 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
       ) : (
         <>
           <h2 className={styles.heading}>{t('chain.yours')}</h2>
-          <ChainStripConnected address={address} legs={legs} window={window} operators={operators} today={today} />
+          <ChainStripConnected address={address} legs={legs} departWindow={departWindow} operators={operators} today={today} />
 
           {full && <p className={styles.full}>{t('chain.full')}</p>}
 
-          {window && next && (
+          {departWindow && next && (
             <section aria-labelledby="next-heading">
               <h2 id="next-heading" className={styles.heading}>
-                {t('chain.nextHeading', { from: date(window.from), to: date(window.to) })}
+                {t('chain.nextHeading', { from: date(departWindow.from), to: date(departWindow.to) })}
               </h2>
               <div className={styles.searchRow}>
-                {/* Both read the address with useSearchParams, which Next.js requires inside a Suspense boundary. */}
-                <div className={styles.searchBox}>
-                  <Suspense fallback={null}><DestinationSearchConnected value={address.search.filters.destination ?? null} /></Suspense>
-                </div>
-                <Suspense fallback={null}><DestinationPanelsConnected value={address.search.filters.destination ?? null} /></Suspense>
+                {/* The chain page's own pickers: they build the next address from the validated one, not the raw query. */}
+                <div className={styles.searchBox}><ChainDestinationSearchConnected address={address} /></div>
+                <ChainDestinationPanelsConnected address={address} />
               </div>
               <ChainFilterBarConnected address={address} operators={operators} today={today} />
               <ChainResultsConnected
