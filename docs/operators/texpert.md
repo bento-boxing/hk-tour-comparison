@@ -91,19 +91,26 @@ The server-rendered calendar (`td[data-day="2026-11-27"]`, `data-disabled="true"
 
 - Data: ISO dates and integer prices in the flight data and JSON-LD.
 - Visible text: prices `HKD 1,999` (ASCII, comma). Related-tour cards list dates as `12/24` and `2/3` (**month/day, no year**). Calendar labels read `2026年11月25日 星期三`. No full-width digits seen.
-- Day headings are long (the route text is up to 142 characters in the samples; 147 with the `Day N` prefix). The fixtures keep them whole, both in the HTML and where the flight data repeats them (see Fixtures).
+- Day headings are long (the route text is up to 142 characters in the samples; 147 with the `Day N` prefix). The fixtures keep them whole in the HTML (see Fixtures).
 
 ## Fixtures (`packages/scraper/src/operators/texpert/fixtures/`)
 
-Committed after the owner's approval (2026-11-12): moved unchanged from the copies held outside the repository, which were regenerated in Task 14's fix round 1. Before committing, they were re-checked (Task 14b) and confirmed byte-identical to what the regeneration command below produces from the saved pages, after the two meta tags are removed.
+First committed after the owner's approval (2026-11-12), trimmed with the earlier `--keep 'details summary h3'` mode and two meta tags removed by hand.
 
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` and one `--keep` selector for the day headings. To regenerate:
+Regenerated on 2026-11-13 in **allow-list mode** (`trimFixture`'s `allow` option) from the same saved pages, which are under `.superpowers/raw-pages/texpert/`, outside git (`tour-1272.html` → `multi-city.html`, `tour-1386.html` → `simple.html`, `tour-1359.html` → `edge.html`): only text inside the elements `parse.ts` reads is kept, and in the JSON-LD and the Next.js flight data only string values under the JSON keys it reads; every other text node, string value and text-carrying attribute is emptied. Numbers, booleans and the JSON structure stay, so the parser's paths still resolve. To regenerate:
 
 ```
-pnpm --filter @hktours/scraper fixture --keep 'details summary h3' --from <saved tour page> <output>
+pnpm --filter @hktours/scraper fixture \
+  --allow 'h1' \
+  --allow 'details summary h3' \
+  --allow-key '@type' --allow-key propertyID --allow-key lowPrice --allow-key price \
+  --allow-key code --allow-key title --allow-key date --allow-key type \
+  --from <saved tour page> <output>
 ```
 
-then remove the two tracing meta tags by hand (below). `trimFixture` keeps the flight data merged into a single `self.__next_f.push([1,"…"])` script, with strings over 120 characters and text rows cut. Text inside `details summary h3` is cut only above 300 characters, and a flight data string that repeats such a text exactly is kept up to 300 characters too. Checked after regenerating: all 8 day headings are whole in the HTML (the longest `h3` is 147 characters including its `Day 1` prefix, and none ends in `…`). The only flight data strings over 120 characters are day headings without the prefix: `1386` day 1 (130 characters, as `children`) and `1359` day 1 (142 characters, as `children` and as an image `fallbackAlt`). Their `h3` texts, with the `Day 1` prefix, are 135 and 147 characters.
+The allow-list, from `parse.ts`: HTML `h1` (title) and `details summary h3` (day headings, with their `Day N` label). JSON-LD: `@type` (to find the `TouristTrip`), `propertyID` (`tourDurationDays`), `lowPrice` and `price` (read as a number or numeric text). Flight data: `code` (the tour object), `title` (the tour title, the fallback when `h1` is empty), `date` and `type` (the departure highlights and `products[].prices[].date`). Keys whose values the parser reads only as numbers or booleans (`value`, `duration`, `minSalePrice`, `sellingPrice`, `inventory`, `isSoldOut`, `isPurchasable`, `isExpired`) are not listed: numbers and booleans are always kept. Containers it walks (`@graph`, `offers`, `additionalProperty`, `departures`, `products`, `prices`) are not listed either, as their strings are reached by the leaf keys above. Allowed text is cut only above 300 characters (`KEEP_TEXT_LIMIT`); no heading reaches that (the longest `h3` is 147 characters). Flight data text rows are emptied (`<id>:T0,`), as the parser skips them. The flight data's copies of the day headings (`children`) are now emptied; the headings remain whole in the HTML `h3`s.
+
+Kept because the parser reads the key, though not tour facts: `title` also holds the site's short UI and page titles (about 40 strings per page, such as `結帳`, `篩選`, `熱門旅行團`, and a few page-title templates such as `Texpert 專業旅運 | 全球機票、酒店、郵輪、旅行團網上預訂`), about 300 Chinese characters per fixture; `date` and `type` each hold one UI label (`日期`, `類型`).
 
 | File | Source | Why |
 |---|---|---|
@@ -111,7 +118,7 @@ then remove the two tracing meta tags by hand (below). `trimFixture` keeps the f
 | `simple.html` | `/zh-hk/tour/1386-guangdong-tour-2-day-pure-play-with-special-natural-sea-hot` | 2 days, one place (Jiangmen); 23 dates; `serviceFee` 160 on top of price |
 | `edge.html` | `/zh-hk/tour/1359-guangdong-province-tour-1-day-new-huanggang-experience` | **1-day tour** (0 nights), the whole itinerary in one heading; starts at 新皇崗口岸 (Shenzhen) |
 
-Removed by hand after trimming: the `<meta name="sentry-trace">` and `<meta name="baggage">` tags (per-visit tracing IDs; no parsing value). Checked by eye: no personal data; the phone numbers present are the company's published hotline and form placeholders. The fixtures are large (about 230–275 KB) because the flight data includes the site's UI text dictionary, which is short strings, not tour prose.
+No hand trimming is needed any more: the `<meta name="sentry-trace">` and `<meta name="baggage">` tags (per-visit tracing IDs) keep no `content`. Checked after regenerating: every parser test and expected file passes unchanged; no run of 25 or more Chinese characters and punctuation is left; no images, styles, code scripts (only the two JSON-LD scripts and the one flight data script), inline event handlers or personal data; LF line endings. The fixtures are still 142–171 KB: the HTML markup with its class lists, and the flight data's structure (about 100 KB, with its strings emptied), are kept so the parser's selectors and paths resolve.
 
 ## Every URL fetched (6 page fetches; robots.txt not counted)
 

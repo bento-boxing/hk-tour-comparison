@@ -86,13 +86,25 @@ Caution: the destination list card for `TNA` carried the label `全團滿額` (a
 
 ## Fixtures (`packages/scraper/src/operators/jetour/fixtures/`)
 
-Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` (trimmed by `trimFixture`), with two `--keep` selectors so the day headings and stop lines are not cut at 60 characters (only above 300). To regenerate:
+Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` in **allow-list mode** (`trimFixture`'s `allow` option): only text inside the elements `parse.ts` reads is kept; every other text node, and every text-carrying attribute outside those elements, is emptied. Jetour's parser reads no JSON, so no JSON key is allowed and every string in the page's JSON is emptied. To regenerate (the saved pages are under `.superpowers/raw-pages/jetour/`, outside git: `tour-THB.html` → `multi-city.html`, `tour-TSEQ.html` → `simple.html`, `tour-jiangmen.html` → `edge.html`):
 
 ```
-pnpm --filter @hktours/scraper fixture --keep .day--title --keep .day--trip-work --from <saved tour page> <output>
+pnpm --filter @hktours/scraper fixture \
+  --allow '.tour_location .card_tag' \
+  --allow 'h1.title' \
+  --allow '.days__list--works .days__items .day--trip-work' \
+  --allow '.days__list--works .days__items .day--title' \
+  --allow-max 20 '.days__list--works .days__items:first-child .days_items--details' \
+  --allow '.booking-table--body .booking-table--row .booking-table--start--date span:last-child' \
+  --allow '.booking-table--body .booking-table--row .booking-table--status.visible-desktop' \
+  --allow '.booking-table--body .booking-table--row .booking-table--price.visible-desktop' \
+  --allow '.booking--price' \
+  --from <saved tour page> <output>
 ```
 
-`.day--trip-work` is the stop line (`無錫 ~ 長廣溪濕地公園 ~ … ~ 太湖漁人碼頭燈光夜秀`, up to 71 characters in TSEQ as the raw text node, including doubled spaces; 66 once runs of spaces are collapsed); `.day--title` is the day title (up to 18 characters, kept for safety). Checked after regenerating: none of the 14 `.day--trip-work` lines in the three fixtures ends in `…`.
+The allow-list, one line per thing `parse.ts` reads: the tour code (`.tour_location .card_tag`), the title and its day count (`h1.title`), each day's stop line and title (`.day--trip-work`, `.day--title`; the `.days__items` themselves are only counted, so their other text is not kept), day 1's details for the meeting point after `集合於`, and per booking row the date (`span:last-child`), the status and the offer price, plus the "from" price (`.booking--price`). Allowed text is cut only above 300 characters (`KEEP_TEXT_LIMIT`), except day 1's details: that is prose, and the parser reads only the place right after `集合於`, so each of its text nodes is cut above 20 characters (`--allow-max 20`), as before (`是日集合於香港國際機場，由專業領隊陪同下…`). The details also hold day 1's short hotel and meal lines (`哈爾濱會展中心希爾頓酒店或同級`, `特色燒烤`, `了解更多`), which are facts and labels, not prose. In the price cell the struck-through original price is kept too, since the parser removes it itself.
+
+Checked after regenerating (2026-11-13): every parser test and expected file passes unchanged; the only runs of 25 or more Chinese characters and punctuation left are three stop lines in `multi-city.html` (day 2 `伏爾加莊園：體驗雪橇列車、品冰杯伏特加、繪製俄羅斯套娃`, day 5 `北極村：神州北極廣場、最北郵局、…`, day 7 `聖索菲亞教堂廣場、中央大街、…`), which the parser reads for the stops; none of the 14 `.day--trip-work` lines ends in `…`. No images, styles, scripts, inline event handlers or personal data; LF line endings.
 
 | File | Source | Why |
 |---|---|---|
@@ -100,7 +112,7 @@ pnpm --filter @hktours/scraper fixture --keep .day--title --keep .day--trip-work
 | `simple.html` | `/tour/TSEQ` | The shortest and cheapest tour found (6 days, Jiangnan); plain prices that differ per date; statuses `FORMING_A_TOUR` and `TOUR_IS_FORMED`. **Not a true one-or-two-place tour** (it visits Shanghai, Wuxi, Huzhou, Hangzhou, Puyuan); no such Jetour tour was found within the budget. |
 | `edge.html` | `/tour/江門,新會,珠海美食純玩之旅` | Empty tour page: no code, no departures (`沒有數據。`), no days, price `HKD 0 +`. A parser should return null. |
 
-Checked by eye: no personal data. Phone numbers present are the company's published hotline and WhatsApp numbers. No hand trimming was needed.
+Checked: no personal data. The only phone number left is the company's published hotline (`tel:(+852) 3180 9966`); the WhatsApp links, whose addresses carried a prefilled Chinese greeting, are emptied with the other text-carrying attributes. No hand trimming was needed.
 
 Also fetched but not saved: `/tour/TNA` (8 days, six departures from 2026-11-27 to 2027-02-19, all `即將成團`).
 
