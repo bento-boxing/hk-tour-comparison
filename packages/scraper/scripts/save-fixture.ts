@@ -16,6 +16,7 @@
  *     --allow <selector>             text inside matching elements is kept (cut above KEEP_TEXT_LIMIT)
  *     --allow-max <n> <selector>     the same, but cut above n characters
  *     --allow-key <key>              JSON string values under this key are kept
+ *     --allow-key-in <selector> <key>  the same, but only in the JSON of elements matching the selector
  *   Each is repeatable. Each operator's lists are in docs/operators/<id>.md.
  *
  * Relative paths are taken from the directory the command was run in. An existing output
@@ -32,7 +33,8 @@ const USAGE = [
   'usage: pnpm --filter @hktours/scraper fixture [--keep <selector>]... <url> <output-path>',
   '       pnpm --filter @hktours/scraper fixture [--keep <selector>]... --from <saved-page> <output-path>',
   `--keep (repeatable): text inside matching elements is cut only above ${KEEP_TEXT_LIMIT} characters.`,
-  'Allow-list mode, instead of --keep: --allow <selector>, --allow-max <n> <selector>, --allow-key <key> (each repeatable);',
+  'Allow-list mode, instead of --keep: --allow <selector>, --allow-max <n> <selector>, --allow-key <key>,',
+  '--allow-key-in <selector> <key> (each repeatable);',
   `only text in allowed elements (cut above ${KEEP_TEXT_LIMIT}, or n, characters) and JSON strings under allowed keys is kept.`,
   'Each run creates its own fetcher, so back-to-back live runs are not spaced;',
   'leave at least 3 seconds between runs against the same site.',
@@ -50,10 +52,10 @@ function optionValue(argv: string[], at: number): string {
   return value;
 }
 
-/** Splits the trim options (`--keep`, `--allow`, `--allow-max`, `--allow-key`) from the other arguments. */
+/** Splits the trim options (`--keep`, `--allow`, `--allow-max`, `--allow-key`, `--allow-key-in`) from the other arguments. */
 function parseArgs(argv: string[]): { trim: TrimOptions; args: string[] } {
   const keepSelectors: string[] = [];
-  const allow: Required<AllowList> = { selectors: [], jsonKeys: [] };
+  const allow: Required<AllowList> = { selectors: [], jsonKeys: [], scopedJsonKeys: [] };
   const args: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -61,13 +63,17 @@ function parseArgs(argv: string[]): { trim: TrimOptions; args: string[] } {
     if (arg === '--keep') keepSelectors.push(optionValue(argv, ++i));
     else if (arg === '--allow') allow.selectors.push(optionValue(argv, ++i));
     else if (arg === '--allow-key') allow.jsonKeys.push(optionValue(argv, ++i));
+    else if (arg === '--allow-key-in') {
+      const selector = optionValue(argv, ++i);
+      allow.scopedJsonKeys.push({ selector, keys: [optionValue(argv, ++i)] });
+    }
     else if (arg === '--allow-max') {
       const maxChars = Number(optionValue(argv, ++i));
       if (!Number.isInteger(maxChars) || maxChars < 1) fail(USAGE);
       allow.selectors.push({ selector: optionValue(argv, ++i), maxChars });
     } else args.push(arg);
   }
-  const allowListGiven = allow.selectors.length > 0 || allow.jsonKeys.length > 0;
+  const allowListGiven = allow.selectors.length > 0 || allow.jsonKeys.length > 0 || allow.scopedJsonKeys.length > 0;
   if (allowListGiven && keepSelectors.length > 0) fail(USAGE);
   return { trim: allowListGiven ? { allow } : { keepSelectors }, args };
 }

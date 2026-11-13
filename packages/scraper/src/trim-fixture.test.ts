@@ -261,6 +261,28 @@ describe('allow-list mode', () => {
     expect(JSON.parse($('div').attr('data-plans-json')!)).toEqual([{ dayNumber: 1, title: '直航北海道', description: '' }]);
   });
 
+  it('applies a scoped JSON key only to the JSON of the elements its selector matches', () => {
+    const plans = JSON.stringify([{ title: '直航北海道', image: { name: '相片' } }]);
+    const gallery = JSON.stringify([{ title: '酒店泳池', name: '泳池' }]);
+    const ld = JSON.stringify({ '@type': 'Product', name: '北海道六天' });
+    const html = `<div class="plans" data-plans-json='${plans}'></div><div data-gallery-json='${gallery}'></div>`
+      + `<script type="application/ld+json">${ld}</script><script type="application/json">{"name":"設定"}</script>`;
+    const out = trimFixture(html, {
+      allow: {
+        selectors: [],
+        scopedJsonKeys: [
+          { selector: '.plans', keys: ['title'] },
+          { selector: 'script[type="application/ld+json"]', keys: ['@type', 'name'] },
+        ],
+      },
+    });
+    const $ = load(out, null, false);
+    expect(JSON.parse($('.plans').attr('data-plans-json')!)).toEqual([{ title: '直航北海道', image: { name: '' } }]);
+    expect(JSON.parse($('[data-gallery-json]').attr('data-gallery-json')!)).toEqual([{ title: '', name: '' }]);
+    expect(JSON.parse($('script[type="application/ld+json"]').text())).toEqual({ '@type': 'Product', name: '北海道六天' });
+    expect(JSON.parse($('script[type="application/json"]').text())).toEqual({ name: '' });
+  });
+
   it('applies the JSON keys to flight data and blanks text rows, with their byte length rewritten', () => {
     const text = '長'.repeat(70);
     const rows = `5:T${Buffer.byteLength(text).toString(16)},${text}`

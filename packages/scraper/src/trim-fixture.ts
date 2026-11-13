@@ -36,6 +36,12 @@ export interface AllowList {
    * in attributes and Next.js flight data. Every string nested under such a key is kept too.
    */
   jsonKeys?: string[];
+  /**
+   * JSON keys allowed only in the JSON of the elements a selector matches (a JSON script's content, or
+   * JSON held in the element's attributes), for a key such as `title` that the parser reads in one place
+   * but that other JSON on the page also uses, for text the parser does not read.
+   */
+  scopedJsonKeys?: { selector: string; keys: string[] }[];
 }
 
 export interface TrimOptions {
@@ -347,6 +353,7 @@ const HAN = /\p{Script=Han}/u;
 function trimToAllowList($: CheerioAPI, allow: AllowList): void {
   const limits = allowedElements($, allow.selectors);
   const keys = new Set(allow.jsonKeys ?? []);
+  const keysFor = scopedKeys($, keys, allow.scopedJsonKeys ?? []);
   const isAllowed = (el: AnyNode): boolean => limitFor(el, limits) !== null;
 
   allowFlightData($, keys);
@@ -356,13 +363,28 @@ function trimToAllowList($: CheerioAPI, allow: AllowList): void {
       return;
     }
     const content = $(el).text();
-    if (isDataScript(el, content)) $(el).text(allowedStrings(content, keys));
+    if (isDataScript(el, content)) $(el).text(allowedStrings(content, keysFor(el)));
     else $(el).remove();
   });
   $('*').each((_, el) => {
-    if ('attribs' in el) allowAttributes(el, keys, isAllowed(el));
+    if ('attribs' in el) allowAttributes(el, keysFor(el), isAllowed(el));
   });
   allowNodes($, $.root().contents().toArray(), limits);
+}
+
+/** The JSON keys allowed in one element's JSON: the page-wide keys, plus the scoped keys of every selector it matches. */
+function scopedKeys(
+  $: CheerioAPI, keys: Set<string>, scoped: NonNullable<AllowList['scopedJsonKeys']>,
+): (el: AnyNode) => Set<string> {
+  const byElement = new Map<AnyNode, Set<string>>();
+  for (const { selector, keys: scopedList } of scoped) {
+    for (const el of $(selector).toArray()) {
+      const set = byElement.get(el) ?? new Set(keys);
+      for (const key of scopedList) set.add(key);
+      byElement.set(el, set);
+    }
+  }
+  return el => byElement.get(el) ?? keys;
 }
 
 /** Each element matching an allow selector, with the most characters of text it may keep. */
