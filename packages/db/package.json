@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./read": "./src/read.ts",
     "./test": "./src/test-db.ts"
   },
   "scripts": {
