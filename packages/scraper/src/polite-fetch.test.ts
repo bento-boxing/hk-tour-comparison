@@ -1,4 +1,4 @@
-import { it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
@@ -531,20 +531,95 @@ it('fetchBytes returns the exact bytes, through the same robots.txt check, queue
   expectSpacedAndSerial(main.requests, 190);
 });
 
-/** A fetcher that adds `x-site-key: <path>` to every page request, and tries (and fails) to replace the User-Agent. */
+/**
+ * A fetcher that adds `x-site-key: k1` to every page request to the host 127.0.0.1 (the main server's),
+ * and tries (and fails) to replace the User-Agent there.
+ */
 function fetcherWithExtraHeaders(): PoliteFetcher {
   return createFetcher({
     userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
-    extraHeaders: page => ({ 'x-site-key': page.pathname, 'User-Agent': 'Mozilla/5.0 pretend' }),
+    extraHeaders: { '127.0.0.1': { 'x-site-key': 'k1', 'User-Agent': 'Mozilla/5.0 pretend' } },
   });
 }
 
-it('extraHeaders go on every page request and every redirect hop, but never on robots.txt', async () => {
+it('extraHeaders go on every page request and every redirect hop to their host, but never on robots.txt', async () => {
   const h = fetcherWithExtraHeaders();
   expect(await h.fetchText(url('/to-a'))).toBe('ok-a');
   expect(main.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([
-    ['/robots.txt', undefined], ['/to-a', '/to-a'], ['/a', '/a'],
+    ['/robots.txt', undefined], ['/to-a', 'k1'], ['/a', 'k1'],
   ]);
+});
+
+it('extraHeaders never go to another host, even when a redirect leads there, nor to its robots.txt', async () => {
+  const elsewhere = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 200, `elsewhere${req.url}`)), 'localhost');
+  const hopping = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: elsewhere.url('/a') })));
+  try {
+    const h = fetcherWithExtraHeaders();
+    expect(await h.fetchText(hopping.url('/go'))).toBe('elsewhere/a');
+    expect(hopping.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([['/robots.txt', undefined], ['/go', 'k1']]);
+    expect(elsewhere.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([['/robots.txt', undefined], ['/a', undefined]]);
+    expect(await h.postJson(elsewhere.url('/b'), {})).toBe('elsewhere/b');
+    expect(elsewhere.requests.at(-1)!.headers['x-site-key']).toBeUndefined();
+  } finally {
+    await elsewhere.close();
+    await hopping.close();
+  }
+});
+
+it('extraHeaders are declared by host name, matched whatever its case', async () => {
+  const h = createFetcher({
+    userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
+    extraHeaders: { LocalHost: { 'x-site-key': 'k2' } },
+  });
+  const local = await startServer((req, res) => send(res, req.url === '/robots.txt' ? 404 : 200, 'ok'), 'localhost');
+  try {
+    expect(await h.fetchText(local.url('/a'))).toBe('ok');
+    expect(await h.fetchText(url('/a'))).toBe('ok-a');
+    expect(local.requests.map(r => r.headers['x-site-key'])).toEqual([undefined, 'k2']);
+    expect(requestsTo('/a')[0].headers['x-site-key']).toBeUndefined();
+  } finally {
+    await local.close();
+  }
+});
+
+describe('extraHeaders that cannot be sent', () => {
+  const throwing = {} as Record<string, string>;
+  Object.defineProperty(throwing, 'x-site-key', { enumerable: true, get: () => { throw new Error('boom'); } });
+  it.each([
+    ['a value with a line break', { 'x-site-key': 'k1\r\nx-injected: yes' }],
+    ['a name that is not a header name', { 'bad name': 'k1' }],
+    ['a value that throws when read', throwing],
+  ])('fail that request once, logged, with nothing sent, and the queue keeps going: %s', async (_name, headers) => {
+    const h = createFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line), extraHeaders: { '127.0.0.1': headers },
+    });
+    expect(await h.fetchText(url('/a'))).toBeNull();
+    expect(await h.postJson(url('/echo'), {})).toBeNull();
+    expect(main.requests.map(r => r.path)).toEqual(['/robots.txt']); // robots.txt never carries extra headers
+    expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+    expect(logLines.filter(line => line.includes(url('/a')) && /extra headers/.test(line))).toHaveLength(1);
+    expect(logLines.join('\n')).not.toMatch(/injected|boom/); // the value is never logged
+    const other = await startServer((_req, res) => send(res, 200, 'ok'), 'localhost');
+    try {
+      expect(await h.fetchText(other.url('/a'))).toBe('ok'); // other hosts are unaffected
+    } finally {
+      await other.close();
+    }
+  });
+  it('do not break the site\'s queue: requests queued behind one each fail once, in turn', async () => {
+    const h = createFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
+      extraHeaders: { '127.0.0.1': { 'x-site-key': 'bad\nvalue' } },
+    });
+    const answers = await Promise.all([h.fetchText(url('/a')), h.postJson(url('/echo'), {}), h.fetchBytes(url('/b'))]);
+    expect(answers).toEqual([null, null, null]);
+    expect(main.requests.map(r => r.path)).toEqual(['/robots.txt']);
+    for (const path of ['/a', '/echo', '/b']) {
+      expect(logLines.filter(line => line.includes(url(path)) && /extra headers/.test(line))).toHaveLength(1);
+    }
+  });
 });
 
 it('extraHeaders cannot replace the User-Agent', async () => {
@@ -569,7 +644,7 @@ it('postJson POSTs the body as JSON with the User-Agent and extraHeaders, and re
   const [post] = requestsTo('/echo');
   expect(post.method).toBe('POST');
   expect(post.headers['content-type']).toBe('application/json');
-  expect(post.headers['x-site-key']).toBe('/echo');
+  expect(post.headers['x-site-key']).toBe('k1');
   expect(post.userAgent).toBe('test-bot/0.1');
 });
 
@@ -606,6 +681,78 @@ it('postJson answers count toward pushback, and a refused site gets no more POST
     expect(pagesAsked(pushy)).toEqual(['/429/1', '/403/2', '/429/3']);
   } finally {
     await pushy.close();
+  }
+});
+
+describe('postJson with a body that is not JSON', () => {
+  const circular: Record<string, unknown> = {};
+  circular.self = circular;
+  it.each([
+    ['a circular object', circular],
+    ['a BigInt', { n: 1n }],
+    ['undefined', undefined],
+    ['a function', () => 1],
+  ])('returns null, logged, without asking robots.txt or sending anything: %s', async (_name, body) => {
+    expect(await f.postJson(url('/echo'), body)).toBeNull();
+    expect(main.requests).toEqual([]);
+    expect(logLines.filter(line => line.includes(url('/echo')) && /not JSON/.test(line))).toHaveLength(1);
+  });
+});
+
+it('postJson is not retried after a timeout, and the next request to the site is still spaced', async () => {
+  const quick = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, timeoutMs: 150, log: line => logLines.push(line) });
+  expect(await quick.postJson(url('/hang'), {})).toBeNull();
+  expect(await quick.fetchText(url('/a'))).toBe('ok-a');
+  expect(requestsTo('/hang')).toHaveLength(1);
+  expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+  const [hang] = requestsTo('/hang');
+  const [a] = requestsTo('/a');
+  expect(a.start - hang.start).toBeGreaterThanOrEqual(150 + 190); // the timeout, then the delay
+});
+
+it('postJson is not retried after a network error, and the next request to the site is still spaced', async () => {
+  const dropping = await startServer((req, res) => {
+    if (req.url === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow:');
+    if (req.url === '/drop') return req.socket.destroy();
+    return send(res, 200, 'ok');
+  });
+  try {
+    expect(await f.postJson(dropping.url('/drop'), {})).toBeNull();
+    expect(await f.fetchText(dropping.url('/a'))).toBe('ok');
+    expect(dropping.requests.map(r => r.path)).toEqual(['/robots.txt', '/drop', '/a']);
+    expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+    const [drop, a] = dropping.requests.slice(1);
+    expect(a.start - drop.start).toBeGreaterThanOrEqual(190);
+  } finally {
+    await dropping.close();
+  }
+});
+
+it('postJson waits for the site\'s Crawl-delay', async () => {
+  const slowHost = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nCrawl-delay: 0.4') : send(res, 200, 'ok')));
+  try {
+    await Promise.all([slowHost.url('/a'), slowHost.url('/b'), slowHost.url('/c')].map(u => f.postJson(u, {})));
+    expectSpacedAndSerial(slowHost.requests.filter(r => r.path !== '/robots.txt'), 390);
+    expect(slowHost.requests.filter(r => r.method === 'POST')).toHaveLength(3);
+  } finally {
+    await slowHost.close();
+  }
+});
+
+it('a POST already queued when its site is refused is not sent', async () => {
+  const glacial = await startServer(glacialHandler);
+  const plain = await startServer((req, res) =>
+    (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 200, 'ok')));
+  try {
+    expect(await f.postJson(plain.url('/a'), {})).toBe('ok'); // before the refusal: fine
+    const answers = await Promise.all([f.fetchText(glacial.url('/a')), f.postJson(plain.url('/b'), {})]);
+    expect(answers).toEqual([null, null]);
+    expect(plain.requests.map(r => r.path)).toEqual(['/robots.txt', '/a']);
+    expect(logLines.filter(line => line.includes(plain.url('/b')) && /Crawl-delay 31/.test(line))).toHaveLength(1);
+  } finally {
+    await glacial.close();
+    await plain.close();
   }
 });
 

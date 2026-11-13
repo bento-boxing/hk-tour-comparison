@@ -12,7 +12,7 @@ import { describePage, formatUnmatched, recordDryRun, unmatchedCounts } from './
 import { SCRAPERS } from './operators';
 import { createFetcher } from './polite-fetch';
 import { runOperator } from './run-operator';
-import type { Fetcher, OperatorScraper } from './types';
+import type { Fetcher, OperatorScraper, RequestHeaders } from './types';
 
 export interface CliArgs { operator: OperatorId; dryRun: boolean; limit: number | null }
 
@@ -20,8 +20,11 @@ type Env = Record<string, string | undefined>;
 
 export interface CliDeps {
   scrapers: Partial<Record<OperatorId, OperatorScraper>>;
-  /** Called once per process: every request of the run goes through this one fetcher. */
-  makeFetcher: () => Fetcher;
+  /**
+   * Called once per process: every request of the run goes through this one fetcher. `requestHeaders`
+   * are the running operator's own (see OperatorScraper.requestHeaders), never another operator's.
+   */
+  makeFetcher: (requestHeaders?: RequestHeaders) => Fetcher;
   /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
   makeDb: (databaseUrl: string, ca: string | undefined) => Promise<Db>;
   makeDryRunDb: () => Promise<Db>;
@@ -91,7 +94,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   const print = deps.print ?? (line => console.log(line));
   const {
     scrapers = SCRAPERS,
-    makeFetcher = () => createFetcher({ log: print }),
+    makeFetcher = (requestHeaders?: RequestHeaders) => createFetcher({ log: print, extraHeaders: requestHeaders }),
     makeDb = async (url: string, ca: string | undefined) => createPgDb(url, { ca }),
     makeDryRunDb = createDryRunDb,
     now = () => new Date(),
@@ -125,7 +128,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   }
 
   if (proxyWanted(env)) installProxy(env);
-  const fetcher = makeFetcher();
+  const fetcher = makeFetcher(scraper.requestHeaders);
   const today = todayInHongKong(now());
 
   if (!args.dryRun) {

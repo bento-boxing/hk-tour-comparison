@@ -189,6 +189,21 @@ describe('runCli', () => {
     expect(fetchers).toBe(1);
   });
 
+  it.each([
+    ['jetour', undefined],
+    ['texpert', { 'api.example.com': { 'x-key': 'k' } }],
+  ])('makes the fetcher with the running scraper\'s request headers only (%s)', async (operator, expected) => {
+    const pages = site(goodTours(2));
+    const madeWith: unknown[] = [];
+    const makeFetcher = (headers?: unknown) => { madeWith.push(headers); return fakeFetcher(pages); };
+    const scrapers = {
+      jetour: fakeScraper(pages),
+      texpert: { ...fakeScraper(pages), id: 'texpert' as const, requestHeaders: { 'api.example.com': { 'x-key': 'k' } } },
+    };
+    await runCli(['--operator', operator, '--dry-run'], {}, harness(pages, { scrapers, makeFetcher }).deps);
+    expect(madeWith).toEqual([expected]);
+  });
+
   it('dry-run prints unmatched names and writes nothing to the real database', async () => {
     const realDb = forbiddenDb();
     const withAtlantis = (code: string) => tour(code, { dayHeadings: ['香港 → 大阪', '大阪 → 亞特蘭提斯'] });
