@@ -13,7 +13,7 @@ export interface TourCardProps {
   tour: TourCardData; operator: OperatorInfo; places: PlacesIndex; today: IsoDate; t: T;
   /** When given, the 加入行程 button is shown and calls this with the chosen date. */
   onAdd?: (departure: IsoDate) => void;
-  footNote?: string;   // replaces the 'updated' text in the footer, e.g. '休息 1–2 日後出發'
+  footNote?: string;   // shown above the 'updated' text in the footer, e.g. '休息 1–2 日後出發'
 }
 
 export const MAX_DATE_CHIPS = 4;
@@ -49,7 +49,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const price = formatPrice(tour.windowPriceHkd);
   const change = tour.windowPriceHkd === tour.fromPriceHkd ? priceChangeText(tour.priceChange, today, t) : null;
   const note = startNote(tour.start, tour.end, t);
-  const footLeft = footNote ?? attempt(() => formatUpdated(tour.lastUpdated, today, t));
+  const updated = attempt(() => formatUpdated(tour.lastUpdated, today, t));
   const departures = tour.departures.filter(d => isIsoDate(d.date));
   const chips = departures.slice(0, MAX_DATE_CHIPS);
   const moreDates = departures.length - chips.length;
@@ -96,7 +96,12 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
         </div>
       )}
       <div className={styles.foot}>
-        <span>{footLeft}</span>
+        {footNote === undefined ? <span>{updated}</span> : (
+          <span className={styles.footLeft}>
+            <span>{footNote}</span>
+            {updated && <span>{updated}</span>}
+          </span>
+        )}
         {linkable && <span className={styles.go}>{t('card.goTo', { operator: operator.nameZh })}</span>}
       </div>
     </>
