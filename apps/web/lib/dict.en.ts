@@ -10,6 +10,13 @@ const en = {
   'length.days': '{days}D',
   'updated.today': 'Updated today {time}',
   'updated.on': 'Updated {month}/{day} {time}',
+  'dest.placeholder': 'Type a country, region or city',
+  'dest.none': 'No matching region',
+  'dest.includes': 'Includes {cities}',
+  'dest.clear': 'Clear',
+  'dest.byCountry': 'Browse by country',
+  'dest.allRegions': 'All regions',
+  'dest.back': '← Back',
 } satisfies Record<DictKey, string>;
 
 export default en;
