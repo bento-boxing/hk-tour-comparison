@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { suggestRegions, places, buildPlacesIndex, ALL_REGIONS_LABEL } from './index';
+import { suggestRegions, places, buildPlacesIndex, ALL_REGIONS_LABEL, type PlacesData } from './index';
 
 const labels = (q: string) => suggestRegions(q, places).map(s => s.label);
 
@@ -35,8 +35,8 @@ it('nothing for empty, whitespace or unknown input', () => {
   expect(labels('')).toEqual([]); expect(labels('   ')).toEqual([]); expect(labels('亞特蘭提斯')).toEqual([]);
 });
 // Task 3's shared-name index: 聖城 in 甲國/甲區 and 乙國/乙區, each country with one region.
-const oneRegionEach = {
-  countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
+const oneRegionEach: PlacesData = {
+  countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [], group: 'europe' }],
   regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] }, { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] }],
   cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: '', aliases: [] }, { id: 'b-r-x', regionId: 'b-r', nameZh: '聖城', nameEn: '', aliases: [] }],
 };

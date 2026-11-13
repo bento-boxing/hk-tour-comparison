@@ -1,7 +1,7 @@
-import { it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { places, suggestRegions, ALL_REGIONS_LABEL, type Destination } from '@hktours/core';
+import { places, suggestRegions, ALL_REGIONS_LABEL, COUNTRY_GROUPS, type Destination } from '@hktours/core';
 import { DestinationPanels } from './DestinationPanels';
 import { destinationLabel } from './DestinationSearch';
 import { translate, type T } from '../lib/i18n';
@@ -134,4 +134,69 @@ it('returns focus to the button after a choice', async () => {
 
 it('全部地區 is the same text the suggestions use', () => {
   expect(tZh('dest.allRegions')).toBe(ALL_REGIONS_LABEL);
+});
+
+describe('countries grouped by part of the world', () => {
+  /** The flat list as it was before grouping: every country but the hidden ones, in data order. */
+  const shownIds = (hidden = ['hongkong']) => places.data.countries.filter(c => !hidden.includes(c.id)).map(c => c.id);
+
+  it('shows each group as a labelled group of its countries, in display order', async () => {
+    renderPanels();
+    await open();
+    const groups = screen.getAllByRole('group');
+    const expected = places.countryGroups
+      .map(g => ({ id: g.id, ids: g.countries.map(c => c.id).filter(id => id !== 'hongkong') }))
+      .filter(g => g.ids.length > 0);
+    expect(groups).toHaveLength(expected.length);
+    groups.forEach((group, i) => {
+      const { id, ids } = expected[i];
+      expect(group).toHaveAccessibleName(tZh(`countryGroup.${id}`));
+      expect(within(group).getAllByRole('button').map(b => b.getAttribute('data-country'))).toEqual(ids);
+    });
+  });
+
+  it('puts 日本 and 韓國 under 日本及韓國 and the mainland, Macau and Taiwan under 中國內地及港澳台', async () => {
+    renderPanels();
+    await open();
+    const northeast = screen.getByRole('group', { name: '日本及韓國' });
+    expect(within(northeast).getAllByRole('button').map(b => b.textContent)).toEqual(['日本', '韓國']);
+    const china = screen.getByRole('group', { name: '中國內地及港澳台' });
+    expect(within(china).getAllByRole('button').map(b => b.textContent).sort()).toEqual(['中國', '台灣', '澳門'].sort());
+  });
+
+  it('a heading is neither a button nor a link', async () => {
+    renderPanels();
+    await open();
+    for (const label of ['日本及韓國', '歐洲', '中國內地及港澳台']) {
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+      expect(screen.queryByRole('link', { name: label })).toBeNull();
+      expect(screen.getByText(label).closest('button, a')).toBeNull();
+    }
+  });
+
+  it('offers exactly the countries the flat list offered, each once', async () => {
+    renderPanels();
+    await open();
+    const offered = screen.getAllByRole('button').map(b => b.getAttribute('data-country')).filter(id => id !== null);
+    expect([...offered].sort()).toEqual(shownIds().sort());
+  });
+
+  it('a group none of whose countries is offered is not shown', async () => {
+    renderPanels(null, ['hongkong', 'japan', 'korea']);
+    await open();
+    expect(screen.queryByRole('group', { name: '日本及韓國' })).toBeNull();
+    expect(screen.queryByText('日本及韓國')).toBeNull();
+    expect(screen.getByRole('group', { name: '歐洲' })).toBeInTheDocument();
+  });
+
+  it('a group with any offered country is shown, even when others in it are hidden', async () => {
+    renderPanels(null, ['china', 'taiwan', 'macau']);
+    await open();
+    const china = screen.getByRole('group', { name: '中國內地及港澳台' });
+    expect(within(china).getAllByRole('button').map(b => b.textContent)).toEqual(['香港']);
+  });
+
+  it('the group headings are the dictionary text, which matches the labels in core', () => {
+    for (const g of COUNTRY_GROUPS) expect(tZh(`countryGroup.${g.id}`), g.id).toBe(g.nameZh);
+  });
 });

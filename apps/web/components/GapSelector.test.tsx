@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MAX_GAP_DAYS } from '@hktours/core';
 import { translate, type T } from '../lib/i18n';
@@ -11,143 +13,196 @@ let onChange: ReturnType<typeof vi.fn<(gap: { min: number; max: number }) => voi
 let user: ReturnType<typeof userEvent.setup>;
 beforeEach(() => { onChange = vi.fn(); user = userEvent.setup(); });
 
-const min = () => screen.getByRole('combobox', { name: '最少' });
-const max = () => screen.getByRole('combobox', { name: '最多' });
+const min = () => screen.getByRole('textbox', { name: '最少' });
+const max = () => screen.getByRole('textbox', { name: '最多' });
+const renderGap = (gap = { min: 1, max: 3 }) => render(<GapSelector gap={gap} onChange={onChange} t={t} />);
 
-it('shows the current gap', () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  expect(min()).toHaveValue('1');
-  expect(max()).toHaveValue('3');
-  // Shown as '[1] – [3] 日', the two selects grouped under 休息.
-  const group = screen.getByRole('group', { name: '休息' });
-  expect(group).toContainElement(min());
-  expect(group).toContainElement(max());
-  expect(screen.getByText('–')).toBeInTheDocument();
-  expect(screen.getByText('日')).toBeInTheDocument();
-  expect(min().compareDocumentPosition(max()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-});
+/** Replaces a field's text by typing, as a visitor would, leaving focus in the field. */
+const typeInto = async (field: HTMLElement, text: string) => {
+  await user.clear(field);
+  if (text !== '') await user.type(field, text);
+};
 
-it('changing the maximum calls onChange', async () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  await user.selectOptions(max(), '5');
-  expect(onChange).toHaveBeenCalledTimes(1);
-  expect(onChange).toHaveBeenCalledWith({ min: 1, max: 5 });
-});
-
-it('changing the minimum calls onChange', async () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  await user.selectOptions(min(), '0');
-  expect(onChange).toHaveBeenCalledWith({ min: 0, max: 3 });
-});
-
-it('raising the minimum above the maximum raises the maximum too', async () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  await user.selectOptions(min(), '5');
-  expect(onChange).toHaveBeenCalledWith({ min: 5, max: 5 });
-});
-
-it('lowering the maximum below the minimum lowers the minimum too', async () => {
-  render(<GapSelector gap={{ min: 2, max: 4 }} onChange={onChange} t={t} />);
-  await user.selectOptions(max(), '1');
-  expect(onChange).toHaveBeenCalledWith({ min: 1, max: 1 });
-});
-
-it('offers 0 to 30', () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  const expected = Array.from({ length: 31 }, (_, i) => String(i));
-  expect(MAX_GAP_DAYS).toBe(30);
-  for (const select of [min(), max()]) {
-    const options = [...select.querySelectorAll('option')];
-    expect(options.map(o => o.value)).toEqual(expected);
-    expect(options.map(o => o.textContent)).toEqual(expected);
-  }
-});
-
-it('works from the keyboard', async () => {
-  render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-  await user.tab();
-  expect(min()).toHaveFocus();
-  await user.tab();
-  expect(max()).toHaveFocus();
-});
-
-// A closed native select changes its value on each arrow key (and fires change each time). Applying every step
-// would navigate once per key, so keyboard changes wait 400 ms for the visitor to stop.
-describe('keyboard changes', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  /** What a browser does for one arrow key on a closed select: keydown, then change with the next value. */
-  const arrowTo = (select: HTMLElement, value: number) => {
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    fireEvent.change(select, { target: { value: String(value) } });
-  };
-
-  it('stepping through several values applies only the last, 400 ms after the last key', () => {
-    render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    arrowTo(max(), 4);
-    act(() => { vi.advanceTimersByTime(300); });
-    arrowTo(max(), 5);
-    act(() => { vi.advanceTimersByTime(300); });
-    arrowTo(max(), 6);
-    expect(max()).toHaveValue('6'); // the select shows each step at once
-    act(() => { vi.advanceTimersByTime(399); });
-    expect(onChange).not.toHaveBeenCalled();
-    act(() => { vi.advanceTimersByTime(1); });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 6 });
+describe('the fields', () => {
+  it('shows the current gap as [1] – [3] 日, grouped under 休息', () => {
+    renderGap();
+    expect(min()).toHaveValue('1');
+    expect(max()).toHaveValue('3');
+    const group = screen.getByRole('group', { name: '休息' });
+    expect(group).toContainElement(min());
+    expect(group).toContainElement(max());
+    expect(screen.getByText('–')).toBeInTheDocument();
+    expect(screen.getByText('日')).toBeInTheDocument();
+    expect(min().compareDocumentPosition(max()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('the pairing rule applies to the shown values while stepping', () => {
-    render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    arrowTo(min(), 4);
-    arrowTo(min(), 5);
-    expect(max()).toHaveValue('5');
-    act(() => { vi.advanceTimersByTime(400); });
+  it('are text fields that bring up the number pad: inputmode numeric, pattern [0-9]*', () => {
+    renderGap();
+    for (const field of [min(), max()]) {
+      expect(field.tagName).toBe('INPUT');
+      expect(field).toHaveAttribute('type', 'text');
+      expect(field).toHaveAttribute('inputmode', 'numeric');
+      expect(field).toHaveAttribute('pattern', '[0-9]*');
+    }
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+  });
+
+  it('work from the keyboard: Tab goes from minimum to maximum', async () => {
+    renderGap();
+    await user.tab();
+    expect(min()).toHaveFocus();
+    await user.tab();
+    expect(max()).toHaveFocus();
+  });
+
+  it('are narrow, at least 44 px tall, and use only theme colours', () => {
+    const css = readFileSync(join(__dirname, 'GapSelector.module.css'), 'utf8').replace(/\s+/g, ' ');
+    expect(css).toMatch(/\.input \{[^}]*min-height: 44px/);
+    expect(css).toMatch(/\.input \{[^}]*width: [^;]*ch/);
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(css).not.toMatch(/rgb|hsl/i);
+  });
+});
+
+describe('typing', () => {
+  it('strips anything that is not a digit', async () => {
+    renderGap();
+    await typeInto(max(), 'a1-.e2 ');
+    expect(max()).toHaveValue('12');
+  });
+
+  it('accepts full-width digits from a Chinese input method as digits', async () => {
+    renderGap();
+    await user.clear(max());
+    fireEvent.change(max(), { target: { value: '１２' } });
+    expect(max()).toHaveValue('12');
+  });
+
+  it('applies nothing while typing: 1 on the way to 10 does not reload the list', async () => {
+    renderGap();
+    await typeInto(max(), '10');
+    expect(max()).toHaveValue('10');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('allows an empty field while typing, changing nothing', async () => {
+    renderGap();
+    await typeInto(min(), '');
+    expect(min()).toHaveValue('');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('applying', () => {
+  it('Enter applies the typed value', async () => {
+    renderGap();
+    await typeInto(max(), '10');
+    await user.keyboard('{Enter}');
     expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 10 });
+    expect(max()).toHaveFocus();
+  });
+
+  it('leaving the field applies the typed value', async () => {
+    renderGap();
+    await typeInto(min(), '0');
+    await user.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ min: 0, max: 3 });
+  });
+
+  it('a number above the limit becomes the limit', async () => {
+    expect(MAX_GAP_DAYS).toBe(30);
+    renderGap();
+    await typeInto(max(), '99');
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 30 });
+    expect(max()).toHaveValue('30');
+  });
+
+  it('an empty field goes back to the value it had, applying nothing', async () => {
+    renderGap();
+    await typeInto(min(), '');
+    await user.tab();
+    expect(min()).toHaveValue('1');
+    await typeInto(max(), '');
+    await user.keyboard('{Enter}');
+    expect(max()).toHaveValue('3');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('a minimum above the maximum moves the maximum to match', async () => {
+    renderGap();
+    await typeInto(min(), '5');
+    await user.keyboard('{Enter}');
     expect(onChange).toHaveBeenCalledWith({ min: 5, max: 5 });
+    expect(max()).toHaveValue('5');
   });
 
-  it('leaving the select applies a pending change at once', () => {
-    render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    arrowTo(max(), 7);
-    fireEvent.blur(max());
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 7 });
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(onChange).toHaveBeenCalledTimes(1);
+  it('a maximum below the minimum moves the minimum to match', async () => {
+    renderGap();
+    await typeInto(max(), '0');
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith({ min: 0, max: 0 });
+    expect(min()).toHaveValue('0');
   });
 
-  it('a pointer selection after keyboard use applies at once', () => {
-    render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    arrowTo(max(), 4);
-    fireEvent.pointerDown(max());
-    fireEvent.change(max(), { target: { value: '9' } });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 9 });
-    act(() => { vi.advanceTimersByTime(1000); });
-    expect(onChange).toHaveBeenCalledTimes(1); // the pending keyboard step was replaced, not applied as well
+  it('leading zeros are read as the number', async () => {
+    renderGap();
+    await typeInto(max(), '05');
+    await user.tab();
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 5 });
+    expect(max()).toHaveValue('5');
   });
 
-  it('a pending change is dropped when the selector goes away', () => {
-    const { unmount } = render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    arrowTo(max(), 4);
-    unmount();
-    act(() => { vi.advanceTimersByTime(1000); });
+  it('the same value again applies nothing, so leaving a field untouched does not reload', async () => {
+    renderGap();
+    await user.click(min());
+    await user.tab();
+    await typeInto(max(), '3');
+    await user.keyboard('{Enter}');
+    await typeInto(max(), '45');
+    await user.keyboard('{Enter}'); // 30
+    await typeInto(max(), '31');
+    await user.keyboard('{Enter}'); // 30 again
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 30 });
+  });
+
+  it('an Enter that commits an input-method candidate applies nothing', () => {
+    renderGap();
+    fireEvent.change(max(), { target: { value: '7' } });
+    fireEvent.keyDown(max(), { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(max(), { key: 'Enter', keyCode: 229 }); // Safari: keyCode 229 after compositionend
     expect(onChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(max(), { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 7 });
   });
 
+  it('editing one field then the other applies each against the latest values', async () => {
+    renderGap();
+    await typeInto(min(), '4');
+    await user.tab(); // applies 4–4
+    await typeInto(max(), '9');
+    await user.tab();
+    expect(onChange.mock.calls).toEqual([[{ min: 4, max: 4 }], [{ min: 4, max: 9 }]]);
+  });
+});
+
+describe('the address', () => {
   it('a new gap from the address replaces the shown values', () => {
-    const { rerender } = render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
+    const { rerender } = renderGap();
     rerender(<GapSelector gap={{ min: 2, max: 8 }} onChange={onChange} t={t} />);
     expect(min()).toHaveValue('2');
     expect(max()).toHaveValue('8');
   });
 
-  it('Tab is not a value change: a pointer selection afterwards still applies at once', () => {
-    render(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={t} />);
-    fireEvent.keyDown(max(), { key: 'Tab' });
-    fireEvent.change(max(), { target: { value: '9' } });
-    expect(onChange).toHaveBeenCalledWith({ min: 1, max: 9 });
+  it('a new gap from the address leaves a field being typed in alone', async () => {
+    const { rerender } = renderGap();
+    await typeInto(max(), '1');
+    rerender(<GapSelector gap={{ min: 2, max: 8 }} onChange={onChange} t={t} />);
+    expect(min()).toHaveValue('2');
+    expect(max()).toHaveValue('1');
   });
 });

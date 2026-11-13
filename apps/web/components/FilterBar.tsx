@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { OPERATOR_IDS, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
+import { useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { OPERATOR_IDS, groupCountries, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourFilters } from '@hktours/db/read';
 import type { DictKey, T } from '../lib/i18n';
 import { formatChipDate, formatPrice } from '../lib/format';
@@ -65,6 +65,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
   const showExclude = show?.exclude ?? false;
   const f = state.filters;
   const barRef = useRef<HTMLDivElement>(null);
+  const groupIdPrefix = useId();
 
   // At most one popover is open: opening a pill closes any other.
   const [openPill, setOpenPill] = useState<PillId | null>(null);
@@ -204,18 +205,22 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
           on={excluded.length > 0}
           wide
         >
-          {() => (
-            <ul className={`${styles.checks} ${styles.countries}`}>
-              {places.data.countries.filter(c => !HIDDEN_COUNTRY_IDS.includes(c.id)).map(c => (
-                <li key={c.id}>
-                  <label className={styles.check}>
-                    <input type="checkbox" checked={excluded.includes(c.id)} onChange={() => toggleExcluded(c.id)} />
-                    {c.nameZh}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
+          {() => groupCountries(places.data.countries.filter(c => !HIDDEN_COUNTRY_IDS.includes(c.id))).map(g => (
+            // Grouped by part of the world, as in the destination panel.
+            <div key={g.id} role="group" aria-labelledby={`${groupIdPrefix}-${g.id}`} className={styles.countryGroup}>
+              <div id={`${groupIdPrefix}-${g.id}`} className={styles.groupLabel}>{t(`countryGroup.${g.id}`)}</div>
+              <ul className={`${styles.checks} ${styles.countries}`}>
+                {g.countries.map(c => (
+                  <li key={c.id}>
+                    <label className={styles.check}>
+                      <input type="checkbox" checked={excluded.includes(c.id)} onChange={() => toggleExcluded(c.id)} />
+                      {c.nameZh}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </FilterPopover>
       )}
 

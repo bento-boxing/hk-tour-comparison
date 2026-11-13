@@ -41,8 +41,8 @@ describe('extractStops', () => {
   it('resolves a shared name using earlier stops, and flags it when it cannot', () => {
     const index = buildPlacesIndex({
       countries: [
-        { id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] },
-        { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] },
+        { id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' },
+        { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [], group: 'europe' },
       ],
       regions: [
         { id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'AR', aliases: [] },
@@ -178,9 +178,9 @@ describe('extractStops drops a single foreign outlier with a collision name', ()
   // 甲國 has four cities; 乙國 has 撞名城 (a known collision), 別名城 (one by its alias 撞名別稱) and 乙城 (not one).
   const index = buildPlacesIndex({
     countries: [
-      { id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] },
-      { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] },
-      { id: 'c', nameZh: '丙國', nameEn: 'C', aliases: [] },
+      { id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' },
+      { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [], group: 'europe' },
+      { id: 'c', nameZh: '丙國', nameEn: 'C', aliases: [], group: 'europe' },
     ],
     regions: [
       { id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'AR', aliases: [] },
@@ -351,7 +351,7 @@ describe('extractStops on crawled headings', () => {
 describe('extractStops with notPlaces', () => {
   // 松山 is a city; 松山湖 contains it but is not it.
   const index = buildPlacesIndex({
-    countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }],
+    countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }],
     regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'R', aliases: [] }],
     cities: [
       { id: 'a-r-matsuyama', regionId: 'a-r', nameZh: '松山', nameEn: 'Matsuyama', aliases: [] },

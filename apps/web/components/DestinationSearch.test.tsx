@@ -22,7 +22,7 @@ const renderSearch = (value: Destination | null = null, index = places) =>
 // Each country has a second, empty region, so its regions get region rows (a single-region country
 // is offered only as 全部地區).
 const tiny = buildPlacesIndex({
-  countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
+  countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [], group: 'europe' }],
   regions: [
     { id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] },
     { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] },
