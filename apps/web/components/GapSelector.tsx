@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { MAX_GAP_DAYS } from '@hktours/core';
 import type { T } from '../lib/i18n';
+import { isImeKeyDown } from '../lib/use-popover-dismiss';
 import styles from './GapSelector.module.css';
 
 type Gap = { min: number; max: number };
+type Field = keyof Gap;
 
 export interface GapSelectorProps {
   gap: Gap;
@@ -14,79 +16,75 @@ export interface GapSelectorProps {
   t: T;
 }
 
-const DAYS = Array.from({ length: MAX_GAP_DAYS + 1 }, (_, i) => i);
-
-/** How long keyboard stepping must pause before the shown gap is applied. */
-export const KEYBOARD_SETTLE_MS = 400;
-
-/** Keys that move focus or close things rather than change a select's value. */
-const NON_CHANGING_KEYS = new Set(['Tab', 'Shift', 'Escape', 'Control', 'Alt', 'Meta']);
+/** Keeps only the digits of what was typed, reading full-width digits (from a Chinese input method) as digits. */
+function digitsOnly(text: string): string {
+  return text.replace(/[０-９]/g, d => String(d.charCodeAt(0) - 0xff10)).replace(/[^0-9]/g, '');
+}
 
 /**
- * The rest before the next leg as `[1] – [3] 日`: two native selects, 0 to MAX_GAP_DAYS, labelled 最少 and 最多
- * and grouped under 休息. A minimum above the maximum raises the maximum to match, and the reverse.
+ * The rest before the next leg as `[1] – [3] 日`: two text fields that take digits only (a phone shows its
+ * number pad), labelled 最少 and 最多 and grouped under 休息.
  *
- * A pick with the pointer applies at once. On a closed native select each arrow key fires change, so a
- * change made from the keyboard is shown at once but applied only after KEYBOARD_SETTLE_MS without another
- * one (or when focus leaves the select): stepping through several values navigates once, with the last.
+ * Typing changes only the field. The value is applied when the field loses focus or on Enter (not one that
+ * commits an input-method candidate), so typing 1 on the way to 10 does not reload the list. On apply a number
+ * above MAX_GAP_DAYS becomes MAX_GAP_DAYS, an empty field goes back to its value, and a minimum above the
+ * maximum moves the maximum to match (and the reverse). Applying the gap already shown calls nothing.
  */
 export function GapSelector({ gap, onChange, t }: GapSelectorProps) {
-  // The values on screen: the address's gap, or a keyboard change not yet applied.
-  const [shown, setShown] = useState(gap);
+  // The applied gap: the address's, or one applied here since and not yet back from the address.
+  const [current, setCurrent] = useState(gap);
   const [fromAddress, setFromAddress] = useState(gap);
   if (fromAddress.min !== gap.min || fromAddress.max !== gap.max) {
-    setFromAddress(gap); // a new address replaces anything pending
-    setShown(gap);
+    setFromAddress(gap);
+    setCurrent(gap);
   }
+  // What a field shows while it is being typed in; null shows the applied value.
+  const [drafts, setDrafts] = useState<Record<Field, string | null>>({ min: null, max: null });
 
-  const viaKeyboard = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<Gap | null>(null);
-
-  const cancelPending = () => {
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = null;
-    pending.current = null;
+  const type = (field: Field) => (e: ChangeEvent<HTMLInputElement>) => {
+    const text = digitsOnly(e.target.value);
+    setDrafts(d => ({ ...d, [field]: text }));
   };
-  useEffect(() => cancelPending, []); // a pending change is dropped when the selector goes away
 
-  const apply = (next: Gap) => {
-    cancelPending();
+  const apply = (field: Field) => {
+    const draft = drafts[field];
+    setDrafts(d => ({ ...d, [field]: null }));
+    if (draft === null || draft === '') return; // nothing typed, or emptied: back to the value it had
+    const n = Math.min(Number(draft), MAX_GAP_DAYS);
+    const next = field === 'min' ? { min: n, max: Math.max(current.max, n) } : { min: Math.min(current.min, n), max: n };
+    if (next.min === current.min && next.max === current.max) return;
+    setCurrent(next);
     onChange(next);
   };
-  const flush = () => { if (pending.current) apply(pending.current); };
 
-  const change = (next: Gap) => {
-    setShown(next);
-    if (!viaKeyboard.current) { apply(next); return; }
-    cancelPending();
-    pending.current = next;
-    timer.current = setTimeout(() => apply(next), KEYBOARD_SETTLE_MS);
+  const onKeyDown = (field: Field) => (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || isImeKeyDown(e)) return;
+    e.preventDefault();
+    apply(field);
   };
-  const setMin = (min: number) => change({ min, max: Math.max(shown.max, min) });
-  const setMax = (max: number) => change({ min: Math.min(shown.min, max), max });
 
-  const inputEvents = {
-    onKeyDown: (e: KeyboardEvent) => { if (!NON_CHANGING_KEYS.has(e.key)) viaKeyboard.current = true; },
-    onPointerDown: () => { viaKeyboard.current = false; },
-    onBlur: flush,
-  };
+  const input = (field: Field, label: string) => (
+    <label className={styles.field}>
+      <span className={styles.label}>{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="off"
+        className={styles.input}
+        value={drafts[field] ?? String(current[field])}
+        onChange={type(field)}
+        onKeyDown={onKeyDown(field)}
+        onBlur={() => apply(field)}
+      />
+    </label>
+  );
 
   return (
     <span role="group" aria-label={t('chain.rest')} className={styles.gap}>
-      <label className={styles.field}>
-        <span className={styles.label}>{t('chain.gapMin')}</span>
-        <select className={styles.select} value={shown.min} onChange={e => setMin(Number(e.target.value))} {...inputEvents}>
-          {DAYS.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
+      {input('min', t('chain.gapMin'))}
       <span aria-hidden="true">–</span>
-      <label className={styles.field}>
-        <span className={styles.label}>{t('chain.gapMax')}</span>
-        <select className={styles.select} value={shown.max} onChange={e => setMax(Number(e.target.value))} {...inputEvents}>
-          {DAYS.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
+      {input('max', t('chain.gapMax'))}
       <span>{t('chain.days')}</span>
     </span>
   );

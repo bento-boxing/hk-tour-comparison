@@ -85,9 +85,9 @@ it('shows the gap selector, then the window for the next leg, after the last leg
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']));
   const placeholder = screen.getByText('可出發日：12/24 – 12/26');
   expect(placeholder.closest('[data-next]')).toHaveTextContent('＋ 從下方選擇下一個旅行團可出發日：12/24 – 12/26');
-  const min = screen.getByRole('combobox', { name: '最少' });
+  const min = screen.getByRole('textbox', { name: '最少' });
   expect(min).toHaveValue('1');
-  expect(screen.getByRole('combobox', { name: '最多' })).toHaveValue('3');
+  expect(screen.getByRole('textbox', { name: '最多' })).toHaveValue('3');
   const [leg] = legBoxes();
   expect(leg.compareDocumentPosition(min) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(min.compareDocumentPosition(placeholder) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -95,13 +95,15 @@ it('shows the gap selector, then the window for the next leg, after the last leg
 
 it('changing the gap calls back', async () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']));
-  await user.selectOptions(screen.getByRole('combobox', { name: '最多' }), '5');
+  const max = screen.getByRole('textbox', { name: '最多' });
+  await user.clear(max);
+  await user.type(max, '5{Enter}');
   expect(onGapChange).toHaveBeenCalledWith({ min: 1, max: 5 });
 });
 
 it('without a window (a full chain) shows neither the gap selector nor the placeholder', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']), { departWindow: null });
-  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.queryByRole('textbox')).toBeNull();
   expect(screen.queryByText('＋ 從下方選擇下一個旅行團', { exact: false })).toBeNull();
   expect(screen.getByText('目前合計', { exact: false })).toBeInTheDocument();
 });

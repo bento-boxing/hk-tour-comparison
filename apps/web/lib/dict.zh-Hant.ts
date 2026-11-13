@@ -16,6 +16,16 @@ const zh = {
   'dest.allRegions': '全部地區', // must equal ALL_REGIONS_LABEL in @hktours/core (pinned by a test)
   'dest.back': '← 返回',
   'dest.listSeparator': '、',
+  'countryGroup.china': '中國內地及港澳台', // the countryGroup.* labels must equal COUNTRY_GROUPS in @hktours/core (pinned by a test)
+  'countryGroup.northeast-asia': '日本及韓國',
+  'countryGroup.southeast-asia': '東南亞',
+  'countryGroup.south-central-asia': '南亞及中亞',
+  'countryGroup.middle-east': '中東',
+  'countryGroup.europe': '歐洲',
+  'countryGroup.americas': '美洲',
+  'countryGroup.africa': '非洲',
+  'countryGroup.oceania': '大洋洲',
+  'countryGroup.polar': '南北極',
   'card.from': '起',
   'card.lower': '↓ {amount}　比{days}日前',
   'card.higher': '↑ {amount}　比{days}日前',

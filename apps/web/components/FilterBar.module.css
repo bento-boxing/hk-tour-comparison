@@ -43,6 +43,9 @@
 
 .checks { margin: 0; padding: 0; list-style: none; }
 .countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+/* The exclusion list's parts of the world, labelled as in the destination panel. */
+.countryGroup + .countryGroup { margin-top: 10px; }
+.groupLabel { padding: 0 4px 2px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 .check { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; font-size: 14px; cursor: pointer; }
 .check:hover { background: var(--hit); }
 .check input { margin: 0; accent-color: var(--cerulean); }

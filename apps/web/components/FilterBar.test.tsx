@@ -205,6 +205,27 @@ it('hides dates and shows exclusion when asked', async () => {
   expect(onChange).toHaveBeenLastCalledWith({ filters: { excludeCountryIds: ['japan', 'korea'] }, sort: 'price', page: 1 });
 });
 
+it('the exclusion list groups the countries by part of the world, as the destination panel does', async () => {
+  renderBar(base, { show: { dates: false, exclude: true } });
+  await user.click(pill('排除：無'));
+  const dialog = screen.getByRole('dialog', { name: '排除' });
+  const groups = within(dialog).getAllByRole('group');
+  const expected = places.countryGroups
+    .map(g => ({ id: g.id, ids: g.countries.map(c => c.id).filter(id => id !== 'hongkong') }))
+    .filter(g => g.ids.length > 0);
+  expect(groups).toHaveLength(expected.length);
+  groups.forEach((group, i) => {
+    expect(group).toHaveAccessibleName(t(`countryGroup.${expected[i].id}`));
+    expect(within(group).getAllByRole('checkbox').map(c => c.closest('label')?.textContent))
+      .toEqual(expected[i].ids.map(id => places.country(id)?.nameZh));
+  });
+  const northeast = within(dialog).getByRole('group', { name: '日本及韓國' });
+  expect(within(northeast).getAllByRole('checkbox').map(c => c.closest('label')?.textContent)).toEqual(['日本', '韓國']);
+  expect(within(dialog).queryByRole('checkbox', { name: '香港' })).toBeNull();
+  await user.click(within(northeast).getByRole('checkbox', { name: '韓國' }));
+  expect(onChange).toHaveBeenLastCalledWith({ filters: { excludeCountryIds: ['korea'] }, sort: base.sort, page: 1 });
+});
+
 it('by default shows dates and no exclusion pill', () => {
   renderBar(base);
   expect(pill('出發日期：全部')).toBeInTheDocument();

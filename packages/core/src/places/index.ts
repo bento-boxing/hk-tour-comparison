@@ -1,6 +1,27 @@
 import rawData from './data.json';
 
-export interface Country { id: string; nameZh: string; nameEn: string; aliases: string[] }
+/**
+ * The parts of the world the country lists are arranged under, in display order, with their public labels.
+ * Every country names one in its `group`. For finding a country quickly, not a political statement:
+ * Egypt is Africa, Turkey and the Caucasus are the Middle East.
+ */
+export const COUNTRY_GROUPS = [
+  { id: 'china', nameZh: '中國內地及港澳台' },
+  { id: 'northeast-asia', nameZh: '日本及韓國' },
+  { id: 'southeast-asia', nameZh: '東南亞' },
+  { id: 'south-central-asia', nameZh: '南亞及中亞' },
+  { id: 'middle-east', nameZh: '中東' },
+  { id: 'europe', nameZh: '歐洲' },
+  { id: 'americas', nameZh: '美洲' },
+  { id: 'africa', nameZh: '非洲' },
+  { id: 'oceania', nameZh: '大洋洲' },
+  { id: 'polar', nameZh: '南北極' }, // only shown once the data has an entry in it
+] as const;
+export type CountryGroupId = (typeof COUNTRY_GROUPS)[number]['id'];
+
+export interface Country { id: string; nameZh: string; nameEn: string; aliases: string[]; group: CountryGroupId }
+/** A part of the world with its countries, in the order they were given. */
+export interface CountryGroup { id: CountryGroupId; nameZh: string; countries: Country[] }
 export interface Region { id: string; countryId: string; nameZh: string; nameEn: string; aliases: string[] }
 export interface City { id: string; regionId: string; nameZh: string; nameEn: string; aliases: string[] }
 export interface PlacesData {
@@ -16,6 +37,8 @@ export interface PlacesData {
 
 export interface PlacesIndex {
   data: PlacesData;
+  /** Every country under its group: groups in display order, countries in data order, no empty group. */
+  countryGroups: CountryGroup[];
   country(id: string): Country | undefined;
   region(id: string): Region | undefined;
   city(id: string): City | undefined;
@@ -64,6 +87,18 @@ function byName<T extends Named>(items: T[]): Map<string, T[]> {
   return names;
 }
 
+/**
+ * Arranges countries under their groups: groups in COUNTRY_GROUPS order, each country keeping its place in
+ * `countries`. A group with none of the given countries is left out.
+ */
+export function groupCountries(countries: Country[]): CountryGroup[] {
+  const byGroup = groupBy(countries, c => c.group);
+  return COUNTRY_GROUPS.flatMap(({ id, nameZh }) => {
+    const members = byGroup.get(id);
+    return members ? [{ id, nameZh, countries: members }] : [];
+  });
+}
+
 export function buildPlacesIndex(data: PlacesData): PlacesIndex {
   const countries = byId(data.countries);
   const regions = byId(data.regions);
@@ -77,6 +112,7 @@ export function buildPlacesIndex(data: PlacesData): PlacesIndex {
 
   return {
     data,
+    countryGroups: groupCountries(data.countries),
     country: id => countries.get(id),
     region: id => regions.get(id),
     city: id => cities.get(id),

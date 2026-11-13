@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import type { Destination, PlacesIndex } from '@hktours/core';
+import { groupCountries, type Destination, type PlacesIndex } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import styles from './DestinationPanels.module.css';
 
@@ -16,7 +16,8 @@ export interface DestinationPanelsProps {
 const DEFAULT_HIDDEN = ['hongkong'];
 
 /**
- * The `按國家選擇` button and its panel: step one lists countries, step two that country's regions
+ * The `按國家選擇` button and its panel: step one lists countries under their part of the world (a labelled
+ * group per part, none for a part with no country offered), step two that country's regions
  * with `全部地區` first. A country with one region is selected straight from step one, as the whole country.
  */
 export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds = DEFAULT_HIDDEN }: DestinationPanelsProps) {
@@ -34,7 +35,7 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
     focusNext.current = null;
   }, [open, countryId]);
 
-  const countries = places.data.countries.filter(c => !hiddenCountryIds.includes(c.id));
+  const groups = groupCountries(places.data.countries.filter(c => !hiddenCountryIds.includes(c.id)));
   const country = countryId === null ? undefined : places.country(countryId);
   // Step two: 全部地區 first, then the country's regions.
   const regionChoices: { key: string; label: string; dest: Destination }[] = country === undefined ? [] : [
@@ -87,18 +88,23 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
       {open && (
         <div id={panelId} ref={panelRef} className={styles.panel}>
           {country === undefined ? (
-            <ul className={styles.list}>
-              {countries.map(c => {
-                const current = value?.countryId === c.id;
-                return (
-                  <li key={c.id}>
-                    <button type="button" data-country={c.id} className={chip(current)} aria-current={isCurrent(current)} onClick={() => chooseCountry(c.id)}>
-                      {c.nameZh}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            groups.map(g => (
+              <div key={g.id} role="group" aria-labelledby={`${panelId}-${g.id}`} className={styles.group}>
+                <div id={`${panelId}-${g.id}`} className={styles.groupLabel}>{t(`countryGroup.${g.id}`)}</div>
+                <ul className={styles.list}>
+                  {g.countries.map(c => {
+                    const current = value?.countryId === c.id;
+                    return (
+                      <li key={c.id}>
+                        <button type="button" data-country={c.id} className={chip(current)} aria-current={isCurrent(current)} onClick={() => chooseCountry(c.id)}>
+                          {c.nameZh}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))
           ) : (
             <>
               <div className={styles.head}>

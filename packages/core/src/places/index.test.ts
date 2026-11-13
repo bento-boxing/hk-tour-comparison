@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { places, buildPlacesIndex, normaliseName } from './index';
+import { places, buildPlacesIndex, normaliseName, groupCountries, COUNTRY_GROUPS } from './index';
 import { extractStops } from '../stops';
 import type { PlacesData } from './index';
 import rawData from './data.json';
@@ -51,7 +51,7 @@ describe('places', () => {
   it('returns [] for unknown names', () => { expect(places.findCity('亞特蘭提斯')).toEqual([]); });
   it('returns every match when a name is shared', () => {
     const idx = buildPlacesIndex({
-      countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [] }],
+      countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }, { id: 'b', nameZh: '乙國', nameEn: 'B', aliases: [], group: 'europe' }],
       regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] }, { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] }],
       cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: '', aliases: [] }, { id: 'b-r-x', regionId: 'b-r', nameZh: '聖城', nameEn: '', aliases: [] }],
     });
@@ -65,7 +65,7 @@ describe('places', () => {
   });
   it('the consistency check catches a dangling reference, a duplicate id and a bad prefix', () => {
     const base: PlacesData = {
-      countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }],
+      countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }],
       regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'R', aliases: [] }],
       cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: 'X', aliases: [] }],
     };
@@ -120,6 +120,90 @@ describe('places', () => {
       expect(p.nameZh, p.id).not.toBe('');
       expect(p.nameEn, p.id).not.toBe('');
     }
+  });
+});
+
+/** Returns every country whose group is missing or not in COUNTRY_GROUPS; empty means every country has one. */
+function groupProblems(data: { countries: { id: string; group?: unknown }[] }): string[] {
+  const known = new Set<unknown>(COUNTRY_GROUPS.map(g => g.id));
+  const problems: string[] = [];
+  for (const c of data.countries) {
+    if (c.group === undefined || c.group === '') problems.push(`${c.id} has no group`);
+    else if (!known.has(c.group)) problems.push(`${c.id} has unknown group ${String(c.group)}`);
+  }
+  return problems;
+}
+
+describe('country groups', () => {
+  const country = (id: string, group: string) => ({ id, nameZh: id, nameEn: id, aliases: [], group });
+
+  it('lists the groups in display order with their labels', () => {
+    expect(COUNTRY_GROUPS.map(g => [g.id, g.nameZh])).toEqual([
+      ['china', '中國內地及港澳台'],
+      ['northeast-asia', '日本及韓國'],
+      ['southeast-asia', '東南亞'],
+      ['south-central-asia', '南亞及中亞'],
+      ['middle-east', '中東'],
+      ['europe', '歐洲'],
+      ['americas', '美洲'],
+      ['africa', '非洲'],
+      ['oceania', '大洋洲'],
+      ['polar', '南北極'],
+    ]);
+  });
+
+  it('every country in data.json has a group from the list', () => {
+    expect(groupProblems(rawData)).toEqual([]);
+  });
+
+  it('the group check catches a missing, an empty and an unknown group', () => {
+    expect(groupProblems({ countries: [country('a', 'europe')] })).toEqual([]);
+    expect(groupProblems({ countries: [{ id: 'a' }] })).toEqual(['a has no group']);
+    expect(groupProblems({ countries: [country('a', '')] })).toEqual(['a has no group']);
+    expect(groupProblems({ countries: [country('a', 'atlantis')] })).toEqual(['a has unknown group atlantis']);
+  });
+
+  it('places.countryGroups holds every country once, in list order within each group, and no empty group', () => {
+    const groups = places.countryGroups;
+    expect(groups.length).toBeGreaterThan(0);
+    for (const g of groups) expect(g.countries.length, g.id).toBeGreaterThan(0);
+    // Groups keep the display order; an empty one (南北極 while the data has no polar entry) is left out.
+    const order = COUNTRY_GROUPS.map(g => g.id);
+    const indexes = groups.map(g => order.indexOf(g.id));
+    expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+    expect(indexes.every(i => i >= 0)).toBe(true);
+    expect(groups.map(g => g.nameZh)).toEqual(groups.map(g => COUNTRY_GROUPS[order.indexOf(g.id)].nameZh));
+    // Within a group, countries come in the order of the flat list (data order).
+    for (const g of groups) {
+      expect(g.countries.map(c => c.id), g.id).toEqual(places.data.countries.filter(c => c.group === g.id).map(c => c.id));
+    }
+    const all = groups.flatMap(g => g.countries.map(c => c.id));
+    expect([...all].sort()).toEqual(places.data.countries.map(c => c.id).sort());
+  });
+
+  it('puts the countries the brief names in their groups', () => {
+    const groupOf = (id: string) => places.country(id)?.group;
+    const expected: Record<string, string> = {
+      china: 'china', hongkong: 'china', macau: 'china', taiwan: 'china',
+      japan: 'northeast-asia', korea: 'northeast-asia',
+      thailand: 'southeast-asia', singapore: 'southeast-asia',
+      bhutan: 'south-central-asia', uzbekistan: 'south-central-asia', kazakhstan: 'south-central-asia',
+      turkey: 'middle-east', uae: 'middle-east', georgia: 'middle-east', armenia: 'middle-east', azerbaijan: 'middle-east',
+      russia: 'europe', iceland: 'europe', 'faroe-islands': 'europe', uk: 'europe',
+      usa: 'americas', cuba: 'americas', brazil: 'americas',
+      egypt: 'africa', morocco: 'africa', 'south-africa': 'africa',
+      australia: 'oceania', 'new-zealand': 'oceania',
+    };
+    for (const [id, group] of Object.entries(expected)) expect(groupOf(id), id).toBe(group);
+  });
+
+  it('groupCountries keeps the given order, groups in display order, and leaves out empty groups', () => {
+    const list = [country('x', 'europe'), country('y', 'china'), country('z', 'europe')] as Parameters<typeof groupCountries>[0];
+    expect(groupCountries(list).map(g => [g.id, g.countries.map(c => c.id)])).toEqual([
+      ['china', ['y']],
+      ['europe', ['x', 'z']],
+    ]);
+    expect(groupCountries([])).toEqual([]);
   });
 });
 

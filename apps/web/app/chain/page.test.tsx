@@ -89,7 +89,7 @@ it('loads the page from the address and lays it out: strip, then the next-leg he
 
   const yours = screen.getByRole('heading', { name: '你的行程' });
   const leg = screen.getByText('東瀛遊 · 12/18 – 12/22 · HK$7,999');
-  const gapMin = screen.getByRole('combobox', { name: '最少' });
+  const gapMin = screen.getByRole('textbox', { name: '最少' });
   const placeholder = screen.getByText('可出發日：12/24 – 12/26');
   const heading = screen.getByRole('heading', { name: '可接續的旅行團（12/24 – 12/26 出發）' });
   const search = screen.getByRole('combobox', { name: '輸入國家、地區或城市' });
@@ -136,7 +136,9 @@ it('changing the gap and removing the last leg navigate to the new address', asy
   mocks.loadChainPage.mockResolvedValue({ ...data, address: { ...data.address, search: { ...data.address.search, page: 2 } } });
   await renderPage({});
   const user = userEvent.setup();
-  await user.selectOptions(screen.getByRole('combobox', { name: '最多' }), '5');
+  const gapMax = screen.getByRole('textbox', { name: '最多' });
+  await user.clear(gapMax);
+  await user.type(gapMax, '5{Enter}');
   expect(mocks.push).toHaveBeenLastCalledWith('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-5&ex=japan', { scroll: false });
   await user.click(screen.getByRole('button', { name: '移除最後一程' }));
   expect(mocks.push).toHaveBeenLastCalledWith('/chain?gap=1-3&ex=japan', { scroll: false });
@@ -184,7 +186,7 @@ it(`a full chain (${MAX_CHAIN_LEGS} legs) shows the limit message instead of the
   expect(screen.getByText('行程已達上限（8 程）。')).toBeInTheDocument();
   expect(screen.queryByRole('article')).toBeNull();
   expect(screen.queryByRole('heading', { name: /可接續的旅行團/ })).toBeNull();
-  expect(screen.queryByRole('combobox', { name: '最少' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: '最少' })).toBeNull();
   expect(screen.getByRole('button', { name: '移除最後一程' })).toBeInTheDocument();
 });
 
@@ -194,7 +196,7 @@ it('an empty list says to try a longer rest', async () => {
   expect(screen.getByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。')).toBeInTheDocument();
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
   expect(screen.queryByRole('link', { name: '清除所有篩選' })).toBeNull(); // that link would go to the search page and lose the chain
-  expect(screen.getByRole('combobox', { name: '最多' })).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: '最多' })).toBeInTheDocument();
 });
 
 it('shows the error message, and logs the cause, when DATABASE_URL is missing', async () => {
