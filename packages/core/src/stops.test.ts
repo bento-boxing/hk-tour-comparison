@@ -109,4 +109,50 @@ describe('extractStops', () => {
     expect(names(r)).toEqual(['大阪']);
     expect(r.unmatched).toEqual([]);
   });
+
+  it('does not read 松山湖 (Dongguan) as Matsuyama', () => {
+    const r = extractStops(['香港 → 東莞 → 松山湖'], places);
+    expect(names(r)).toEqual(['東莞']);
+    expect(r.unmatched).toEqual(['松山湖']);
+  });
+
+  it('does not read 西貢 (Sai Kung, Hong Kong) as Ho Chi Minh City', () => {
+    expect(places.findCity('西貢')).toEqual([]);
+    expect(extractStops(['西貢'], places).stops).toEqual([]);
+    expect(names(extractStops(['香港 → 胡志明市'], places))).toEqual(['胡志明市']);
+  });
+});
+
+describe('extractStops with notPlaces', () => {
+  // 松山 is a city; 松山湖 contains it but is not it.
+  const index = buildPlacesIndex({
+    countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [] }],
+    regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'R', aliases: [] }],
+    cities: [
+      { id: 'a-r-matsuyama', regionId: 'a-r', nameZh: '松山', nameEn: 'Matsuyama', aliases: [] },
+      { id: 'a-r-osaka', regionId: 'a-r', nameZh: '大阪', nameEn: 'Osaka', aliases: [] },
+      { id: 'a-r-lake', regionId: 'a-r', nameZh: '湖城', nameEn: 'Lake City', aliases: [] },
+    ],
+    notPlaces: ['松山湖'],
+  });
+
+  it.each([
+    ['松山湖', [], ['松山湖']],                 // the entry itself
+    ['松山湖畔', [], ['松山湖畔']],             // a token containing the entry
+    ['【大阪】松山湖', [], ['松山湖']],         // brackets are dropped before matching, as always
+    ['大阪松山湖', ['大阪'], []],               // a city outside the entry still matches
+    ['松山湖松山', ['松山'], []],               // so does the same city name outside the entry
+    ['松山湖城', ['湖城'], []],                 // and a city name only partly inside it
+    ['松山', ['松山'], []],                     // an exact city name is unaffected
+    ['松山市', ['松山'], []],                   // as is a token without the entry
+  ])('extractStops([%j])', (heading, expectedNames, expectedUnmatched) => {
+    const r = extractStops([heading], index);
+    expect(names(r, index)).toEqual(expectedNames);
+    expect(r.unmatched).toEqual(expectedUnmatched);
+  });
+
+  it('treats a missing notPlaces list as empty', () => {
+    const { notPlaces: _ignored, ...withoutList } = index.data;
+    expect(names(extractStops(['松山湖'], buildPlacesIndex(withoutList)), index)).toEqual(['松山']);
+  });
 });

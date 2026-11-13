@@ -37,14 +37,46 @@ function containedNameList(index: PlacesIndex): string[] {
   return [...names].sort((a, b) => [...b].length - [...a].length);
 }
 
-/** Cities whose name is the longest city name contained in the token; ties go to the earliest in the token. */
-function citiesContainedIn(token: string, index: PlacesIndex, cityNames: string[]): City[] {
+/** Every normalised notPlaces entry. */
+function notPlaceList(index: PlacesIndex): string[] {
+  return (index.data.notPlaces ?? []).map(normaliseName).filter(name => name !== '');
+}
+
+type Span = [start: number, end: number];
+
+/** Where each notPlaces entry occurs in `key`. */
+function notPlaceSpans(key: string, notPlaces: string[]): Span[] {
+  const spans: Span[] = [];
+  for (const entry of notPlaces) {
+    for (let at = key.indexOf(entry); at !== -1; at = key.indexOf(entry, at + 1)) spans.push([at, at + entry.length]);
+  }
+  return spans;
+}
+
+/** Where `name` first occurs in `key` outside every span, or -1. */
+function firstOccurrenceOutside(key: string, name: string, spans: Span[]): number {
+  for (let at = key.indexOf(name); at !== -1; at = key.indexOf(name, at + 1)) {
+    if (!spans.some(([start, end]) => start <= at && at + name.length <= end)) return at;
+  }
+  return -1;
+}
+
+/**
+ * Cities whose name is the longest city name contained in the token; ties go to the earliest in the token.
+ * A city name lying inside a notPlaces entry in the token does not count.
+ */
+function citiesContainedIn(token: string, index: PlacesIndex, cityNames: string[], notPlaces: string[]): City[] {
   const key = normaliseName(token);
+  const spans = notPlaceSpans(key, notPlaces);
   let best: string | undefined;
+  let bestAt = -1;
   for (const name of cityNames) {
     if (best !== undefined && [...name].length < [...best].length) break;
-    const at = key.indexOf(name);
-    if (at !== -1 && (best === undefined || at < key.indexOf(best))) best = name;
+    const at = firstOccurrenceOutside(key, name, spans);
+    if (at !== -1 && (best === undefined || at < bestAt)) {
+      best = name;
+      bestAt = at;
+    }
   }
   return best === undefined ? [] : index.findCity(best);
 }
@@ -65,6 +97,7 @@ export function extractStops(
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
 ): StopsResult {
   const cityNames = containedNameList(index);
+  const notPlaces = notPlaceList(index);
   const stops: Stop[] = [];
   const unmatched: string[] = [];
   const countryOfRegion = (regionId: string) => index.region(regionId)!.countryId;
@@ -87,7 +120,7 @@ export function extractStops(
   for (const heading of dayHeadings) {
     for (const token of tokensOf(heading)) {
       let cities = index.findCity(token);
-      if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames);
+      if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames, notPlaces);
       if (cities.length > 0) {
         stops.push(cityStop(choose(token, cities, city => countryOfRegion(city.regionId))));
         continue;
