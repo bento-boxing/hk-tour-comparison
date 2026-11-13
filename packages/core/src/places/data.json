@@ -47,6 +47,7 @@
     { "id": "china-shandong", "countryId": "china", "nameZh": "山東", "nameEn": "Shandong", "aliases": ["山東省"] },
     { "id": "china-xinjiang", "countryId": "china", "nameZh": "新疆", "nameEn": "Xinjiang", "aliases": [] },
     { "id": "china-tibet", "countryId": "china", "nameZh": "西藏", "nameEn": "Tibet", "aliases": [] },
+    { "id": "china-northeast", "countryId": "china", "nameZh": "東北三省", "nameEn": "Northeast China", "aliases": ["中國東北", "黑龍江"] },
 
     { "id": "vietnam-north", "countryId": "vietnam", "nameZh": "北部", "nameEn": "Northern Vietnam", "aliases": ["北越"] },
     { "id": "vietnam-central", "countryId": "vietnam", "nameZh": "中部", "nameEn": "Central Vietnam", "aliases": ["中越"] },
@@ -150,6 +151,9 @@
     { "id": "china-shanghai-hangzhou", "regionId": "china-shanghai", "nameZh": "杭州", "nameEn": "Hangzhou", "aliases": [] },
     { "id": "china-shanghai-suzhou", "regionId": "china-shanghai", "nameZh": "蘇州", "nameEn": "Suzhou", "aliases": [] },
     { "id": "china-shanghai-nanjing", "regionId": "china-shanghai", "nameZh": "南京", "nameEn": "Nanjing", "aliases": [] },
+    { "id": "china-shanghai-wuxi", "regionId": "china-shanghai", "nameZh": "無錫", "nameEn": "Wuxi", "aliases": [] },
+    { "id": "china-shanghai-huzhou", "regionId": "china-shanghai", "nameZh": "湖州", "nameEn": "Huzhou", "aliases": [] },
+    { "id": "china-shanghai-puyuan", "regionId": "china-shanghai", "nameZh": "濮院", "nameEn": "Puyuan", "aliases": [] },
 
     { "id": "china-sichuan-chengdu", "regionId": "china-sichuan", "nameZh": "成都", "nameEn": "Chengdu", "aliases": [] },
     { "id": "china-sichuan-chongqing", "regionId": "china-sichuan", "nameZh": "重慶", "nameEn": "Chongqing", "aliases": [] },
@@ -173,6 +177,10 @@
     { "id": "china-xinjiang-urumqi", "regionId": "china-xinjiang", "nameZh": "烏魯木齊", "nameEn": "Urumqi", "aliases": [] },
 
     { "id": "china-tibet-lhasa", "regionId": "china-tibet", "nameZh": "拉薩", "nameEn": "Lhasa", "aliases": [] },
+
+    { "id": "china-northeast-harbin", "regionId": "china-northeast", "nameZh": "哈爾濱", "nameEn": "Harbin", "aliases": [] },
+    { "id": "china-northeast-mohe", "regionId": "china-northeast", "nameZh": "漠河", "nameEn": "Mohe", "aliases": [] },
+    { "id": "china-northeast-arctic-village", "regionId": "china-northeast", "nameZh": "北極村", "nameEn": "Arctic Village", "aliases": [] },
 
     { "id": "vietnam-north-hanoi", "regionId": "vietnam-north", "nameZh": "河內", "nameEn": "Hanoi", "aliases": [] },
     { "id": "vietnam-north-ha-long-bay", "regionId": "vietnam-north", "nameZh": "下龍灣", "nameEn": "Ha Long Bay", "aliases": ["下龍"] },
