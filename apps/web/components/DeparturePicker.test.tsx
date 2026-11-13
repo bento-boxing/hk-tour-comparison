@@ -111,6 +111,12 @@ it('still opens with exactly one departure', () => {
   expect(screen.getByRole('button', { name: /2026年12月18日（五）/ })).toHaveFocus();
 });
 
+it('leaves out a date that is today', () => {
+  renderPicker([{ date: '2026-11-12', priceHkd: 6999 }, ...departures], '2026-11-12');
+  expect(screen.queryByRole('button', { name: /2026年11月12日/ })).toBeNull();
+  expect(screen.getAllByRole('listitem')).toHaveLength(3);
+});
+
 it('leaves out dates before today', () => {
   renderPicker([{ date: '2026-11-11', priceHkd: 6999 }, ...departures], '2026-11-12');
   expect(screen.queryByRole('button', { name: /2026年11月11日/ })).toBeNull();

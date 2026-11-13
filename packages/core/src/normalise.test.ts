@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { normaliseTour, places, buildPlacesIndex } from './index';
+import { addDays, normaliseTour, places, buildPlacesIndex } from './index';
 import type { ScrapedTour } from './index';
 
 /** The valid tour from schema.test.ts, with a Japan route and one past departure. */
@@ -74,11 +74,44 @@ it('drops Shenzhen from the route when only the end point is in Shenzhen', () =>
   expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangxi-guilin']);
   expect(r.ok && r.tour.end.kind).toBe('sz');
 });
+it('a stated start point is not the first stop: a tour from 澳門外港碼頭 does not start its route with 澳門', () => {
+  const r = normaliseTour({ ...base, startPoint: '澳門外港碼頭', dayHeadings: ['澳門 → 珠海', '珠海 → 中山'] }, places, today);
+  expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangdong-zhuhai', 'china-guangdong-zhongshan']);
+  expect(r.ok && r.tour.start).toEqual({ kind: 'other', label: '澳門外港碼頭' }); // the card's note stays
+});
+it('a stated end point is not the last stop', () => {
+  const r = normaliseTour({ ...base, endPoint: '澳門外港碼頭', dayHeadings: ['香港 → 中山', '中山 → 珠海 → 澳門'] }, places, today);
+  expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangdong-zhongshan', 'china-guangdong-zhuhai']);
+  expect(r.ok && r.tour.end).toEqual({ kind: 'other', label: '澳門外港碼頭' });
+});
+it('a stated start or end place in the middle of the route stays', () => {
+  const headings = ['珠海 → 澳門', '澳門 → 中山'];
+  const fromMacau = normaliseTour({ ...base, startPoint: '澳門外港碼頭', endPoint: '澳門外港碼頭', dayHeadings: headings }, places, today);
+  expect(fromMacau.ok && fromMacau.tour.stops.map(s => s.cityId))
+    .toEqual(['china-guangdong-zhuhai', 'macau-macau-macau', 'china-guangdong-zhongshan']);
+  const fromHk = normaliseTour({ ...base, dayHeadings: headings }, places, today);
+  expect(fromHk.ok && fromHk.tour.stops.map(s => s.cityId))
+    .toEqual(['china-guangdong-zhuhai', 'macau-macau-macau', 'china-guangdong-zhongshan']);
+});
+it('a route that starts and ends at the stated start and end place loses both ends', () => {
+  const r = normaliseTour({ ...base, startPoint: '澳門外港碼頭', endPoint: '澳門外港碼頭', dayHeadings: ['澳門 → 珠海', '珠海 → 澳門'] }, places, today);
+  expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangdong-zhuhai']);
+});
+it('a route whose only stop is the stated start place has no stops left (as a Hong Kong-only route)', () => {
+  const r = normaliseTour({ ...base, startPoint: '澳門外港碼頭', dayHeadings: ['澳門'] }, places, today);
+  expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
+});
 it('keeps Shenzhen on the route of a Hong Kong-start tour', () => {
   const r = normaliseTour({ ...base, dayHeadings: ['香港 → 深圳', '深圳 → 桂林'] }, places, today);
   expect(r.ok && r.tour.stops.map(s => s.cityId)).toEqual(['china-guangdong-shenzhen', 'china-guangxi-guilin']);
 });
-it('keeps a departure dated today', () => {
+it('drops a departure dated today: it has left by the time anyone reads the card', () => {
+  const tomorrow = addDays(today, 1);
+  const r = normaliseTour({ ...base, departures: [{ date: today, priceHkd: 7000 }, { date: tomorrow, priceHkd: 7500 }] }, places, today);
+  expect(r.ok && r.tour.departures).toEqual([{ date: tomorrow, priceHkd: 7500 }]);
+  expect(r.ok && r.tour.fromPriceHkd).toBe(7500);
+});
+it('a tour whose only departure is today has no upcoming departures', () => {
   const r = normaliseTour({ ...base, departures: [{ date: today, priceHkd: 7000 }] }, places, today);
-  expect(r.ok && r.tour.departures).toEqual([{ date: today, priceHkd: 7000 }]);
+  expect(r).toMatchObject({ ok: false, reason: 'no-departures' });
 });

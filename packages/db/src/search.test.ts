@@ -124,7 +124,31 @@ describe('on the seed table', () => {
     expect(kix.fromPriceHkd).toBe(7999);
   });
 
-  it('a window lower bound before today starts at today', async () => {
+  it('a departure dated today is not upcoming: a tour whose only departure is today is hidden', async () => {
+    const r = await searchTours(db, { filters: {}, sort: 'price', page: 1, today: '2026-12-23' });
+    expect(r.tours.map(t => [t.key, t.departures.map(d => d.date)])).toEqual([
+      ['texpert:SEL5', ['2026-12-24', '2026-12-25']],
+      ['egl:KIX5', ['2026-12-27']],
+      ['jetour:HKD7', ['2027-01-05']],
+    ]);
+    expect(r.total).toBe(3);
+    expect(r.tours[1].fromPriceHkd).toBe(8999); // the 7999 departure (12-18) has gone
+  });
+
+  it('a window starting today starts tomorrow', async () => {
+    const r = await searchTours(db, { filters: { dateFrom: '2026-12-24', dateTo: '2026-12-25' }, sort: 'price', page: 1, today: '2026-12-24' });
+    expect(r.tours.map(t => [t.key, t.departures, t.windowPriceHkd])).toEqual([
+      ['texpert:SEL5', [{ date: '2026-12-25', priceHkd: null }], 5699],
+    ]);
+  });
+
+  it('getToursByKeys leaves out a departure dated today, and a tour whose last departure is today', async () => {
+    const m = await getToursByKeys(db, ['egl:KIX5', 'texpert:SEL5'], '2026-12-24');
+    expect(m.get('texpert:SEL5')!.departures).toEqual([{ date: '2026-12-25', priceHkd: null }]);
+    expect([...(await getToursByKeys(db, ['egl:KIX5'], '2026-12-27')).keys()]).toEqual([]);
+  });
+
+  it('a window lower bound before today starts after today', async () => {
     const r = await searchTours(db, { filters: { dateFrom: '2026-01-01' }, sort: 'price', page: 1, today: '2026-12-26' });
     expect(r.tours.map(t => [t.key, t.departures.map(d => d.date)])).toEqual([
       ['egl:KIX5', ['2026-12-27']],
@@ -282,7 +306,7 @@ describe('on the seed table', () => {
     }
   });
 
-  it('getToursByKeys lists only departures from today on and omits a tour with none left', async () => {
+  it('getToursByKeys lists only departures after today and omits a tour with none left', async () => {
     const m = await getToursByKeys(db, ['egl:KIX5', 'texpert:SEL5'], '2026-12-26');
     expect([...m.keys()]).toEqual(['egl:KIX5']);
     expect(m.get('egl:KIX5')!.departures).toEqual([{ date: '2026-12-27', priceHkd: 8999 }]);

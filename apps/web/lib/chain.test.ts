@@ -77,6 +77,11 @@ it('drops a leg that departs before today, with everything after it', () => {
   expect(r).toEqual({ legs: [], droppedCount: 2 });
 });
 
+it('drops a leg that departs today, with everything after it', () => {
+  const r = resolveChain(st(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']), tours, '2026-12-18');
+  expect(r).toEqual({ legs: [], droppedCount: 2 });
+});
+
 it('an empty chain resolves to nothing', () => {
   expect(resolveChain(st(), tours, today)).toEqual({ legs: [], droppedCount: 0 });
 });

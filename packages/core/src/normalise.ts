@@ -1,5 +1,5 @@
-import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour } from './types';
-import type { PlacesIndex } from './places/index';
+import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
+import { normaliseName, type PlacesIndex } from './places/index';
 import { extractStops } from './stops';
 import { normaliseStartPoint } from './start-point';
 
@@ -18,11 +18,37 @@ function lowerPrice(a: number | null, b: number | null): number | null {
   return Math.min(a, b);
 }
 
-/** Departures on or after today, one per date with its lowest known price, sorted by date. */
+/** True when the stop is a city whose name or an alias (2+ characters) appears in the point's label. */
+function isNamedBy(stop: Stop | undefined, point: TourPoint, index: PlacesIndex): boolean {
+  if (stop?.cityId == null || point.kind !== 'other' || point.label === null) return false;
+  const city = index.city(stop.cityId);
+  if (!city) return false;
+  const label = normaliseName(point.label);
+  return [city.nameZh, ...city.aliases].some(name => {
+    const key = normaliseName(name);
+    return [...key].length >= 2 && label.includes(key);
+  });
+}
+
+/**
+ * The route without a stated start or end place (kind `other`) at its edges: the first stop when the start
+ * point names it, the last when the end point does. The same city in the middle of the route stays.
+ */
+function withoutStatedEnds(stops: Stop[], start: TourPoint, end: TourPoint, index: PlacesIndex): Stop[] {
+  let route = stops;
+  if (isNamedBy(route[0], start, index)) route = route.slice(1);
+  if (isNamedBy(route.at(-1), end, index)) route = route.slice(0, -1);
+  return route;
+}
+
+/**
+ * Departures after today (the design's "its date is in the future": a tour leaving today has left
+ * by the time anyone reads the card), one per date with its lowest known price, sorted by date.
+ */
 function upcomingDepartures(departures: ScrapedDeparture[], today: IsoDate): ScrapedDeparture[] {
   const priceByDate = new Map<IsoDate, number | null>();
   for (const { date, priceHkd } of departures) {
-    if (date < today) continue;
+    if (date <= today) continue;
     priceByDate.set(date, priceByDate.has(date) ? lowerPrice(priceByDate.get(date)!, priceHkd) : priceHkd);
   }
   return [...priceByDate]
@@ -30,14 +56,16 @@ function upcomingDepartures(departures: ScrapedDeparture[], today: IsoDate): Scr
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
-/** today: 'YYYY-MM-DD' in Hong Kong. Departures before today are dropped. */
+/** today: 'YYYY-MM-DD' in Hong Kong. Departures on or before today are dropped. */
 export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: IsoDate): NormaliseResult {
   const start = normaliseStartPoint(scraped.startPoint, index);
   const end = normaliseStartPoint(scraped.endPoint, index);
 
   const excluded = [HONG_KONG_CITY_ID];
   if (start.kind === 'sz' || end.kind === 'sz') excluded.push(SHENZHEN_CITY_ID);
-  const { stops, unmatched } = extractStops(scraped.dayHeadings, index, excluded);
+  const extracted = extractStops(scraped.dayHeadings, index, excluded);
+  const { unmatched } = extracted;
+  const stops = withoutStatedEnds(extracted.stops, start, end, index);
 
   if (stops.length === 0) {
     const reported = unmatched.length > 0
