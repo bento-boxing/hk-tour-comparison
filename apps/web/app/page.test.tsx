@@ -1,4 +1,4 @@
-import { it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate } from '@hktours/core';
@@ -23,6 +23,10 @@ const { default: SearchPage } = await import('./page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
+// The page takes today from the clock (todayInHongKong()) and the cards show the fixture dates
+// against it, so the clock is pinned to a day before them.
+beforeAll(() => { vi.setSystemTime(new Date('2026-11-12T04:00:00Z')); }); // 12:00 in Hong Kong
+afterAll(() => { vi.useRealTimers(); });
 
 const tour: TourCardData = {
   key: 'egl:KIX5', operatorId: 'egl', url: 'https://example.test/egl/KIX5', title: 'KIX5', days: 5, nights: 4,
