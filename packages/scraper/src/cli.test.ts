@@ -249,6 +249,14 @@ describe('runCli', () => {
     expect(h.printed).toContain('run checks: failed (below-minimum)');
   });
 
+  it('dry-run fetches through the scraper\'s own fetchPage when it has one', async () => {
+    const pages = site(goodTours(1));
+    const fetchPage = vi.fn(async (fetcher: Fetcher, url: string) => fetcher.fetchText(url));
+    const h = harness(pages, { scrapers: { jetour: { ...fakeScraper(pages), fetchPage } } });
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(0);
+    expect(fetchPage).toHaveBeenCalledWith(h.fetcher, pageUrl('T1'));
+  });
+
   it('dry-run with --limit fetches only that many pages', async () => {
     const h = harness(site(goodTours(5)));
     expect(await runCli(['--operator', 'jetour', '--dry-run', '--limit', '2'], {}, h.deps)).toBe(0);
@@ -290,20 +298,24 @@ describe('proxyWanted', () => {
 
 describe('SCRAPERS', () => {
   it('holds exactly the approved operators, each under its own id', () => {
-    expect(Object.keys(SCRAPERS).sort()).toEqual(['jetour', 'texpert']);
+    expect(Object.keys(SCRAPERS).sort()).toEqual(['egl', 'jetour', 'texpert']);
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
   });
 
   it('gives each operator a floor for runs with no history, about a third of the tours seen with dates on sale', () => {
     expect(SCRAPERS.jetour?.minExpectedTours).toBe(35);
     expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
+    expect(SCRAPERS.egl?.minExpectedTours).toBe(190); // provisional, until EGL's measured crawl
   });
 
-  it('the nightly workflow scrapes every registered operator', async () => {
+  it('the nightly workflow scrapes every registered operator, except those awaiting their measured crawl', async () => {
+    /** Registered, but added to the nightly matrix only after a measured crawl has set its first-run floor. */
+    const awaitingMeasuredCrawl = ['egl'];
     const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
     const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
     expect(matrix, 'operator matrix line').not.toBeNull();
-    expect(matrix![1].split(',').map(id => id.trim()).sort()).toEqual(Object.keys(SCRAPERS).sort());
+    expect(matrix![1].split(',').map(id => id.trim()).sort())
+      .toEqual(Object.keys(SCRAPERS).filter(id => !awaitingMeasuredCrawl.includes(id)).sort());
   });
 
   it('the nightly schedule, still commented out, is 18:17 UTC (02:17 Hong Kong), off the hour', async () => {

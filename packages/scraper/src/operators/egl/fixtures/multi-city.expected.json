@@ -1,0 +1,55 @@
+{
+  "sourceUrl": "https://www.egltours.com/website/itinerary/HTJSJG06",
+  "verifiedByOwner": false,
+  "notes": "Day headings are each day's stop line (journeyTextRows locations, joined with ' → '); the day titles (e.g. 直航北海道輕鬆展開旅程) are used only for a day with no stops. Start and end are the outbound origin and return destination in the transport blocks (出發交通資料 / 回程交通資料): 香港 both, so start and end are Hong Kong. Departures: all four dates in the dates JSON (none isFull or isOffline), each with its own sellingPrice; the from price is JSON-LD offers.price. Route: 札幌 (直航札幌), 登別 (day 3 stops), 小樽 (day 4), 北廣島 (day 6 北廣島OUTLET購物城); 登別 and 北廣島 were added to places data.json, without 北廣島 the outlet would have matched 廣島 (Hiroshima). The 北海道 in day 2's ROYCE stop gives no stop (北海道 is in notPlaces).",
+  "scraped": {
+    "operatorId": "egl",
+    "code": "HTJSJG06",
+    "url": "https://www.egltours.com/website/itinerary/HTJSJG06",
+    "title": "【聖誕親子遊】直航北海道、 2晚北湯澤森の空庭、 開心玩雪六天悠閒之旅",
+    "days": 6,
+    "nights": null,
+    "dayHeadings": [
+      "香港 → 直航札幌 → 拉麵橫丁",
+      "北海道著名朱古力品牌ROYCE體驗館 → 北國優駿馬公園 → 酒店內自由活動",
+      "登別忍者村 → 登別海洋城堡企鵝巡遊趣緻城 → 登別地藏尊 → 登別火山硫磺谷",
+      "小樽運河 → 水晶音樂城 → 漫步小樽歐陸情懷古典街 → 雪上電單車(自費)",
+      "國際滑雪場玩雪 → 狸小路商店街自由購物",
+      "北廣島OUTLET購物城 → 機場 → 香港"
+    ],
+    "startPoint": "香港",
+    "endPoint": "香港",
+    "fromPriceHkd": 16899,
+    "departures": [
+      {
+        "date": "2026-12-21",
+        "priceHkd": 17999
+      },
+      {
+        "date": "2026-12-22",
+        "priceHkd": 17599
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": 19199
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": 16899
+      }
+    ]
+  },
+  "stopNames": [
+    "札幌",
+    "登別",
+    "小樽",
+    "北廣島"
+  ],
+  "unmatched": [
+    "拉麵橫丁",
+    "北國優駿馬公園",
+    "水晶音樂城",
+    "雪上電單車",
+    "國際滑雪場玩雪"
+  ]
+}
