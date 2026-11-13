@@ -15,11 +15,18 @@ const DAYS_IN_TITLE = /^(\d+)\s*天/;
 /** `2026年12月22日 (二)`; the year is optional. */
 const DATE = /(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日/;
 const PRICE = /HKD\s*(\d[\d,]*)/;
-/** Day-1 prose such as `是日集合於香港國際機場，由專業領隊…`: the place up to the first punctuation. */
-const GATHERING = /集合於([^，。、；,;\s]{1,20})/;
+/** Day-1 prose such as `是日集合於香港國際機場，由專業領隊…`: the place follows `集合於`… */
+const GATHERING = '集合於';
+/** …and ends at punctuation, a space, or the verb that starts the rest of the sentence. */
+const GATHERING_END = /[，。；,;、 ]|由|乘|出發|辦理/;
+const MAX_GATHERING_LENGTH = 12;
 /** One stop of a stop line: the place, optionally followed by `：` and the activities there. */
 const STOP_SEPARATOR = /[~～]/;
 const ACTIVITIES = /[：:].*$/;
+const BRACKETED = /\([^)]*\)/g;
+/** `杭州/上海`: either city, as in a flight leg into or out of one of two airports. */
+const EITHER_OR = /^[^/]+(?:\/[^/]+)+$/;
+const HONG_KONG = '香港';
 
 /** Text without zero-width characters, with runs of whitespace (including no-break spaces) as one space. */
 function clean(text: string): string {
@@ -27,18 +34,45 @@ function clean(text: string): string {
 }
 
 /**
- * A day's stop line, e.g. `哈爾濱 ~ 漠河 ~ 北極村`, without the activity list after a colon.
- * Full-width brackets become ASCII ones because the page mixes them (`(含…）`).
- * Falls back to the day title when the page gives no stop line.
+ * A day's stops, e.g. `哈爾濱 ~ 漠河 ~ 北極村`, without bracketed notes or the activity list after a colon.
+ * Brackets may be half- or full-width, even mixed (`(含…）`). Falls back to the day title when the page gives no stop line.
  */
-function dayHeading(day: Cheerio<Element>): string {
-  const stops = clean(day.find('.day--trip-work').first().text()) || clean(day.find('.day--title').first().text());
-  return stops
+function dayStops(day: Cheerio<Element>): string[] {
+  const line = clean(day.find('.day--trip-work').first().text()) || clean(day.find('.day--title').first().text());
+  return line
     .replace(/（/g, '(').replace(/）/g, ')')
+    .replace(BRACKETED, ' ')
     .split(STOP_SEPARATOR)
-    .map(stop => stop.replace(ACTIVITIES, '').trim())
-    .filter(stop => stop !== '')
-    .join(' ~ ');
+    .map(stop => clean(stop.replace(ACTIVITIES, '')))
+    .filter(stop => stop !== '');
+}
+
+/** Removes the stop at `index` if there is one and it is an either/or leg (`杭州/上海`). */
+function withoutEitherOr(stops: string[], index: number): string[] {
+  return index >= 0 && EITHER_OR.test(stops[index] ?? '') ? stops.filter((_, i) => i !== index) : stops;
+}
+
+/**
+ * One heading per day. The flight leg next to Hong Kong on day 1 (`香港 ~ 杭州/上海 ~ …`) and on the
+ * last day (`… ~ 杭州/上海 ~ 香港`) names two possible airports, not two stops, so it is dropped there.
+ */
+function dayHeadings(days: Cheerio<Element>[]): string[] {
+  const last = days.length - 1;
+  return days.map((day, i) => {
+    let stops = dayStops(day);
+    if (i === 0 && stops.includes(HONG_KONG)) stops = withoutEitherOr(stops, stops.indexOf(HONG_KONG) + 1);
+    if (i === last && stops.includes(HONG_KONG)) stops = withoutEitherOr(stops, stops.lastIndexOf(HONG_KONG) - 1);
+    return stops.join(' ~ ');
+  });
+}
+
+/** The place after `集合於` in the text, at most 12 characters; null when the text names none. */
+function gatheringPoint(text: string): string | null {
+  const at = text.indexOf(GATHERING);
+  if (at === -1) return null;
+  const place = [...text.slice(at + GATHERING.length).split(GATHERING_END)[0].trim()]
+    .slice(0, MAX_GATHERING_LENGTH).join('');
+  return place === '' ? null : place;
 }
 
 /** `YYYY-MM-DD`; a date without a year is its nearest occurrence on or after today. */
@@ -77,7 +111,7 @@ function departures($: CheerioAPI, today: IsoDate): ScrapedDeparture[] {
   return result;
 }
 
-/** One Jetour `/tour/<CODE>` page as a ScrapedTour; null when it has no tour code or day count. */
+/** One Jetour `/tour/<CODE>` page as a ScrapedTour; null when it has no tour code, no day count, or two that disagree. */
 export function parse(html: string, url: string, today: IsoDate = todayInHongKong()): ScrapedTour | null {
   const $ = load(html);
   const code = clean($('.tour_location .card_tag').first().text());
@@ -85,8 +119,10 @@ export function parse(html: string, url: string, today: IsoDate = todayInHongKon
 
   const title = clean($('h1.title').first().text());
   const dayItems = $('.days__list--works .days__items').toArray().map(element => $(element));
-  const days = Number(DAYS_IN_TITLE.exec(title)?.[1] ?? dayItems.length);
+  const titleDays = DAYS_IN_TITLE.exec(title)?.[1];
+  const days = titleDays === undefined ? dayItems.length : Number(titleDays);
   if (!(days > 0)) return null;
+  if (dayItems.length > 0 && dayItems.length !== days) return null; // title and itinerary disagree
 
   const firstDayDetails = dayItems.length > 0 ? clean(dayItems[0].find('.days_items--details').text()) : '';
 
@@ -97,8 +133,8 @@ export function parse(html: string, url: string, today: IsoDate = todayInHongKon
     title,
     days,
     nights: null,
-    dayHeadings: dayItems.map(dayHeading),
-    startPoint: GATHERING.exec(firstDayDetails)?.[1] ?? null,
+    dayHeadings: dayHeadings(dayItems),
+    startPoint: gatheringPoint(firstDayDetails),
     endPoint: null,
     fromPriceHkd: parsePriceHkd(clean($('.booking--price').first().text())),
     departures: departures($, today),

@@ -9,6 +9,7 @@ const CAPTURED = '2026-11-13';
 interface Expected {
   sourceUrl: string;
   verifiedByOwner: boolean;
+  notes?: string;
   scraped: ScrapedTour | null;
   stopNames: string[];
   /** Day-heading tokens the shared normaliser reports as unmatched: attractions, not places. */
@@ -125,4 +126,60 @@ it('falls back to the day title, without zero-width spaces, when a day has no st
   'https://www.jetour.com.hk/tour/TITLE', CAPTURED);
   expect(t?.dayHeadings).toEqual(['長廣溪濕地公園']);
   expect(t?.startPoint).toBeNull();
+});
+
+/** A minimal tour page: title, code, and one itinerary day per stop line. */
+const tourPage = (title: string, stopLines: string[], firstDayDetails = '') => `
+  <h1 class="h4 title">${title}</h1>
+  <div class="tour_location"><div class="card_tag">INLINE</div></div>
+  <div class="days__list--works">${stopLines.map((line, i) => `
+    <div class="days__items">
+      <div class="days__items--top"><div class="content">
+        <div class="day--name">第${i + 1}天</div>
+        <div class="day--trip"><div class="day--trip-work">${line}</div></div>
+      </div></div>
+      <div class="days_items--details"><div class="trip--visit"><p>${i === 0 ? firstDayDetails : ''}</p></div></div>
+    </div>`).join('')}
+  </div>`;
+const parseInline = (html: string) => parse(html, 'https://www.jetour.com.hk/tour/INLINE', CAPTURED);
+const headingsOf = (stopLines: string[]) => parseInline(tourPage(`${stopLines.length}天測試團`, stopLines))!.dayHeadings;
+
+describe('either/or flight city next to 香港', () => {
+  it('drops an X/Y leg right after 香港 on day 1 and right before 香港 on the last day', () => {
+    expect(headingsOf(['香港 ~ 甲/乙 ~ 丙', '丙 ~ 丁', '丁 ~ 戊/己 ~ 香港'])).toEqual(['香港 ~ 丙', '丙 ~ 丁', '丁 ~ 香港']);
+  });
+  it('keeps an X/Y segment anywhere else', () => {
+    expect(headingsOf(['香港 ~ 丙 ~ 甲/乙', '丙 ~ 甲/乙 ~ 丁', '丁 ~ 甲/乙 ~ 戊 ~ 香港']))
+      .toEqual(['香港 ~ 丙 ~ 甲/乙', '丙 ~ 甲/乙 ~ 丁', '丁 ~ 甲/乙 ~ 戊 ~ 香港']);
+  });
+});
+
+it('drops bracketed notes, half- and full-width, mixed or matched', () => {
+  expect(headingsOf(['香港 ~ 甲(註一) ~ 乙（註二） ~ 丙(註三）~ 丁（註四)'])).toEqual(['香港 ~ 甲 ~ 乙 ~ 丙 ~ 丁']);
+});
+
+describe('gathering point', () => {
+  const startPoint = (details: string) => parseInline(tourPage('1天測試團', ['香港 ~ 甲'], details))!.startPoint;
+  it.each([
+    ['是日集合於香港國際機場，由專業領隊陪同', '香港國際機場'],
+    ['是日集合於香港國際機場由專業領隊陪同下乘搭豪華客機', '香港國際機場'],
+    ['是日集合於香港國際機場乘搭豪華客機', '香港國際機場'],
+    ['是日集合於尖沙咀出發前往', '尖沙咀'],
+    ['是日集合於香港國際機場辦理登機手續', '香港國際機場'],
+    ['是日集合於西九龍站、乘高鐵', '西九龍站'],
+    ['是日集合於紅磡站 準時', '紅磡站'],
+    ['是日集合於一個沒有任何標點的很長很長的地方名稱之後還有更多', '一個沒有任何標點的很長很'], // capped at 12 characters
+    ['是日自行前往機場', null],
+  ])('%s gives %s', (details, expected) => {
+    expect(startPoint(details)).toBe(expected);
+  });
+});
+
+describe('day count', () => {
+  it('returns null when the title and the itinerary disagree on the number of days', () => {
+    expect(parseInline(tourPage('3天測試團', ['香港 ~ 甲', '甲 ~ 香港']))).toBeNull();
+  });
+  it('takes the itinerary count when the title has no day count', () => {
+    expect(parseInline(tourPage('測試團', ['香港 ~ 甲', '甲 ~ 香港']))!.days).toBe(2);
+  });
 });
