@@ -250,6 +250,13 @@ describe('extractStops on crawled headings', () => {
     expect(names(r)).toEqual(expectedNames);
     expect(r.unmatched).toEqual(expectedUnmatched);
   });
+
+  it('does not read the show 《廣州起義》 as a visit to Guangzhou (Travel Expert YASJ03R, YBDB03R)', () => {
+    // a staged show at a theme park on a Shunde tour
+    expect(names(extractStops(['酒店自助早餐→約10:30離開酒店→重本包門票暢玩 【廣東千古情景區】帶你一秒穿越至武術街、風情街、 椰風海韻街等多個大型場景街道，沉浸式體驗大型實景劇場《廣州起義》；5D全方位視覺盛宴《大地震》 等多個表演令你目不暇接→午餐【貴賓園區內自理】 →入住酒店→晚餐【酒店豐富自助晚餐】→自由活動。'], places))).toEqual([]);
+    // a visit named on the same day still reads
+    expect(names(extractStops(['重本包門票暢玩【廣東千古情景區】~帶你一秒穿越至武術街、風情街、椰風海韻街等多個大型場景街道，沉浸式體驗大型實景劇場《廣州起義》；5D全方位視覺盛宴《大地震》等多個表演令你目不暇接→午餐【園區內自理】→約16:30離開前往廣州→晚餐 【玫瑰豉油雞宴】→前往廣州中山紀念堂'], places))).toEqual(['廣州']);
+  });
 });
 
 describe('extractStops with notPlaces', () => {

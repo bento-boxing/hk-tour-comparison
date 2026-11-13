@@ -146,3 +146,24 @@ Heading problems seen (parser or headings, not places), recorded for the owner:
 - **Line breaks inside words.** The `details summary h3` text keeps the page's line wrapping as spaces, which split names in two: `前往江 門`, `從化溫 泉小鎮`, `長白 山人參`, `紅 葉`. A name split this way is not matched (`江 門` gives `江` and `門`). The pages above still matched through other names, but this will cost matches. Since Task 19 fix round 1 the parser removes a space between two Chinese characters when it builds `dayHeadings` (`江 門` → `江門`); other spaces stay.
 - **Prose headings.** Short tours put the whole day in the heading, so meals, shows and slogans (`結束愉快旅程！`, `網紅打卡點`, `永春` from `龍舟、永春、香雲紗` meaning Wing Chun, not 永春 in Fujian) dominate the unmatched names. 永春 was deliberately not added.
 - **Transit and meeting points.** `中轉深圳北/廣州南`, `乘車返回深圳` put Shenzhen or Guangzhou on routes of tours that only pass through; `黃金海岸` (a beach in Quanzhou) matches Gold Coast exactly, which `notPlaces` cannot prevent.
+
+## Confirmation crawl (Task 19, fix round 1)
+
+`pnpm scrape --operator texpert --dry-run`, run once on **2026-11-13** (Hong Kong), 03:48:41–03:55:50 UTC, through `createFetcher`, with the transit and single-outlier rules, the heading-space fix, the `notPlaces` additions and the CLI fixes in place. No 403, 429, bot challenge, retry or unfetched page.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | 117 |
+| Tour pages fetched | 117 |
+| Tours that would be saved | **112** |
+| Parse failures | **1 (0.9%)**: `1383-guangdong-province-tour-2-day-fairy-tale-late-autumn-red` (YASR02R), `no-stops`, as estimated (its places are only inside `【】`) |
+| Skipped, no upcoming departures | 4 (not failures) |
+| Run checks | **passed** (`ok`) |
+
+Top 30 unmatched names (pages each appeared on): 結束愉快旅程！ 12, 結束愉快行程！ 11, 網紅打卡點 10, 遊覽 9, 化粧品專賣店 8, 人蔘專賣廳 7, 西九龍高鐵站 7, 觀看 7, 護肝寳專賣店 7, 弘大 6, 暢遊 5, 遊輪上 5, 龍平度假村 5, 龍平度假村 5 (two spellings), 七彩環島路 4, 上岸遊覽 4, 城市觀光廳 4, 外觀 4, 外觀天主教堂 4, 大鮑島·廣興里 4, 天盞燈平臺 4, 奧帆中心 4, 宮崎駿漫畫街 4, 專車送往茅坪港 4, 曲藝 4, 棧橋 4, 永春 4 (詠春, Wing Chun), 狀元 4, 玻璃棧道 4, 福田 4 (961 distinct names; 1,249 in the practice crawl).
+
+Sample of 40 tours (routes compared with their headings by eye). Wrong stops found:
+- `YASJ03R`: 廣州 read from the show title `《廣州起義》` at a theme park (`《》` is not a bracket the extractor drops). Fixed after the crawl with the `notPlaces` entry `廣州起義` (test: `YBDB03R`, which also visits Guangzhou that day, keeps 廣州).
+- `YZAA03R`, `TGLZ04R`: 深圳 as the first and last stop: the tour boards the train at 深圳北站 / 福田站 but the first heading has no `集合`, so no start point is read and Shenzhen is not excluded. Not a places problem.
+- `YASP03R`: 韶關 is only the railway station (`前往韶關站乘坐高鐵返回深圳北`); the tour is in Chenzhou (Mangshan, Dongjiang Lake). Transit without transit wording.
+Missing stops (no wrong city, places not in the list): 百色, 羅平, 曲靖, 彌勒 (`TGGK06R`), 金門 (`TXJA05R`), 泉州 and 潮州 named only through attractions (`YESB04R`).

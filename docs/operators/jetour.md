@@ -140,3 +140,22 @@ Also fetched but not saved: `/tour/TNA` (8 days, six departures from 2026-11-27 
 Known limits seen in the output:
 - **Transit stops.** Long-haul day lines name the connecting city (`途經巴黎轉機`, `經巴黎或阿姆斯特丹轉機`, `香港 ~ 巴黎 ~ 利馬`, `杜邦力夫 伊斯坦堡`), so Paris, Amsterdam or Istanbul appear on routes of tours that only change planes there (23 Latin American tours name a Paris or Amsterdam connection, e.g. `QSB`, `QPD`, `QCC`; some Balkan tours connect in Istanbul, e.g. `EBD`, `BBZEX`). Not a place-list problem; left for the owner.
 - **Attractions dominate the unmatched names** (`舊城區`, `大教堂`, `教堂橋`, `獅子紀念碑`...): expected, they stay unmatched.
+
+## Confirmation crawl (Task 19, fix round 1)
+
+`pnpm scrape --operator jetour --dry-run`, run once on **2026-11-13** (Hong Kong), 03:45:28–03:45:41 UTC, through `createFetcher`, with the transit and single-outlier rules, the Ecuador/`notPlaces` data fixes and the CLI fixes in place. No 403, 429, bot challenge, retry or unfetched page.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | **1** (451 in the practice crawl three hours earlier) |
+| Tour pages fetched | 1 (`/tour/EID`, a tour not in the practice crawl) |
+| Tours that would be saved | 0: the run failed its checks (`no-tours`) |
+| Parse failures | 0 (0.0% of 1) |
+| Skipped, no upcoming departures | 1 (`EID`) |
+| Run checks | **failed** (`no-tours`) |
+
+**Cause:** the sitemap the site served listed a single `/tour/<CODE>` page, and that page has no upcoming departures. Every request succeeded (no fetcher log lines). Not diagnosed further: that would need fetching the sitemap again, and the crawl was run once and not restarted, as the rules require. A truncated response is unlikely: the one tour listed (`EID`) was not among the 451 listed earlier, whereas a cut-off file would have kept the first tours of the old order. The owner should look at `https://www.jetour.com.hk/sitemap.xml` before the nightly run is enabled, and the nightly check `no-tours` will report this if it persists.
+
+Unmatched names (EID only, each on 1 page): 三尖峰, 上城區, 下城區, 乘小火車遊覽, 乘纜車登刀鋒山, 乘纜車登薩索倫戈, 乘船往貝拉焦, 加爾達湖, 卡雷扎湖, 史卡拉城堡, 地道酒莊品嚐佳釀, 多比亞科湖, 多洛米蒂地區, 巴蒂斯蒂廣場, 布拉耶斯湖, 特倫托, 特雷維索, 瓦爾特廣場, 米蘇里納湖, 老廣場, 聖母大殿, 聖瑪達萊娜健行 (22).
+
+**Offline check instead of the sample** (no request made): the practice crawl's 451 printed pages were re-processed with the current code and data: still 1 parse failure (0.2%, `TCPA-1`, parser null). A sample of 40 of those tours found no wrong city from a name collision; the wrong stops left are transit cities named without transit wording (`巴黎 ~ 利馬` on the day after `途經巴黎轉機`; `巴黎 或 阿姆斯特丹 ~ 香港`; `成都/西安` as the flight home), and real stops removed by the single-outlier rule (Kirkenes, Vaduz, Tirano, Vatican, San Marino on otherwise one-country routes). Details in the Task 19 fix-round report.
