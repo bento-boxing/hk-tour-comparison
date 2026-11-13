@@ -195,6 +195,10 @@ No confirmation dry run was made this round: discovery did not need a fix, which
 
 **Route rules narrowed in fix round 2** (offline, practice-crawl headings): the single-outlier removal now applies only to names on `collisionNames` (`塔林`, `黃金海岸`), so Kirkenes, Vaduz, Tirano, the Vatican, San Marino and Rovaniemi are back on 19 routes; a transit word now drops only its whitespace-delimited chunk, so Rio stays on `QPE`. 26 routes changed against fix round 1 (23 from the two rules, 3 from `蘇州河` below); still 1 tour page without stops (`TCPA-1`, parser null). Known limits: hubs named plainly (`巴黎 ~ 利馬`, `巴黎或阿姆斯特丹 ~ 香港`, `成都/北京`, `香港 ~ 廣州 ~ 阿拉木圖`), and hubs a space away from `轉機` (`途經巴黎 轉機` on QSG, QSC; `經巴黎 或 阿姆斯特丹 轉機` on QTCRR, QTDR). New `notPlaces` entry `蘇州河` (Suzhou Creek, Shanghai; TSSKQ, TSDQ, TWAQ, TSSHQ).
 
+## Pages with no dates: confirmed by the owner (2026-11-13)
+
+The owner checked the live site: Jetour shows only about 102 tours as on sale, which matches the 99 pages with dates found by the confirmation crawl. A tour page with no departure dates (`沒有數據。`) is a tour that is not currently running, not a page whose dates load some other way. Skipping those pages is correct. The owner also checked the three `expected.json` files for Jetour and the three for Travel Expert against the live pages on the same day; all six are marked `"verifiedByOwner": true`.
+
 ## Sitemap rebuilds (for the owner)
 
 Jetour rebuilds `sitemap.xml` from time to time and serves it incomplete while it does:
