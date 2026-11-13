@@ -1,0 +1,31 @@
+/* Not in the mockup: a popover in the style of the search suggestions (.sugg) and the card's price. */
+.picker {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20;
+  min-width: 240px; max-width: calc(100vw - 32px); max-height: 320px; overflow-y: auto;
+  padding: 10px; background: var(--surface); color: var(--charcoal);
+  border: 1px solid var(--ash); border-radius: 8px; box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);
+}
+.head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; padding-left: 4px; }
+.title { font-size: 13px; font-weight: 700; }
+.close {
+  padding: 2px 8px; border: 0; border-radius: 4px; background: none;
+  font: inherit; font-size: 13px; color: var(--text-muted); cursor: pointer;
+}
+.close:hover { background: var(--hit); }
+.close:focus-visible { outline: 2px solid var(--cerulean); }
+
+.list { margin: 0; padding: 0; list-style: none; }
+.date {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; width: 100%;
+  padding: 7px 8px; border: 0; border-radius: 6px; background: none; text-align: left;
+  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+}
+.date:hover { background: var(--hit); }
+.date:focus-visible { outline: 2px solid var(--cerulean); outline-offset: -2px; background: var(--hit); }
+.price { color: var(--cerulean); font-weight: 700; white-space: nowrap; }
+.from { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+
+/* Taller rows for touch on phones. */
+@media (max-width: 639px) {
+  .date { padding: 10px 8px; font-size: 14px; }
+}
