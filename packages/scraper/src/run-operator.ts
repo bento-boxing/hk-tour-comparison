@@ -100,7 +100,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
       html = scraper.fetchPage ? await scraper.fetchPage(fetcher, url) : await fetcher.fetchText(url);
     } catch (error) {
       html = null;
-      why = ` (fetchPage threw: ${errorMessage(error)})`;
+      why = ` (fetch threw: ${errorMessage(error)})`; // fetchPage, or a fetchText breaking its never-throws contract
     }
     if (html === null) {
       log(`${operatorId}: skipped ${url}: not fetched${why}`);
