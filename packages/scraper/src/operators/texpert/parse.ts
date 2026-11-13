@@ -23,6 +23,8 @@ const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
 const GATHERING = '集合';
 const DISMISSAL = /解散|散團/;
 const MAX_POINT_LENGTH = 20;
+/** A space between two Chinese characters: the page's line wraps break words with one (`江 門`, `從化溫 泉`). */
+const SPACE_INSIDE_WORD = /(?<=\p{Script=Han})\s+(?=\p{Script=Han})/gu;
 
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -181,13 +183,16 @@ function departures(flight: Flight): ScrapedDeparture[] {
   return result;
 }
 
-/** Each `details summary h3` without its `Day N` label element, e.g. `福田口岸集合 (乘地鐵) 深圳北站 > …`. */
+/**
+ * Each `details summary h3` without its `Day N` label element, e.g. `福田口岸集合 (乘地鐵) 深圳北站 > …`,
+ * and without the spaces that break its words; other spaces stay, as they separate places.
+ */
 function dayHeadings($: CheerioAPI): string[] {
   return $('details summary h3').toArray()
     .map(h3 => {
       const heading = $(h3).clone();
       heading.find('*').filter((_, element) => DAY_LABEL.test(clean($(element).text()))).remove();
-      return clean(heading.text());
+      return clean(heading.text()).replace(SPACE_INSIDE_WORD, '');
     })
     .filter(heading => heading !== '');
 }
