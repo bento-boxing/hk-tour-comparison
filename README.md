@@ -39,7 +39,7 @@ pnpm scrape --operator jetour --dry-run --limit 5
 
 `--operator` is one of `jetour` or `texpert` (the ids `egl` and `bigline` are recognised but have no scraper). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL` (and uses `DATABASE_CA_CERT` when it is set).
 
-To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>` (and, for a hosted database, optionally `DATABASE_CA_CERT=<certificate>`), then `pnpm --filter @hktours/web dev`. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
+To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>` (and, for a hosted database, optionally `DATABASE_CA_CERT=<certificate>`), then `pnpm --filter @hktours/web dev`. In `.env.local` the certificate must be on one line, with the two characters `\n` in place of each line break (`DATABASE_CA_CERT=-----BEGIN CERTIFICATE-----\nMII…\n-----END CERTIFICATE-----`); `awk '{printf "%s\\n", $0}' '<certificate file>'` prints it in that form. Pasted as-is over several lines, it would be read as its first line only. A value that is set but is not a whole certificate does not silently turn verification off: every page that reads the database fails with the error `DATABASE_CA_CERT is not a PEM certificate` in the server's output (the error does not show the value), and the page shows its "could not load" message. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
 
 ### Environment variables
 
