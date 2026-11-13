@@ -1,19 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { encodeChain, places, DEFAULT_GAP, type IsoDate } from '@hktours/core';
+import { places, type IsoDate } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
 import { useT } from '../lib/i18n-client';
+import { chainStartHref } from '../lib/chain-href';
 import { Results } from './Results';
-
-/** `/chain?legs=…&gap=…` for a chain that starts with this tour on this date. */
-export function chainStartHref(tour: TourCardData, departure: IsoDate): string {
-  const chain = encodeChain({ legs: [{ tourKey: tour.key, departure }], gap: { ...DEFAULT_GAP } });
-  const query = new URLSearchParams();
-  if (chain.legs) query.set('legs', chain.legs);
-  query.set('gap', chain.gap);
-  return `/chain?${query}`;
-}
 
 // The server page cannot pass t or onAdd (functions) to client components, so this wrapper builds them here.
 
@@ -26,7 +18,7 @@ export function ResultsConnected({ tours, total, operators, today }: {
   return (
     <Results
       tours={tours} total={total} operators={operators} places={places} today={today} t={t}
-      onAdd={(tour, departure) => router.push(chainStartHref(tour, departure))}
+      onAdd={(tour, departure) => router.push(chainStartHref(tour.key, departure))}
     />
   );
 }

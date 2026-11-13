@@ -16,7 +16,7 @@ it('a change goes into the address with the page dropped, without scrolling to t
   const user = userEvent.setup();
   render(
     <I18nProvider locale="zh-Hant">
-      <FilterBarConnected state={{ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'days', page: 3 }} operators={operators} />
+      <FilterBarConnected state={{ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'days', page: 3 }} operators={operators} today="2026-11-12" />
     </I18nProvider>,
   );
   await user.click(screen.getByRole('button', { name: '日數：全部' }));
@@ -28,7 +28,7 @@ it('clearing the last filter goes back to the bare address', async () => {
   const user = userEvent.setup();
   render(
     <I18nProvider locale="zh-Hant">
-      <FilterBarConnected state={{ filters: { operators: ['egl'] }, sort: 'price', page: 2 }} operators={operators} />
+      <FilterBarConnected state={{ filters: { operators: ['egl'] }, sort: 'price', page: 2 }} operators={operators} today="2026-11-12" />
     </I18nProvider>,
   );
   await user.click(screen.getByRole('button', { name: '旅行社：東瀛遊' }));

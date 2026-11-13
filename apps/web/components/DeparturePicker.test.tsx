@@ -1,5 +1,5 @@
 import { it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IsoDate, ScrapedDeparture } from '@hktours/core';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
@@ -65,6 +65,15 @@ it('closes on Escape', async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(onClose).toHaveBeenCalledWith('escape');
   expect(onPick).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['isComposing', { isComposing: true }],
+  ['keyCode 229 (Safari, after compositionend)', { keyCode: 229 }],
+])('an Escape that ends an IME composition (%s) does not close', (_, init) => {
+  renderPicker();
+  fireEvent.keyDown(screen.getByRole('button', { name: /2026年12月18日/ }), { key: 'Escape', ...init });
+  expect(onClose).not.toHaveBeenCalled();
 });
 
 it('closes on a click outside, not on a click inside', async () => {

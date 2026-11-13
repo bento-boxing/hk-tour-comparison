@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db/read';
@@ -25,7 +25,8 @@ let user: ReturnType<typeof userEvent.setup>;
 beforeEach(() => { onChange = vi.fn(); user = userEvent.setup(); });
 
 function renderBar(state: SearchState, extra: Partial<FilterBarProps> = {}) {
-  return render(<FilterBar state={state} operators={operators} places={places} t={t} onChange={onChange} {...extra} />);
+  // A fixed today, so the year rule of the date pill does not depend on when the tests run.
+  return render(<FilterBar state={state} operators={operators} places={places} t={t} onChange={onChange} today="2026-11-12" {...extra} />);
 }
 
 const pill = (name: string | RegExp) => screen.getByRole('button', { name });
@@ -246,4 +247,65 @@ it('pressing the open pill again closes its popover; opening another closes the 
   await user.click(pill('價錢：全部'));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
+});
+
+it('an Escape that ends an IME composition (keyCode 229) leaves the popover open', async () => {
+  renderBar(base);
+  await user.click(pill('價錢：全部'));
+  fireEvent.keyDown(screen.getByRole('spinbutton', { name: '由' }), { key: 'Escape', keyCode: 229 });
+  fireEvent.keyDown(screen.getByRole('spinbutton', { name: '由' }), { key: 'Escape', isComposing: true });
+  expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
+});
+
+it('tabbing out of a popover closes it; moving between the popover and its own pill does not', async () => {
+  renderBar(base);
+  pill('日數：全部').focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('button', { name: '1–3日' })).toHaveFocus();
+  await user.tab({ shift: true }); // back to its own pill
+  expect(pill('日數：全部')).toHaveFocus();
+  expect(screen.getByRole('dialog', { name: '日數' })).toBeInTheDocument();
+  await user.tab({ shift: true }); // on to the 出發日期 pill: outside
+  expect(pill('出發日期：全部')).toHaveFocus();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+it('focus leaving the window (no new element) keeps the popover open', async () => {
+  renderBar(base);
+  await user.click(pill('排序：價錢 低→高'));
+  fireEvent.blur(screen.getByRole('button', { name: '價錢 低→高' }), { relatedTarget: null });
+  expect(screen.getByRole('dialog', { name: '排序' })).toBeInTheDocument();
+});
+
+it('only one popover is open at a time, however the next pill is opened', async () => {
+  renderBar(base);
+  await user.click(pill('日數：全部'));
+  // A click with no press and no focus change (e.g. from assistive technology) opens the next popover.
+  act(() => { pill('價錢：全部').click(); });
+  expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
+  expect(pill('日數：全部')).toHaveAttribute('aria-expanded', 'false');
+});
+
+it('a 由 date later than the 至 date is swapped, not dropped', async () => {
+  renderBar({ filters: { dateFrom: '2026-12-01', dateTo: '2026-12-10' }, sort: 'price', page: 2 }, { today: '2026-11-12' });
+  await user.click(pill('出發日期：12/1 – 12/10'));
+  const dialog = screen.getByRole('dialog', { name: '出發日期' });
+  const from = within(dialog).getByLabelText('由');
+  const to = within(dialog).getByLabelText('至');
+  await user.clear(from);
+  await user.type(from, '2026-12-31');
+  await user.clear(to);
+  await user.type(to, '2026-12-20');
+  await user.click(within(dialog).getByRole('button', { name: '套用' }));
+  expect(onChange).toHaveBeenCalledWith({ filters: { dateFrom: '2026-12-20', dateTo: '2026-12-31' }, sort: 'price', page: 1 });
+});
+
+it('the date pill shows the year of a date outside the current Hong Kong year', () => {
+  const { unmount } = renderBar({ filters: { dateFrom: '2026-12-20', dateTo: '2027-01-10' }, sort: 'price', page: 1 }, { today: '2026-11-12' });
+  expect(pill('出發日期：12/20 – 2027/1/10')).toBeInTheDocument();
+  unmount();
+  renderBar({ filters: { dateFrom: '2027-02-01' }, sort: 'price', page: 1 }, { today: '2026-11-12' });
+  expect(pill('出發日期：2027/2/1 –')).toBeInTheDocument();
 });

@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { OPERATOR_IDS, type OperatorId, type PlacesIndex } from '@hktours/core';
+import { OPERATOR_IDS, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourFilters } from '@hktours/db/read';
 import type { DictKey, T } from '../lib/i18n';
-import { formatPrice } from '../lib/format';
+import { formatChipDate, formatPrice } from '../lib/format';
 import {
   buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, SORT_KEYS, type SearchState,
 } from '../lib/search-params';
@@ -18,7 +18,11 @@ export interface FilterBarProps {
   onChange: (next: SearchState) => void;
   /** dates defaults to true, exclude to false; the chain page flips both. */
   show?: { dates?: boolean; exclude?: boolean };
+  /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
+  today?: IsoDate;
 }
+
+type PillId = 'dates' | 'days' | 'price' | 'operators' | 'exclude' | 'sort';
 
 const DAY_PRESETS: { min: number; max?: number }[] = [{ min: 1, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 9 }, { min: 10 }];
 
@@ -28,16 +32,12 @@ const HIDDEN_COUNTRY_IDS = ['hongkong'];
 /** Only #rrggbb reaches the inline style (as on the tour card). */
 const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
-/** '2026-12-01' → '12/1'. */
-const monthDay = (date: string) => {
-  const [, month, day] = date.split('-').map(Number);
-  return `${month}/${day}`;
-};
-
-function datesText(f: TourFilters): string | null {
-  if (f.dateFrom && f.dateTo) return `${monthDay(f.dateFrom)} – ${monthDay(f.dateTo)}`;
-  if (f.dateFrom) return `${monthDay(f.dateFrom)} –`;
-  if (f.dateTo) return `– ${monthDay(f.dateTo)}`;
+/** '12/1 – 12/31'; a date outside today's year shows its year, as on the cards: '12/20 – 2027/1/10'. */
+function datesText(f: TourFilters, today: IsoDate): string | null {
+  const date = (d: IsoDate) => formatChipDate(d, today);
+  if (f.dateFrom && f.dateTo) return `${date(f.dateFrom)} – ${date(f.dateTo)}`;
+  if (f.dateFrom) return `${date(f.dateFrom)} –`;
+  if (f.dateTo) return `– ${date(f.dateTo)}`;
   return null;
 }
 
@@ -60,11 +60,19 @@ function priceText(f: TourFilters, t: T): string | null {
  * The filter pills (mockup `.filters` / `.f`), in this order: destination (only when set, with ✕ to clear),
  * departure dates, length, price, operators, exclusions (only when asked), sort. A pill whose filter is set is filled.
  */
-export function FilterBar({ state, operators, places, t, onChange, show }: FilterBarProps) {
+export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong() }: FilterBarProps) {
   const showDates = show?.dates ?? true;
   const showExclude = show?.exclude ?? false;
   const f = state.filters;
   const barRef = useRef<HTMLDivElement>(null);
+
+  // At most one popover is open: opening a pill closes any other.
+  const [openPill, setOpenPill] = useState<PillId | null>(null);
+  const popover = (id: PillId) => ({
+    open: openPill === id,
+    // A late close from one pill never closes another that has opened since.
+    onOpenChange: (open: boolean) => setOpenPill(current => (open ? id : current === id ? null : current)),
+  });
 
   const pillLabel = (name: DictKey, value: string | null) => t('filter.label', { name: t(name), value: value ?? t('filter.all') });
   const update = (patch: Partial<TourFilters>) => onChange(withFilters(state, patch));
@@ -95,7 +103,7 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
 
   const days = daysText(f.daysMin, f.daysMax, t);
   const price = priceText(f, t);
-  const dates = datesText(f);
+  const dates = datesText(f, today);
   const separator = t('dest.listSeparator');
 
   return (
@@ -113,19 +121,20 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
       )}
 
       {showDates && (
-        <FilterPopover label={pillLabel('filter.dates', dates)} title={t('filter.dates')} on={dates !== null}>
+        <FilterPopover {...popover('dates')} label={pillLabel('filter.dates', dates)} title={t('filter.dates')} on={dates !== null}>
           {done => (
             <RangeForm
               type="date" t={t}
               from={f.dateFrom ?? ''} to={f.dateTo ?? ''}
-              onApply={(from, to) => { applyTyped({ from, to }); done(); }}
+              // A reversed pair is swapped, as for the number ranges (in the address, the brief drops it).
+              onApply={(from, to) => { applyTyped(from && to && from > to ? { from: to, to: from } : { from, to }); done(); }}
               onReset={() => { update({ dateFrom: undefined, dateTo: undefined }); done(); }}
             />
           )}
         </FilterPopover>
       )}
 
-      <FilterPopover label={pillLabel('filter.days', days)} title={t('filter.days')} on={days !== null}>
+      <FilterPopover {...popover('days')} label={pillLabel('filter.days', days)} title={t('filter.days')} on={days !== null}>
         {done => (
           <>
             <div className={styles.presets}>
@@ -151,7 +160,7 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
         )}
       </FilterPopover>
 
-      <FilterPopover label={pillLabel('filter.price', price)} title={t('filter.price')} on={price !== null}>
+      <FilterPopover {...popover('price')} label={pillLabel('filter.price', price)} title={t('filter.price')} on={price !== null}>
         {done => (
           <RangeForm
             type="number" bounds={PRICE_RANGE} t={t}
@@ -163,6 +172,7 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
       </FilterPopover>
 
       <FilterPopover
+        {...popover('operators')}
         label={pillLabel('filter.operators', selectedOperators.length > 0 ? selectedOperators.map(operatorName).join(separator) : null)}
         title={t('filter.operators')}
         on={selectedOperators.length > 0}
@@ -188,6 +198,7 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
 
       {showExclude && (
         <FilterPopover
+          {...popover('exclude')}
           label={t('filter.label', { name: t('filter.exclude'), value: excluded.length > 0 ? excluded.map(countryName).join(separator) : t('filter.none') })}
           title={t('filter.exclude')}
           on={excluded.length > 0}
@@ -208,7 +219,7 @@ export function FilterBar({ state, operators, places, t, onChange, show }: Filte
         </FilterPopover>
       )}
 
-      <FilterPopover label={pillLabel('filter.sort', t(`sort.${state.sort}`))} title={t('filter.sort')} on={state.sort !== DEFAULT_SORT}>
+      <FilterPopover {...popover('sort')} label={pillLabel('filter.sort', t(`sort.${state.sort}`))} title={t('filter.sort')} on={state.sort !== DEFAULT_SORT}>
         {done => (
           <ul className={styles.options}>
             {SORT_KEYS.map(key => (
