@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -b && pnpm --filter @hktours/web typecheck"
+    "typecheck": "tsc -b && pnpm --filter @hktours/web typecheck",
+    "scrape": "pnpm --filter @hktours/scraper scrape",
+    "db:migrate": "pnpm --filter @hktours/db migrate"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
