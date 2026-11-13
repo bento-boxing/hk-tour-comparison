@@ -1,6 +1,6 @@
-import { todayInHongKong, type IsoDate } from '@hktours/core';
+import type { IsoDate } from '@hktours/core';
 import { MAX_CONSECUTIVE_PUSHBACK } from '../../polite-fetch';
-import type { Fetcher } from '../../types';
+import type { Fetcher, PageSkip } from '../../types';
 import { DATES_URL, datesBody, detailUrl, tourIdOf } from './discover';
 import { publicDates, publicDetail, type PublicDates, type PublicDetail } from './public';
 
@@ -13,9 +13,9 @@ export const MAX_MONTHS_PER_TOUR = 3;
 
 const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
 /**
- * JSON `code`s (inside an HTTP 200) that mean the API will not serve us. They, and a 200 answer that is
- * not JSON (a block page), count toward MAX_CONSECUTIVE_PUSHBACK. Any other code other than 200 (such as
- * `500 "404 NOT_FOUND"` for a tour that is gone) fails only that tour.
+ * JSON `code`s (inside an HTTP 200) that mean the API will not serve us. They, a 200 answer that is not
+ * JSON (a block page) and no answer at all count toward MAX_CONSECUTIVE_PUSHBACK. Any other code other
+ * than 200 fails only that tour (`500 "404 NOT_FOUND"` on a detail: the tour is gone, a skip).
  */
 const REFUSAL_CODES = [401, 403, 429];
 const OK = 200;
@@ -59,8 +59,16 @@ export function monthsToRequest(availableMonths: unknown, today: IsoDate): strin
   return [...months].sort().slice(0, MAX_MONTHS_PER_TOUR);
 }
 
-/** An answer's JSON, or why it is not usable (for the error message: only the code, never the API's text). */
-function read(text: string): { json: Record<string, unknown> } | { refused: boolean; why: string } {
+/** The API's answer for a tour id it no longer has (as for its own robots.txt): code 500, msg `404 NOT_FOUND`. */
+const GONE_CODE = 500;
+const GONE_MESSAGE = '404 NOT_FOUND';
+
+/**
+ * An answer's JSON, or what else it is. `why` is for the error message: only the code, never the API's text
+ * (the message is read only to recognise GONE_MESSAGE).
+ */
+function read(text: string):
+  { json: Record<string, unknown> } | { gone: true } | { refused: boolean; why: string } {
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -70,54 +78,69 @@ function read(text: string): { json: Record<string, unknown> } | { refused: bool
   if (!isObject(json)) return { refused: true, why: 'the answer is not a JSON object' };
   const code = typeof json.code === 'number' && Number.isInteger(json.code) ? json.code : null;
   if (code === OK) return { json };
+  if (code === GONE_CODE && typeof json.msg === 'string' && json.msg.includes(GONE_MESSAGE)) return { gone: true };
   return { refused: code !== null && REFUSAL_CODES.includes(code), why: `the API answered code ${code ?? 'none'}` };
 }
 
-export interface FetchPageOptions {
-  /** Today in Hong Kong; defaults to the clock. */
-  today?: () => IsoDate;
-}
+/** One kind of request's refusals in a row: only a success of the same kind starts the count again. */
+interface RefusalCount { what: string; inARow: number }
 
 /**
- * Big Line's fetchPage: one tour's detail (GET), then its dates for each month to request (one POST each,
- * see monthsToRequest), through the run's fetcher, which spaces, checks and logs every request. Only the
- * public facts (public.ts) are kept and joined for `parse`. null, a page not fetched, when a request gets
- * no answer; it throws (also counted as not fetched, with the reason in the run's log) when the API
- * answers with an error code or a page that is not JSON. After MAX_CONSECUTIVE_PUSHBACK refusals in a row
- * it sends nothing more for the rest of the process: nothing is retried, escalated or varied.
+ * Big Line's fetchPage: one tour's detail (GET), then its dates for each month to request from the month of
+ * the run's `today` (one POST each, see monthsToRequest), through the run's fetcher, which spaces, checks and
+ * logs every request. Only the public facts (public.ts) are kept and joined for `parse`.
+ * - null, a page not fetched, when a request gets no answer (the fetcher gave up, or a POST failed: it is
+ *   sent once); it throws (also counted as not fetched, with the reason in the run's log) when the API
+ *   answers with an error code or a page that is not JSON.
+ * - `{ skip: 'gone' }` when the detail answers code 500 `404 NOT_FOUND`: the tour no longer exists.
+ * - Refusals are counted separately for the detail and for the dates, each started again only by a success
+ *   of its own kind, so a good detail cannot hide refused dates. A refusal is no answer, a code 401/403/429,
+ *   or a page that is not JSON. When either count reaches MAX_CONSECUTIVE_PUSHBACK, nothing more is sent for
+ *   the rest of the process: nothing is retried, escalated or varied.
  */
-export function createFetchPage(opts: FetchPageOptions = {}): (fetcher: Fetcher, url: string) => Promise<string | null> {
-  const today = opts.today ?? (() => todayInHongKong());
-  let refusalsInARow = 0;
+export function createFetchPage(): (fetcher: Fetcher, url: string, today: IsoDate) => Promise<string | PageSkip | null> {
+  const detailRefusals: RefusalCount = { what: 'tour detail', inARow: 0 };
+  const datesRefusals: RefusalCount = { what: 'dates', inARow: 0 };
 
-  /** The answer's JSON (code 200), or null for no answer; throws for an error code or a page that is not JSON. */
-  async function answer(request: Promise<string | null>, what: string): Promise<Record<string, unknown> | null> {
+  /**
+   * The answer's JSON (code 200), 'gone', or null for no answer (counted as a refusal); throws for an error
+   * code or a page that is not JSON.
+   */
+  async function answer(request: Promise<string | null>, count: RefusalCount, what: string): Promise<Record<string, unknown> | 'gone' | null> {
     const text = await request;
-    if (text === null) return null;
+    if (text === null) {
+      count.inARow++;
+      return null;
+    }
     const result = read(text);
     if ('json' in result) {
-      refusalsInARow = 0;
+      count.inARow = 0;
       return result.json;
     }
-    if (result.refused) refusalsInARow++;
+    if ('gone' in result) return 'gone';
+    if (result.refused) count.inARow++;
     throw new Error(`${what}: ${result.why}`);
   }
 
-  return async (fetcher, url) => {
-    if (refusalsInARow >= MAX_CONSECUTIVE_PUSHBACK) {
-      throw new Error(`not requested: the Big Line API refused ${MAX_CONSECUTIVE_PUSHBACK} requests in a row`);
+  return async (fetcher, url, today) => {
+    for (const count of [detailRefusals, datesRefusals]) {
+      if (count.inARow >= MAX_CONSECUTIVE_PUSHBACK) {
+        throw new Error(`not requested: the Big Line API refused ${MAX_CONSECUTIVE_PUSHBACK} ${count.what} requests in a row`);
+      }
     }
     const id = tourIdOf(url);
     if (id === null) throw new Error('not a Big Line tour page');
 
-    const detailJson = await answer(fetcher.fetchText(detailUrl(id)), 'tour detail');
+    const detailJson = await answer(fetcher.fetchText(detailUrl(id)), detailRefusals, 'tour detail');
     if (detailJson === null) return null;
+    if (detailJson === 'gone') return { skip: 'gone' };
     const detail = publicDetail(detailJson);
     const months: TourResponses['months'] = [];
-    for (const yearMonth of monthsToRequest(detail.data?.availableMonths, today())) {
+    for (const yearMonth of monthsToRequest(detail.data?.availableMonths, today)) {
       if (fetcher.postJson === undefined) throw new Error('this fetcher cannot POST, and the dates need a POST');
-      const datesJson = await answer(fetcher.postJson(DATES_URL, datesBody(id, yearMonth)), `dates for ${yearMonth}`);
+      const datesJson = await answer(fetcher.postJson(DATES_URL, datesBody(id, yearMonth)), datesRefusals, `dates for ${yearMonth}`);
       if (datesJson === null) return null;
+      if (datesJson === 'gone') throw new Error(`dates for ${yearMonth}: the API answered code ${GONE_CODE}`);
       months.push({ yearMonth, dates: publicDates(datesJson) });
     }
     return joinTour({ detail, months });

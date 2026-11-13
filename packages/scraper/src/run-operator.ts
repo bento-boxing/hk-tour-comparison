@@ -7,7 +7,7 @@ import {
   type Db, type RunStats, type UnmatchedName,
 } from '@hktours/db';
 import { checkRun } from './check-run';
-import type { Fetcher, OperatorScraper } from './types';
+import type { Fetcher, OperatorScraper, PageSkip } from './types';
 
 export interface RunDeps {
   db: Db; fetcher: Fetcher; index: PlacesIndex;
@@ -94,14 +94,19 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   };
 
   for (const url of urls) {
-    let html: string | null;
+    let page: string | PageSkip | null;
     let why = '';
     try {
-      html = scraper.fetchPage ? await scraper.fetchPage(fetcher, url) : await fetcher.fetchText(url);
+      page = scraper.fetchPage ? await scraper.fetchPage(fetcher, url, today) : await fetcher.fetchText(url);
     } catch (error) {
-      html = null;
+      page = null;
       why = ` (fetch threw: ${errorMessage(error)})`; // fetchPage, or a fetchText breaking its never-throws contract
     }
+    if (page !== null && typeof page === 'object') {
+      log(`${operatorId}: skipped ${url}: ${page.skip}`); // the tour is gone: neither fetched nor a fetch failure
+      continue;
+    }
+    const html = page;
     if (html === null) {
       log(`${operatorId}: skipped ${url}: not fetched${why}`);
       pagesNotFetched++;

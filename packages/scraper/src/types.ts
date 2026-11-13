@@ -1,4 +1,4 @@
-import type { OperatorId, ScrapedTour } from '@hktours/core';
+import type { IsoDate, OperatorId, ScrapedTour } from '@hktours/core';
 
 export interface Fetcher {
   /** One page. null if robots.txt disallows it, or the response is not 200. */
@@ -9,6 +9,12 @@ export interface Fetcher {
    */
   postJson?(url: string, body: unknown): Promise<string | null>;
 }
+
+/**
+ * fetchPage's answer for a tour page the operator says no longer exists (such as Big Line's API answering
+ * `404 NOT_FOUND` for a sitemap tour): the runner skips it, logged, as neither fetched nor a fetch failure.
+ */
+export interface PageSkip { skip: 'gone' }
 
 /** Extra request headers by exact host name, for `OperatorScraper.requestHeaders`. */
 export type RequestHeaders = Readonly<Record<string, Readonly<Record<string, string>>>>;
@@ -21,9 +27,10 @@ export interface OperatorScraper {
    * What `parse` receives for one discovered URL, fetched through the run's fetcher (never another network
    * path): for an operator whose facts need more than the page itself, such as EGL's dates request, the
    * responses joined into one text. null means the page could not be fetched (it counts toward checkRun's
-   * fetch-failure rate, not as a parse failure). Unset: the page itself, `fetcher.fetchText(url)`.
+   * fetch-failure rate, not as a parse failure; so does a fetchPage that throws). A PageSkip: the tour is
+   * gone, skipped. `today` is the run's date in Hong Kong. Unset: the page itself, `fetcher.fetchText(url)`.
    */
-  fetchPage?(fetcher: Fetcher, url: string): Promise<string | null>;
+  fetchPage?(fetcher: Fetcher, url: string, today: IsoDate): Promise<string | PageSkip | null>;
   /**
    * Extra headers the operator's own site needs, by exact host name (such as Big Line's API key header for
    * `api.biglinehk.com`). The CLI gives them to this operator's fetcher only, and the fetcher sends them

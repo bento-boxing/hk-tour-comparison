@@ -269,7 +269,7 @@ describe('runCli', () => {
     const fetchPage = vi.fn(async (fetcher: Fetcher, url: string) => fetcher.fetchText(url));
     const h = harness(pages, { scrapers: { jetour: { ...fakeScraper(pages), fetchPage } } });
     expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(0);
-    expect(fetchPage).toHaveBeenCalledWith(h.fetcher, pageUrl('T1'));
+    expect(fetchPage).toHaveBeenCalledWith(h.fetcher, pageUrl('T1'), '2026-11-13'); // the run's today in Hong Kong
   });
 
   it('dry-run with --limit fetches only that many pages', async () => {
