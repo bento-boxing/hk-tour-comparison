@@ -15,6 +15,7 @@ const zh = {
   'dest.byCountry': '按國家選擇',
   'dest.allRegions': '全部地區', // must equal ALL_REGIONS_LABEL in @hktours/core (pinned by a test)
   'dest.back': '← 返回',
+  'dest.listSeparator': '、',
 };
 
 export default zh;

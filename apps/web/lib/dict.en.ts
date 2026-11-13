@@ -17,6 +17,7 @@ const en = {
   'dest.byCountry': 'Browse by country',
   'dest.allRegions': 'All regions',
   'dest.back': '← Back',
+  'dest.listSeparator': ', ',
 } satisfies Record<DictKey, string>;
 
 export default en;

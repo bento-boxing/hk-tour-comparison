@@ -6,13 +6,14 @@ import { DestinationSearchConnected, DestinationPanelsConnected } from './Destin
 
 const push = vi.fn<(href: string) => void>();
 let currentQuery = '';
+let currentPath = '/';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
-  usePathname: () => '/',
+  usePathname: () => currentPath,
   useSearchParams: () => new URLSearchParams(currentQuery),
 }));
 
-beforeEach(() => { push.mockReset(); currentQuery = 'sort=days&page=3&dest=korea'; });
+beforeEach(() => { push.mockReset(); currentPath = '/'; currentQuery = 'sort=days&page=3&dest=korea'; });
 
 it('the connected search bar puts the chosen region in the address and resets the page', async () => {
   const user = userEvent.setup();
@@ -37,4 +38,19 @@ it('the connected panels put a whole country in the address as its id', async ()
   await user.click(screen.getByRole('button', { name: '日本' }));
   await user.click(screen.getByRole('button', { name: '全部地區' }));
   expect(push).toHaveBeenCalledWith('/?dest=japan');
+});
+
+it('on the chaining page a choice keeps the legs, gap and exclusions', async () => {
+  const user = userEvent.setup();
+  currentPath = '/chain';
+  currentQuery = 'legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=korea&page=2';
+  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected value={null} /></I18nProvider>);
+  await user.type(screen.getByRole('combobox'), '大阪');
+  await user.keyboard('{Enter}');
+  expect(push).toHaveBeenCalledTimes(1);
+  const url = new URL(push.mock.calls[0][0], 'http://localhost');
+  expect(url.pathname).toBe('/chain');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'korea', dest: 'japan-kansai',
+  });
 });

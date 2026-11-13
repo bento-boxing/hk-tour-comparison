@@ -1,5 +1,5 @@
 import { it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places, buildPlacesIndex, suggestRegions, type Destination } from '@hktours/core';
 import { DestinationSearch, destinationLabel } from './DestinationSearch';
@@ -41,6 +41,8 @@ it('typing a city suggests its region as Country → Region', async () => {
   const option = screen.getAllByRole('option')[0];
   expect(option).toHaveTextContent('日本 → 關西');
   expect(option).toHaveTextContent(/包括 大阪/);
+  // As in the mockup, the whole country comes straight after, with no hint.
+  expect(screen.getAllByRole('option')[1].textContent).toBe('日本 → 全部地區');
 });
 
 it('the hint lists four cities of the region with the matched city first', async () => {
@@ -50,6 +52,13 @@ it('the hint lists four cities of the region with the matched city first', async
   await user.clear(screen.getByRole('combobox'));
   await user.type(screen.getByRole('combobox'), '聖城');
   expect(screen.getAllByRole('option')[0]).toHaveTextContent('甲國 → 甲區 包括 聖城、一城、二城、三城');
+});
+
+it('the hint separator comes from the dictionary', async () => {
+  const tEn: T = (key, vars) => translate('en', key, vars);
+  render(<DestinationSearch places={tiny} t={tEn} value={null} onSelect={onSelect} />);
+  await user.type(screen.getByRole('combobox'), '甲區');
+  expect(screen.getAllByRole('option')[0]).toHaveTextContent('甲國 → 甲區 Includes 一城, 二城, 三城, 四城');
 });
 
 it('selecting an option reports the destination and fills the input', async () => {
@@ -94,17 +103,34 @@ it('Enter with nothing highlighted selects the first suggestion', async () => {
   expect(onSelect).toHaveBeenCalledWith(kansai);
 });
 
+it('ignores the Enter that commits an input-method candidate (Chrome, Firefox)', async () => {
+  renderSearch();
+  const input = screen.getByRole('combobox');
+  await user.type(input, '大阪');
+  fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
+it('ignores the Enter that commits an input-method candidate (Safari: keyCode 229 after compositionend)', async () => {
+  renderSearch();
+  const input = screen.getByRole('combobox');
+  await user.type(input, '大阪');
+  fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
 it('the highlight wraps at both ends', async () => {
   renderSearch(null, tiny);
   const input = screen.getByRole('combobox');
   await user.type(input, '聖城');
-  const [first, second] = screen.getAllByRole('option');
+  const options = screen.getAllByRole('option');
+  const [first, last] = [options[0], options[options.length - 1]];
   await user.keyboard('{ArrowUp}');
-  expect(input).toHaveAttribute('aria-activedescendant', second.id);
+  expect(input).toHaveAttribute('aria-activedescendant', last.id);
   await user.keyboard('{ArrowDown}');
   expect(input).toHaveAttribute('aria-activedescendant', first.id);
   await user.keyboard('{ArrowUp}');
-  expect(input).toHaveAttribute('aria-activedescendant', second.id);
+  expect(input).toHaveAttribute('aria-activedescendant', last.id);
 });
 
 it('shows the no-match message and selects nothing on Enter', async () => {
@@ -166,10 +192,9 @@ it('offers no clear button without a value', () => {
 it('distinguishes same-named cities in two countries', async () => {
   renderSearch(null, tiny);
   await user.type(screen.getByRole('combobox'), '聖城');
+  // Each country's region, followed by that country's own 全部地區.
   const options = screen.getAllByRole('option');
-  expect(options).toHaveLength(2);
-  expect(options[0]).toHaveTextContent('甲國 → 甲區');
-  expect(options[1]).toHaveTextContent('乙國 → 乙區');
+  expect(options.map(o => o.querySelector('span')?.textContent)).toEqual(['甲國 → 甲區', '甲國 → 全部地區', '乙國 → 乙區', '乙國 → 全部地區']);
 });
 
 it('is a labelled combobox that controls its listbox', async () => {
@@ -190,6 +215,28 @@ it('styles the dropdown like the mockup: the row Enter would pick is the hit', a
   await user.keyboard('{ArrowDown}{ArrowDown}');
   expect(options[0].className).not.toMatch(/hit/);
   expect(options[1].className).toMatch(/hit/);
+});
+
+it('tells screen readers which row Enter would pick', async () => {
+  renderSearch();
+  await user.type(screen.getByRole('combobox'), '日本');
+  const options = screen.getAllByRole('option');
+  expect(options.map(o => o.getAttribute('aria-selected'))).toEqual(options.map((_, i) => String(i === 0)));
+  await user.keyboard('{ArrowDown}{ArrowDown}');
+  expect(options.map(o => o.getAttribute('aria-selected'))).toEqual(options.map((_, i) => String(i === 1)));
+});
+
+it('pointing at a row highlights it instead of leaving two rows lit', async () => {
+  renderSearch();
+  const input = screen.getByRole('combobox');
+  await user.type(input, '日本');
+  const options = screen.getAllByRole('option');
+  await user.hover(options[2]);
+  expect(options.filter(o => /hit/.test(o.className))).toEqual([options[2]]);
+  expect(options[2]).toHaveAttribute('aria-selected', 'true');
+  expect(input).toHaveAttribute('aria-activedescendant', options[2].id);
+  await user.keyboard('{Enter}');
+  expect(onSelect).toHaveBeenCalledWith(suggestRegions('日本', places)[2].destination);
 });
 
 it('destinationLabel names the country and region', () => {

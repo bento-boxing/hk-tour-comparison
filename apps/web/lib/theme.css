@@ -1,7 +1,8 @@
 /* Design tokens from docs/design/mockup.html. Components use these through CSS modules. */
 :root {
   --charcoal: #50514f; --ash: #cbd4c2; --snow: #fffcff; --cerulean: #247ba0; --khaki: #c3b299;
-  --text-muted: #7b7c76; --text-faint: #8f908a; --surface: #ffffff; --panel: #f1f3ed;
+  /* --text-muted: the mockup's #7b7c76 darkened (same hue) to reach 4.5:1 on white and on --hit. */
+  --text-muted: #6c6d67; --text-faint: #8f908a; --surface: #ffffff; --panel: #f1f3ed;
   --hit: #e6f1f6; --price-down: #1f7a4d; --price-up: #a8432a;
   --op-egl: #d62839; --op-jetour: #ee7b06; --op-texpert: #7d3cc8; --op-bigline: #2a9d4b;
   --radius-card: 10px; --radius-pill: 999px;
