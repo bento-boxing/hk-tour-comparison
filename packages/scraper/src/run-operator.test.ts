@@ -101,11 +101,31 @@ it('two valid tours and one null page is too many parse failures to save', async
   expect(await scrapeRuns()).toMatchObject([{ ok: false, pages_fetched: 3, parse_failures: 1 }]);
 });
 
-it('skips pages the fetcher cannot get, without counting them as failures', async () => {
-  const pages = site([['A', tour('A')], ['B', tour('B')], ['GONE', 'unreachable']]);
+it('a page the fetcher cannot get is not a parse failure; 1 in 10 is within the fetch-failure limit', async () => {
+  const pages = site([...goodTours(9), ['GONE', 'unreachable']]);
   const outcome = await run(pages);
-  expect(outcome).toMatchObject({ ok: true, toursSaved: 2 });
-  expect(await scrapeRuns()).toMatchObject([{ pages_fetched: 2, parse_failures: 0 }]);
+  expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
+  expect(await scrapeRuns()).toMatchObject([{ ok: true, pages_fetched: 9, parse_failures: 0 }]);
+  expect(logMentions(pageUrl('GONE'), 'not fetched')).toBe(true);
+});
+
+it('3 pages in 10 that cannot be fetched fail the run: nothing saved, last night\'s data intact', async () => {
+  const ten = goodTours(10);
+  expect(await run(site(ten), NIGHT_1)).toMatchObject({ ok: true, toursSaved: 10 });
+
+  // Night 2: the same 10 URLs, but 3 of them cannot be fetched (the site pushed back, say).
+  const night2 = await run(site(ten.map(([code, page], i) => [code, i < 3 ? 'unreachable' : page])), NIGHT_2);
+  expect(night2).toEqual({ operatorId: 'jetour', ok: false, reasons: ['too-many-fetch-failures'], toursSaved: 0 });
+
+  const saved = await savedTours();
+  expect(saved).toHaveLength(10);
+  expect(saved.every(t => t.active && t.last_seen === NIGHT_1)).toBe(true);
+  expect(await scrapeRuns()).toEqual([
+    { ok: true, reasons: [], pages_fetched: 10, parse_failures: 0, tours_saved: 10, run_date: NIGHT_1 },
+    { ok: false, reasons: ['too-many-fetch-failures'], pages_fetched: 7, parse_failures: 0, tours_saved: 0, run_date: NIGHT_2 },
+  ]);
+  expect(logLines.at(-1)).toBe(
+    'jetour: failed (too-many-fetch-failures), 0 tours saved, 7 tour pages, 0 parse failures, 0 unmatched names');
 });
 
 it('a tour with no upcoming departures is skipped, not a failure', async () => {
