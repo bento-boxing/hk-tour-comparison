@@ -305,4 +305,10 @@ describe('SCRAPERS', () => {
     expect(matrix, 'operator matrix line').not.toBeNull();
     expect(matrix![1].split(',').map(id => id.trim()).sort()).toEqual(Object.keys(SCRAPERS).sort());
   });
+
+  it('the nightly schedule, still commented out, is 18:17 UTC (02:17 Hong Kong), off the hour', async () => {
+    const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
+    expect(workflow).toMatch(/^ {2}# {3}- cron: '17 18 \* \* \*'/m);
+    expect(workflow).not.toMatch(/^\s*schedule:/m);
+  });
 });

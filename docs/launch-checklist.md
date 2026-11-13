@@ -255,18 +255,18 @@ Only after 3.4 passed for both operators.
   ```yaml
     # Enabled in Task 26, once the DATABASE_URL repository secret exists.
     # schedule:
-    #   - cron: '0 18 * * *'   # 18:00 UTC = 02:00 Hong Kong
+    #   - cron: '17 18 * * *'   # 18:17 UTC = 02:17 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
   ```
 
   to:
 
   ```yaml
     schedule:
-      - cron: '0 18 * * *'   # 18:00 UTC = 02:00 Hong Kong
+      - cron: '17 18 * * *'   # 18:17 UTC = 02:17 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
   ```
 
   (`schedule:` lines up with `workflow_dispatch:` below it.) Commit and push to `main`, for example `git add .github/workflows/nightly-scrape.yml`, `git commit -m "ci: run the nightly scrape on a schedule"`, `git push` (this needs the one-time `git remote add origin …` step in 3.0, and the `git status` check there before you commit). Or ask the assistant to make this change.
-- [ ] Expected: GitHub → Actions → nightly-scrape now shows the schedule, and the next morning there is a run that started shortly after 02:00 Hong Kong time. GitHub often starts scheduled runs some minutes late; that is normal.
+- [ ] Expected: GitHub → Actions → nightly-scrape now shows the schedule, and the next morning there is a run that started shortly after 02:17 Hong Kong time. GitHub often starts scheduled runs some minutes late; that is normal.
 
 ### 3.6 Deploy the site on Vercel
 
@@ -383,7 +383,7 @@ Things you should know before sharing the link. Nothing here needs action unless
 - Travel Expert's prices exclude a service fee (HK$80 to HK$160 on the saved pages) paid locally.
 - Some real places seen in Travel Expert tours are not yet in the places list (for example 百色, 羅平, 曲靖, 彌勒, 金門). Tours whose headings name only places in brackets (`【…】`) cannot be read and are counted as parse failures (one Travel Expert tour in the last practice run).
 - Hong Kong meeting points written without `香港` (for example a street in 尖沙咀) would be shown as a non-Hong Kong start. None of the current Jetour or Travel Expert pages does this.
-- **Jetour's sitemap is incomplete while the site rebuilds it** (see 3.4). If a rebuild overlaps a nightly run, that run is refused (`tour-count-dropped`; on the very first run, `below-minimum`) and the previous night's Jetour data stays, so Jetour's tours are a day older than usual. A first run during a rebuild that still yields at least 35 tours would pass; that is why 3.4 asks you to check the page count. When the rebuilds happen is not known: one was seen at about **midday Hong Kong time** (03:49–04:10 UTC, that is 11:49–12:10 in Hong Kong), and an earlier sitemap's newest entries were stamped around 22:00 UTC (06:00 in Hong Kong). The nightly run starts at 02:00 Hong Kong time (18:00 UTC). A run that lands inside a rebuild fails its checks and keeps the previous data.
+- **Jetour's sitemap is incomplete while the site rebuilds it** (see 3.4). If a rebuild overlaps a nightly run, that run is refused (`tour-count-dropped`; on the very first run, `below-minimum`) and the previous night's Jetour data stays, so Jetour's tours are a day older than usual. A first run during a rebuild that still yields at least 35 tours would pass; that is why 3.4 asks you to check the page count. When the rebuilds happen is not known: one was seen at about **midday Hong Kong time** (03:49–04:10 UTC, that is 11:49–12:10 in Hong Kong), and an earlier sitemap's newest entries were stamped around 22:00 UTC (06:00 in Hong Kong). The nightly run starts at 02:17 Hong Kong time (18:17 UTC). A run that lands inside a rebuild fails its checks and keeps the previous data.
 - **Two Jetour pages give the same tour code**, a quirk of Jetour's own data: `/tour/EIMz` and `/tour/EIMM` both state the code `EIMM`. The scraper keeps only the first page it reads with a given code and skips the other (`duplicate tour code EIMM, keeping the first`) on every run, which is why 99 Jetour pages with dates gave 98 tours in the 13 November crawl. If the two pages are different tours, one of them never appears on the site; you may want to open both and compare.
 - The `旅行社` filter offers only operators with at least one successful run (`last_good_run_at` set in the `operators` table). An address that already selects another operator (an old or hand-made link with, for example, `op=egl`) still shows that operator in the filter, so the choice can be seen and removed; it gives no results.
 
