@@ -1,0 +1,13 @@
+.bar { background: var(--charcoal); color: var(--snow); margin-bottom: 18px; }
+.inner {
+  max-width: 1100px; margin: 0 auto; padding: 12px 20px;
+  display: flex; gap: 22px; align-items: center; font-size: 14px;
+}
+.name { font-size: 17px; letter-spacing: 1px; }
+.link { color: inherit; text-decoration: none; opacity: 0.75; padding-bottom: 2px; border-bottom: 2px solid transparent; }
+.link:hover { opacity: 1; }
+.current { opacity: 1; border-bottom-color: var(--khaki); }
+
+@media (max-width: 639px) {
+  .inner { padding: 12px 16px; }
+}
