@@ -138,8 +138,9 @@ describe('seed list', () => {
 
   it('has the seed countries and region counts', () => {
     const counts = Object.fromEntries(places.data.countries.map(c => [c.id, places.regionsOf(c.id).length]));
+    // china: the 11 seed regions plus 東北三省, added for Jetour's Harbin tours (Task 15).
     expect(counts).toEqual({
-      japan: 9, korea: 4, taiwan: 4, thailand: 3, china: 11, vietnam: 3,
+      japan: 9, korea: 4, taiwan: 4, thailand: 3, china: 12, vietnam: 3,
       singapore: 1, malaysia: 2, hongkong: 1, macau: 1,
     });
   });
