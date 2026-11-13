@@ -79,6 +79,7 @@ const zh = {
   'pager.page': '第 {page} / {pages} 頁',
   'pager.first': '回到第 1 頁',
   'pager.label': '分頁',
+  'pager.beyond': '這一頁沒有內容。', // a page past the last; the link back to page 1 follows
   'chain.empty': '先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。',
   'chain.dropped': '部分旅行團已下架或日期已不適用，已從行程中移除。',
   'chain.yours': '你的行程',

@@ -81,6 +81,7 @@ const en = {
   'pager.page': 'Page {page} of {pages}',
   'pager.first': 'Back to page 1',
   'pager.label': 'Pages',
+  'pager.beyond': 'Nothing on this page.',
   'chain.empty': 'First pick a tour under "Search tours", then come back to add the next leg.',
   'chain.dropped': 'Some tours were withdrawn or their dates no longer apply, so they were removed from your trip.',
   'chain.yours': 'Your trip',

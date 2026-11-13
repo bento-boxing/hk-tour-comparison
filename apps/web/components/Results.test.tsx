@@ -106,3 +106,11 @@ it('an empty message replaces the default one and its clear link', () => {
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
   expect(screen.queryByRole('link')).toBeNull();
 });
+
+it('no cards but matches on other pages (a page past the last): a neutral line, not an empty message', () => {
+  render(<Results {...props} tours={[]} total={30} empty={<p>這段休息期內沒有可接續的旅行團</p>} />);
+  expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
+  expect(screen.queryByText('這段休息期內沒有可接續的旅行團')).toBeNull();
+  expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
+  expect(screen.queryByText('共 30 個旅行團')).toBeNull();
+});

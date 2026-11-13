@@ -15,21 +15,27 @@ export interface ResultsProps {
   onAdd?: (tour: TourCardData, departure: IsoDate) => void;
   /** When given, each card's footer note (in place of its 'updated' text), e.g. '休息 1–2 日後出發'. */
   footNote?: (tour: TourCardData) => string | undefined;
-  /** When given, shown instead of the default empty message and its clear-all link. */
+  /** When given, shown instead of the default empty message and its clear-all link (only when total is 0). */
   empty?: ReactNode;
 }
 
 /** An operator missing from the operators list still gets a card: its id as the name, and the charcoal fallback colour. */
 const unknownOperator = (id: OperatorId): OperatorInfo => ({ id, nameZh: id, nameEn: id, color: '', lastGoodRunAt: null });
 
-/** The count line and the cards (mockup `.grid`), or the empty message with a link that clears every filter. */
+/**
+ * The count line and the cards (mockup `.grid`); with no match at all, the empty message with a link that
+ * clears every filter. A page past the last (matches, but none on this page) gets a neutral line instead:
+ * the Pager below it links back to page 1.
+ */
 export function Results({ tours, total, operators, places, today, t, onAdd, footNote, empty }: ResultsProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   return (
     <>
       {/* Announced when a filter change brings a new count or the empty message. */}
       <div aria-live="polite">
-        {tours.length === 0 ? (
+        {tours.length === 0 && total > 0 ? (
+          <p className={styles.count}>{t('pager.beyond')}</p>
+        ) : tours.length === 0 ? (
           <div className={styles.empty}>
             {empty ?? (
               <>

@@ -1,5 +1,7 @@
-import { encodeChain, sanitiseGap, DEFAULT_GAP, MAX_CHAIN_LEGS, type ChainLegRef, type ChainState, type IsoDate } from '@hktours/core';
-import { buildSearchQuery, type SearchState } from './search-params';
+import {
+  encodeChain, sanitiseGap, DEFAULT_GAP, MAX_CHAIN_LEGS, type ChainLegRef, type ChainState, type Destination, type IsoDate,
+} from '@hktours/core';
+import { buildSearchQuery, withFilters, type SearchState } from './search-params';
 
 /** `legs` (left out when there are none) and `gap`. */
 function chainQuery(chain: ChainState): URLSearchParams {
@@ -55,6 +57,12 @@ export function withGap(address: ChainAddress, gap: { min: number; max: number }
 /** New filters or sort from the filter bar, back on page 1. Legs and gap stay. */
 export function withSearch(address: ChainAddress, search: SearchState): ChainAddress {
   return { chain: address.chain, search: { ...search, page: 1 } };
+}
+
+/** A destination from the search box or the country panels (null clears it), back on page 1. Legs, gap and the other filters stay. */
+export function withDestination(address: ChainAddress, destination: Destination | null): ChainAddress {
+  // withFilters drops a key whose value is undefined, so clearing leaves no `destination` behind.
+  return withSearch(address, withFilters(address.search, { destination: destination ?? undefined }));
 }
 
 /** Another page of the next-leg list. Everything else stays. */

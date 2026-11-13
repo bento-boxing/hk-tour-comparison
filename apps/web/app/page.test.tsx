@@ -118,3 +118,12 @@ it('passes the same today to the filter bar as to the loader', async () => {
   // 2099 is never the current year, so the pill shows it.
   expect(screen.getByRole('button', { name: '出發日期：2099/12/1 –' })).toBeInTheDocument();
 });
+
+it('a page past the last says so neutrally, with the link back to page 1, not the no-match message', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...data, state: { ...data.state, page: 9 }, tours: [], total: 30 });
+  await renderPage({ dest: 'japan-kansai', sort: 'days', page: '9' });
+  expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
+  expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
+  expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/?dest=japan-kansai&sort=days');
+});

@@ -47,7 +47,7 @@ beforeEach(() => { onGapChange = vi.fn(); onRemoveLast = vi.fn(); user = userEve
 function renderStrip(legs: ResolvedLeg[], extra: Partial<ChainStripProps> = {}) {
   const props: ChainStripProps = {
     legs, operators, places, today, t, gap: { min: 1, max: 3 },
-    window: { from: '2026-12-24', to: '2026-12-26' }, onGapChange, onRemoveLast, ...extra,
+    departWindow: { from: '2026-12-24', to: '2026-12-26' }, onGapChange, onRemoveLast, ...extra,
   };
   return render(<ChainStrip {...props} />);
 }
@@ -68,7 +68,7 @@ it('shows each leg with operator, dates and price', () => {
 it('a leg in another year shows the year, as on the cards', () => {
   const C = card('egl:NY3', 3, [kansai('osaka')], [{ date: '2026-12-30', priceHkd: 4000 }], 4000);
   const legs = resolveChain({ legs: [{ tourKey: C.key, departure: '2026-12-30' }], gap: { min: 1, max: 3 } }, new Map([[C.key, C]]), today).legs;
-  renderStrip(legs, { window: { from: '2027-01-02', to: '2027-01-04' } });
+  renderStrip(legs, { departWindow: { from: '2027-01-02', to: '2027-01-04' } });
   expect(screen.getByText('東瀛遊 · 12/30 – 2027/1/1 · HK$4,000')).toBeInTheDocument();
   expect(screen.getByText('可出發日：2027/1/2 – 2027/1/4')).toBeInTheDocument();
 });
@@ -100,7 +100,7 @@ it('changing the gap calls back', async () => {
 });
 
 it('without a window (a full chain) shows neither the gap selector nor the placeholder', () => {
-  renderStrip(legsOf(['egl:KIX5', '2026-12-18']), { window: null });
+  renderStrip(legsOf(['egl:KIX5', '2026-12-18']), { departWindow: null });
   expect(screen.queryByRole('combobox')).toBeNull();
   expect(screen.queryByText('＋ 從下方選擇下一個旅行團', { exact: false })).toBeNull();
   expect(screen.getByText('目前合計', { exact: false })).toBeInTheDocument();
