@@ -3,17 +3,18 @@ OWNER DECISION PENDING
 # EGL Tours 東瀛遊 (`egl`): operator investigation
 
 - Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`); pages fetched 2026-11-12 22:13–22:31 UTC.
-- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **10 of 10** in Task 14, plus **1** in Task 14b (the terms page, allowed by the owner on 2026-11-12).
+- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **10 of 10** in Task 14, plus **1** in Task 14b (the terms page, allowed by the owner on 2026-11-12), plus **10** on 2026-11-13 (the ten terms PDFs, allowed by the owner that day; fetched 08:32 UTC with `fetchBytes`).
 
 ## Recommendation
 
-**HOLD: the terms could not be read within the rules.** The terms page holds no terms text. It is a list of ten booking-terms PDF documents, which are outside the one extra fetch the owner allowed. So it is still not known whether EGL's terms prohibit automated access or reproduction, and the PROCEED/HOLD test cannot be applied.
+**PROCEED under the owner's delegated rule.** All ten terms documents were fetched and read on 2026-11-13. None has a clause about automated access, robots, crawling, scraping, copying, reproduction, intellectual property, or permitted use of the website or its content, and none limits use to personal or non-commercial use. They are booking, payment, cancellation, liability and privacy terms for customers. robots.txt allows every URL needed, and the tour page checked for one (`HTGSZK02`) has no copyright or rights notice (see below).
 
+- **Test result:** "no clause restricting automated access or reuse of content". Details per document under "Terms documents (PDFs)" below.
+- The documents mention EGL's website only as a place to book and pay, to find the privacy policy (`本公司的個人資料(私隱)政策聲明詳載於本公司之網頁內。`, "our personal data (privacy) policy statement is set out on our website"), to check meeting times, and in notes on prices. Three documents have a note on the prices listed on the website: in two they hold only at the moment of booking, e.g. `fit_flight_disclaimer.pdf`: `本公司網站內所列出的預訂機票價格，只為即時之訂購價格` ("the air ticket prices listed on our website are only the prices for booking at that moment"); in the hotel terms they are set for guests from outside the hotel's country or region. These are about the prices, not about using the content.
+- Not read: the privacy policy on the website (not fetched; a privacy policy is not expected to restrict site use, but it was not checked). No website terms of use other than `條款及細則` were looked for; the tour page's only terms link is `條款及細則`.
 - The footer link `條款及細則` goes to `https://www.egltours.com/website/html/content.html?page=terms_and_conditions`, which is an empty shell. Its script (`includeHTML(page)` in `/website/html/header/assets/js/w3include.js`) loads the real content from `page + ".html?v=" + <start of the hour>`, that is `https://www.egltours.com/website/html/terms_and_conditions.html`.
 - **Task 14b fetched that page once** (owner decision of 2026-11-12, one extra fetch). It is titled `EGL 報名條款及細則` and contains only a heading and a table of ten links to PDF files (listed under "Terms" below). It loads nothing else: there is no script, include or frame. **The page itself has no clause of any kind**: nothing about automated access, robots, scraping, crawling, copying, reproduction or permitted use of content.
-- The terms themselves are in the ten linked PDFs. They are separate documents, not text the page loads, and there are ten of them, so the brief's allowance (the page, plus at most one URL it loads its text from) does not cover them. **None was fetched**, as the brief requires ("If the text needs anything else, stop and record that"). Whether they contain a relevant clause is unknown. By their titles (`報名細則及責任問題`, "registration terms and liability"), they are booking terms like Jetour's, which had no such clause, but that is a guess, not a finding.
-- **Test result:** neither "no prohibiting clause" nor "personal, non-commercial use only" can be established while the terms documents are unread, so the first line stays `OWNER DECISION PENDING`.
-- **To decide:** the owner can read the PDFs directly, or allow up to ten more fetches of `https://www.egltours.com/pdf_src/terms/…`. robots.txt does not disallow `/pdf_src/terms/`; only `/pdf_src/visa/` and `/pdf_src/tour/tourpdf/` are disallowed. The four tour documents matter most: `tour/japan_tour_terms.pdf`, `tour/tour_disclaimer.pdf`, `tour/localtour_disclaimer.pdf` and `tour/cruise_disclaimer.pdf`. The PDFs would need text extraction before they can be quoted.
+- The terms themselves are in the ten linked PDFs. They are separate documents, not text the page loads, so Task 14b's allowance did not cover them and it fetched none. **The owner allowed fetching all ten on 2026-11-13; each was fetched once** (robots.txt does not disallow `/pdf_src/terms/`; only `/pdf_src/visa/` and `/pdf_src/tour/tourpdf/` are disallowed), and their text was extracted with `pdftotext`. Every page of every PDF has a text layer; none is a scanned image. Results under "Terms documents (PDFs)" below.
 - Everything else needed is reachable within robots.txt (see below).
 - The served tour page HTML has no copyright or rights notice (`©`, `&copy;`, `版權`, `Copyright` and `All rights` do not occur in `/website/itinerary/HTGSZK02`); its only terms link is `條款及細則`.
 - Context, from robots.txt (not terms): EGL names AI crawlers explicitly. Our User-Agent is not among them and falls under `User-agent: *`:
@@ -45,7 +46,28 @@ EGL 報名條款及細則
 代辦個人簽證細則責任條款                            → https://www.egltours.com/pdf_src/terms/tour/visa-terms.pdf
 ```
 
-Clauses about automated access, robots, scraping, crawling, copying, reproduction or permitted use of content in this text: **none** (the page has no clauses at all). The PDFs were not read.
+Clauses about automated access, robots, scraping, crawling, copying, reproduction or permitted use of content in this text: **none** (the page has no clauses at all). The PDFs are covered in the next section.
+
+## Terms documents (PDFs), read 2026-11-13
+
+All ten were fetched once each on 2026-11-13 (08:32:02–08:32:38 UTC, all HTTP 200, `application/pdf`) and read the same day. Text was extracted with `pdftotext` (layout and plain modes). **Every page of every document has a text layer** (at least 845 non-space characters per page); the only images are one or two small pictures per document, all about 1–1.5 in wide and of the same shape (two were viewed: both the EGL logo). Eight say they exist only in Chinese and the Chinese version prevails (e.g. `本細則責任條款只備有中文版本，㇐概以中文版本為準`); `fit_flight_disclaimer.pdf` says the same with `中文譯版`, and `localtour_disclaimer.pdf` does not say. No English version is linked.
+
+How they were checked: the extracted text of each, with whitespace removed (so words split across lines or columns still match), was searched for `版權`, `知識`, `產權`, `複製`, `轉載`, `翻印`, `抄`, `擷取`, `下載`, `商業`, `商用`, `個人用途`, `自動化`, `爬`, `機械人`, `機器人`, `程式`, `軟件`, `robot`, `crawl`, `scrap`, `spider`, `copyright`, `reproduc`, `網站`, `網頁`, `商標`, `版面`, `圖像`, `使用本`, `瀏覽`, `侵`, and every `不得`, `禁止`, `嚴禁`, `不可`, `未經`, `保留…權`, `擁有` and `資料` was looked at in context. Each document's section headings were listed as well. Every hit was about booking, payment, documents, liability, personal data, or a reference for customers (government, Travel Industry Authority, attraction or JR Pass pages). The documents were not read line by line in full.
+
+| # | Document (title in the PDF) | URL | Read | Pages | Text layer | Clauses about automated access, robots, crawling, scraping, copying, reproduction, IP or permitted use of the website or its content |
+|---|---|---|---|---|---|---|
+| 1 | `日本旅行團 - 細則責任條款` | https://www.egltours.com/pdf_src/terms/tour/japan_tour_terms.pdf | 2026-11-13 | 2 | yes | none |
+| 2 | `旅行團 - 細則責任條款` | https://www.egltours.com/pdf_src/terms/tour/tour_disclaimer.pdf | 2026-11-13 | 2 | yes | none |
+| 3 | `自由行 細則責任條款` | https://www.egltours.com/pdf_src/terms/fit/fit_disclaimer.pdf | 2026-11-13 | 3 | yes | none (price note only, see Recommendation) |
+| 4 | `細則責任條款` (listed as `門票細則及責任問題`) | https://www.egltours.com/pdf_src/terms/fit/fit_ticket_disclaimer.pdf | 2026-11-13 | 2 | yes | none |
+| 5 | `當地遊 細則責任條款` | https://www.egltours.com/pdf_src/terms/tour/localtour_disclaimer.pdf | 2026-11-13 | 2 | yes | none |
+| 6 | `機票/簽證 細則責任條款` | https://www.egltours.com/pdf_src/terms/fit/fit_flight_disclaimer.pdf | 2026-11-13 | 2 | yes | none (price note only, see Recommendation) |
+| 7 | `酒店 細則責任條款` | https://www.egltours.com/pdf_src/terms/fit/fit_hotel_disclaimer.pdf | 2026-11-13 | 2 | yes | none (price note only, see Recommendation) |
+| 8 | `郵輪旅行團 - 細則責任條款` | https://www.egltours.com/pdf_src/terms/tour/cruise_disclaimer.pdf | 2026-11-13 | 2 | yes | none |
+| 9 | `郵輪套票(自由行) - 細則責任條款` | https://www.egltours.com/pdf_src/terms/fit/fit_cruise_disclaimer.pdf | 2026-11-13 | 2 | yes | none |
+| 10 | `代辦個人簽證-細則責任條款` | https://www.egltours.com/pdf_src/terms/tour/visa-terms.pdf | 2026-11-13 | 1 | yes | none |
+
+The PDFs and their extracted text are kept outside the repository (git-ignored), with no copy in the repository.
 
 ## robots.txt (`https://www.egltours.com/robots.txt`, read 2026-11-13)
 
@@ -168,7 +190,7 @@ The date JSON files are the raw API responses, copied unchanged: they hold only 
 
 Checked by eye: no personal data (only the company's published hotlines). No hand trimming was needed. Long day descriptions inside the day-plan JSON attribute are cut by `trimFixture` (strings over 120 characters); image URLs (not images) remain in that JSON.
 
-## Every URL fetched (Task 14: 10 page fetches; Task 14b: 1; robots.txt not counted)
+## Every URL fetched (Task 14: 10 page fetches; Task 14b: 1; terms PDFs: 10; robots.txt not counted)
 
 ### Task 14
 
@@ -193,4 +215,22 @@ Checked by eye: no personal data (only the company's published hotlines). No han
 | – | – | https://www.egltours.com/robots.txt | **not requested again**: `createFetcher` was given the copy saved in Task 14 (read 22:13:20 UTC, under 2 hours earlier; RFC 9309 allows caching for up to 24 hours), so no URL was requested twice |
 | 11 | 2026-11-13 00:01:05 | https://www.egltours.com/website/html/terms_and_conditions.html | 200, 4,514 characters (heading and ten PDF links; no clause text). Requested without the `?v=<hour>` cache-busting query the site's script adds. |
 
-The optional second fetch was not used: the page loads no text from another URL. Not fetched: the ten PDFs (outside the allowance).
+The optional second fetch was not used: the page loads no text from another URL. Not fetched in Task 14b: the ten PDFs (outside that allowance; fetched later, below).
+
+### Terms PDFs (10 fetches; owner allowed all ten on 2026-11-13)
+
+Fetched with `createFetcher(...).fetchBytes` (same robots.txt check, queue, 3 s spacing and User-Agent as `fetchText`), once each, in the order of the terms page. No retry was needed.
+
+| # | UTC | URL | Result |
+|---|---|---|---|
+| – | – | https://www.egltours.com/robots.txt | **not requested again**: the fetcher was given the copy saved in Task 14 (read 2026-11-12 22:13:20 UTC, about 10 h 19 min before the first PDF; within RFC 9309's 24 hours). It does not disallow `/pdf_src/terms/`. |
+| 12 | 2026-11-13 08:32:02 | https://www.egltours.com/pdf_src/terms/tour/japan_tour_terms.pdf | 200, 836,519 bytes |
+| 13 | 2026-11-13 08:32:09 | https://www.egltours.com/pdf_src/terms/tour/tour_disclaimer.pdf | 200, 1,052,166 bytes |
+| 14 | 2026-11-13 08:32:13 | https://www.egltours.com/pdf_src/terms/fit/fit_disclaimer.pdf | 200, 818,058 bytes |
+| 15 | 2026-11-13 08:32:16 | https://www.egltours.com/pdf_src/terms/fit/fit_ticket_disclaimer.pdf | 200, 571,725 bytes |
+| 16 | 2026-11-13 08:32:20 | https://www.egltours.com/pdf_src/terms/tour/localtour_disclaimer.pdf | 200, 421,669 bytes |
+| 17 | 2026-11-13 08:32:23 | https://www.egltours.com/pdf_src/terms/fit/fit_flight_disclaimer.pdf | 200, 711,406 bytes |
+| 18 | 2026-11-13 08:32:27 | https://www.egltours.com/pdf_src/terms/fit/fit_hotel_disclaimer.pdf | 200, 627,845 bytes |
+| 19 | 2026-11-13 08:32:30 | https://www.egltours.com/pdf_src/terms/tour/cruise_disclaimer.pdf | 200, 1,339,046 bytes |
+| 20 | 2026-11-13 08:32:34 | https://www.egltours.com/pdf_src/terms/fit/fit_cruise_disclaimer.pdf | 200, 1,162,958 bytes |
+| 21 | 2026-11-13 08:32:38 | https://www.egltours.com/pdf_src/terms/tour/visa-terms.pdf | 200, 585,395 bytes |
