@@ -51,8 +51,11 @@ type Params = [
   operators: string[] | null, keys: string[] | null,
 ];
 
-/** A departure inside the window; the lower bound is never earlier than today. */
-const IN_WINDOW = `d.date >= greatest($1::date, $2::date) and ($3::date is null or d.date <= $3::date)`;
+/**
+ * A departure inside the window. Only departures after today are upcoming, so the lower bound is the
+ * later of dateFrom and tomorrow.
+ */
+const IN_WINDOW = `d.date >= greatest($1::date + 1, $2::date) and ($3::date is null or d.date <= $3::date)`;
 /** A departure's own price, or the tour's from-price when it has none. */
 const EFFECTIVE_PRICE = `coalesce(d.price_hkd, t.from_price_hkd)`;
 /** UTC ISO-8601 with milliseconds, the same text Date#toISOString gives, on every driver. */
@@ -68,7 +71,7 @@ with eligible as (
          min(${EFFECTIVE_PRICE}) filter (where ${IN_WINDOW}) as window_price,
          min(d.date) filter (where ${IN_WINDOW}) as first_date
   from tours t
-  join departures d on d.tour_id = t.id and d.date >= $1::date
+  join departures d on d.tour_id = t.id and d.date > $1::date
   where t.active
     and ($4::text is null or exists (
           select 1 from tour_stops s
@@ -163,7 +166,10 @@ export async function searchTours(db: Db, input: SearchInput): Promise<{ tours: 
   return { tours: await toCards(db, rows, params), total };
 }
 
-/** Active tours only; `departures` holds every upcoming departure. Unknown or inactive keys are absent from the map. */
+/**
+ * Active tours only; `departures` holds every upcoming departure (after today). Unknown or inactive keys,
+ * and tours with no upcoming departure, are absent from the map.
+ */
 export async function getToursByKeys(db: Db, keys: string[], today: IsoDate): Promise<Map<string, TourCardData>> {
   const wanted = [...new Set(keys)];
   const result = new Map<string, TourCardData>();

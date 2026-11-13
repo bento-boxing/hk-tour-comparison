@@ -18,7 +18,7 @@ export interface DeparturePickerProps {
 
 /**
  * The date list opened from a card's 加入行程 button: a non-modal dialog with one button per departure
- * from today on. Focus starts on the first date; Escape inside it, the close button or a press outside call onClose.
+ * after today. Focus starts on the first date; Escape inside it, the close button or a press outside call onClose.
  * The opener is responsible for positioning it and for returning focus when it closes.
  */
 export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick, onClose }: DeparturePickerProps) {
@@ -34,8 +34,8 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
   // A press outside → 'outside'; Escape inside the dialog → 'escape'.
   const onKeyDown = usePopoverDismiss(rootRef, onClose);
 
-  // Past dates cannot be booked. With an unusable `today` nothing is hidden.
-  const upcoming = isIsoDate(today) ? departures.filter(d => d.date >= today) : departures;
+  // Only dates after today are upcoming (a tour leaving today has left). With an unusable `today` nothing is hidden.
+  const upcoming = isIsoDate(today) ? departures.filter(d => d.date > today) : departures;
 
   return (
     <div ref={rootRef} role="dialog" aria-labelledby={titleId} className={styles.picker} onKeyDown={onKeyDown}>

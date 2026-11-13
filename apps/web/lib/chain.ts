@@ -30,7 +30,7 @@ function safeEndDate(departure: unknown, days: unknown): IsoDate | null {
 
 /**
  * The legs of the chain that are still valid, in order. A leg is valid when its tour is in `tours`
- * (exists and is active), its departure is one of that tour's departures from `today` on, and it departs
+ * (exists and is active), its departure is one of that tour's departures after `today`, and it departs
  * after the previous leg ends. The first invalid leg and every leg after it are dropped.
  * The price is that departure's own price, or the tour's stored fallback price (not exact) when it has none.
  */
@@ -42,7 +42,7 @@ export function resolveChain(state: ChainState, tours: Map<string, TourCardData>
   for (const ref of refs) {
     const tour = typeof ref?.tourKey === 'string' ? tours.get(ref.tourKey) : undefined;
     const departure = ref?.departure;
-    if (!tour || !todayOk || typeof departure !== 'string' || !isIsoDate(departure) || departure < today) break;
+    if (!tour || !todayOk || typeof departure !== 'string' || !isIsoDate(departure) || departure <= today) break;
 
     const offered = Array.isArray(tour.departures) ? tour.departures.find(d => d.date === departure) : undefined;
     if (!offered) break;
