@@ -74,9 +74,32 @@ export async function runPgTransaction<T>(pool: PgPoolLike, fn: (tx: Db) => Prom
   }
 }
 
-/** A Db backed by a pg connection pool (at most 3 connections). */
+/** How long the pool waits for a new connection before rejecting (pg's default, 0, waits forever). */
+export const CONNECTION_TIMEOUT_MS = 8_000;
+/**
+ * The server cancels any single statement that runs longer than this. It is per statement, so the
+ * nightly save (one long transaction of many short statements) is unaffected. There is deliberately
+ * no whole-transaction limit.
+ */
+export const STATEMENT_TIMEOUT_MS = 20_000;
+
+/**
+ * A Db backed by a pg connection pool (at most 3 connections), with the timeouts above, so an
+ * unreachable or stuck database makes a page fail fast instead of hanging.
+ */
 export function createPgDb(connectionString: string): Db {
-  const pool = new pg.Pool({ connectionString, max: 3 });
+  return createPgDbWithPool(connectionString, config => new pg.Pool(config));
+}
+
+/** createPgDb with the pool constructor injected. Internal: a test seam, not exported from the package entries. */
+export function createPgDbWithPool(connectionString: string, makePool: (config: pg.PoolConfig) => pg.Pool): Db {
+  const pool = makePool({
+    connectionString, max: 3,
+    connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
+    // A connection parameter, so Postgres itself enforces it on every statement of every pooled connection.
+    // (pg's client-side query_timeout is not used: after it fires, the connection stays busy with the abandoned query.)
+    statement_timeout: STATEMENT_TIMEOUT_MS,
+  });
   // An idle connection dropped by the server emits 'error' on the pool; without
   // a listener Node treats it as unhandled and exits. The pool replaces the connection.
   pool.on('error', err => { console.error('postgres pool: idle connection error:', err.message); });
