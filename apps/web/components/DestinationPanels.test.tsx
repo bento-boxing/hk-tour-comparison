@@ -109,7 +109,7 @@ it('works by keyboard alone, keeping focus on the panel', async () => {
   await user.tab();
   expect(screen.getByRole('button', { name: '按國家選擇' })).toHaveFocus();
   await user.keyboard('{Enter}');
-  // Focus moves into the country list; tab to 日本 if it is not first.
+  // Opening leaves focus on the toggle (disclosure pattern); tab forward to 日本.
   const japan = screen.getByRole('button', { name: '日本' });
   while (document.activeElement !== japan) await user.tab();
   await user.keyboard('{Enter}');

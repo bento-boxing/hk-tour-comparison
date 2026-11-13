@@ -28,7 +28,6 @@
 .option, .none { padding: 9px 14px; font-size: 14px; border-bottom: 1px solid #e9ede4; }
 .option { cursor: pointer; }
 .option:last-child, .none { border-bottom: 0; }
-.option:hover { background: var(--hit); }
 .hit { background: var(--hit); }
 .hit .label { color: var(--cerulean); font-weight: 700; }
 .hint { color: var(--text-muted); }

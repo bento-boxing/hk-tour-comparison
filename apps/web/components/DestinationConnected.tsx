@@ -25,11 +25,13 @@ function useSelectDestinationInAddress(): (dest: Destination | null) => void {
 }
 
 export function DestinationSearchConnected({ value }: { value: Destination | null }) {
-  return <DestinationSearch places={places} t={useT()} value={value} onSelect={useSelectDestinationInAddress()} />;
+  const t = useT();
+  const onSelect = useSelectDestinationInAddress();
+  return <DestinationSearch places={places} t={t} value={value} onSelect={onSelect} />;
 }
 
 export function DestinationPanelsConnected({ value, hiddenCountryIds }: { value: Destination | null; hiddenCountryIds?: string[] }) {
-  return (
-    <DestinationPanels places={places} t={useT()} value={value} onSelect={useSelectDestinationInAddress()} hiddenCountryIds={hiddenCountryIds} />
-  );
+  const t = useT();
+  const onSelect = useSelectDestinationInAddress();
+  return <DestinationPanels places={places} t={t} value={value} onSelect={onSelect} hiddenCountryIds={hiddenCountryIds} />;
 }

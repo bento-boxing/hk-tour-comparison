@@ -57,7 +57,8 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
   const blank = text.trim() === '';
   const listOpen = open && suggestions.length > 0;
   const noMatch = open && !blank && suggestions.length === 0;
-  const enterTarget = active >= 0 ? active : 0; // shown as the hit row, as in the mockup
+  // The row Enter would pick: shown as the hit row (as in the mockup) and marked aria-selected.
+  const enterTarget = active >= 0 ? active : 0;
 
   const close = () => { setOpen(false); setActive(-1); };
 
@@ -83,7 +84,8 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     // Keys pressed while an input method is composing (Cangjie, pinyin…) belong to the IME.
-    if (e.nativeEvent.isComposing) return;
+    // Safari fires compositionend before the committing keydown, which then has keyCode 229.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     switch (e.key) {
       case 'ArrowDown': e.preventDefault(); move(1); break;
       case 'ArrowUp': e.preventDefault(); move(-1); break;
@@ -131,15 +133,16 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
                 key={keyOf(s.destination)}
                 id={optionId(i)}
                 role="option"
-                aria-selected={i === active}
+                aria-selected={i === enterTarget}
                 className={i === enterTarget ? `${styles.option} ${styles.hit}` : styles.option}
                 // Keep focus in the input so the click lands before blur closes the list.
                 onMouseDown={e => e.preventDefault()}
+                onMouseMove={() => setActive(i)}
                 onClick={() => choose(s)}
               >
                 <span className={styles.label}>{s.label}</span>
                 {cities.length > 0 && (
-                  <>{' '}<small className={styles.hint}>{t('dest.includes', { cities: cities.join('、') })}</small></>
+                  <>{' '}<small className={styles.hint}>{t('dest.includes', { cities: cities.join(t('dest.listSeparator')) })}</small></>
                 )}
               </li>
             );
