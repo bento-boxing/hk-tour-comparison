@@ -318,9 +318,11 @@ describe('SCRAPERS', () => {
       .toEqual(Object.keys(SCRAPERS).filter(id => !awaitingMeasuredCrawl.includes(id)).sort());
   });
 
-  it('the nightly schedule, still commented out, is 18:17 UTC (02:17 Hong Kong), off the hour', async () => {
+  it('the nightly schedule is on, once a day at 18:17 UTC (02:17 Hong Kong), off the hour', async () => {
     const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
-    expect(workflow).toMatch(/^ {2}# {3}- cron: '17 18 \* \* \*'/m);
-    expect(workflow).not.toMatch(/^\s*schedule:/m);
+    expect(workflow).toMatch(/^ {2}schedule:\s*$/m);
+    const crons = [...workflow.matchAll(/^\s*-\s*cron:\s*'([^']*)'/gm)].map(match => match[1]);
+    expect(crons).toEqual(['17 18 * * *']);
+    expect(workflow).not.toMatch(/^\s*#\s*-\s*cron:/m);
   });
 });
