@@ -1,6 +1,7 @@
 {
   "sourceUrl": "https://www.jetour.com.hk/tour/TSEQ",
   "verifiedByOwner": false,
+  "notes": "Day 1 `香港 ~ 杭州/上海 ~ …` and day 6 `… ~ 杭州/上海 ~ 香港` name an either/or flight city. Rule (controller ruling, Task 15 fix round 1): an `X/Y` segment right after 香港 on day 1, or right before 香港 on the last day, is dropped from dayHeadings; `X/Y` anywhere else is kept. The route then starts in Shanghai, as day 1's title 香港出發前往上海, its hotel 上海滴水湖洲際酒店 and day 2's 上海 say. The owner should confirm this rule.",
   "scraped": {
     "operatorId": "jetour",
     "code": "TSEQ",
@@ -9,12 +10,12 @@
     "days": 6,
     "nights": null,
     "dayHeadings": [
-      "香港 ~ 杭州/上海 ~ 洛克·外灘源(ROCKBUND)",
-      "上海 ~ 思南公館片區 ~ 無錫(車程約2小時) ~ 太湖黿頭渚景區 ~ 清名橋古運河景區(南長街)",
-      "無錫 ~ 長廣溪濕地公園 ~ 太湖珍珠館(購物店) ~ 紫砂博物館(購物店) ~ 湖州(車程約2.5小時) ~ 太湖漁人碼頭燈光夜秀",
-      "湖州 ~ 杭州(車程約1.5小時) ~ 江南絲綢廠(購物店) ~ 西溪國家濕地公園賞秋 (含景區電瓶車、船) ~ 錢江新城",
-      "杭州 ~ 梅家塢茶園(購物店) ~ 西湖南線秘境 ~ 濮院(車程約2小時) ~ 濮院古鎮",
-      "濮院 ~ 濮院濮川牌坊 ~ 玉石工坊(購物店) ~ 杭州/上海 ~ 香港"
+      "香港 ~ 洛克·外灘源",
+      "上海 ~ 思南公館片區 ~ 無錫 ~ 太湖黿頭渚景區 ~ 清名橋古運河景區",
+      "無錫 ~ 長廣溪濕地公園 ~ 太湖珍珠館 ~ 紫砂博物館 ~ 湖州 ~ 太湖漁人碼頭燈光夜秀",
+      "湖州 ~ 杭州 ~ 江南絲綢廠 ~ 西溪國家濕地公園賞秋 ~ 錢江新城",
+      "杭州 ~ 梅家塢茶園 ~ 西湖南線秘境 ~ 濮院 ~ 濮院古鎮",
+      "濮院 ~ 濮院濮川牌坊 ~ 玉石工坊 ~ 香港"
     ],
     "startPoint": "香港國際機場",
     "endPoint": null,
@@ -24,7 +25,7 @@
       { "date": "2026-12-08", "priceHkd": 3198 }
     ]
   },
-  "stopNames": ["杭州", "上海", "無錫", "湖州", "杭州", "濮院", "杭州", "上海"],
+  "stopNames": ["上海", "無錫", "湖州", "杭州", "濮院"],
   "unmatched": [
     "洛克·外灘源", "思南公館片區", "太湖黿頭渚景區", "清名橋古運河景區", "長廣溪濕地公園", "太湖珍珠館",
     "紫砂博物館", "江南絲綢廠", "錢江新城", "梅家塢茶園", "西湖南線秘境", "玉石工坊"
