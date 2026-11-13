@@ -31,7 +31,7 @@ These values were read from the files as they stand at commit `d3558ec`. If the 
 - the listed dates that are still in the future appear on the page with the same prices;
 - the route (the cities in order) is a fair reading of the day-by-day headings. The route leaves out Hong Kong and the meeting point (for example a Shenzhen border crossing), and lists cities only, not attractions.
 
-**How to record the result.** For each file that is right, change `"verifiedByOwner": false` to `"verifiedByOwner": true` in the file named below and commit it, or tell the assistant "<file> is correct". For anything that is wrong, tell the assistant which file, which value, and what the page shows instead.
+**How to record the result.** For each file that is right, change `"verifiedByOwner": false` to `"verifiedByOwner": true` in the file named below and commit it (push it after the one-time step in 3.0), or tell the assistant "<file> is correct". For anything that is wrong, tell the assistant which file, which value, and what the page shows instead.
 
 ### Jetour
 
@@ -93,7 +93,14 @@ The route on each card comes from the day-by-day headings. Three rules decide wh
 - [ ] **78% of Jetour's tour pages (353 of 453) showed no departure dates when fetched.** The saved pages carry Jetour's own `沒有數據。` ("no data") text where the dates would be and no sign of dates being loaded by script, and two crawls on 13 November gave about the same count (about 351 and 353; see `docs/operators/jetour.md`), but nobody has compared one with a browser. **Open three Jetour tours that the scraper says have no dates, and confirm the live page shows no departure dates either.** If any of them shows dates in the browser, the scraper is missing them, and most of Jetour's tours would be missing from the site: tell the assistant which tours.
 
   How to find such tours: a Jetour tour with no dates is never saved, so it is **not in the database** and does not appear on the comparison site. Two ways:
-  - **A short dry run** on your computer (after `pnpm install`; it fetches about 20 pages from Jetour, politely, and writes nothing to any database): `pnpm scrape --operator jetour --dry-run --limit 20`. Each page without dates is printed as `jetour: skipped <address>: no-departures`, and its `page {…}` line says `"result":"no-departures"`. Open three of those addresses. The run takes a minute or two. It ends with `run checks: failed (below-minimum)` (or `failed (no-tours, below-minimum)` if none of the 20 had dates) and pnpm reports the command as failed. **That is expected**: 20 pages give far fewer tours than the first-run minimum of 35 (see 3.4). It is not a fault.
+  - **A short dry run** on your computer (after `pnpm install`; it fetches about 20 pages from Jetour, politely, and writes nothing to any database): `pnpm scrape --operator jetour --dry-run --limit 20`. Each page without dates is printed as `jetour: skipped <address>: no-departures`, and its `page {…}` line says `"result":"no-departures"`. Open three of those addresses. The run takes a minute or two. The output comes in this order:
+    1. `dry run of jetour: nothing is written to the database`;
+    2. while the pages are read, a line for each page that is skipped or fails (`jetour: skipped <address>: no-departures`, or `jetour: parse failure <address>: <reason>`; a page that gives a tour prints nothing here), then the run's own result line, `jetour: failed (below-minimum), 0 tours saved, 20 tour pages, …`;
+    3. one `page {…}` line for each page read;
+    4. the summary: `dry-run summary: jetour, <date>`, `tour pages discovered: …` (with `(limited to the first 20)`), `tour pages fetched: 20` (fewer if a page could not be fetched), `tours saved: 0`, `parse failures: …`, then `run checks: failed (below-minimum)` (or `failed (no-tours, below-minimum)` if none of the 20 had dates);
+    5. last, `unmatched names: <number> (pages each appeared on, most frequent first)` followed by one line per name (a count and the name), so the very end of the output is that list of names.
+
+    pnpm then reports the command as failed. **That is expected**: 20 pages give far fewer tours than the first-run minimum of 35 (see 3.4). It is not a fault.
   - **From Jetour's own site**, once 3.4 has saved data: pick tours from Jetour's listing pages and check whether each appears on the comparison site. To see the Jetour tours that were saved, in Supabase → SQL Editor:
 
     ```sql
@@ -127,7 +134,19 @@ Do these in order. Steps 3.1 to 3.3 can be done any time; the scrape (3.4) needs
 
 ### 3.0 Check the repository settings
 
-- [ ] The GitHub repository is **public**: its page shows a "Public" label next to the name. GitHub Actions minutes are free and unlimited only for public repositories.
+- [ ] **Connect your local copy to the GitHub repository (once).** The repository already exists and is yours: https://github.com/bento-boxing/hk-tour-comparison (address for git: `git@github.com:bento-boxing/hk-tour-comparison.git`). The assistant has pushed `main` to it.
+  - On its page, check that it shows a **Public** label next to the name. GitHub Actions minutes are free and unlimited only for public repositories.
+  - In a terminal, in the repository folder, run `git log -1 --oneline`. Its first word (a short commit code, such as `2f67bf2`) must match the code of the latest commit shown on the repository page (above the file list, next to the latest commit message). If they differ, the assistant has commits that are not pushed yet, or GitHub has commits your copy lacks: ask the assistant before pushing anything.
+  - Then run, once:
+
+    ```sh
+    git remote add origin git@github.com:bento-boxing/hk-tour-comparison.git
+    git push -u origin main
+    ```
+
+    This is needed because the assistant pushed by giving the address each time and could not save the remote in your copy's git settings, so until you run it, a plain `git push` from your terminal fails (it says there is no configured push destination). The second command should say `Everything up-to-date` or push your newer commits. If it fails with `Permission denied (publickey)`, this computer has no SSH key that your GitHub account knows: send the assistant that line, and leave the pushes in 3.5 and 3.7 until it is solved (nothing else in this list needs a push). After this, `git push` on its own works, and every `git push` in this list means that.
+  - **Before every commit and push of your own**, run `git status` and check that no file whose name starts with `.env` is listed under "Changes to be committed" (the only exception is `apps/web/.env.example` in 3.7, which holds no secrets). `.gitignore` keeps such files out unless they are added by force, but check anyway: the repository is public.
+- [ ] The GitHub CI workflow (tests, typecheck, build) runs on GitHub after every push. It passed for an earlier push (commit `93ebd55`); the result for the latest commit is on the repository's **Actions** tab (workflow **CI**): a green tick means it passed, a red cross that it failed. If the latest run failed, send the assistant the failed step's log.
 - [ ] **Issues are switched on** (Settings → General → Features → Issues ticked). The README tells operators to open an issue to have their listings removed.
 
 ### 3.1 Create the Supabase project
@@ -186,11 +205,11 @@ Every test so far used an in-memory database. This run is the **first time the c
 - [ ] Expected:
   - The **migrate** job passes. Its `pnpm db:migrate` step prints `applied 1 migration:` / `0001_init.sql`, or `no migrations to apply` if you did 3.2.
   - Then two **scrape** jobs start, one for `jetour` and one for `texpert`. Each must finish within 170 minutes (the job limit). From the practice runs, expect about 30 minutes of fetching for Jetour (about 450 pages, about 3.5 seconds each) and about 7 minutes for Travel Expert (117 pages), plus the time to save to the database, which has not been measured against a real server.
-  - The last line of each scrape job's `pnpm scrape` step looks like `jetour: ok, 99 tours saved, 453 tour pages, 1 parse failure, 900 unmatched names` (your numbers will differ). `ok` is what matters.
+  - The last line of each scrape job's `pnpm scrape` step looks like `jetour: ok, 98 tours saved, 453 tour pages, 1 parse failure, 900 unmatched names` (your numbers will differ). `ok` is what matters.
   - If you did not add the `DATABASE_CA_CERT` secret, the `pnpm db:migrate` step and each `pnpm scrape` step also print the "not verified" line from 3.1. That is expected.
-- [ ] **Check the tour counts.** Jetour's sitemap (its list of pages) is rebuilt from time to time, and while it is being rebuilt it lists only a few tours: one practice run on 13 November caught it listing one tour instead of about 450. On later nights the run checks refuse a run that saves fewer than 60% of the tours of the last good run (when that run saved at least 20). **A first run has no last good run to compare with**, so it must instead save at least a fixed number of tours, `minExpectedTours` in `packages/scraper/src/operators/<id>/index.ts`: **35 for Jetour and 40 for Travel Expert** (values at commit `5bb3a72`). A first run that saves fewer fails with `below-minimum`, and none of its tours is saved.
-  - Most Jetour pages have no departure dates on sale, and a page with none is skipped, not counted as a failure: the log shows it as `jetour: skipped <address>: no-departures`, and hundreds of those lines are normal for Jetour. The test crawl on 13 November read 453 Jetour pages and found **99 tours** with dates; Travel Expert's read 117 pages and 112 tours. So expect about 450 `tour pages` and roughly 100 `tours saved` for Jetour, and about 117 pages and 112 tours for Travel Expert. The numbers move as dates go on and off sale.
-  - A partial sitemap that still yields 35 or more Jetour tours would pass, so look at `tour pages` too. If Jetour shows far fewer than about 450 `tour pages`, or either job ends `failed (below-minimum)` or `failed (no-tours)`, run the workflow again an hour or two later and tell the assistant what you saw. Do not turn on the schedule (3.5) until both operators have had one full run.
+- [ ] **Check the tour counts.** Jetour's sitemap (its list of pages) is rebuilt from time to time, and while it is being rebuilt it lists only a few tours: a confirmation crawl on 13 November (03:45 UTC) caught it listing one tour instead of about 450. On later nights the run checks refuse a run that saves fewer than 60% of the tours of the last good run (when that run saved at least 20). **A first run has no last good run to compare with**, so it must instead save at least a fixed number of tours, `minExpectedTours` in `packages/scraper/src/operators/<id>/index.ts`: **35 for Jetour and 40 for Travel Expert** (values at commit `5bb3a72`). A first run that saves fewer fails with `below-minimum`, and none of its tours is saved.
+  - Most Jetour pages have no departure dates on sale, and a page with none is skipped, not counted as a failure: the log shows it as `jetour: skipped <address>: no-departures`, and hundreds of those lines are normal for Jetour. The test crawl on 13 November read 453 Jetour pages and found 99 pages with dates, which give **98 tours**: two of those pages (`/tour/EIMz` and `/tour/EIMM`) state the same tour code, `EIMM`, so whichever comes later is skipped as a duplicate (`jetour: skipped <address>: duplicate tour code EIMM, keeping the first`) on every run (see section 6). Travel Expert's read 117 pages and 112 tours. So expect about 450 `tour pages` and roughly 100 `tours saved` for Jetour, and about 117 pages and 112 tours for Travel Expert. The numbers move as dates go on and off sale.
+  - A partial sitemap that still yields 35 or more Jetour tours would pass, so look at `tour pages` too. If Jetour shows far fewer than about 450 `tour pages`, or either job ends `failed (below-minimum)`, `failed (no-tours, below-minimum)` or `failed (discover-error)` (all the reasons are listed below), run the workflow again an hour or two later and tell the assistant what you saw. Do not turn on the schedule (3.5) until both operators have had one full run.
 - [ ] Afterwards, in Supabase → **SQL Editor**, run:
 
   ```sql
@@ -205,14 +224,20 @@ Every test so far used an in-memory database. This run is the **first time the c
   Expected: one row for `jetour` and one for `texpert`, each with `ok = true` and `reasons` empty (`{}`).
 - [ ] **If a job fails**, open it, click the failed step, and send the assistant:
   - which job and step failed (`migrate`, or `scrape (jetour)` / `scrape (texpert)`, and the step name);
-  - the last 30 or so lines of that step's log, including the error message. Each page that failed is listed with a reason (`parse failure <address>: <reason>`), and the final line gives the run's reasons, one or more of:
-    - `no-tours`: no tour could be read at all;
-    - `below-minimum`: a first run (no good run before it) saved fewer tours than the operator's `minExpectedTours`;
-    - `tour-count-dropped`: fewer than 60% of the last good run's tours, when that run saved at least 20;
-    - `too-many-parse-failures`: more than 20% of the tour pages fetched could not be read.
+  - the last 30 or so lines of that step's log, including the error message. Each page that failed is listed with a reason (`parse failure <address>: <reason>`). The last line the scraper prints (pnpm adds its own error lines after it) reads `<operator>: failed (<reasons>), 0 tours saved, …`. The reasons, in the order they are listed when several apply:
+    - `discover-error`: finding the operator's tour pages ended in an error inside the scraper's own discovery code. The line just before it, `<operator>: discover failed: <message>`, says why. No tour page was fetched and nothing was saved. Any run, first or later. (A sitemap or robots.txt that cannot be read is **not** this: the scraper then prints `not crawling <site>: robots.txt unreadable (…)` or `not fetched <sitemap address>: …`, finds no tour pages, and the run ends `failed (no-tours)`, or `failed (no-tours, below-minimum)` on a first run.) `discover-error` is always the only reason.
+    - `no-tours`: no tour could be read at all, including when no tour pages were found. Any run. On a first run it comes with `below-minimum`.
+    - `below-minimum`: **first run only** (no successful run of that operator in `scrape_runs` yet): fewer tours than the operator's `minExpectedTours` (35 for Jetour, 40 for Travel Expert).
+    - `tour-count-dropped`: **later runs only**: fewer than 60% of the tours of the last successful run, when that run saved at least 20 (exactly 60% passes).
+    - `too-many-parse-failures`: any run: more than 20% of the tour pages fetched were parse failures (exactly 20% passes). Pages skipped for `no-departures`, for a duplicate tour code, or because they could not be fetched are not parse failures.
+
+  A job can also fail without such a line, when the error comes before or during the save, for example a connection problem. Its log then ends with an error message (and usually a list of code locations under it). The messages below point to that.
 
   Messages that point to the connection rather than the code:
-  - `password authentication failed` (wrong password in the string), `Tenant or user not found` (the user part must be `postgres.<project-ref>`), `timeout exceeded when trying to connect` (the database could not be reached within 8 seconds: check the address and that the project is not paused).
+  - `DATABASE_URL is not set` (in `migrate`: `DATABASE_URL is not set: it must name the database to migrate`): the `DATABASE_URL` secret does not exist or has a different name. Check 3.3.
+  - `password authentication failed` (wrong password in the string), `Tenant or user not found` (the user part must be `postgres.<project-ref>`).
+  - `Connection terminated due to connection timeout`: a new connection to the database did not complete within 8 seconds, because the database host did not answer. This is what an unreachable or paused database looks like: check the address in the string and that the project is not paused in Supabase. (A wrong host name usually fails at once instead, with `getaddrinfo ENOTFOUND` and the host name.)
+  - `timeout exceeded when trying to connect` (rarer): the code waited 8 seconds for one of its own connections (it keeps at most 3) to become free, because all of them were busy. It points to a database that is answering very slowly or a stuck query rather than to a wrong address; send the assistant the log.
   - `The database connection string is not a valid Postgres URL`: the `DATABASE_URL` secret is not a `postgresql://…` string. The message never shows the string.
   - `DATABASE_CA_CERT is not a PEM certificate`: the `DATABASE_CA_CERT` secret is not the whole certificate text. The job stops before connecting (exit code 2). Paste it again from the file.
   - A certificate error, for example `self-signed certificate in certificate chain`, `unable to get local issuer certificate` or `Hostname/IP does not match certificate's altnames`: the certificate in `DATABASE_CA_CERT` does not verify the server. Check that it was downloaded from this project. If it still fails, delete the `DATABASE_CA_CERT` secret (the connection then stays encrypted, but unverified) and send the assistant the error.
@@ -239,7 +264,7 @@ Only after 3.4 passed for both operators.
       - cron: '0 18 * * *'   # 18:00 UTC = 02:00 Hong Kong
   ```
 
-  (`schedule:` lines up with `workflow_dispatch:` below it.) Commit and push to `main`, for example `git add .github/workflows/nightly-scrape.yml`, `git commit -m "ci: run the nightly scrape on a schedule"`, `git push`. Or ask the assistant to make this change.
+  (`schedule:` lines up with `workflow_dispatch:` below it.) Commit and push to `main`, for example `git add .github/workflows/nightly-scrape.yml`, `git commit -m "ci: run the nightly scrape on a schedule"`, `git push` (this needs the one-time `git remote add origin …` step in 3.0, and the `git status` check there before you commit). Or ask the assistant to make this change.
 - [ ] Expected: GitHub → Actions → nightly-scrape now shows the schedule, and the next morning there is a run that started shortly after 02:00 Hong Kong time. GitHub often starts scheduled runs some minutes late; that is normal.
 
 ### 3.6 Deploy the site on Vercel
@@ -248,7 +273,7 @@ Only after 3.4 passed for both operators.
 - [ ] On the import screen:
   - **Root Directory**: `apps/web`.
   - **Framework Preset**: Next.js (it should be picked automatically).
-  - **Install Command** and **Build Command**: leave them at their defaults at first. The repository is a pnpm workspace (`pnpm-lock.yaml` and `pnpm-workspace.yaml` at the top level, `packageManager: pnpm@10.34.9` in the top-level `package.json`), and `pnpm install` run inside `apps/web` installs the whole workspace. The build is `next build`, the same as the GitHub CI build that already passes. If the build log shows `npm install` or `yarn` instead of `pnpm install`, or fails with `Cannot find module '@hktours/core'` (or `@hktours/db`), set Install Command to `pnpm install --frozen-lockfile` and redeploy. I am not certain whether this override is needed; the default may be enough.
+  - **Install Command** and **Build Command**: leave them at their defaults at first. The repository is a pnpm workspace (`pnpm-lock.yaml` and `pnpm-workspace.yaml` at the top level, `packageManager: pnpm@10.34.9` in the top-level `package.json`), and `pnpm install` run inside `apps/web` installs the whole workspace. The build is `next build`, the same build the GitHub CI workflow runs (`pnpm --filter @hktours/web build` in `.github/workflows/ci.yml`). That CI build passed on GitHub for commit `93ebd55`; for the latest commit, see the repository's **Actions** tab (3.0). Not confirmed: whether Vercel's default Install Command is enough for this workspace. If the build log shows `npm install` or `yarn` instead of `pnpm install`, or fails with `Cannot find module '@hktours/core'` (or `@hktours/db`), the default is not enough: set Install Command to `pnpm install --frozen-lockfile` and redeploy.
   - **Environment Variables**: add `DATABASE_URL` with the pooler string from 3.1, for **Production** and **Preview**. If you downloaded the certificate in 3.1, also add `DATABASE_CA_CERT` with the certificate text, pasted whole, for the same two. Do **not** add `DEV_LOCALE` here.
   - Click **Deploy**.
 - [ ] After the project exists, in the project's **Settings**:
@@ -280,7 +305,7 @@ Only after 3.4 passed for both operators.
   # DEV_LOCALE=en  (developer English; ignored in production)
   ```
 
-- [ ] Commit it: `git add apps/web/.env.example`, `git commit -m "docs: example settings file for the website"`, `git push`. `.gitignore` ignores every other `.env…` file but lets this one name through (`!.env.example`), so `git add` accepts it. Never put a real connection string in it: the repository is public.
+- [ ] Commit it: `git add apps/web/.env.example`, `git commit -m "docs: example settings file for the website"`, `git push` (after the one-time step in 3.0; before committing, `git status` must list `apps/web/.env.example` and no other `.env` file under "Changes to be committed"). `.gitignore` ignores every other `.env…` file but lets this one name through (`!.env.example`), so `git add` accepts it. Never put a real connection string in it: the repository is public.
 
 ---
 
@@ -358,6 +383,7 @@ Things you should know before sharing the link. Nothing here needs action unless
 - Some real places seen in Travel Expert tours are not yet in the places list (for example 百色, 羅平, 曲靖, 彌勒, 金門). Tours whose headings name only places in brackets (`【…】`) cannot be read and are counted as parse failures (one Travel Expert tour in the last practice run).
 - Hong Kong meeting points written without `香港` (for example a street in 尖沙咀) would be shown as a non-Hong Kong start. None of the current Jetour or Travel Expert pages does this.
 - **Jetour's sitemap is incomplete while the site rebuilds it** (see 3.4). If a rebuild overlaps a nightly run, that run is refused (`tour-count-dropped`; on the very first run, `below-minimum`) and the previous night's Jetour data stays, so Jetour's tours are a day older than usual. A first run during a rebuild that still yields at least 35 tours would pass; that is why 3.4 asks you to check the page count. When the rebuilds happen is not known: one was seen at about **midday Hong Kong time** (03:49–04:10 UTC, that is 11:49–12:10 in Hong Kong), and an earlier sitemap's newest entries were stamped around 22:00 UTC (06:00 in Hong Kong). The nightly run starts at 02:00 Hong Kong time (18:00 UTC). A run that lands inside a rebuild fails its checks and keeps the previous data.
+- **Two Jetour pages give the same tour code**, a quirk of Jetour's own data: `/tour/EIMz` and `/tour/EIMM` both state the code `EIMM`. The scraper keeps only the first page it reads with a given code and skips the other (`duplicate tour code EIMM, keeping the first`) on every run, which is why 99 Jetour pages with dates gave 98 tours in the 13 November crawl. If the two pages are different tours, one of them never appears on the site; you may want to open both and compare.
 - The `旅行社` filter offers only operators with at least one successful run (`last_good_run_at` set in the `operators` table). An address that already selects another operator (an old or hand-made link with, for example, `op=egl`) still shows that operator in the filter, so the choice can be seen and removed; it gives no results.
 
 ### Legal
@@ -384,3 +410,4 @@ Things you should know before sharing the link. Nothing here needs action unless
 - Each night's save for an operator is one database transaction with several statements per tour. Its speed against the real database is unknown until 3.4.
 - A future database change (migration) that takes longer than 20 seconds would be cut off by the code's 20-second limit and would need to be run differently.
 - The only alerting is GitHub's email for a failed run.
+- **`apps/web/.env.example` does not exist yet**, because the assistant's session is not permitted to write `.env` files. Creating it is the item in 3.7.

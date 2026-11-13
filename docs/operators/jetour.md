@@ -135,7 +135,7 @@ Also fetched but not saved: `/tour/TNA` (8 days, six departures from 2026-11-27 
 
 **Cause:** missing places, not the parser. Jetour sells many long-haul tours (Europe, Africa, the Americas, Oceania, the Middle East, Central Asia) and many to Chinese provinces the seed list did not have; their day lines named no known place.
 
-**After extending the places list** (same task, commit `feat(core): extend places list from operator dry runs`): pages were not re-crawled. The dry run prints each page's day headings, so the saved output was re-processed offline with the new list: **1 parse failure in 451 pages (0.2%)**, the `TCPA-1` page the parser rejects; 343 tours would normalise. Estimate only: departures and prices of the 311 former `no-stops` pages are as parsed, but the checks were not re-run against a live crawl.
+**After extending the places list** (same task, commit `feat(core): extend places list from operator dry runs`): pages were not re-crawled. The dry run prints each page's day headings, so the saved output was re-processed offline with the new list: **1 parse failure in 451 pages (0.2%)**, the `TCPA-1` page the parser rejects; 343 tours would normalise. Estimate only: departures and prices of the 311 former `no-stops` pages are as parsed, but the checks were not re-run against a live crawl. (This estimate proved wrong: most of those pages have no dates on sale, and the fix-round-3 confirmation crawl found 99 pages with dates; see "Confirmation crawl (Task 19, fix round 3)" below.)
 
 Known limits seen in the output:
 - **Transit stops.** Long-haul day lines name the connecting city (`途經巴黎轉機`, `經巴黎或阿姆斯特丹轉機`, `香港 ~ 巴黎 ~ 利馬`, `杜邦力夫 伊斯坦堡`), so Paris, Amsterdam or Istanbul appear on routes of tours that only change planes there (23 Latin American tours name a Paris or Amsterdam connection, e.g. `QSB`, `QPD`, `QCC`; some Balkan tours connect in Istanbul, e.g. `EBD`, `BBZEX`). Not a place-list problem; left for the owner.
@@ -147,7 +147,7 @@ Known limits seen in the output:
 
 | | Count |
 |---|---|
-| Tour pages discovered (sitemap) | **1** (451 in the practice crawl three hours earlier) |
+| Tour pages discovered (sitemap) | **1** (451 in the practice crawl under two hours earlier: it started at 01:51 UTC, this crawl at 03:45 UTC) |
 | Tour pages fetched | 1 (`/tour/EID`, a tour not in the practice crawl) |
 | Tours that would be saved | 0: the run failed its checks (`no-tours`) |
 | Parse failures | 0 (0.0% of 1) |
@@ -177,7 +177,7 @@ The tour URL pattern is unchanged (`/tour/<CODE>`): 450 tours are in both full f
 
 **Reading:** every entry of the new file was stamped between 03:49 and 04:10 UTC, i.e. the site rebuilt its sitemap in that window, and the confirmation crawl's fetch at 03:45 UTC caught it mid-rebuild with one tour listed. So the sitemap is **unstable during its rebuilds** (served incomplete for a while), not changed once. When the rebuilds run is not known (the earlier file's newest stamps are around 22:00 UTC, this one 03:49–04:10 UTC).
 
-Consequence for the nightly job (18:00 UTC): if a rebuild overlaps the run, discovery sees few tours. With a previous good run, `checkRun` refuses the run (`tour-count-dropped` below 60%) and yesterday's data stays. On the **first** run there is no previous count, so a partial sitemap whose few tours parse would pass and save only those. Open for the owner: run the first real scrape by hand and check its tour count, or retry later in the night.
+Consequence for the nightly job (18:00 UTC): if a rebuild overlaps the run, discovery sees few tours. With a previous good run, `checkRun` refuses the run (`tour-count-dropped` below 60%) and yesterday's data stays. On the **first** run there is no previous count, so a partial sitemap whose few tours parse would pass and save only those. (Superseded: a first-run floor, `minExpectedTours`, was added afterwards, so a first run with fewer than 35 tours now fails `below-minimum`; see "Sitemap rebuilds (for the owner)" below.) Open for the owner: run the first real scrape by hand and check its tour count, or retry later in the night.
 
 No confirmation dry run was made this round: discovery did not need a fix, which was the condition for one.
 
@@ -201,13 +201,14 @@ The rebuild schedule is not known. A nightly run that lands inside a rebuild dis
 |---|---|
 | Tour pages discovered (sitemap) | 453 |
 | Tour pages fetched | 453 |
-| Tours that normalise (would be saved if the checks passed) | **99** |
+| Pages whose tour normalises | 99 |
+| Tours that would be saved if the checks passed | **98**: `/tour/EIMz` and `/tour/EIMM` both state the tour code `EIMM`, so the later one is skipped as a duplicate (`duplicate tour code EIMM, keeping the first`), on every run |
 | Pages with no upcoming departures | 353 (`沒有數據。` in the booking table; skipped, not failures) |
 | Parse failures | **1 (0.2%)**: `/tour/EWIB-2`, parser returned null |
-| Run checks | **failed** (`below-minimum`): 99 is under the floor of 150 |
+| Run checks | **failed** (`below-minimum`): 98 is under the floor of 150 |
 
-**The floor of 150 is too high for Jetour.** It was set from pages listed (≈453), but most listed tours have no dates on sale: 107 pages in the practice crawl and 353 now. The round-1 estimate of "343 would normalise" counted the 311 former `no-stops` pages as normalising without their departures being checked; 244 of them have none. A third of the 99 tours that normalise is **33**; a floor of about **35** would be the equivalent of the Travel Expert floor (40 against 112). Reported to the controller, who ruled the floor becomes **35**; changed after this crawl (`minExpectedTours: 35`), so 99 tours would now pass the floor.
+**The floor of 150 is too high for Jetour.** It was set from pages listed (≈453), but most listed tours have no dates on sale: 107 pages in the practice crawl and 353 now. The round-1 estimate of "343 would normalise" counted the 311 former `no-stops` pages as normalising without their departures being checked; 244 of them have none. A third of the 98 tours that normalise (99 pages, one a duplicate code) is **33**; a floor of about **35** would be the equivalent of the Travel Expert floor (40 against 112). Reported to the controller, who ruled the floor becomes **35**; changed after this crawl (`minExpectedTours: 35`), so 98 tours would now pass the floor.
 
 Top 30 unmatched names (pages each appeared on; 3,296 distinct): 舊城區 58, 大教堂 46, 自由購物 32, 古城區 31, 教堂橋 27, 獅子紀念碑 27, 市政廳 25, 舊城廣場 24, 聖誕老人村 23, 哈士奇雪橇犬場 22, 帝王蟹之旅 22, 查理斯橋 22, 聖家大教堂 22, 凱旋門 21, 百水公寓 21, 國會大廈 20, 聖維特教堂 20, 荷夫堡 20, 賽里木湖 20, 離船 20, 黃金小徑 20, 主教堂 19, 太湖珍珠館 19, 米拉之家 19, 紫砂博物館 19, 航海紀念碑 19, 梅家塢茶園 18, 西班牙廣場 18, 面譜屋 18, 哥倫布廣場 17. Attractions only: no missing city among them.
 
-Sample of 40 of the 99 tours, routes compared with their headings: one wrong city, **KMA (and KMC) 艾佛德 (Erfoud) from `艾佛德神學院`**, a madrasa in Fes (`費斯 ~ 古城區 ~ 艾佛德神學院 ~ 費斯皮革染坊`), which put Erfoud between two Fes stops. Fixed after the crawl with the `notPlaces` entry `艾佛德神學院` (test: Erfoud itself still reads). The rest are the accepted transit limits: Paris/Amsterdam named plainly on QUAK (`巴黎 ~ 利馬`, `利馬 ~ 巴黎`), QMB (`巴黎 ~ 墨西哥城`, `巴黎 或 阿姆斯特丹 ~ 香港`), QTCRR and QTDR (`經巴黎 或 阿姆斯特丹 轉機`).
+Sample of 40 of the 98 tours, routes compared with their headings: one wrong city, **KMA (and KMC) 艾佛德 (Erfoud) from `艾佛德神學院`**, a madrasa in Fes (`費斯 ~ 古城區 ~ 艾佛德神學院 ~ 費斯皮革染坊`), which put Erfoud between two Fes stops. Fixed after the crawl with the `notPlaces` entry `艾佛德神學院` (test: Erfoud itself still reads). The rest are the accepted transit limits: Paris/Amsterdam named plainly on QUAK (`巴黎 ~ 利馬`, `利馬 ~ 巴黎`), QMB (`巴黎 ~ 墨西哥城`, `巴黎 或 阿姆斯特丹 ~ 香港`), QTCRR and QTDR (`經巴黎 或 阿姆斯特丹 轉機`).
