@@ -3,6 +3,9 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate, MAX_CHAIN_LEGS, type ChainState } from '@hktours/core';
 import type { Db, TourCardData } from '@hktours/db/read';
+import styles from './page.module.css';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { I18nProvider } from '../../lib/i18n-client';
 import { resolveChain } from '../../lib/chain';
 import type { ChainPageData } from '../../lib/chain-page-data';
@@ -272,4 +275,16 @@ it('the filter bar offers filterOperators; the strip and cards look operators up
   await userEvent.setup().click(screen.getByRole('button', { name: '旅行社：全部' }));
   const dialog = screen.getByRole('dialog', { name: '旅行社' });
   expect(within(dialog).getAllByRole('checkbox').map(box => box.parentElement?.textContent)).toEqual(['捷旅', '專業旅運']);
+});
+
+// The 按國家選擇 panel hangs off the search row on phones (DestinationPanels.module.css), so the button must sit
+// inside that row and the row must be positioned.
+it('the 按國家選擇 button sits in the positioned search row, with the search box', async () => {
+  mocks.loadChainPage.mockResolvedValue(data);
+  await renderPage({});
+  const row = screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.searchRow}`);
+  expect(row).not.toBeNull();
+  expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
+  const css = readFileSync(join(__dirname, 'page.module.css'), 'utf8').replace(/\s+/g, ' ');
+  expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
 });

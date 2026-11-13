@@ -253,3 +253,31 @@ describe('the panel scrolls inside the viewport', () => {
     expect(screen.getByRole('button', { name: '按國家選擇' })).toHaveAttribute('aria-expanded', 'true');
   });
 });
+
+describe('the panel never reaches past the viewport sideways', () => {
+  const css = () => readFileSync(join(__dirname, 'DestinationPanels.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const phoneBlock = () => /@media \(max-width: 639px\) \{(.*)\}\s*$/.exec(css())?.[1] ?? '';
+
+  it('from 640 px, beside the search box, it is right-aligned under its button and opens leftwards', () => {
+    expect(css()).toMatch(/^[^@]*\.panels \{ position: relative; \}/);
+    const panel = /^[^@]*\.panel \{([^}]*)\}/.exec(css())?.[1] ?? '';
+    expect(panel).toContain('right: 0;');
+    expect(panel).not.toMatch(/(^|[^-])left:/);
+    expect(panel).toContain('width: 480px;');
+  });
+
+  it('below 640 px it hangs off the left edge of the search row, as wide as the screen allows', () => {
+    const block = phoneBlock();
+    expect(block).toContain('.panels { position: static; }');
+    expect(block).toMatch(/\.panel \{ left: 0; right: auto; \}/);
+    // max-width stays calc(100vw - 32px), the page's 16 px gutters, so it ends 16 px from the right edge.
+    expect(css()).toContain('max-width: calc(100vw - 32px);');
+  });
+
+  it('both pages position their search row, so the panel has the row to hang off', () => {
+    for (const page of ['../app/page.module.css', '../app/chain/page.module.css']) {
+      const pageCss = readFileSync(join(__dirname, page), 'utf8').replace(/\s+/g, ' ');
+      expect(pageCss, page).toMatch(/\.searchRow \{[^}]*position: relative;/);
+    }
+  });
+});

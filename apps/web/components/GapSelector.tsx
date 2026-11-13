@@ -29,31 +29,36 @@ function digitsOnly(text: string): string {
  * commits an input-method candidate), so typing 1 on the way to 10 does not reload the list. On apply a number
  * above MAX_GAP_DAYS becomes MAX_GAP_DAYS, an empty field goes back to its value, and a minimum above the
  * maximum moves the maximum to match (and the reverse). Applying the gap already shown calls nothing.
+ *
+ * The fields show the address's gap. An applied gap is shown only until the next address arrives (a new `gap`
+ * prop, even with the same values: a competing navigation may land on the old gap); text being typed is kept.
  */
 export function GapSelector({ gap, onChange, t }: GapSelectorProps) {
-  // The applied gap: the address's, or one applied here since and not yet back from the address.
-  const [current, setCurrent] = useState(gap);
-  const [fromAddress, setFromAddress] = useState(gap);
-  if (fromAddress.min !== gap.min || fromAddress.max !== gap.max) {
-    setFromAddress(gap);
-    setCurrent(gap);
+  // Text being typed in a field; null shows the gap.
+  const [typing, setTyping] = useState<Record<Field, string | null>>({ min: null, max: null });
+  // A gap applied here, shown until the next address arrives.
+  const [applied, setApplied] = useState<Gap | null>(null);
+  const [address, setAddress] = useState(gap);
+  if (address !== gap) {
+    setAddress(gap);
+    setApplied(null);
   }
-  // What a field shows while it is being typed in; null shows the applied value.
-  const [drafts, setDrafts] = useState<Record<Field, string | null>>({ min: null, max: null });
+  const shown = applied ?? gap;
 
   const type = (field: Field) => (e: ChangeEvent<HTMLInputElement>) => {
     const text = digitsOnly(e.target.value);
-    setDrafts(d => ({ ...d, [field]: text }));
+    setTyping(d => ({ ...d, [field]: text }));
   };
 
   const apply = (field: Field) => {
-    const draft = drafts[field];
-    setDrafts(d => ({ ...d, [field]: null }));
-    if (draft === null || draft === '') return; // nothing typed, or emptied: back to the value it had
-    const n = Math.min(Number(draft), MAX_GAP_DAYS);
-    const next = field === 'min' ? { min: n, max: Math.max(current.max, n) } : { min: Math.min(current.min, n), max: n };
-    if (next.min === current.min && next.max === current.max) return;
-    setCurrent(next);
+    const text = typing[field];
+    if (text === null) return; // nothing typed since the last apply (e.g. Enter, then leaving the field)
+    setTyping(d => ({ ...d, [field]: null }));
+    if (text === '') return; // emptied: back to the value it had
+    const n = Math.min(Number(text), MAX_GAP_DAYS);
+    const next = field === 'min' ? { min: n, max: Math.max(shown.max, n) } : { min: Math.min(shown.min, n), max: n };
+    if (next.min === shown.min && next.max === shown.max) return;
+    setApplied(next);
     onChange(next);
   };
 
@@ -72,7 +77,7 @@ export function GapSelector({ gap, onChange, t }: GapSelectorProps) {
         pattern="[0-9]*"
         autoComplete="off"
         className={styles.input}
-        value={drafts[field] ?? String(current[field])}
+        value={typing[field] ?? String(shown[field])}
         onChange={type(field)}
         onKeyDown={onKeyDown(field)}
         onBlur={() => apply(field)}
