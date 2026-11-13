@@ -37,15 +37,16 @@ A dry run of one operator's scrape, which fetches real pages from the operator's
 pnpm scrape --operator jetour --dry-run --limit 5
 ```
 
-`--operator` is one of `jetour` or `texpert` (the ids `egl` and `bigline` are recognised but have no scraper). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`.
+`--operator` is one of `jetour` or `texpert` (the ids `egl` and `bigline` are recognised but have no scraper). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL` (and uses `DATABASE_CA_CERT` when it is set).
 
-To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>`, then `pnpm --filter @hktours/web dev`. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
+To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>` (and, for a hosted database, optionally `DATABASE_CA_CERT=<certificate>`), then `pnpm --filter @hktours/web dev`. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
 
 ### Environment variables
 
 | Name | Used by | Meaning |
 |---|---|---|
-| `DATABASE_URL` | website, scraper, `pnpm db:migrate` | Postgres connection string. Never commit it. |
+| `DATABASE_URL` | website, scraper, `pnpm db:migrate` | Postgres connection string. Never commit it. TLS is always used unless the host is `localhost`, `127.0.0.1`, `::1` or a Unix socket; TLS parameters in the string (`sslmode`, `ssl`, `sslcert`, `sslkey`, `sslrootcert`, `sslnegotiation`) are removed and have no effect. |
+| `DATABASE_CA_CERT` | website, scraper, `pnpm db:migrate` | Optional but recommended for a hosted database: the PEM text of the database's CA certificate (real line breaks, or `\n` in their place). With it the server's identity is verified; without it the connection is encrypted but not verified, and a warning is logged. Empty counts as not set. Text that is not a certificate stops the program with an error that does not show the value. |
 | `DEV_LOCALE` | website | Set to `en` to see the developer English text. Ignored in production (`VERCEL_ENV=production`): the public site is Traditional Chinese only. |
 
 ## Layout
