@@ -10,6 +10,7 @@ export const jetourScraper: OperatorScraper = {
   id: 'jetour',
   discover,
   parse: (html, url) => parse(html, url),
-  // First-run floor: about a third of the tours that had dates on sale in the 2026-11-13 confirmation crawl (99 of 453 pages).
+  // First-run floor: about a third of the tours that had dates on sale in the 2026-11-13 confirmation crawl
+  // (99 of 453 pages had dates; two of them share the code EIMM, so 98 distinct tours would be saved).
   minExpectedTours: 35,
 };
