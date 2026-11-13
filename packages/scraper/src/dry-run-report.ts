@@ -54,7 +54,10 @@ function stopName(stop: Stop, index: PlacesIndex): string {
   return `${place?.nameZh ?? stop.cityId ?? stop.regionId} (${index.country(stop.countryId)?.nameZh ?? stop.countryId})`;
 }
 
-/** The page's outcome, normalised the way runOperator normalises it. */
+/**
+ * The page's outcome, normalised the way runOperator normalises it. This mirrors the
+ * scrapedTourSchema.safeParse and normaliseTour sequence in run-operator.ts and must change with it.
+ */
 export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDate): PageDescription {
   const { url, parsed } = page;
   if (parsed === null) return { url, result: 'parser-null' };
