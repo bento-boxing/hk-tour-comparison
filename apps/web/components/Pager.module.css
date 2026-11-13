@@ -1,0 +1,9 @@
+/* Not in the mockup: paging links styled as the filter pills (.f). */
+.pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 24px 0 8px; font-size: 13px; }
+.link {
+  padding: 6px 13px; border: 1px solid var(--khaki); border-radius: var(--radius-pill); background: var(--surface);
+  color: var(--charcoal); text-decoration: none;
+}
+.link:hover { background: var(--hit); }
+.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.page { color: var(--text-muted); }

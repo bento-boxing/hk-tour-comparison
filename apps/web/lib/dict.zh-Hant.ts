@@ -49,6 +49,36 @@ const zh = {
   'date.month.10': '10月',
   'date.month.11': '11月',
   'date.month.12': '12月',
+  'search.count': '共 {n} 個旅行團',
+  'search.empty': '找不到符合條件的旅行團',
+  'search.clearAll': '清除所有篩選',
+  'search.error': '暫時未能載入資料，請稍後再試。',
+  'filter.dates': '出發日期',
+  'filter.days': '日數',
+  'filter.price': '價錢',
+  'filter.operators': '旅行社',
+  'filter.sort': '排序',
+  'filter.all': '全部',
+  'filter.daysRange': '{min}–{max}日',
+  'filter.daysPlus': '{min}日以上',
+  'filter.label': '{name}：{value}', // a pill: '日數：4–6日'
+  'filter.pricePlus': '{min}以上', // {min} is a formatted price: 'HK$5,000以上'
+  'filter.exclude': '排除',
+  'filter.none': '無', // '排除：無'
+  'filter.from': '由',
+  'filter.to': '至',
+  'filter.apply': '套用',
+  'filter.reset': '清除',
+  'filter.clearDestination': '清除目的地：{dest}', // the destination pill's accessible name
+  'sort.price': '價錢 低→高',
+  'sort.days': '日數 短→長',
+  'sort.date': '出發日期 早→遲',
+  'sort.destination': '目的地',
+  'pager.prev': '上一頁',
+  'pager.next': '下一頁',
+  'pager.page': '第 {page} / {pages} 頁',
+  'pager.first': '回到第 1 頁',
+  'pager.label': '分頁',
 };
 
 export default zh;

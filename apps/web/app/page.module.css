@@ -1,0 +1,5 @@
+/* The search bar (mockup .search, max 520px) with the 按國家選擇 button beside it; the button wraps below on phones. */
+.searchRow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.searchBox { flex: 1 1 280px; max-width: 520px; }
+
+.error { margin: 24px 0; padding: 20px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; font-size: 15px; }

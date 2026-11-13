@@ -1,0 +1,70 @@
+/* Mockup .filters / .f / .f.on. A filled pill is marked data-on="true" instead of the mockup's .on class. */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+.f {
+  background: var(--surface); border: 1px solid var(--khaki); border-radius: var(--radius-pill); padding: 6px 13px;
+  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+}
+.f:hover { background: var(--hit); }
+.f[data-on='true'] { background: var(--cerulean); color: var(--snow); border-color: var(--cerulean); }
+.f:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+
+/* Not in the mockup: the popovers, in the style of the departure picker. */
+.slot { position: relative; }
+.popover {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+  min-width: 240px; max-width: calc(100vw - 32px); max-height: 360px; overflow-y: auto;
+  padding: 10px 12px; background: var(--surface); color: var(--charcoal);
+  border: 1px solid var(--ash); border-radius: 8px; box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);
+}
+.wide { width: 400px; }
+.title { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip {
+  padding: 5px 12px; border: 1px solid var(--khaki); border-radius: var(--radius-pill); background: var(--surface);
+  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+}
+.chip:hover { background: var(--hit); }
+.chip[aria-pressed='true'] { background: var(--cerulean); border-color: var(--cerulean); color: var(--snow); }
+
+.range { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.input {
+  width: 120px; padding: 6px 8px; border: 1px solid var(--khaki); border-radius: 6px;
+  font: inherit; font-size: 14px; color: var(--charcoal); background: var(--surface);
+}
+.input[type='date'] { width: 150px; }
+.actions { display: flex; justify-content: flex-end; gap: 6px; width: 100%; margin-top: 4px; }
+.reset, .apply { padding: 6px 12px; border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; }
+.reset { border: 0; background: none; color: var(--cerulean); }
+.reset:hover { background: var(--hit); }
+.apply { border: 1px solid var(--cerulean); background: var(--cerulean); color: var(--snow); font-weight: 700; }
+
+.checks { margin: 0; padding: 0; list-style: none; }
+.countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.check { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.check:hover { background: var(--hit); }
+.check input { margin: 0; accent-color: var(--cerulean); }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+
+.options { margin: 0; padding: 0; list-style: none; }
+.option {
+  display: block; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: none; text-align: left;
+  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+}
+.option:hover { background: var(--hit); }
+.option[aria-pressed='true'] { color: var(--cerulean); font-weight: 700; }
+
+.chip:focus-visible, .reset:focus-visible, .apply:focus-visible, .input:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.option:focus-visible { outline: 2px solid var(--cerulean); outline-offset: -2px; background: var(--hit); }
+.check:has(input:focus-visible) { outline: 2px solid var(--cerulean); outline-offset: -2px; }
+
+/* Phones: a popover spans the whole bar instead of hanging off its pill past the screen edge. */
+@media (max-width: 639px) {
+  .filters { position: relative; }
+  .slot { position: static; }
+  .popover, .wide { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
+  .input { font-size: 16px; } /* 16px stops iOS zooming into the field on focus */
+  .check, .option { padding: 9px 6px; }
+}
