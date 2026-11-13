@@ -1,6 +1,6 @@
 {
   "sourceUrl": "https://www.jetour.com.hk/tour/TSEQ",
-  "verifiedByOwner": false,
+  "verifiedByOwner": true,
   "notes": "Day 1 `香港 ~ 杭州/上海 ~ …` and day 6 `… ~ 杭州/上海 ~ 香港` name an either/or flight city. Rule (controller ruling, Task 15 fix round 1): an `X/Y` segment right after 香港 on day 1, or right before 香港 on the last day, is dropped from dayHeadings; `X/Y` anywhere else is kept. The route then starts in Shanghai, as day 1's title 香港出發前往上海, its hotel 上海滴水湖洲際酒店 and day 2's 上海 say. The owner should confirm this rule.",
   "scraped": {
     "operatorId": "jetour",

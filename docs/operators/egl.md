@@ -1,4 +1,4 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-13: controller applying the owner's stated rule (ten terms PDFs read, no prohibiting clause; robots.txt obeyed)
 
 # EGL Tours 東瀛遊 (`egl`): operator investigation
 
