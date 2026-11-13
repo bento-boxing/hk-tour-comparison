@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places, suggestRegions, ALL_REGIONS_LABEL, COUNTRY_GROUPS, type Destination } from '@hktours/core';
 import { DestinationPanels } from './DestinationPanels';
@@ -198,5 +200,56 @@ describe('countries grouped by part of the world', () => {
 
   it('the group headings are the dictionary text, which matches the labels in core', () => {
     for (const g of COUNTRY_GROUPS) expect(tZh(`countryGroup.${g.id}`), g.id).toBe(g.nameZh);
+  });
+});
+
+describe('the panel scrolls inside the viewport', () => {
+  const css = () => readFileSync(join(__dirname, 'DestinationPanels.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const panelRule = () => /\.panel \{([^}]*)\}/.exec(css())?.[1] ?? '';
+
+  it('has a maximum height within the viewport (dvh, with a vh fallback first), scrolls up and down only, and keeps the scroll to itself', () => {
+    const rule = panelRule();
+    expect(rule).toMatch(/max-height: min\(70vh, 32rem\);.*max-height: min\(70dvh, 32rem\);/);
+    expect(rule).toContain('overflow-y: auto;');
+    expect(rule).toContain('overflow-x: hidden;');
+    expect(rule).toContain('overscroll-behavior: contain;');
+    expect(rule).toContain('max-width: calc(100vw - 32px);'); // no sideways scroll at 375 px
+  });
+
+  it('the grouped countries and the region step are both inside the one scrolling panel', async () => {
+    renderPanels();
+    await open();
+    const toggle = screen.getByRole('button', { name: '按國家選擇' });
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    for (const group of screen.getAllByRole('group')) expect(panel).toContainElement(group);
+    await user.click(within(panel).getByRole('button', { name: '日本' }));
+    expect(panel).toContainElement(screen.getByRole('button', { name: '全部地區' }));
+    expect(panel).toContainElement(screen.getByRole('list'));
+  });
+
+  it('scrolling the panel, or pressing on it (its scrollbar), does not close it', async () => {
+    renderPanels();
+    await open();
+    const toggle = screen.getByRole('button', { name: '按國家選擇' });
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+    fireEvent.pointerDown(panel);
+    fireEvent.mouseDown(panel);
+    fireEvent.touchStart(panel);
+    fireEvent.wheel(panel);
+    fireEvent.scroll(panel);
+    fireEvent.pointerUp(panel);
+    fireEvent.click(panel);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: '日本' })).toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('a country further down takes keyboard focus normally, so the browser scrolls it into view', async () => {
+    renderPanels();
+    await open();
+    const last = screen.getAllByRole('button').filter(b => b.hasAttribute('data-country')).at(-1)!;
+    while (document.activeElement !== last) await user.tab();
+    expect(last).toHaveFocus();
+    expect(screen.getByRole('button', { name: '按國家選擇' })).toHaveAttribute('aria-expanded', 'true');
   });
 });
