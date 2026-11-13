@@ -124,3 +124,25 @@ Removed by hand after trimming: the `<meta name="sentry-trace">` and `<meta name
 | 4 | 22:29:40 | https://www.texpert.com/zh-hk/tour/1386-guangdong-tour-2-day-pure-play-with-special-natural-sea-hot | 200 |
 | 5 | 22:29:43 | https://www.texpert.com/zh-hk/tour/1359-guangdong-province-tour-1-day-new-huanggang-experience | 200 |
 | 6 | 22:33:24 | https://www.texpert.com/en/terms | 200 |
+
+## Practice crawl (Task 19)
+
+`pnpm scrape --operator texpert --dry-run`, run once on **2026-11-13** (Hong Kong), 02:20–02:27 UTC, through `createFetcher` (one fetcher, about 3.5 s per page), right after the Jetour crawl finished. No 403, 429, bot challenge, retry or unfetched page. This crawl already ran with the `松山湖` and `西貢` fixes in the places list (Task 19), not with the rest of the additions.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | 117 |
+| Tour pages fetched | 117 |
+| Tours saved (to the throwaway database) | 0: the run failed its checks (`too-many-parse-failures`) |
+| Parse failures | 31 (26.5%), all `no-stops` |
+| Skipped, no upcoming departures | 3 (not failures) |
+| Tours that normalised | 83 |
+
+**Cause:** mostly missing places (Guangdong towns such as 順德, 肇慶, 中山, 清遠, 增城, 從化, 韶關, 開平, 台山; 賀州 and 梧州 in Guangxi; Hainan; Hubei; Phu Quoc).
+
+**After extending the places list:** pages were not re-crawled; the dry run's printed day headings were re-processed offline with the new list: **1 parse failure in 117 pages (0.9%)**, 113 tours would normalise. The one left, `383-guangdong-province-tour-2-day-fairy-tale-late-autumn-red` (YASR02R), names its places only inside `【】` brackets, which the extractor drops (`新會`), and otherwise 南沙 (a district).
+
+Heading problems seen (parser or headings, not places), recorded for the owner:
+- **Line breaks inside words.** The `details summary h3` text keeps the page's line wrapping as spaces, which split names in two: `前往江 門`, `從化溫 泉小鎮`, `長白 山人參`, `紅 葉`. A name split this way is not matched (`江 門` gives `江` and `門`). The pages above still matched through other names, but this will cost matches.
+- **Prose headings.** Short tours put the whole day in the heading, so meals, shows and slogans (`結束愉快旅程！`, `網紅打卡點`, `永春` from `龍舟、永春、香雲紗` meaning Wing Chun, not 永春 in Fujian) dominate the unmatched names. 永春 was deliberately not added.
+- **Transit and meeting points.** `中轉深圳北/廣州南`, `乘車返回深圳` put Shenzhen or Guangzhou on routes of tours that only pass through; `黃金海岸` (a beach in Quanzhou) matches Gold Coast exactly, which `notPlaces` cannot prevent.
