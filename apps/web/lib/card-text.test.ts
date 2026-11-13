@@ -32,6 +32,15 @@ it('regionLabel', () => {
   expect(regionLabel([], places)).toBe('');
 });
 
+it('regionLabel names a country once when its region has the same name', () => {
+  const paris: Stop = { countryId: 'france', regionId: 'france-france', cityId: 'france-france-paris' };
+  const zurich: Stop = { countryId: 'switzerland', regionId: 'switzerland-switzerland', cityId: 'switzerland-switzerland-zurich' };
+  expect(regionLabel([paris], places)).toBe('法國');
+  expect(regionLabel([paris, zurich], places)).toBe('法國 +1');
+  // A different region name still shows both, and later same-named regions only count towards +N.
+  expect(regionLabel([...kansaiStops, paris], places)).toBe('日本 · 關西 +1');
+});
+
 it.each([
   [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500　比7日前', 'down'],
   [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-05' }, '↑ HK$300　比7日前', 'up'],

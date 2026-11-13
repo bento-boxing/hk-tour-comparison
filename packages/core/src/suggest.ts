@@ -24,6 +24,8 @@ function matching<T extends Place>(items: T[], test: NameTest): T[] {
  * Turns a search-bar query into `Country → Region` suggestions, best matches first:
  * exact city, region, country; then prefix city, region, country; then substring city, region.
  * A country reached by an exact city or region match also gets its 全部地區 row, after its last such row.
+ * A country with exactly one region never gets a region row: its single row is 全部地區 (with `via` when a
+ * city matched), so 新加坡 reads `新加坡 → 全部地區`, not `新加坡 → 新加坡`.
  * Chinese names, aliases and English names all match; labels are always Chinese.
  */
 export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Suggestion[] {
@@ -38,9 +40,11 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
     seen.add(key);
     results.push(s);
   };
+  // A country with one region gets its 全部地區 row instead: the two would find the same tours.
   const addRegion = (region: Region | undefined, via: string | null = null) => {
     const country = region && index.country(region.countryId);
     if (!region || !country) return;
+    if (index.regionsOf(country.id).length === 1) return add(allRegionsRow(country, via));
     add({ destination: { countryId: country.id, regionId: region.id }, label: `${country.nameZh} → ${region.nameZh}`, via });
   };
   const addCity = (city: City) => addRegion(index.region(city.regionId), city.nameZh);
@@ -71,8 +75,8 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   return withAllRegionsAfterExact(results, exactRegionRows, index).slice(0, limit);
 }
 
-function allRegionsRow(country: Country): Suggestion {
-  return { destination: { countryId: country.id, regionId: null }, label: `${country.nameZh} → ${ALL_REGIONS_LABEL}`, via: null };
+function allRegionsRow(country: Country, via: string | null = null): Suggestion {
+  return { destination: { countryId: country.id, regionId: null }, label: `${country.nameZh} → ${ALL_REGIONS_LABEL}`, via };
 }
 
 /**
