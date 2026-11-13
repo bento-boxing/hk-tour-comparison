@@ -194,7 +194,7 @@ describe('on the seed table', () => {
         days: 5, nights: null,
         stops: [SEOUL, NAMI],
         start: { kind: 'other', label: '深圳灣' }, end: { kind: 'sz', label: null },
-        fromPriceHkd: 5699, windowPriceHkd: 5699,
+        fromPriceHkd: 5699, windowPriceHkd: 5699, fallbackPriceHkd: 5699,
         departures: [{ date: '2026-12-24', priceHkd: 5699 }, { date: '2026-12-25', priceHkd: null }],
         priceChange: null,
         lastUpdated: RUN_FINISHED,
@@ -263,10 +263,23 @@ describe('on the seed table', () => {
     const kix = m.get('egl:KIX5')!;
     expect(kix).toMatchObject({
       operatorId: 'egl', days: 5, nights: 4, stops: [OSAKA, KYOTO, NARA],
-      fromPriceHkd: 7999, windowPriceHkd: 7999,
+      fromPriceHkd: 7999, windowPriceHkd: 7999, fallbackPriceHkd: 7999,
       priceChange: { kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' },
       lastUpdated: EGL_SECOND_RUN_FINISHED,
     });
+  });
+
+  it('fallbackPriceHkd is the stored from-price, even when the computed fromPriceHkd differs', async () => {
+    // On 2026-12-26 the 7999 departure of egl:KIX5 has passed: the upcoming minimum is 8999,
+    // but a departure without its own price is still priced at the stored 7999.
+    const later: IsoDate = '2026-12-26';
+    const searched = (await searchTours(db, { filters: { operators: ['egl'] }, sort: 'price', page: 1, today: later })).tours[0];
+    const byKey = (await getToursByKeys(db, ['egl:KIX5'], later)).get('egl:KIX5')!;
+    for (const kix of [searched, byKey]) {
+      expect(kix.key).toBe('egl:KIX5');
+      expect(kix.fromPriceHkd).toBe(8999);
+      expect(kix.fallbackPriceHkd).toBe(7999);
+    }
   });
 
   it('getToursByKeys lists only departures from today on and omits a tour with none left', async () => {
