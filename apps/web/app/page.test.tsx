@@ -99,7 +99,9 @@ it('shows the error message when the database is unreachable', async () => {
 
 it.each([
   ['the connection timeout', Object.assign(new Error('Connection terminated due to connection timeout'), {})],
-  ['the statement timeout', Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })],
+  ['the query timeout (pg, client side)', new Error('Query read timeout')],
+  // Only if a statement_timeout is set on the database role (an optional safeguard).
+  ['a server-side statement timeout', Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })],
 ])('shows the error message when the database hits %s', async (_, err) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockRejectedValue(err);
