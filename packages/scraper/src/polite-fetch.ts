@@ -31,13 +31,28 @@ export interface FetcherOptions {
   delayMs?: number;                   // per site, from the end of one request to the start of the next; defaults to REQUEST_DELAY_MS
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
+  /**
+   * Extra request headers for one page URL, sent on every page request (each redirect hop is asked
+   * for its own), never on robots.txt. They cannot replace the User-Agent: any user-agent key is dropped.
+   */
+  extraHeaders?: (url: URL) => Record<string, string>;
 }
 
 /** createFetcher's fetcher: pages as text, or as raw bytes for binary files such as PDFs. */
 export interface PoliteFetcher extends Fetcher {
   /** One file's exact bytes, under the same rules as fetchText. null whenever fetchText would be. */
   fetchBytes(url: string): Promise<Uint8Array | null>;
+  /**
+   * POSTs `body` as JSON (Content-Type: application/json) and returns the 200 answer's text, or null
+   * (logged). Same robots.txt check, site queue, spacing, extraHeaders and pushback counting as a GET,
+   * but sent exactly once: a POST may not be safe to repeat, so it is never retried (not even after
+   * a network error or 5xx), and a redirect answer is not followed.
+   */
+  postJson(url: string, body: unknown): Promise<string | null>;
 }
+
+/** A POST and its JSON text. */
+interface PostJson { json: string }
 
 /**
  * The key requests are queued and spaced by: the host name, lower-cased, without a
@@ -131,6 +146,7 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
+  const extraHeaders = opts.extraHeaders ?? (() => ({}));
 
   const queues = new Map<string, SiteQueue>();              // by site
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
@@ -168,16 +184,22 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   /**
    * One HTTP request, through its site's queue. Never throws. A page request whose
    * site was refused while it waited in the queue is not sent. Page answers count toward
-   * the site's pushback (robots.txt answers do not).
+   * the site's pushback (robots.txt answers do not). Page requests carry extraHeaders; `post`
+   * makes it a POST with that JSON body.
    */
-  function request(url: URL, isPage: boolean): Promise<Answer> {
+  function request(url: URL, isPage: boolean, post?: PostJson): Promise<Answer> {
     return queueFor(url).run(async (): Promise<Answer> => {
       const siteRefusal = isPage ? refusedSites.get(siteOf(url)) : undefined;
       if (siteRefusal !== undefined) return { kind: 'refused', why: siteRefusal };
       let res: Response;
       try {
+        const headers = new Headers(isPage ? extraHeaders(url) : {});
+        if (post) headers.set('content-type', 'application/json');
+        headers.set('user-agent', userAgent); // last, so nothing can replace it
         res = await fetch(url, {
-          headers: { 'user-agent': userAgent },
+          method: post ? 'POST' : 'GET',
+          body: post?.json,
+          headers,
           redirect: 'manual',
           signal: AbortSignal.timeout(timeoutMs),
         });
@@ -323,11 +345,27 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
     return null;
   }
 
+  /** See PoliteFetcher.postJson: checked like a page, sent once, never retried or redirected. */
+  async function postJson(url: string, body: unknown): Promise<string | null> {
+    const target = httpUrl(url);
+    if (target === null) {
+      log(`not an http(s) URL: ${url}`);
+      return null;
+    }
+    const answer = await whyNotAllowed(target) ?? await request(target, true, { json: JSON.stringify(body) });
+    if (typeof answer !== 'string' && answer.kind === 'response' && answer.status === 200) {
+      return decodeText(answer.body ?? new Uint8Array());
+    }
+    log(`not fetched ${url} (POST, not retried): ${typeof answer === 'string' ? answer : describe(answer)}`);
+    return null;
+  }
+
   return {
     async fetchText(url) {
       const body = await fetchBody(url);
       return body === null ? null : decodeText(body);
     },
     fetchBytes: fetchBody,
+    postJson,
   };
 }

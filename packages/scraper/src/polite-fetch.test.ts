@@ -4,10 +4,13 @@ import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import {
   createFetcher, siteOf, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
+  type PoliteFetcher,
 } from './polite-fetch';
-import type { Fetcher } from './types';
 
-interface RecordedRequest { path: string; userAgent: string | undefined; start: number; end: number }
+interface RecordedRequest {
+  path: string; userAgent: string | undefined; start: number; end: number;
+  method: string; headers: IncomingMessage['headers']; body: string;
+}
 
 interface TestServer {
   url(path: string): string;
@@ -18,7 +21,8 @@ interface TestServer {
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
 /**
- * A local HTTP server on a random port that records each request's path, user-agent, start and end time.
+ * A local HTTP server on a random port that records each request's path, user-agent, start and end time,
+ * method, headers and body (the body is complete once the response has finished).
  * Every server on 127.0.0.1 is one site (see siteOf); one on `localhost` is another.
  */
 async function startServer(handler: Handler, host: '127.0.0.1' | 'localhost' = '127.0.0.1'): Promise<TestServer> {
@@ -26,8 +30,11 @@ async function startServer(handler: Handler, host: '127.0.0.1' | 'localhost' = '
   const server = createServer((req, res) => {
     const record: RecordedRequest = {
       path: req.url ?? '', userAgent: req.headers['user-agent'], start: performance.now(), end: Infinity,
+      method: req.method ?? '', headers: req.headers, body: '',
     };
     requests.push(record);
+    req.setEncoding('utf8');
+    req.on('data', (chunk: string) => { record.body += chunk; });
     res.on('finish', () => { record.end = performance.now(); });
     handler(req, res);
   });
@@ -69,13 +76,19 @@ const mainHandler: Handler = (req, res) => {
     case '/to-a': return send(res, 301, '', { location: '/a' });
     case '/binary': res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(BINARY); return;
     case '/private/binary': res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(BINARY); return;
+    case '/echo': { // answers "<method> <body>" once the whole request body has arrived
+      let body = '';
+      req.on('data', (chunk: string) => { body += chunk; });
+      req.on('end', () => send(res, 200, `${req.method} ${body}`));
+      return;
+    }
     default: return send(res, 404);
   }
 };
 
 let main: TestServer;
 let logLines: string[];
-let f: Fetcher;
+let f: PoliteFetcher;
 const url = (path: string) => main.url(path);
 const requestsTo = (path: string) => main.requests.filter(r => r.path === path);
 
@@ -516,6 +529,84 @@ it('fetchBytes returns the exact bytes, through the same robots.txt check, queue
   expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/binary', '/missing']);
   for (const r of main.requests) expect(r.userAgent).toBe('test-bot/0.1');
   expectSpacedAndSerial(main.requests, 190);
+});
+
+/** A fetcher that adds `x-site-key: <path>` to every page request, and tries (and fails) to replace the User-Agent. */
+function fetcherWithExtraHeaders(): PoliteFetcher {
+  return createFetcher({
+    userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
+    extraHeaders: page => ({ 'x-site-key': page.pathname, 'User-Agent': 'Mozilla/5.0 pretend' }),
+  });
+}
+
+it('extraHeaders go on every page request and every redirect hop, but never on robots.txt', async () => {
+  const h = fetcherWithExtraHeaders();
+  expect(await h.fetchText(url('/to-a'))).toBe('ok-a');
+  expect(main.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([
+    ['/robots.txt', undefined], ['/to-a', '/to-a'], ['/a', '/a'],
+  ]);
+});
+
+it('extraHeaders cannot replace the User-Agent', async () => {
+  const h = fetcherWithExtraHeaders();
+  expect(await h.fetchText(url('/a'))).toBe('ok-a');
+  expect(await h.fetchBytes(url('/b'))).not.toBeNull();
+  expect(await h.postJson(url('/echo'), {})).not.toBeNull();
+  expect(main.requests).toHaveLength(4);
+  for (const r of main.requests) expect(r.userAgent).toBe('test-bot/0.1');
+});
+
+it('without extraHeaders nothing beyond the User-Agent is added', async () => {
+  await f.fetchText(url('/a'));
+  expect(requestsTo('/a')[0].headers['x-site-key']).toBeUndefined();
+  expect(requestsTo('/a')[0].method).toBe('GET');
+});
+
+it('postJson POSTs the body as JSON with the User-Agent and extraHeaders, and returns the answer text', async () => {
+  const h = fetcherWithExtraHeaders();
+  const answer = await h.postJson(url('/echo'), { pageNo: 1, productId: '9109', yearMonth: '2026-12' });
+  expect(answer).toBe('POST {"pageNo":1,"productId":"9109","yearMonth":"2026-12"}');
+  const [post] = requestsTo('/echo');
+  expect(post.method).toBe('POST');
+  expect(post.headers['content-type']).toBe('application/json');
+  expect(post.headers['x-site-key']).toBe('/echo');
+  expect(post.userAgent).toBe('test-bot/0.1');
+});
+
+it('postJson obeys robots.txt: a disallowed path is never requested', async () => {
+  expect(await f.postJson(url('/private/x'), {})).toBeNull();
+  expect(main.requests.map(r => r.path)).toEqual(['/robots.txt']);
+  expect(logLines.some(line => line.includes(url('/private/x')) && /disallowed/.test(line))).toBe(true);
+});
+
+it('postJson shares the site queue with GETs: one at a time, spaced by the delay', async () => {
+  const bodies = await Promise.all([f.fetchText(url('/a')), f.postJson(url('/echo'), { n: 1 }), f.fetchText(url('/b'))]);
+  expect(bodies).toEqual(['ok-a', 'POST {"n":1}', 'ok-b']);
+  expect(main.requests).toHaveLength(4);
+  expectSpacedAndSerial(main.requests, 190);
+});
+
+it('postJson is never retried, even after a 5xx, and never follows a redirect', async () => {
+  expect(await f.postJson(url('/flaky'), {})).toBeNull();
+  expect(requestsTo('/flaky')).toHaveLength(1);
+  expect(await f.postJson(url('/to-a'), {})).toBeNull();
+  expect(requestsTo('/to-a')).toHaveLength(1);
+  expect(requestsTo('/a')).toHaveLength(0);
+  expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+  expect(logLines.filter(line => line.startsWith('not fetched'))).toHaveLength(2);
+});
+
+it('postJson answers count toward pushback, and a refused site gets no more POSTs or GETs', async () => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    for (const path of ['/429/1', '/403/2', '/429/3']) expect(await f.postJson(pushy.url(path), {})).toBeNull();
+    expect(refusalLines()).toHaveLength(1);
+    expect(await f.postJson(pushy.url('/ok/4'), {})).toBeNull();
+    expect(await f.fetchText(pushy.url('/ok/5'))).toBeNull();
+    expect(pagesAsked(pushy)).toEqual(['/429/1', '/403/2', '/429/3']);
+  } finally {
+    await pushy.close();
+  }
 });
 
 it('USER_AGENT is generic', () => { expect(USER_AGENT).toBe('tour-comparison-bot/0.1'); });
