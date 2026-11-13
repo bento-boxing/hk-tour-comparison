@@ -1,0 +1,60 @@
+# 旅行團比較 · Hong Kong tour comparison
+
+A website that gathers package-tour listings from Hong Kong tour operators into one place, so a traveller can filter and compare them and chain tours one after another with a chosen break in between. A small scraper collects the listings once a night; the website only reads from the database and never contacts the operators.
+
+This project is **not affiliated with any tour operator**. It stores and shows facts only (operator, tour code, link, title, length, the cities visited, start and end point, departure dates and prices) and links to the operator's own page for everything else. It stores no itinerary text and no photos. Prices and dates must always be confirmed on the operator's site.
+
+## Operators included
+
+| Operator | Site |
+|---|---|
+| Jetour 捷旅 (`jetour`) | jetour.com.hk |
+| Travel Expert 專業旅運 (`texpert`) | texpert.com |
+
+EGL Tours 東瀛遊 and Big Line Holiday 大航假期 are not scraped. The findings for each operator are in [`docs/operators/`](docs/operators/).
+
+## How the scraper treats operators' sites
+
+Every request carries the User-Agent `tour-comparison-bot/0.1`. Before requesting any page from a site the scraper reads that site's `robots.txt` and never requests a path it disallows; if `robots.txt` cannot be read, the site is not crawled at all. It sends one request at a time to each site and waits at least 3 seconds after each response before the next request (longer if `robots.txt` sets a `Crawl-delay`; a site asking for more than 30 seconds is not crawled). A failed request is retried at most twice. It runs once a night, never logs in, and never works around bot protection. The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/polite-fetch.ts).
+
+## Removing your listings
+
+If you represent a tour operator and want your listings removed, please open an issue in this repository's GitHub **Issues** tab. Your listings will be removed and your site will no longer be scraped.
+
+## Working on it
+
+Needs Node.js 20.19 or later and pnpm 10 (`corepack enable` picks the version named in `package.json`).
+
+```sh
+pnpm install
+pnpm test        # all tests (they use an in-memory database; nothing is contacted)
+pnpm typecheck
+```
+
+A dry run of one operator's scrape, which fetches real pages from the operator's site (politely, as above) but writes nothing to any database:
+
+```sh
+pnpm scrape --operator jetour --dry-run --limit 5
+```
+
+`--operator` is one of `jetour` or `texpert` (the ids `egl` and `bigline` are recognised but have no scraper). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`.
+
+To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>`, then `pnpm --filter @hktours/web dev`. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
+
+### Environment variables
+
+| Name | Used by | Meaning |
+|---|---|---|
+| `DATABASE_URL` | website, scraper, `pnpm db:migrate` | Postgres connection string. Never commit it. |
+| `DEV_LOCALE` | website | Set to `en` to see the developer English text. Ignored in production (`VERCEL_ENV=production`): the public site is Traditional Chinese only. |
+
+## Layout
+
+- `packages/core`: shared types, the places list (`src/places/data.json`), route extraction, search suggestions, chain date maths.
+- `packages/db`: schema (`migrations/`), database access, `pnpm db:migrate`.
+- `packages/scraper`: the polite fetcher, one scraper per operator, the `pnpm scrape` command.
+- `apps/web`: the Next.js website (`/` search, `/chain` chaining).
+- `.github/workflows/`: `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).
+- `docs/launch-checklist.md`: the steps to put the site online.
+
+This has not been reviewed by a lawyer.
