@@ -77,11 +77,14 @@ export async function runPgTransaction<T>(pool: PgPoolLike, fn: (tx: Db) => Prom
 /** How long the pool waits for a new connection before rejecting (pg's default, 0, waits forever). */
 export const CONNECTION_TIMEOUT_MS = 8_000;
 /**
- * The server cancels any single statement that runs longer than this. It is per statement, so the
- * nightly save (one long transaction of many short statements) is unaffected. There is deliberately
- * no whole-transaction limit.
+ * pg abandons any single query that has not answered after this long, and the query rejects. It is
+ * enforced by the client (nothing is sent to the server, so it works behind any pooler, and it also covers
+ * a connection that goes silent mid-query); the server keeps running an abandoned statement, and the
+ * connection is discarded rather than reused. It is per query, so the nightly save (one long transaction
+ * of many short statements) is unaffected; there is deliberately no whole-transaction limit. A query that
+ * times out inside a transaction also costs the rollback's timeout before the transaction rejects.
  */
-export const STATEMENT_TIMEOUT_MS = 20_000;
+export const QUERY_TIMEOUT_MS = 20_000;
 
 /**
  * A Db backed by a pg connection pool (at most 3 connections), with the timeouts above, so an
@@ -96,9 +99,9 @@ export function createPgDbWithPool(connectionString: string, makePool: (config: 
   const pool = makePool({
     connectionString, max: 3,
     connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
-    // A connection parameter, so Postgres itself enforces it on every statement of every pooled connection.
-    // (pg's client-side query_timeout is not used: after it fires, the connection stays busy with the abandoned query.)
-    statement_timeout: STATEMENT_TIMEOUT_MS,
+    query_timeout: QUERY_TIMEOUT_MS,
+    // No startup parameters (statement_timeout, lock_timeout, options, …): transaction-mode poolers such as
+    // Supabase's reject or drop them. A server-side limit belongs on the database role (ALTER ROLE … SET).
   });
   // An idle connection dropped by the server emits 'error' on the pool; without
   // a listener Node treats it as unhandled and exits. The pool replaces the connection.
