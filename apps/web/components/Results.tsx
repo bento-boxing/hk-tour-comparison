@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { IsoDate, OperatorId, PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
@@ -12,13 +13,17 @@ export interface ResultsProps {
   operators: OperatorInfo[]; places: PlacesIndex; today: IsoDate; t: T;
   /** When given, every card has the 加入行程 button and calls this with the chosen date. */
   onAdd?: (tour: TourCardData, departure: IsoDate) => void;
+  /** When given, each card's footer note (in place of its 'updated' text), e.g. '休息 1–2 日後出發'. */
+  footNote?: (tour: TourCardData) => string | undefined;
+  /** When given, shown instead of the default empty message and its clear-all link. */
+  empty?: ReactNode;
 }
 
 /** An operator missing from the operators list still gets a card: its id as the name, and the charcoal fallback colour. */
 const unknownOperator = (id: OperatorId): OperatorInfo => ({ id, nameZh: id, nameEn: id, color: '', lastGoodRunAt: null });
 
 /** The count line and the cards (mockup `.grid`), or the empty message with a link that clears every filter. */
-export function Results({ tours, total, operators, places, today, t, onAdd }: ResultsProps) {
+export function Results({ tours, total, operators, places, today, t, onAdd, footNote, empty }: ResultsProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   return (
     <>
@@ -26,8 +31,12 @@ export function Results({ tours, total, operators, places, today, t, onAdd }: Re
       <div aria-live="polite">
         {tours.length === 0 ? (
           <div className={styles.empty}>
-            <p className={styles.emptyText}>{t('search.empty')}</p>
-            <Link href="/" className={styles.clearAll}>{t('search.clearAll')}</Link>
+            {empty ?? (
+              <>
+                <p className={styles.emptyText}>{t('search.empty')}</p>
+                <Link href="/" className={styles.clearAll}>{t('search.clearAll')}</Link>
+              </>
+            )}
           </div>
         ) : (
           <p className={styles.count}>{t('search.count', { n: total })}</p>
@@ -44,6 +53,7 @@ export function Results({ tours, total, operators, places, today, t, onAdd }: Re
               today={today}
               t={t}
               onAdd={onAdd && (departure => onAdd(tour, departure))}
+              footNote={footNote?.(tour)}
             />
           ))}
         </div>

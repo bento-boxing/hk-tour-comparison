@@ -52,3 +52,14 @@ it('shows nothing when everything fits on one page', () => {
   const { container } = render(<Pager state={state(1)} total={PAGE_SIZE} t={t} />);
   expect(container).toBeEmptyDOMElement();
 });
+
+it('a page address builder replaces the search page addresses (the chain page keeps its chain)', () => {
+  render(<Pager state={state(2)} total={total} t={t} hrefFor={page => `/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&page=${page}`} />);
+  expect(screen.getByRole('link', { name: '上一頁' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&page=1');
+  expect(screen.getByRole('link', { name: '下一頁' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&page=3');
+});
+
+it('the builder is used for the back-to-page-1 link too', () => {
+  render(<Pager state={state(9)} total={total} t={t} hrefFor={page => `/chain?gap=1-3&page=${page}`} />);
+  expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/chain?gap=1-3&page=1');
+});

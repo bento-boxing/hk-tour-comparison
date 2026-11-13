@@ -8,10 +8,14 @@ import styles from './Pager.module.css';
  * 上一頁 / 第 n / m 頁 / 下一頁 as real links, so paging works without JavaScript. Nothing when every match
  * fits on one page; a page beyond the last offers a link back to page 1 instead.
  */
-export function Pager({ state, total, t }: { state: SearchState; total: number; t: T }) {
+export function Pager({ state, total, t, hrefFor }: {
+  state: SearchState; total: number; t: T;
+  /** The address of a page; the search page's by default. The chain page passes its own, which keeps the chain. */
+  hrefFor?: (page: number) => string;
+}) {
   if (total === 0) return null; // the empty state already links to a fresh search
   const pages = Math.ceil(total / PAGE_SIZE);
-  const href = (page: number) => searchHref({ ...state, page });
+  const href = hrefFor ?? ((page: number) => searchHref({ ...state, page }));
 
   if (state.page > pages) {
     return (

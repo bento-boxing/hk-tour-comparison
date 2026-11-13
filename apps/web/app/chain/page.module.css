@@ -1,0 +1,19 @@
+/* Mockup Screen 2 h4: 你的行程 and 可接續的旅行團（…）. */
+.heading { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+
+/* As on the search page: the search bar (mockup .search, max 520px) with the 按國家選擇 button beside it. */
+.searchRow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.searchBox { flex: 1 1 280px; max-width: 520px; }
+
+/* Not in the mockup: the removal notice, the empty and full states, and the error, in the search page's panel style. */
+.notice {
+  margin: 0 0 14px; padding: 10px 14px; border-radius: var(--radius-card);
+  background: var(--surface); border: 1px solid var(--khaki); border-left: 5px solid var(--khaki); font-size: 14px;
+}
+.empty { margin: 8px 0; padding: 28px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; }
+.emptyText { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+.link { color: var(--cerulean); font-size: 14px; font-weight: 600; }
+.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.full { margin: 8px 0; padding: 20px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; font-size: 15px; }
+
+.error { margin: 24px 0; padding: 20px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; font-size: 15px; }
