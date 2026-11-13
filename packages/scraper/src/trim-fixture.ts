@@ -21,6 +21,23 @@ const ELLIPSIS = '…';
  */
 const ASSIGNMENT = /^\s*(?:(?:var|let|const)\s+)?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*=\s*(?=[{[])/;
 
+/**
+ * What a parser reads, for `TrimOptions.allow`. Everything else loses its text.
+ */
+export interface AllowList {
+  /**
+   * CSS selectors of the elements whose text the parser reads. Text inside them is cut only above
+   * KEEP_TEXT_LIMIT characters, or above `maxChars` for a `{ selector, maxChars }` entry (for an
+   * element the parser reads only the start of, such as day-1 prose holding the meeting point).
+   */
+  selectors: (string | { selector: string; maxChars: number })[];
+  /**
+   * JSON keys whose string values the parser reads, in JSON scripts, page state scripts, JSON held
+   * in attributes and Next.js flight data. Every string nested under such a key is kept too.
+   */
+  jsonKeys?: string[];
+}
+
 export interface TrimOptions {
   /**
    * CSS selectors of elements whose text is a list of facts, not prose (day headings, stop
@@ -28,6 +45,12 @@ export interface TrimOptions {
    * (JSON, flight data) that repeats such a text exactly is kept up to the same limit.
    */
   keepSelectors?: string[];
+  /**
+   * Allow-list mode, in place of `keepSelectors`: a text node is kept only inside an element the
+   * parser reads, a JSON string only under a key it reads; all other text becomes empty. Elements,
+   * structure, numbers and booleans stay, so the parser's selectors and paths still resolve.
+   */
+  allow?: AllowList;
 }
 
 /** Text kept by `TrimOptions.keepSelectors`: the elements, and every text they hold. */
@@ -42,6 +65,10 @@ export function trimFixture(html: string, opts: TrimOptions = {}): string {
   const $ = load(html, null, isDocument);
 
   $(REMOVED_ELEMENTS).remove();
+  if (opts.allow) {
+    trimToAllowList($, opts.allow);
+    return isDocument ? $.html() : $.root().html() ?? '';
+  }
   const kept = keptText($, opts.keepSelectors ?? []);
   keepFlightData($, kept.texts);
   $('script').each((_, el) => {
@@ -152,11 +179,14 @@ function isJson(value: string): boolean {
 
 /** The script's content with long strings cut, or null when the script is code and goes. */
 function keptScriptContent(script: Element, content: string, keptTexts: Set<string>): string | null {
-  if (script.attribs.src !== undefined) return null;
+  return isDataScript(script, content) ? cutStringLiterals(content, keptTexts) : null;
+}
+
+/** True for a JSON script, or an inline script that only assigns one object or array literal (page state). */
+function isDataScript(script: Element, content: string): boolean {
+  if (script.attribs.src !== undefined) return false;
   const type = (script.attribs.type ?? '').trim().toLowerCase();
-  if (JSON_SCRIPT_TYPES.includes(type)) return cutStringLiterals(content, keptTexts);
-  if (JS_SCRIPT_TYPES.includes(type) && assignsOneValue(content)) return cutStringLiterals(content, keptTexts);
-  return null;
+  return JSON_SCRIPT_TYPES.includes(type) || (JS_SCRIPT_TYPES.includes(type) && assignsOneValue(content));
 }
 
 /** True when the whole script is one assignment of an object or array literal (page state). */
@@ -306,4 +336,208 @@ function cutText(text: string, max = MAX_TEXT): string {
   const chars = Array.from(trimmed);
   if (chars.length <= max) return text;
   return chars.slice(0, KEPT).join('') + ELLIPSIS;
+}
+
+// ---- Allow-list mode -------------------------------------------------------------------------
+
+/** Attributes that carry text shown to people; outside allowed elements they are removed. */
+const TEXT_ATTRIBUTES = ['title', 'alt', 'aria-label', 'content', 'placeholder', 'value'];
+const HAN = /\p{Script=Han}/u;
+
+function trimToAllowList($: CheerioAPI, allow: AllowList): void {
+  const limits = allowedElements($, allow.selectors);
+  const keys = new Set(allow.jsonKeys ?? []);
+  const isAllowed = (el: AnyNode): boolean => limitFor(el, limits) !== null;
+
+  allowFlightData($, keys);
+  $('script').each((_, el) => {
+    if (el.attribs[FLIGHT_MARK] !== undefined) {
+      $(el).removeAttr(FLIGHT_MARK);
+      return;
+    }
+    const content = $(el).text();
+    if (isDataScript(el, content)) $(el).text(allowedStrings(content, keys));
+    else $(el).remove();
+  });
+  $('*').each((_, el) => {
+    if ('attribs' in el) allowAttributes(el, keys, isAllowed(el));
+  });
+  allowNodes($, $.root().contents().toArray(), limits);
+}
+
+/** Each element matching an allow selector, with the most characters of text it may keep. */
+function allowedElements($: CheerioAPI, selectors: AllowList['selectors']): Map<AnyNode, number> {
+  const limits = new Map<AnyNode, number>();
+  for (const entry of selectors) {
+    const { selector, maxChars } = typeof entry === 'string' ? { selector: entry, maxChars: KEEP_TEXT_LIMIT } : entry;
+    const limit = Math.min(maxChars, KEEP_TEXT_LIMIT);
+    for (const el of $(selector).toArray()) limits.set(el, Math.min(limits.get(el) ?? KEEP_TEXT_LIMIT, limit));
+  }
+  return limits;
+}
+
+/** The limit of the nearest allowed element holding the node (or the node itself), or null outside them. */
+function limitFor(node: AnyNode, limits: Map<AnyNode, number>): number | null {
+  for (let at: AnyNode | null = node; at !== null; at = at.parent) {
+    const limit = limits.get(at);
+    if (limit !== undefined) return limit;
+  }
+  return null;
+}
+
+/**
+ * Removes comments; inside allowed elements cuts text above its limit, elsewhere empties every text
+ * node. Whitespace-only text between elements is kept, collapsed as in `trimNodes`.
+ */
+function allowNodes($: CheerioAPI, nodes: AnyNode[], limits: Map<AnyNode, number>, keepWhitespace = false): void {
+  for (const node of nodes) {
+    if (node.type === 'comment') {
+      $(node).remove();
+    } else if (node.type === 'text') {
+      const limit = limitFor(node, limits);
+      if (limit === null && node.data.trim() !== '') node.data = '';
+      else if (limit !== null) node.data = cutText(node.data, limit);
+      if (!keepWhitespace) node.data = collapseIndentation(node.data);
+    } else if ('children' in node && node.type !== 'script') {
+      const name = 'name' in node ? node.name : '';
+      allowNodes($, [...node.children], limits, keepWhitespace || WHITESPACE_KEPT_IN.includes(name));
+    }
+  }
+}
+
+/**
+ * Removes style, src and event handler attributes everywhere. JSON held in an attribute keeps only
+ * allowed strings. Outside allowed elements, text attributes (TEXT_ATTRIBUTES) and any other
+ * attribute holding Chinese text (see `holdsChinese`) are removed; inside them, text attributes are cut above KEEP_TEXT_LIMIT.
+ */
+function allowAttributes(el: Element, keys: Set<string>, allowed: boolean): void {
+  for (const [name, value] of Object.entries(el.attribs)) {
+    if (REMOVED_ATTRIBUTES.includes(name) || /^on/i.test(name)) delete el.attribs[name];
+    else if (isJson(value)) el.attribs[name] = allowedStrings(value, keys);
+    else if (allowed) el.attribs[name] = TEXT_ATTRIBUTES.includes(name) ? cutText(value, KEEP_TEXT_LIMIT) : value;
+    else if (TEXT_ATTRIBUTES.includes(name) || holdsChinese(value)) delete el.attribs[name];
+  }
+}
+
+/** True when the value holds a Chinese character, as written or percent-encoded (a link's `?text=…`). */
+function holdsChinese(value: string): boolean {
+  if (HAN.test(value)) return true;
+  try {
+    return HAN.test(decodeURIComponent(value));
+  } catch {
+    return false; // not valid percent-encoding: nothing hidden in it
+  }
+}
+
+/** Flight data as in `keepFlightData`, with `allowedFlightPayload` in place of `trimFlightPayload`. */
+function allowFlightData($: CheerioAPI, keys: Set<string>): void {
+  const chunks = $('script').toArray()
+    .map(el => ({ el, match: FLIGHT_CHUNK.exec($(el).text()) }))
+    .filter(chunk => chunk.match !== null);
+  if (chunks.length === 0) return;
+  const payload = chunks.map(chunk => JSON.parse(chunk.match![1]) as string).join('');
+  const literal = JSON.stringify(allowedFlightPayload(payload, keys)).replace(/</g, '\\u003c');
+  $(chunks[0].el).text(`self.__next_f.push([1,${literal}])`).attr(FLIGHT_MARK, '');
+  for (const chunk of chunks.slice(1)) $(chunk.el).remove();
+}
+
+/**
+ * Text rows (`<id>:T<hex byte length>,<text>`) lose their text (`<id>:T0,`): no parser reads them.
+ * Every other row keeps only allowed strings (see `allowedStrings`).
+ */
+function allowedFlightPayload(payload: string, keys: Set<string>): string {
+  let out = '';
+  let i = 0;
+  while (i < payload.length) {
+    const textRow = FLIGHT_TEXT_ROW.exec(payload.slice(i, i + 40));
+    if (textRow) {
+      const start = i + textRow[0].length;
+      const byteLength = parseInt(textRow[2], 16);
+      const text = Buffer.from(payload.slice(start, start + byteLength), 'utf8').subarray(0, byteLength).toString('utf8');
+      out += `${textRow[1]}:T0,`;
+      i = start + text.length;
+      continue;
+    }
+    const newline = payload.indexOf('\n', i);
+    const end = newline === -1 ? payload.length : newline + 1;
+    out += allowedStrings(payload.slice(i, end), keys);
+    i = end;
+  }
+  return out;
+}
+
+interface Frame { kind: '{' | '['; underAllowedKey: boolean; key: string | null }
+
+const KEY_FOLLOWS = /\s*:/y;
+const IDENTIFIER_KEY = /[A-Za-z_$][\w$]*(?=\s*:)/y;
+
+/**
+ * JSON (or a JavaScript object literal) with every string value emptied unless its key is allowed
+ * or it sits anywhere under an allowed key; kept strings are cut above KEEP_TEXT_LIMIT. Keys,
+ * numbers, booleans, null and the layout of the text are left exactly as they are, so the result
+ * is valid wherever the input was.
+ */
+function allowedStrings(code: string, keys: Set<string>): string {
+  const stack: Frame[] = [];
+  const valueAllowed = (): boolean => {
+    const frame = stack.at(-1);
+    if (frame === undefined) return false;
+    return frame.underAllowedKey || (frame.kind === '{' && frame.key !== null && keys.has(frame.key));
+  };
+  let out = '';
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    const frame = stack.at(-1);
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const end = stringLiteralEnd(code, i);
+      const literal = code.slice(i, end);
+      KEY_FOLLOWS.lastIndex = end;
+      if (frame?.kind === '{' && ch !== '`' && KEY_FOLLOWS.test(code)) {
+        frame.key = literalValue(literal);
+        out += literal;
+      } else {
+        out += valueAllowed() ? cutLiteralAt(literal, KEEP_TEXT_LIMIT) : ch + ch;
+      }
+      i = end;
+      continue;
+    }
+    if (frame?.kind === '{') {
+      IDENTIFIER_KEY.lastIndex = i;
+      const identifier = IDENTIFIER_KEY.exec(code);
+      if (identifier && !/[\w$]/.test(code[i - 1] ?? '')) {
+        frame.key = identifier[0];
+        out += identifier[0];
+        i += identifier[0].length;
+        continue;
+      }
+    }
+    if (ch === '{' || ch === '[') stack.push({ kind: ch, underAllowedKey: valueAllowed(), key: null });
+    else if (ch === '}' || ch === ']') stack.pop();
+    else if (ch === ',' && frame?.kind === '{') frame.key = null;
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
+/** The text of a quoted literal used as a key. */
+function literalValue(literal: string): string {
+  if (literal[0] === '"') {
+    try {
+      return JSON.parse(literal) as string;
+    } catch {
+      // not valid JSON: fall through to the raw text
+    }
+  }
+  return literal.slice(1, -1);
+}
+
+/** One quoted literal, cut to KEPT characters and an ellipsis if its content is longer than `max`. */
+function cutLiteralAt(literal: string, max: number): string {
+  const quote = literal[0];
+  const closed = literal.length > 1 && literal.endsWith(quote) && !literal.endsWith(`\\${quote}`);
+  const units = literalUnits(closed ? literal.slice(1, -1) : literal.slice(1));
+  if (units.length <= max) return literal;
+  return quote + units.slice(0, KEPT).join('') + ELLIPSIS + quote;
 }

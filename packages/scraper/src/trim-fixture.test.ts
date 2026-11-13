@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
-import { expect, it } from 'vitest';
-import { KEEP_TEXT_LIMIT, trimFixture } from './trim-fixture';
+import { describe, expect, it } from 'vitest';
+import { KEEP_TEXT_LIMIT, trimFixture, type AllowList } from './trim-fixture';
 
 it('removes images, styles, svg, iframes and comments', () => {
   const out = trimFixture('<div><!-- x --><style>a{}</style><img src="a.jpg"><svg></svg><iframe></iframe><p>5日4夜</p></div>');
@@ -166,4 +166,116 @@ it('keeps the text of kept elements whole where flight data repeats it, and stil
   const out = trimFixture(html, { keepSelectors: ['h3'] });
   expect(load(out)('h3').text()).toBe(heading);
   expect(flightPayload(out)).toBe(`4c:["$","h3",null,{"children":${JSON.stringify(heading)},"desc":"${'描'.repeat(20)}…"}]\n`);
+});
+
+describe('allow-list mode', () => {
+  const allow = (selectors: AllowList['selectors'], jsonKeys: string[] = []) => ({ allow: { selectors, jsonKeys } });
+
+  it('keeps text only inside elements matching an allow selector', () => {
+    const html = '<div><h1 class="title">5天 大阪</h1><p>短句</p><span class="tag">THB</span><span>其他</span></div>';
+    expect(trimFixture(html, allow(['h1.title', '.tag']))).toBe(
+      '<div><h1 class="title">5天 大阪</h1><p></p><span class="tag">THB</span><span></span></div>');
+  });
+
+  it('keeps the text of every element inside an allowed element', () => {
+    const html = '<h3><span>Day 1</span><span>深圳 → 廣州</span></h3><p><b>x</b></p>';
+    expect(trimFixture(html, allow(['h3']))).toBe('<h3><span>Day 1</span><span>深圳 → 廣州</span></h3><p><b></b></p>');
+  });
+
+  it('keeps whitespace between elements, collapsed, but no text outside allowed elements', () => {
+    const html = '<div>\n    <p>說明</p>\n    <h3>香港 → 大阪</h3>\n  </div>';
+    expect(trimFixture(html, allow(['h3']))).toBe('<div>\n<p></p>\n<h3>香港 → 大阪</h3>\n</div>');
+  });
+
+  it('cuts allowed text above KEEP_TEXT_LIMIT, or above the limit given with its selector', () => {
+    const html = `<h3>${'一'.repeat(300)}</h3><h4>${'二'.repeat(301)}</h4><p>是日集合於香港國際機場，由專業領隊陪同下乘搭豪華客機</p><i>是日集合於</i>`;
+    const out = trimFixture(html, allow(['h3', 'h4', { selector: 'p', maxChars: 20 }, { selector: 'i', maxChars: 20 }]));
+    expect(out).toBe(`<h3>${'一'.repeat(300)}</h3><h4>${'二'.repeat(20)}…</h4><p>是日集合於香港國際機場，由專業領隊陪同下…</p><i>是日集合於</i>`);
+  });
+
+  it('drops text-carrying attributes outside allowed elements and keeps those inside', () => {
+    const html = '<a href="/tour/THB" class="x" title="標題" aria-label="按鈕">x</a><input placeholder="搜尋" value="v" name="q">'
+      + '<meta name="description" content="描述"><img alt="相片"><h1 title="大阪">大阪</h1>';
+    expect(trimFixture(html, allow(['h1']))).toBe(
+      '<a href="/tour/THB" class="x"></a><input name="q"><meta name="description"><h1 title="大阪">大阪</h1>');
+  });
+
+  it('drops any other attribute holding Chinese text outside allowed elements, percent-encoded or not', () => {
+    expect(trimFixture('<span class="row" data-name="普通座位" data-id="1704">x</span>', allow([]))).toBe(
+      '<span class="row" data-id="1704"></span>');
+    const greeting = `https://wa.me/85200000000?text=${encodeURIComponent('你好！我想查詢')}`;
+    expect(trimFixture(`<a class="wa" href="${greeting}">x</a><a href="/tour/THB?x=%ZZ">y</a>`, allow([]))).toBe(
+      '<a class="wa"></a><a href="/tour/THB?x=%ZZ"></a>');
+  });
+
+  it('still removes images, styles, comments, inline event handlers and code scripts', () => {
+    const html = '<div onclick="go()"><!-- c --><style>a{}</style><img src="a.jpg"><script>track()</script><h1>x</h1></div>';
+    expect(trimFixture(html, allow(['h1']))).toBe('<div><h1>x</h1></div>');
+  });
+
+  it('keeps a JSON string only under an allowed key; numbers, booleans and structure stay', () => {
+    const data = {
+      '@context': 'https://schema.org',
+      '@graph': [{
+        '@type': ['Product', 'TouristTrip'], name: '大阪五天', description: '行程介紹',
+        offers: { '@type': 'Offer', price: 7999, priceCurrency: 'HKD' },
+        additionalProperty: { propertyID: 'tourDurationDays', value: 5 },
+        open: true, nothing: null,
+      }],
+    };
+    const out = trimFixture(`<script type="application/ld+json">${JSON.stringify(data)}</script>`,
+      allow([], ['@type', 'propertyID']));
+    expect(JSON.parse(load(out, null, false)('script').text())).toEqual({
+      '@context': '',
+      '@graph': [{
+        '@type': ['Product', 'TouristTrip'], name: '', description: '',
+        offers: { '@type': 'Offer', price: 7999, priceCurrency: '' },
+        additionalProperty: { propertyID: 'tourDurationDays', value: 5 },
+        open: true, nothing: null,
+      }],
+    });
+  });
+
+  it('keeps every string nested under an allowed key, cut above KEEP_TEXT_LIMIT', () => {
+    const data = { departures: [{ date: '2026-12-18', label: 'x' }], long: { code: 'A'.repeat(301) }, other: 'y' };
+    const out = trimFixture(`<script type="application/json">${JSON.stringify(data)}</script>`, allow([], ['departures', 'code']));
+    expect(JSON.parse(load(out, null, false)('script').text())).toEqual({
+      departures: [{ date: '2026-12-18', label: 'x' }], long: { code: 'A'.repeat(20) + '…' }, other: '',
+    });
+  });
+
+  it('keeps a JSON string that holds a colon or a quote intact', () => {
+    const data = { code: 'a:"b"', note: 'c:"d"' };
+    const out = trimFixture(`<script type="application/json">${JSON.stringify(data)}</script>`, allow([], ['code']));
+    expect(JSON.parse(load(out, null, false)('script').text())).toEqual({ code: 'a:"b"', note: '' });
+  });
+
+  it('applies the JSON keys to page state assigned in a script, quoted or unquoted keys alike', () => {
+    const out = trimFixture(`<script>window.__STATE__ = {tour: {"code": 'ABC', name: '大阪', 'days': 5}};</script>`, allow([], ['code']));
+    expect(out).toBe(`<script>window.__STATE__ = {tour: {"code": 'ABC', name: '', 'days': 5}};</script>`);
+  });
+
+  it('applies the JSON keys to JSON held in an attribute', () => {
+    const plans = JSON.stringify([{ dayNumber: 1, title: '直航北海道', description: '長' }]);
+    const $ = load(trimFixture(`<div data-plans-json='${plans}'></div>`, allow([], ['title'])), null, false);
+    expect(JSON.parse($('div').attr('data-plans-json')!)).toEqual([{ dayNumber: 1, title: '直航北海道', description: '' }]);
+  });
+
+  it('applies the JSON keys to flight data and blanks text rows, with their byte length rewritten', () => {
+    const text = '長'.repeat(70);
+    const rows = `5:T${Buffer.byteLength(text).toString(16)},${text}`
+      + '4a:["$","div",null,{"code":"TDZC05R","title":"5天","prices":[{"date":"2026-11-27","sellingPrice":999}],"desc":"描述"}]\n'
+      + '2:I["123","chunk.js"]\n';
+    const out = trimFixture(`<html><body>${push(rows)}</body></html>`, allow([], ['code', 'date']));
+    expect(flightPayload(out)).toBe(
+      '5:T0,4a:["","",null,{"code":"TDZC05R","title":"","prices":[{"date":"2026-11-27","sellingPrice":999}],"desc":""}]\n'
+      + '2:I["",""]\n');
+  });
+
+  it('never writes a closing script tag inside kept flight data', () => {
+    const payload = '7:["$","p",null,{"code":"</script><b>"}]\n';
+    const out = trimFixture(`<html><body>${push(payload)}</body></html>`, allow([], ['code']));
+    expect(out.match(/<\/script>/g)).toHaveLength(1);
+    expect(flightPayload(out)).toBe('7:["","",null,{"code":"</script><b>"}]\n');
+  });
 });
