@@ -26,6 +26,7 @@ const TOKYO: Stop = { countryId: 'japan', regionId: 'japan-kanto', cityId: 'japa
 const HAKONE: Stop = { countryId: 'japan', regionId: 'japan-kanto', cityId: 'japan-kanto-hakone' };
 const SEOUL: Stop = { countryId: 'korea', regionId: 'korea-seoul', cityId: 'korea-seoul-seoul' };
 const NAMI: Stop = { countryId: 'korea', regionId: 'korea-seoul', cityId: 'korea-seoul-nami-island' };
+const NAGOYA: Stop = { countryId: 'japan', regionId: 'japan-chubu', cityId: 'japan-chubu-nagoya' };
 const TAIPEI: Stop = { countryId: 'taiwan', regionId: 'taiwan-north', cityId: 'taiwan-north-taipei' };
 const JIUFEN: Stop = { countryId: 'taiwan', regionId: 'taiwan-north', cityId: 'taiwan-north-jiufen' };
 const HOKKAIDO: Stop = { countryId: 'japan', regionId: 'japan-hokkaido', cityId: null };
@@ -216,6 +217,33 @@ describe('on the seed table', () => {
     expect(await searchTours(db, { filters: {}, sort: 'price', page: 2, today })).toEqual({ tours: [], total: 5 });
   });
 
+  it('a huge page number gives an empty page, not an error', async () => {
+    expect(await searchTours(db, { filters: {}, sort: 'price', page: 1e11, today })).toEqual({ tours: [], total: 5 });
+    expect(await searchTours(db, { filters: {}, sort: 'price', page: Number.MAX_SAFE_INTEGER, today })).toEqual({ tours: [], total: 5 });
+    expect(await searchTours(db, { filters: {}, sort: 'price', page: 1e300, today })).toEqual({ tours: [], total: 5 });
+  });
+
+  it('a numeric filter that is not an integer in the int4 range is ignored', async () => {
+    const all = await keys({});
+    for (const bad of [5.5, NaN, Infinity, -Infinity, 2 ** 31, -(2 ** 31) - 1, 1e11]) {
+      expect(await keys({ daysMin: bad }), `daysMin ${bad}`).toEqual(all);
+      expect(await keys({ daysMax: bad }), `daysMax ${bad}`).toEqual(all);
+      expect(await keys({ priceMin: bad }), `priceMin ${bad}`).toEqual(all);
+      expect(await keys({ priceMax: bad }), `priceMax ${bad}`).toEqual(all);
+    }
+    // A bad bound is dropped on its own; the good one still applies.
+    expect(await keys({ daysMin: 5.5, daysMax: 5 })).toEqual(['bigline:TPE4', 'texpert:SEL5', 'egl:KIX5']);
+    // The int4 limits themselves are valid integers.
+    expect(await keys({ priceMin: -(2 ** 31), priceMax: 2 ** 31 - 1 })).toEqual(all);
+  });
+
+  it('an unknown sort value falls back to the price order', async () => {
+    const byPrice = await keys({}, 'price');
+    for (const bogus of ['bogus', 'constructor', '__proto__', 'toString', '']) {
+      expect(await keys({}, bogus as SortKey), `sort ${JSON.stringify(bogus)}`).toEqual(byPrice);
+    }
+  });
+
   it('a search matching nothing makes no follow-up queries', async () => {
     const c = countingDb(db);
     const r = await searchTours(c.db, { filters: { operators: ['egl'], daysMin: 30 }, sort: 'price', page: 1, today });
@@ -306,6 +334,18 @@ describe('paging', () => {
     expect((await page(0)).total).toBe(35);
   });
 
+  it('a fractional page is rounded down and a non-finite page is page 1', async () => {
+    const first = (await page(1)).tours.map(t => t.key);
+    const second = (await page(2)).tours.map(t => t.key);
+    expect((await page(2.7)).tours.map(t => t.key)).toEqual(second);
+    expect((await page(1.2)).tours.map(t => t.key)).toEqual(first);
+    expect((await page(0.5)).tours.map(t => t.key)).toEqual(first);
+    expect((await page(-2.5)).tours.map(t => t.key)).toEqual(first);
+    for (const p of [NaN, Infinity, -Infinity]) {
+      expect(await page(p), `page ${p}`).toEqual(await page(1));
+    }
+  });
+
   it('makes a fixed handful of queries for a full page', async () => {
     const c = countingDb(db);
     const r = await searchTours(c.db, { filters: {}, sort: 'price', page: 1, today });
@@ -318,6 +358,28 @@ describe('paging', () => {
     const m = await getToursByKeys(c.db, extraKeys, today);
     expect(m.size).toBe(30);
     expect(c.count()).toBe(4);
+  });
+});
+
+describe('a destination reached only by a middle stop', () => {
+  // Kept out of the shared seed so the brief's hand-worked lists stay as written.
+  let db: Db;
+  beforeAll(async () => {
+    db = await createTestDb();
+    await seed(db);
+    await save(db, 'texpert', [SEL5, tour('texpert', 'TYO-OSA-NGO', [TOKYO, OSAKA, NAGOYA], 6,
+      [{ date: '2026-12-22', priceHkd: 6500 }], 6500)]);
+  });
+  afterAll(async () => { await db.close(); });
+
+  it('matches the region of a middle stop', async () => {
+    const kansai = await searchTours(db, {
+      filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'price', page: 1, today,
+    });
+    // egl:KIX5 matches by its first stop, texpert:TYO-OSA-NGO by its middle one, jetour:TYO-KIX by its last one.
+    expect(kansai.tours.map(t => t.key)).toEqual(['texpert:TYO-OSA-NGO', 'egl:KIX5', 'jetour:TYO-KIX']);
+    expect(kansai.total).toBe(3);
+    expect(kansai.tours[0].stops).toEqual([TOKYO, OSAKA, NAGOYA]);
   });
 });
 

@@ -9,8 +9,10 @@ export interface TourFilters {
   destination?: Destination;          // matches if ANY stop is in it
   excludeCountryIds?: string[];       // drops tours with ANY stop in these countries
   dateFrom?: IsoDate; dateTo?: IsoDate; // departure window, inclusive
+  /** Whole days. Integers only: any of these four that is not an integer in the int4 range is ignored. */
   daysMin?: number; daysMax?: number;
-  priceMin?: number; priceMax?: number; // applied to windowPriceHkd
+  /** Whole HKD, applied to windowPriceHkd. Integers only, as for the day bounds. */
+  priceMin?: number; priceMax?: number;
   operators?: OperatorId[];
 }
 export type SortKey = 'price' | 'days' | 'date' | 'destination';
@@ -124,12 +126,26 @@ function noFilters(today: IsoDate): Params {
 
 const nonEmpty = <T>(xs: T[] | undefined): T[] | null => (xs && xs.length > 0 ? xs : null);
 
+const INT4_MIN = -(2 ** 31);
+const INT4_MAX = 2 ** 31 - 1;
+
+/** The value when it fits an SQL `int`; otherwise null, which switches its filter off. */
+const int4OrNull = (n: number | undefined): number | null =>
+  n !== undefined && Number.isInteger(n) && n >= INT4_MIN && n <= INT4_MAX ? n : null;
+
+/** The last page whose offset still fits an SQL `int`; any later page is past the end anyway. */
+const MAX_PAGE = Math.floor(INT4_MAX / PAGE_SIZE) + 1;
+
+/** Pages below 1, fractions and non-finite values become a whole page in 1 … MAX_PAGE. */
+const cleanPage = (page: number): number =>
+  Number.isFinite(page) ? Math.min(MAX_PAGE, Math.max(1, Math.floor(page))) : 1;
+
 function searchParams(filters: TourFilters, today: IsoDate): Params {
   return [
     today, filters.dateFrom ?? null, filters.dateTo ?? null,
     filters.destination?.countryId ?? null, filters.destination?.regionId ?? null,
     nonEmpty(filters.excludeCountryIds),
-    filters.daysMin ?? null, filters.daysMax ?? null, filters.priceMin ?? null, filters.priceMax ?? null,
+    int4OrNull(filters.daysMin), int4OrNull(filters.daysMax), int4OrNull(filters.priceMin), int4OrNull(filters.priceMax),
     nonEmpty(filters.operators), null,
   ];
 }
@@ -137,7 +153,7 @@ function searchParams(filters: TourFilters, today: IsoDate): Params {
 /** Filtered, sorted, paged search. `total` counts every match before paging. */
 export async function searchTours(db: Db, input: SearchInput): Promise<{ tours: TourCardData[]; total: number }> {
   const params = searchParams(input.filters, input.today);
-  const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page)) : 1;
+  const page = cleanPage(input.page);
 
   const [{ total }] = await db.query<{ total: number }>(`${MATCHED_CTE} select count(*)::int as total from matched`, params);
   if (total === 0) return { tours: [], total };
