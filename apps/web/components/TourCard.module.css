@@ -1,0 +1,50 @@
+/* Mockup .card and its children. --c (the operator colour) is set inline from operator.color. */
+.card {
+  position: relative; /* anchors the departure picker */
+  background: var(--surface); border-radius: var(--radius-card); border: 1px solid var(--ash); border-left: 5px solid var(--c);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
+}
+
+/* Everything except the add button; lays out the mockup's rows with the card's own 9px gap. */
+.link { color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 9px; min-width: 0; border-radius: 6px; }
+.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 4px; }
+.link:hover .go { text-decoration: underline; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
+.op { background: var(--c); color: #fff; padding: 2px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+.reg { color: var(--text-muted); text-align: right; }
+
+/* A ten-stop route wraps onto more lines; nothing is cut off. */
+.route { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.arrow { color: var(--khaki); font-weight: 400; margin: 0 3px; }
+
+/* Start or end outside Hong Kong / Shenzhen. */
+.note {
+  align-self: flex-start; font-size: 12px; padding: 2px 9px;
+  border: 1px solid var(--khaki); border-radius: var(--radius-pill);
+}
+
+.meta { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+.days { font-size: 13px; }
+.price { font-size: 22px; font-weight: 800; color: var(--cerulean); white-space: nowrap; text-align: right; }
+.from { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.delta { font-size: 12px; text-align: right; }
+.down { color: var(--price-down); }
+.up { color: var(--price-up); }
+.same { color: var(--text-faint); }
+
+.dates { display: flex; flex-wrap: wrap; gap: 5px; }
+.d { font-size: 12px; background: var(--ash); border-radius: 4px; padding: 3px 7px; }
+.more { background: none; color: var(--text-muted); }
+
+.foot { font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 8px; }
+.go { color: var(--cerulean); font-weight: 600; white-space: nowrap; }
+
+/* Not in the mockup as a button: it must sit outside the link, so it gets its own row. */
+.addArea { position: relative; align-self: flex-end; }
+.add {
+  padding: 5px 12px; border: 1px solid var(--cerulean); border-radius: 6px; background: var(--surface);
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--cerulean); cursor: pointer;
+}
+.add:hover, .add[aria-expanded="true"] { background: var(--hit); }
+.add:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
