@@ -10,6 +10,11 @@ it.each([
   [{ DEV_LOCALE: 'en', VERCEL_ENV: 'production' }, 'zh-Hant'],
   [{ DEV_LOCALE: 'fr' }, 'zh-Hant'],
   [{ DEV_LOCALE: 'EN' }, 'zh-Hant'],
+  // On Vercel with VERCEL_ENV missing, assume production rather than a developer machine.
+  [{ DEV_LOCALE: 'en', VERCEL: '1' }, 'zh-Hant'],
+  [{ DEV_LOCALE: 'en', VERCEL: '1', VERCEL_ENV: '' }, 'zh-Hant'],
+  [{ DEV_LOCALE: 'en', VERCEL: '1', VERCEL_ENV: 'preview' }, 'en'],
+  [{ DEV_LOCALE: 'en', VERCEL: '1', VERCEL_ENV: 'production' }, 'zh-Hant'],
 ])('getLocale(%j) → %s', (env, locale) => { expect(getLocale(env)).toBe(locale); });
 
 it('both dictionaries have identical keys and no empty values', () => {
