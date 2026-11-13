@@ -33,6 +33,12 @@ export interface FetcherOptions {
   log?: (line: string) => void;       // defaults to console.log
 }
 
+/** createFetcher's fetcher: pages as text, or as raw bytes for binary files such as PDFs. */
+export interface PoliteFetcher extends Fetcher {
+  /** One file's exact bytes, under the same rules as fetchText. null whenever fetchText would be. */
+  fetchBytes(url: string): Promise<Uint8Array | null>;
+}
+
 /**
  * The key requests are queued and spaced by: the host name, lower-cased, without a
  * leading `www.`, ignoring scheme and port. So http://, https://, www. and other ports
@@ -48,7 +54,7 @@ export function siteOf(url: URL): string {
  * `refused`: the request was never sent because its site was refused while it waited.
  */
 type Answer =
-  | { kind: 'response'; status: number; location: string | null; body: string | null; retryAfter: boolean }
+  | { kind: 'response'; status: number; location: string | null; body: Uint8Array | null; retryAfter: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'refused'; why: string };
 
@@ -94,6 +100,8 @@ const isRedirect = (status: number) => [301, 302, 303, 307, 308].includes(status
 /** A network error or a 5xx, except a 503 that says when to come back (Retry-After): that one is final. */
 const isRetryable = (answer: Answer) => answer.kind === 'error'
   || (answer.kind === 'response' && answer.status >= 500 && !(answer.status === 503 && answer.retryAfter));
+/** UTF-8 with replacement characters, as Response.text() decodes. */
+const decodeText = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 const describe = (answer: Answer) =>
   (answer.kind === 'error' ? answer.message : answer.kind === 'refused' ? answer.why : `HTTP ${answer.status}`);
 
@@ -118,7 +126,7 @@ function errorMessage(error: unknown): string {
  * read per origin. Redirects are followed by hand so every hop is checked
  * against robots.txt and spaced like any request.
  */
-export function createFetcher(opts: FetcherOptions = {}): Fetcher {
+export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const userAgent = opts.userAgent ?? USER_AGENT;
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
@@ -179,7 +187,9 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
       if (isPage) notePageAnswer(url, res.status);
       try {
         const retryAfter = res.headers.has('retry-after');
-        if (res.status === 200) return { kind: 'response', status: 200, location: null, body: await res.text(), retryAfter };
+        if (res.status === 200) {
+          return { kind: 'response', status: 200, location: null, body: new Uint8Array(await res.arrayBuffer()), retryAfter };
+        }
         await res.body?.cancel().catch(() => undefined); // the status is the answer, not a network error
         return { kind: 'response', status: res.status, location: res.headers.get('location'), body: null, retryAfter };
       } catch (error) {
@@ -208,13 +218,13 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
    */
   async function getFollowingRedirects(
     start: URL, isPage: boolean, whyNot: (url: URL) => Promise<string | null>,
-  ): Promise<{ body: string } | { failure: Answer | string; at: URL }> {
+  ): Promise<{ body: Uint8Array } | { failure: Answer | string; at: URL }> {
     let url = start;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const refusal = await whyNot(url);
       if (refusal !== null) return { failure: refusal, at: url };
       const answer = await requestWithRetries(url, isPage);
-      if (answer.kind === 'response' && answer.status === 200) return { body: answer.body ?? '' };
+      if (answer.kind === 'response' && answer.status === 200) return { body: answer.body ?? new Uint8Array() };
       const next = answer.kind === 'response' && isRedirect(answer.status) && answer.location !== null
         ? httpUrl(answer.location, url)
         : null;
@@ -244,7 +254,7 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     const robotsUrl = new URL('/robots.txt', origin);
     const result = await getFollowingRedirects(robotsUrl, false, async () => null);
     if ('body' in result) {
-      const robots = robotsParser(robotsUrl.href, result.body);
+      const robots = robotsParser(robotsUrl.href, decodeText(result.body));
       const crawlDelaySeconds = robots.getCrawlDelay(userAgent) ?? 0;
       const crawlDelayMs = Number.isFinite(crawlDelaySeconds) ? crawlDelaySeconds * 1000 : 0;
       if (crawlDelayMs > MAX_CRAWL_DELAY_MS) {
@@ -297,20 +307,27 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
     return originRules.isAllowed(url.href) ? null : 'disallowed by robots.txt';
   }
 
+  /** One page's bytes, or null (logged) when it may not be requested or did not answer 200. */
+  async function fetchBody(url: string): Promise<Uint8Array | null> {
+    const start = httpUrl(url);
+    if (start === null) {
+      log(`not an http(s) URL: ${url}`);
+      return null;
+    }
+    const result = await getFollowingRedirects(start, true, whyNotAllowed);
+    if ('body' in result) return result.body;
+    const { failure, at } = result;
+    const why = typeof failure === 'string' ? failure : describe(failure);
+    const where = at.href === start.href ? '' : ` (redirected to ${at.href})`;
+    log(`not fetched ${url}${where}: ${why}`);
+    return null;
+  }
+
   return {
     async fetchText(url) {
-      const start = httpUrl(url);
-      if (start === null) {
-        log(`not an http(s) URL: ${url}`);
-        return null;
-      }
-      const result = await getFollowingRedirects(start, true, whyNotAllowed);
-      if ('body' in result) return result.body;
-      const { failure, at } = result;
-      const why = typeof failure === 'string' ? failure : describe(failure);
-      const where = at.href === start.href ? '' : ` (redirected to ${at.href})`;
-      log(`not fetched ${url}${where}: ${why}`);
-      return null;
+      const body = await fetchBody(url);
+      return body === null ? null : decodeText(body);
     },
+    fetchBytes: fetchBody,
   };
 }

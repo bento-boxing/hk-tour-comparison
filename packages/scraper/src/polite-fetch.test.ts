@@ -49,6 +49,8 @@ function send(res: ServerResponse, status: number, body = '', headers: Record<st
 }
 
 let flakyCalls = 0;
+/** Bytes that are not valid UTF-8, so decoding them as text would change them. */
+const BINARY = Buffer.from([0x25, 0x50, 0x44, 0x46, 0xff, 0xfe, 0x00, 0x80, 0xc3]);
 
 const mainHandler: Handler = (req, res) => {
   switch (req.url) {
@@ -65,6 +67,8 @@ const mainHandler: Handler = (req, res) => {
     case '/hang': return; // never answers
     case '/to-private': return send(res, 302, '', { location: '/private/x' });
     case '/to-a': return send(res, 301, '', { location: '/a' });
+    case '/binary': res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(BINARY); return;
+    case '/private/binary': res.writeHead(200, { 'content-type': 'application/pdf' }); res.end(BINARY); return;
     default: return send(res, 404);
   }
 };
@@ -502,6 +506,16 @@ it('a site refused after pushback does not affect another site', async () => {
     await pushy.close();
     await elsewhere.close();
   }
+});
+
+it('fetchBytes returns the exact bytes, through the same robots.txt check, queue and User-Agent', async () => {
+  const bytes = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line) });
+  expect(await bytes.fetchBytes(url('/private/binary'))).toBeNull();
+  expect(Buffer.from((await bytes.fetchBytes(url('/binary')))!)).toEqual(BINARY);
+  expect(await bytes.fetchBytes(url('/missing'))).toBeNull();
+  expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/binary', '/missing']);
+  for (const r of main.requests) expect(r.userAgent).toBe('test-bot/0.1');
+  expectSpacedAndSerial(main.requests, 190);
 });
 
 it('USER_AGENT is generic', () => { expect(USER_AGENT).toBe('tour-comparison-bot/0.1'); });
