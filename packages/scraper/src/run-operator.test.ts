@@ -167,8 +167,22 @@ describe('a scraper that fetches each page itself (fetchPage)', () => {
     };
     const outcome = await runOperator(fakeScraper(pages, throwing), deps(fakeFetcher(pages)));
     expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
-    expect(logMentions(pageUrl('T1'), 'not fetched', 'boom')).toBe(true);
+    expect(logMentions(pageUrl('T1'), 'not fetched (fetch threw: boom)')).toBe(true);
   });
+});
+
+it('a fetcher that throws, against its contract, counts as a page not fetched for a scraper without fetchPage', async () => {
+  const pages = site(goodTours(10));
+  const inner = fakeFetcher(pages);
+  const fetcher: Fetcher = {
+    fetchText: async url => {
+      if (url === pageUrl('T1')) throw new Error('socket closed');
+      return inner.fetchText(url);
+    },
+  };
+  const outcome = await runOperator(fakeScraper(pages), deps(fetcher));
+  expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
+  expect(logMentions(pageUrl('T1'), 'not fetched (fetch threw: socket closed)')).toBe(true);
 });
 
 it('a tour with no upcoming departures is skipped, not a failure', async () => {

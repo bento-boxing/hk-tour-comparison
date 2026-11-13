@@ -135,6 +135,8 @@ describe('the dates JSON', () => {
     ['without a dates list', JSON.stringify({ isSuccess: true, data: { productCode: 'HTJSJG06', currency: 'HKD' } })],
     ['for another tour', response([row('2026-12-21')], { productCode: 'HTJSHA07' })],
     ['in another currency', response([row('2026-12-21')], { currency: 'MOP' })],
+    ['without a product code', response([row('2026-12-21')], { productCode: undefined })],
+    ['without a currency', response([row('2026-12-21')], { currency: undefined })],
   ])('returns null when the dates JSON is %s', (_, datesJson) => {
     expect(parse(multiCity, datesJson, MULTI_URL, CAPTURED)).toBeNull();
   });

@@ -62,3 +62,7 @@ it('discover returns [] when the sitemap cannot be fetched', async () => {
 it('datesUrl is the JSON dates request for a tour code, in HKD', () => {
   expect(datesUrl('HTJSJG06')).toBe('https://www.egltours.com/api/v1/tours/HTJSJG06/dates?currencyCode=HKD');
 });
+
+it.each(['', '../x', 'HTJS JG06', 'HTJSJG06?x=1', 'HTJSJG06/../../admin'])('datesUrl refuses %j, which is not a tour code', code => {
+  expect(() => datesUrl(code)).toThrow(/not a tour code/);
+});

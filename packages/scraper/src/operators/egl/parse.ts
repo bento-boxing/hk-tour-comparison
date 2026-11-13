@@ -143,14 +143,13 @@ interface Dates { departures: ScrapedDeparture[]; fromPriceHkd: number | null }
 /**
  * The dates JSON (`{"data":{"productCode","currency","sellingPrice","dates":[…]}}`) for the tour `code`:
  * every date not marked `isFull` or `isOffline` (the site's calendar lets neither be chosen), with its
- * `sellingPrice`. null when it is not that JSON, is for another tour, or is not in HKD.
+ * `sellingPrice`. null when it is not that JSON, or does not say it is for this tour and in HKD.
  */
 function readDates(datesJson: string | null, code: string): Dates | null {
   const response = parseJson(datesJson);
   const data = isObject(response) ? response.data : undefined;
   if (!isObject(data) || !Array.isArray(data.dates)) return null;
-  if (data.productCode !== undefined && data.productCode !== code) return null;
-  if (data.currency !== undefined && data.currency !== CURRENCY) return null;
+  if (data.productCode !== code || data.currency !== CURRENCY) return null;
   const departures: ScrapedDeparture[] = [];
   for (const row of data.dates.filter(isObject)) {
     const date = typeof row.departureDate === 'string' ? ISO_DATE.exec(row.departureDate)?.[1] : undefined;
