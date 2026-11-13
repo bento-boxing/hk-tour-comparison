@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { rootCertificates } from 'node:tls';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ScrapedTour } from '@hktours/core';
 import type { Db } from '@hktours/db';
@@ -145,6 +146,32 @@ describe('runCli', () => {
     expect(h.fetcher.asked).toHaveLength(3);
     expect(h.printed.at(-1)).toBe('jetour: ok, 3 tours saved, 3 tour pages, 0 parse failures, 0 unmatched names');
     expect(testDbCloses).toBe(1);
+  });
+
+  it('passes DATABASE_CA_CERT on to the database, normalised', async () => {
+    const pem = rootCertificates[0].trim(); // a real, public certificate
+    const cas: Array<string | undefined> = [];
+    const h = harness(site(goodTours(1)), { makeDb: async (_url, ca) => { cas.push(ca); return testDb; } });
+    expect(await runCli(['--operator', 'jetour'], { ...DATABASE, DATABASE_CA_CERT: pem.replace(/\n/g, '\\n') }, h.deps)).toBe(0);
+    expect(cas).toHaveLength(1);
+    expect(cas[0] === `${pem}\n`, 'the CA passed on is not the normalised certificate').toBe(true);
+  });
+
+  it('an empty DATABASE_CA_CERT (an unset GitHub secret) is not supplied', async () => {
+    const cas: Array<string | undefined> = [];
+    const h = harness(site(goodTours(1)), { makeDb: async (_url, ca) => { cas.push(ca); return testDb; } });
+    expect(await runCli(['--operator', 'jetour'], { ...DATABASE, DATABASE_CA_CERT: '' }, h.deps)).toBe(0);
+    expect(cas).toEqual([undefined]);
+  });
+
+  it('exits 2 when DATABASE_CA_CERT is not a certificate, before fetching or connecting, without echoing it', async () => {
+    const h = harness(site(goodTours(1)), {
+      makeFetcher: () => { throw new Error('no fetcher with a bad DATABASE_CA_CERT'); },
+      makeDb: () => { throw new Error('no database with a bad DATABASE_CA_CERT'); },
+    });
+    expect(await runCli(['--operator', 'jetour'], { ...DATABASE, DATABASE_CA_CERT: 'garbage-value-123' }, h.deps)).toBe(2);
+    expect(h.printed.join('\n')).toContain('DATABASE_CA_CERT');
+    expect(h.printed.join('\n')).not.toContain('garbage-value-123');
   });
 
   it('exits 1 on a failed run', async () => {

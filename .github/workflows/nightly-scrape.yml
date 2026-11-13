@@ -38,6 +38,8 @@ jobs:
       - run: pnpm db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Optional: verifies the database server. An unset secret is an empty string, which means "not supplied".
+          DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
 
   scrape:
     needs: migrate
@@ -66,3 +68,5 @@ jobs:
       - run: pnpm scrape --operator ${{ matrix.operator }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Optional: verifies the database server. An unset secret is an empty string, which means "not supplied".
+          DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}

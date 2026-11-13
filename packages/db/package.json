@@ -15,7 +15,8 @@
     "@electric-sql/pglite": "^0.5.16",
     "@hktours/core": "workspace:*",
     "@types/pg": "^8.23.1",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "pg-connection-string": "^2.14.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
