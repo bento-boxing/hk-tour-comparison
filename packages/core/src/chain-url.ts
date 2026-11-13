@@ -1,5 +1,5 @@
 import { OPERATOR_IDS, tourKey, type IsoDate, type OperatorId } from './types';
-import { isIsoDate } from './schema';
+import { isIsoDate, TOUR_CODE_PATTERN } from './schema';
 import { DEFAULT_GAP, sanitiseGap } from './chain';
 
 /**
@@ -14,8 +14,9 @@ export interface ChainState { legs: ChainLegRef[]; gap: { min: number; max: numb
 
 export const MAX_CHAIN_LEGS = 8;
 
-// `<operatorId>:<code>@<YYYY-MM-DD>`; the operator and the date are checked further below.
-const LEG_PATTERN = /^([a-z]+):([A-Za-z0-9_-]{1,40})@(\d{4}-\d{2}-\d{2})$/;
+// `<operatorId>:<code>@<YYYY-MM-DD>`; the operator, the code (TOUR_CODE_PATTERN, shared with the tour
+// schema) and the date are checked further below.
+const LEG_PATTERN = /^([a-z]+):([^@]*)@(\d{4}-\d{2}-\d{2})$/;
 const GAP_PATTERN = /^(\d+)-(\d+)$/;
 
 const isOperatorId = (s: string): s is OperatorId => (OPERATOR_IDS as readonly string[]).includes(s);
@@ -31,7 +32,7 @@ function decodeLeg(text: string): ChainLegRef | null {
   const match = LEG_PATTERN.exec(text);
   if (!match) return null;
   const [, operatorId, code, departure] = match;
-  if (!isOperatorId(operatorId) || !isIsoDate(departure)) return null;
+  if (!isOperatorId(operatorId) || !TOUR_CODE_PATTERN.test(code) || !isIsoDate(departure)) return null;
   return { tourKey: tourKey(operatorId, code), departure };
 }
 

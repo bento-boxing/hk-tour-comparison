@@ -23,6 +23,12 @@ export function parsePriceHkd(text: string): number | null {
   return value >= MIN_PRICE_HKD ? value : null;
 }
 
+/**
+ * A tour code the chain page's address can carry (`legs=egl:<code>@<date>`, see chain-url.ts): ASCII letters,
+ * digits, `_` and `-`, 1 to 40 of them. The one definition for both the scraped-tour schema and decodeChain.
+ */
+export const TOUR_CODE_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+
 const priceHkd = z.number().int().min(MIN_PRICE_HKD).max(MAX_PRICE_HKD).nullable();
 
 const isoDate = z.string().refine(isIsoDate, 'Expected a real date as YYYY-MM-DD');
@@ -32,7 +38,7 @@ const httpsUrl = z.string().regex(/^https:\/\/[^\s/?#]+\S*$/, 'Expected an https
 
 export const scrapedTourSchema: z.ZodType<ScrapedTour> = z.object({
   operatorId: z.enum(OPERATOR_IDS),
-  code: z.string().min(1),
+  code: z.string().regex(TOUR_CODE_PATTERN, 'Expected a code of 1 to 40 letters, digits, _ or -'),
   url: httpsUrl,
   title: z.string(),
   days: z.number().int().min(1).max(60),
