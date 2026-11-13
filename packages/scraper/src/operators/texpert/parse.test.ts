@@ -41,11 +41,12 @@ describe.each(['multi-city', 'simple', 'edge'])('texpert %s', name => {
     // which no places list holds. The hand-written list holds only such names; a real place belongs in data.json.
     expect(r.unmatched).toEqual(expected.unmatched);
   });
-  it('carries each day heading as the page gives it, one per itinerary day', () => {
+  it('carries each day heading as the page gives it (without line-wrap spaces inside words), one per itinerary day', () => {
     // Replaces the brief's 80-character limit, which Travel Expert's real headings exceed (up to 142 characters).
     const $ = load(html);
     const headingTexts = $('details summary h3').toArray()
-      .map(h3 => $(h3).text().replace(/^Day\s*\d+/, '').replace(/\s+/g, ' ').trim());
+      .map(h3 => $(h3).text().replace(/^Day\s*\d+/, '').replace(/\s+/g, ' ').trim()
+        .replace(/(\p{Script=Han}) (?=\p{Script=Han})/gu, '$1'));
     const t = parse(html, expected.sourceUrl, CAPTURED)!;
     expect(t.dayHeadings.length).toBe(t.days);
     expect(t.dayHeadings).toEqual(headingTexts);
@@ -180,6 +181,12 @@ describe('gathering and dismissal points', () => {
   });
   it('is null when the text before the marker is too long to be a place', () => {
     expect(points('早上於指定地點與領隊及其他團友一同乘車前往口岸集合 > 廣州', '廣州')).toEqual([null, null]);
+  });
+  it('removes the line-wrap spaces inside words, and keeps the spaces between other text', () => {
+    const t = parse(page(['江 門 > 從化溫 泉 > K11 ECOAST 打卡 > 【保衛里】 創意文化街區', '廣州 > 深圳灣口岸散 團。']),
+      'https://www.texpert.com/zh-hk/tour/9-test', CAPTURED)!;
+    expect(t.dayHeadings).toEqual(['江門 > 從化溫泉 > K11 ECOAST 打卡 > 【保衛里】 創意文化街區', '廣州 > 深圳灣口岸散團。']);
+    expect(t.endPoint).toBe('深圳灣口岸');
   });
   it('reads the days from JSON-LD and the from price from a single Offer', () => {
     expect(parse(page(['廣州', '佛山']), 'https://www.texpert.com/zh-hk/tour/9-test', CAPTURED))
