@@ -11,4 +11,9 @@ export interface OperatorScraper {
   discover(fetcher: Fetcher): Promise<string[]>;
   /** Pure function. null when the page is not a tour page or cannot be parsed. */
   parse(html: string, url: string): ScrapedTour | null;
+  /**
+   * Tours a run with no previous good run must save to pass its checks (checkRun's `below-minimum`),
+   * so a sitemap caught mid-rebuild cannot pass an operator's first run. Unset: no floor.
+   */
+  minExpectedTours?: number;
 }

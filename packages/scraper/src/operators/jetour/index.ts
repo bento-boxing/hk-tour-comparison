@@ -10,4 +10,6 @@ export const jetourScraper: OperatorScraper = {
   id: 'jetour',
   discover,
   parse: (html, url) => parse(html, url),
+  // First-run floor: about a third of the 451/453 tour pages its sitemap listed on 2026-11-12/13.
+  minExpectedTours: 150,
 };

@@ -215,6 +215,13 @@ describe('runCli', () => {
     ]);
   });
 
+  it('dry-run checks the run against the scraper\'s floor for first runs', async () => {
+    const pages = site(goodTours(3));
+    const h = harness(pages, { scrapers: { jetour: { ...fakeScraper(pages), minExpectedTours: 4 } } });
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(1);
+    expect(h.printed).toContain('run checks: failed (below-minimum)');
+  });
+
   it('dry-run with --limit fetches only that many pages', async () => {
     const h = harness(site(goodTours(5)));
     expect(await runCli(['--operator', 'jetour', '--dry-run', '--limit', '2'], {}, h.deps)).toBe(0);
@@ -258,6 +265,11 @@ describe('SCRAPERS', () => {
   it('holds exactly the approved operators, each under its own id', () => {
     expect(Object.keys(SCRAPERS).sort()).toEqual(['jetour', 'texpert']);
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
+  });
+
+  it('gives each operator a floor for runs with no history, about a third of the tour pages seen', () => {
+    expect(SCRAPERS.jetour?.minExpectedTours).toBe(150);
+    expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
   });
 
   it('the nightly workflow scrapes every registered operator', async () => {

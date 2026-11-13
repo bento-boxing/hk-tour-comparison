@@ -130,6 +130,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     tourPagesFetched: pagesFetched,
     parseFailures,
     previousGoodCount: await previousGoodTourCount(db, operatorId),
+    minExpectedTours: scraper.minExpectedTours ?? null,
   });
   const stats: RunStats = { startedAt, finishedAt: now(), pagesFetched, parseFailures };
   const unmatchedNames: UnmatchedName[] = [...unmatched].map(([name, tourCode]) => ({ name, tourCode }));

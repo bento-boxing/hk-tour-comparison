@@ -10,4 +10,6 @@ export const texpertScraper: OperatorScraper = {
   id: 'texpert',
   discover,
   parse: (html, url) => parse(html, url),
+  // First-run floor: about a third of the 117 tour pages its sitemap listed on 2026-11-13.
+  minExpectedTours: 40,
 };

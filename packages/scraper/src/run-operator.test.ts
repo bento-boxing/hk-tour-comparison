@@ -223,6 +223,24 @@ it('a bad run keeps last night\'s data', async () => {
   ]);
 });
 
+it('a first run with fewer tours than the scraper\'s floor is a failed run and saves nothing', async () => {
+  const outcome = await run(site(goodTours(5)), NIGHT_1, { minExpectedTours: 6 });
+  expect(outcome).toEqual({ operatorId: 'jetour', ok: false, reasons: ['below-minimum'], toursSaved: 0 });
+  expect(await savedTours()).toEqual([]);
+  expect(await scrapeRuns()).toEqual([
+    { ok: false, reasons: ['below-minimum'], pages_fetched: 5, parse_failures: 0, tours_saved: 0, run_date: NIGHT_1 },
+  ]);
+});
+
+it('a first run at the scraper\'s floor is saved', async () => {
+  expect(await run(site(goodTours(5)), NIGHT_1, { minExpectedTours: 5 })).toMatchObject({ ok: true, toursSaved: 5 });
+});
+
+it('the floor is ignored once there is a previous good run', async () => {
+  expect(await run(site(goodTours(30)), NIGHT_1)).toMatchObject({ ok: true, toursSaved: 30 });
+  expect(await run(site(goodTours(25)), NIGHT_2, { minExpectedTours: 150 })).toMatchObject({ ok: true, toursSaved: 25 });
+});
+
 it('zero discovered URLs is a failed run', async () => {
   const outcome = await run(new Map());
   expect(outcome).toEqual({ operatorId: 'jetour', ok: false, reasons: ['no-tours'], toursSaved: 0 });
