@@ -328,6 +328,12 @@ describe('extractStops on crawled headings', () => {
     expect(r.unmatched).toEqual(expectedUnmatched);
   });
 
+  it('does not read 艾佛德神學院 (a madrasa in Fes) as Erfoud (Jetour KMA, KMC)', () => {
+    expect(names(extractStops(['費斯 ~ 古城區 ~ 艾佛德神學院 ~ 費斯皮革染坊 ~ 皮革專門店 ~ 北古城堡 ~ 下午自由閒逛'], places))).toEqual(['費斯']);
+    // Erfoud itself still reads
+    expect(names(extractStops(['費斯 ~ 伊夫蘭 ~ 艾佛德 ~ 撒哈拉沙漠'], places))).toEqual(['費斯', '伊夫蘭', '艾佛德']);
+  });
+
   it('does not read 蘇州河 (Suzhou Creek, Shanghai) as Suzhou (Jetour TSSKQ, TSDQ)', () => {
     expect(names(extractStops(['香港 ~ 洛克·外灘源 ~ 漫步蘇州河畔賞玉蘭花', '上海 ~ 思南公館片區 ~ 無錫'], places))).toEqual(['上海', '無錫']);
     expect(names(extractStops(['無錫 ~ 蠡湖風景區 ~ 太湖珍珠館 ~ 紫砂博物館 ~ 上海 ~ 洛克·外灘源 ~ 蘇州河畔 ~ 黃河路美食街'], places)))

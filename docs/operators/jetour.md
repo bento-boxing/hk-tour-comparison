@@ -182,3 +182,32 @@ Consequence for the nightly job (18:00 UTC): if a rebuild overlaps the run, disc
 No confirmation dry run was made this round: discovery did not need a fix, which was the condition for one.
 
 **Route rules narrowed in fix round 2** (offline, practice-crawl headings): the single-outlier removal now applies only to names on `collisionNames` (`塔林`, `黃金海岸`), so Kirkenes, Vaduz, Tirano, the Vatican, San Marino and Rovaniemi are back on 19 routes; a transit word now drops only its whitespace-delimited chunk, so Rio stays on `QPE`. 26 routes changed against fix round 1 (23 from the two rules, 3 from `蘇州河` below); still 1 tour page without stops (`TCPA-1`, parser null). Known limits: hubs named plainly (`巴黎 ~ 利馬`, `巴黎或阿姆斯特丹 ~ 香港`, `成都/北京`, `香港 ~ 廣州 ~ 阿拉木圖`), and hubs a space away from `轉機` (`途經巴黎 轉機` on QSG, QSC; `經巴黎 或 阿姆斯特丹 轉機` on QTCRR, QTDR). New `notPlaces` entry `蘇州河` (Suzhou Creek, Shanghai; TSSKQ, TSDQ, TWAQ, TSSHQ).
+
+## Sitemap rebuilds (for the owner)
+
+Jetour rebuilds `sitemap.xml` from time to time and serves it incomplete while it does:
+- 2026-11-12 22:13 UTC: complete (451 tour pages; newest `<lastmod>` 22:01 UTC);
+- 2026-11-13 01:51 UTC: complete (the practice crawl discovered 451);
+- 2026-11-13 03:45 UTC: **one** tour page listed (the confirmation crawl of fix round 1);
+- 2026-11-13 04:26 UTC: complete again (453 tour pages; every `<lastmod>` between 03:49:04 and 04:09:53 UTC, i.e. a rebuild in that window).
+
+The rebuild schedule is not known. A nightly run that lands inside a rebuild discovers too few tours and **fails its checks, keeping the previous night's data** (`tour-count-dropped` when there is a previous good run; `below-minimum`, a floor of 150 tours, when there is none). The nightly job then fails and GitHub emails the owner; the next night normally succeeds. **Start the first real scrape by hand** (`workflow_dispatch`) and check its tour count in `scrape_runs` before relying on the schedule.
+
+## Confirmation crawl (Task 19, fix round 3)
+
+`pnpm scrape --operator jetour --dry-run`, run once on **2026-11-13**, **04:41:09–05:10:00 UTC (28 min 51 s)**, through `createFetcher`, with the first-run floor (`minExpectedTours: 150`) in place. No 403, 429, bot challenge, retry or unfetched page.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | 453 |
+| Tour pages fetched | 453 |
+| Tours that normalise (would be saved if the checks passed) | **99** |
+| Pages with no upcoming departures | 353 (`沒有數據。` in the booking table; skipped, not failures) |
+| Parse failures | **1 (0.2%)**: `/tour/EWIB-2`, parser returned null |
+| Run checks | **failed** (`below-minimum`): 99 is under the floor of 150 |
+
+**The floor of 150 is too high for Jetour.** It was set from pages listed (≈453), but most listed tours have no dates on sale: 107 pages in the practice crawl and 353 now. The round-1 estimate of "343 would normalise" counted the 311 former `no-stops` pages as normalising without their departures being checked; 244 of them have none. A third of the 99 tours that normalise is **33**; a floor of about **35** would be the equivalent of the Travel Expert floor (40 against 112). Not changed: reported to the controller.
+
+Top 30 unmatched names (pages each appeared on; 3,296 distinct): 舊城區 58, 大教堂 46, 自由購物 32, 古城區 31, 教堂橋 27, 獅子紀念碑 27, 市政廳 25, 舊城廣場 24, 聖誕老人村 23, 哈士奇雪橇犬場 22, 帝王蟹之旅 22, 查理斯橋 22, 聖家大教堂 22, 凱旋門 21, 百水公寓 21, 國會大廈 20, 聖維特教堂 20, 荷夫堡 20, 賽里木湖 20, 離船 20, 黃金小徑 20, 主教堂 19, 太湖珍珠館 19, 米拉之家 19, 紫砂博物館 19, 航海紀念碑 19, 梅家塢茶園 18, 西班牙廣場 18, 面譜屋 18, 哥倫布廣場 17. Attractions only: no missing city among them.
+
+Sample of 40 of the 99 tours, routes compared with their headings: one wrong city, **KMA (and KMC) 艾佛德 (Erfoud) from `艾佛德神學院`**, a madrasa in Fes (`費斯 ~ 古城區 ~ 艾佛德神學院 ~ 費斯皮革染坊`), which put Erfoud between two Fes stops. Fixed after the crawl with the `notPlaces` entry `艾佛德神學院` (test: Erfoud itself still reads). The rest are the accepted transit limits: Paris/Amsterdam named plainly on QUAK (`巴黎 ~ 利馬`, `利馬 ~ 巴黎`), QMB (`巴黎 ~ 墨西哥城`, `巴黎 或 阿姆斯特丹 ~ 香港`), QTCRR and QTDR (`經巴黎 或 阿姆斯特丹 轉機`).
