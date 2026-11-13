@@ -4,22 +4,104 @@ DATES NOT AVAILABLE WITHIN THE RULES (`api.biglinehk.com` answers our plain GET 
 
 # Big Line Holiday 大航假期 (`bigline`): operator investigation
 
-- Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`). Task 14 pages were fetched 2026-11-12 22:13–22:34 UTC; Task 14b requests were made 2026-11-13 00:03–00:11 UTC.
-- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **9 of 10** in Task 14. In Task 14b: **5 of 10** (3 script files on `bigline.hk` and 2 API calls on `api.biglinehk.com`), plus that host's robots.txt.
+- Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`). Task 14 pages were fetched 2026-11-12 22:13–22:34 UTC; Task 14b requests were made 2026-11-13 00:03–00:11 UTC; the Task 14c probe ran 2026-11-13 20:46–20:55 UTC.
+- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **9 of 10** in Task 14. In Task 14b: **5 of 10** (3 script files on `bigline.hk` and 2 API calls on `api.biglinehk.com`), plus that host's robots.txt. In Task 14c: **7 of 12** requests to `api.biglinehk.com`, robots.txt included.
 
 ## Recommendation
 
-**HOLD.** Each of these three reasons is enough on its own:
+**PROCEED, on three conditions for the owner.** The three reasons for the earlier HOLD are gone:
 
-1. **The data host refuses a plain request.** `api.biglinehk.com` serves all tour data: the `bigline.hk` pages carry none of it. Asked for one tour's detail with a plain GET (our User-Agent, no other headers), it answered `{"code":401,"msg":"未授权"}` ("unauthorised", inside an HTTP 200 response). The site's own front end sends three extra headers on every API request: `tenantCode: DH`, `X-Device-Id` (a random id each browser stores) and `X-Device-Type: Web`. Sending them would imitate the site's own app, which the rules forbid, so it was not tried. Which header, if any, the API is missing could not be determined without sending them.
-2. **The departure dates and per-date prices come only from a POST request** (`POST /bigline/global/product/release/page`, one per month). `createFetcher` makes only GET requests, and the rules allow nothing beyond a plain GET. So even if the 401 were lifted, the dates would not be reachable within the rules. No GET was tried against that path: it would be a guessed request the site never makes.
-3. **The terms are unread.** The user agreement text loads from the same API (`GET /bigline/global/protocol/center?protocolId=1`), which gave the same answer, `{"code":401,"msg":"未授权"}`. No clause can be quoted, so the PROCEED/HOLD test cannot be applied. The only rights text on the site is the footer:
+1. **The API answers with one static header.** With `tenantCode: DH` added (no device id, no device type, no cookie, no token), every request was answered with data (`"code":200`). `DH` is a fixed value written into the site's public JavaScript and page state (`apiHostCode: "DH"`). It is the same for every visitor and identifies the site, not a person or a device.
+2. **The dates and per-date prices are reachable.** `POST /bigline/global/product/release/page` with the site's own JSON body returned every departure of the month with its date, prices and seats left. `createFetcher` now has `postJson`. A POST goes through the same robots.txt check, queue, 3 s spacing and pushback rules as a GET, and it is never retried.
+3. **The terms were read, and nothing in them stops us.** The user agreement, the privacy policy and the member agreement have no clause on automated access, robots, crawling, scraping, copying or reproduction. They also have no personal or non-commercial use limit. The nearest clauses are quoted under "Terms" below. The footer still says `All rights reserved`. We would copy facts (dates, prices, day count, gathering point), not text.
 
-   > 大航假期 Copyright © 2026 Big Line Holiday Limited. All rights reserved
+The conditions:
 
-Nothing was worked around. No extra header, cookie, token, POST or retry was sent; the 401 answers were recorded and the investigation stopped. 5 of the 10 requests allowed were left unused.
+- **A standing approval for the header and the POST.** The owner approved them for this probe only. A nightly scraper would send `tenantCode: DH` and one POST per month on every run.
+- **The nightly cost does not fit as it stands.** One tour needs 1 detail GET plus 1 POST per month it has departures in. Tour 9109 has 8 months, so it needs 9 requests. If all 586 sitemap tours were like that, a night would take 5,274 requests, about 4 h 24 min at 3 s each (plus response time). The nightly job's limit is 170 minutes. A horizon of the next 3 months would make it 586 × 4 = 2,344 requests, about 1 h 57 min plus response time. That fits, but tightly. How many months the other tours have was not measured (see "Nightly cost").
+- **The API returns internal and personal data along with the public facts.** Examples: a tour leader's full name (`data.list[].tourLeader[].guideName`), staff sales notes (`internalSaleRemark`, e.g. "(a short staff sales note)", roughly "we need customers, the flights are booked, we need 6 guests"), supplier names and supplier cost prices, and leader subsidies. The scraper must keep only the public facts listed under "Where each fact is in the API". Any fixture must be trimmed down to those facts. The raw probe responses stay under `.superpowers/` and should be deleted once the fixtures are made.
 
-**To revisit**, the owner would have to decide whether sending the site's `tenantCode` header and making the month-dates POST is acceptable (today's rules say no), or ask Big Line for access. The plan's note that the data is in embedded page state (`__NUXT__`) is no longer true: the embedded state now carries only SEO fields.
+The plan's note that the data is in embedded page state (`__NUXT__`) is no longer true: the embedded state now carries only SEO fields.
+
+## Owner decision (2026-11-13)
+
+The owner explicitly authorised one staged probe of `api.biglinehk.com`, and nothing beyond it. The steps were to be done in this order, stopping at the first failure:
+
+1. **Terms first**: `GET /bigline/global/protocol/center?protocolId=1` with the one extra header `tenantCode: DH`. The brief allowed one retry with `X-Device-Type: Web` and an `X-Device-Id`. **The owner withdrew that retry during the task, before any request was sent:** no device header was to be sent at all, and a refusal of `tenantCode` alone meant stop. A block page, captcha or rate limit, or HTTP 403/429, also meant stop.
+2. **Read the terms**: at most 3 documents, plus the listing call once if needed. A clause prohibiting automated access, scraping or reproduction meant stop all fetching (HOLD). A personal or non-commercial use limit was to be recorded and flagged.
+3. **One tour detail**: `GET /bigline/global/product/tour/frontend/detail?id=9109` with the smallest header set that worked.
+4. **One dates request** (at most 2 POSTs, for two different months): `POST /bigline/global/product/release/page` with the site's JSON body, the same headers, plus `Content-Type: application/json`. Then stop. No listing or crawl calls.
+
+Rules for every request: our honest User-Agent, robots.txt obeyed, one request at a time at least 3 s apart, all through `createFetcher`, a hard cap of 12 requests. Not allowed: cookies, browser-like headers (Referer, Origin, Accept-Language, `sec-*`), login, or a token from any user session. This was permission to probe, not approval of the operator.
+
+## Task 14c probe: what was sent and what came back
+
+Each request was logged to `.superpowers/raw-pages/bigline/ledger-probe.tsv`, and each raw response was saved beside it as `probe-*.json` (git-ignored). The probe script is outside the repository. Each request carried `user-agent: tour-comparison-bot/0.1`, plus undici's defaults (`accept: */*`, `accept-language: *`, `sec-fetch-mode: cors`, `accept-encoding`), and only the extra headers listed below. No cookie, Referer, Origin, Authorization, `X-Device-Id` or `X-Device-Type` was sent at any point. Nothing was retried.
+
+| # | UTC (2026-11-13) | Method and URL | Extra headers | HTTP | JSON `code` | Bytes |
+|---|---|---|---|---|---|---|
+| 1 | 20:46:26 | GET https://api.biglinehk.com/robots.txt | none | 200 | 500 (`404 NOT_FOUND`: no robots.txt, everything allowed, as in Task 14b) | 34 |
+| 2 | 20:46:32 | GET …/bigline/global/protocol/center?protocolId=1 (user agreement 用戶協議) | `tenantCode: DH` | 200 | **200** | 14,412 |
+| 3 | 20:48:15 | GET …/bigline/global/protocol/center?protocolId=2 (privacy policy 隱私政策) | `tenantCode: DH` | 200 | 200 | 38,851 |
+| 4 | 20:49:57 | GET …/bigline/global/protocol/center?protocolId=8 (member agreement 會員服務協議) | `tenantCode: DH` | 200 | 200 | 18,330 |
+| 5 | 20:50:32 | GET …/bigline/global/product/tour/frontend/detail?id=9109 | `tenantCode: DH` | 200 | 200 | 73,823 |
+| 6 | 20:53:15 | POST …/bigline/global/product/release/page, body `{"pageNo":1,"productId":"9109","yearMonth":"2026-12","pageSize":1000}` | `tenantCode: DH`, `Content-Type: application/json` | 200 | 200 | 104,041 |
+| 7 | 20:54:33 | POST …/bigline/global/product/release/page, body `{"pageNo":1,"productId":"9109","yearMonth":"2026-11","pageSize":1000}` | `tenantCode: DH`, `Content-Type: application/json` | 200 | 200 | 60,025 |
+
+- **Step 1.** `tenantCode: DH` alone was enough, so the minimal header set is that one header. The retry with device headers was neither needed nor sent. No block page, captcha, rate limit, 403 or 429 was seen at any step.
+- **Step 2.** The listing call was not needed. Every `protocol/center` answer carries `data.typeList`, the list of all 9 documents: 1 用戶協議 (user agreement), 2 隱私政策 (privacy policy), 3 旅行團報名及細則 (tour booking terms), 4 旅遊保險 (travel insurance), 5 簽證須知 (visa notes), 6 旅客須知 (traveller notes), 7 惡劣天氣團隊安排說明 (bad-weather arrangements), 8 會員服務協議 (member agreement), 9 註銷服務協議 (account closing). Three were read: 1, 2 and 8. The other six are about booking, travelling and accounts.
+- **Step 3.** The detail came back in full (fields below).
+- **Step 4.** The body follows the site's JS. The tour component calls the release API with `{pageNo: 1, productId, yearMonth}`, and the API function adds `pageSize: 1000`. `productId` is the route id as a string (`/tour-group/9109` → `"9109"`). When there is no route id, the JS uses the detail's `productId` (here `null`) and then its `id` (here `9109`), so the value is the same. `yearMonth` is `YYYY-MM`, taken from `availableMonths`. Two months were asked for. December had no full departures, so November (the current month) was asked for second, to see what a full date looks like. Fetching stopped there: 5 of the 12 allowed requests were left unused.
+
+## Terms (read 2026-11-13 from `protocol/center`)
+
+None of the three documents read has a clause on automated access, robots, crawling, scraping, copying or reproduction. None has a personal or non-commercial use limit either. These are the only clauses that come near those topics (short quotations, with an English gloss):
+
+- User agreement, 3.2(6): 「不得利用本網站侵犯本公司、第三方供應商或其他用戶的合法權益（包括但不限於知識產權、名譽權、隱私權等）」: users must not use the site to infringe the lawful rights of the company, its suppliers or other users, including intellectual property, reputation and privacy. Listing facts with a link is not that. The personal data the API returns (above) must not be republished, which is also what this clause protects.
+- User agreement, 4.1(2): 「有權對用戶的註冊信息、使用行為進行審核、監測，對違反本協議、法律法規或惡意使用服務的用戶，有權採取警告、限制賬號功能…等措施」: the company may review and monitor how users use the site, and may act (warnings, account limits and so on) against users who break the agreement or use the service maliciously. This is aimed at accounts. We have none.
+- User agreement, 7.6: 「因網絡傳輸延遲、數據緩存等原因導致本網站展示的產品信息（如價格、庫存等）出現臨時錯誤，本公司有權更正該信息」: prices and availability shown on the site may be briefly wrong, and the company may correct them. Our "check with the operator" wording covers this.
+- Privacy policy, opening: 「任何人士如瀏覽本平台，即表示已閱讀、理解並接納本聲明之內容及同意受其約束」: anyone who browses the platform accepts this statement. The statement is about personal data and cookies, and has nothing on automated access.
+- The privacy policy refers to 「我們的 Cookie 條款與條款及細則」 ("our cookie terms and terms and conditions"). No separate website terms and conditions appear among the 9 documents in `typeList`. The cookie terms are part of the privacy policy. **Not verified:** whether a website T&C exists somewhere else. The footer of `bigline.hk` links two documents: 《用戶協議》 (`protocolId=1`) and 《隱私政策》 (`protocolId=2`), both read.
+- The member agreement (8) is about the loyalty points scheme only. Nothing in it is relevant.
+
+## Where each fact is in the API (observed in Task 14c)
+
+Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. Dates: `POST /bigline/global/product/release/page` → `data.list[]`, one entry per departure, plus `data.total`, `data.pageNum` and `data.pageSize`.
+
+| Fact | Path | Example (tour 9109) |
+|---|---|---|
+| Tour id | detail `data.id`, the same as the sitemap id; dates `data.list[].productId` | `9109` |
+| Tour code | detail `data.basic.tourNo`; dates `data.list[].tourNo` | `CSIAA06` |
+| Title | detail `data.basic.nameCn`; dates `data.list[].nameCn` | `【純玩•西安】（提升2+1旅遊巴及粵語導遊） 西嶽華山 … 直航6天` |
+| Days | detail `data.basic.tourDays`; dates `data.list[].tourDays` | `6` |
+| Nights | **not in either response.** The top-level `data.durationNights` and `data.durationDays` are `null`. | – |
+| Day headings | detail `data.projectItinerary.dailyTripList[]`: `.days` (day number) and `.tripContent` (the route, places separated by `~`, with a leading `.`) | day 1 `.香港機場集合~西安機場~入住酒店` |
+| Start / gathering point | detail `data.signUp.locationGroupList[].locationName` and `.startTime`; per departure `data.list[].departurePlace[].locationName` and `.startTime`. Top-level `data.gatheringPlace` is `""`. | `香港國際機場`, start time `待定` (to be confirmed) |
+| "From" price | detail `data.memberFee` (`data.basic.memberFee` is `null`). The front end shows `memberFee` with 「起」 ("from"). `adultFee` is $10 higher. | `5799` (HKD: `data.signUp.settlementCurrencyCode`) |
+| Months with departures | detail `data.availableMonths` (`YYYY-MM`) | `2026-11` … `2027-06` (8 months) |
+| Departure dates | dates `data.list[].scheduleDate` (`YYYY-MM-DD`). **Past dates are included**: the November answer had 11-04 and 11-11, before the capture date 11-13. | 7 in 2026-12, 4 in 2026-11 |
+| Per-date price | dates `data.list[].memberFee` (also `adultFee`, `childFee`, `babyFee`; numbers such as `6899.0`; `currencySymbol` is `null`) | 12-01 `5799.0` … 12-25 `6899.0` |
+| Full | observed together on all 3 full departures (2026-11-04, -11, -22): `seatRemain: 0`, `soldTotal` equal to `maxPersonTotal`, `registrationStatus: 1` and `tourFlag` containing `5` (`"1,2,5"`). Open departures had `seatRemain` 3–14, `registrationStatus: 0`, and no `5` in `tourFlag`. The front end's own "已滿" (full) test is the function `ot` in chunk `/_nuxt/C8-td2ew.js`. That chunk was not fetched, so the exact rule is **not verified**. `seatRemain === 0` is the safest reading. | |
+| Closed / cut off | `data.list[].isCutofftour` was `false` on all 11 departures; no closed departure was seen. `tourStatus` was `"1"` on 10 departures and `"2"` on one (2026-12-01: `maxPersonTotal: 3`, `releaseStatusDaily: ""`). What `"2"` means is **unknown**. | |
+| Guaranteed departure | `data.list[].releaseStatusDaily: "已成團"` ("tour confirmed") on 10 of 11 departures | |
+
+**Do not take** these fields: `tourLeader`, `guideLeader`, `internalSaleRemark`, `internalRemark`, `agencySupplier`, `projectItinerary.projectItineraryList` (supplier names and cost prices), `extraCost`, `salesCommission`, `soldTotal`/`soldCount` beyond the full test, `departureFlightTime`/`returnFlightTime` (staff-typed text), or `reservationPolicies` (long terms text).
+
+## Discovering tours and nightly cost
+
+**Tour ids** come from the sitemap: `https://bigline.hk/sitemap-1.xml` lists 586 `https://bigline.hk/tour-group/<id>` URLs, out of 691 URLs in all. `<id>` is the `id` the detail endpoint takes. The site also has a GET tour listing (`/bigline/global/product/tour/frontend/page`). It was not called, so what it returns is unknown.
+
+**Requests per tour per night:** 1 detail GET, plus 1 POST for each month in `availableMonths`. Tour 9109 needs 1 + 8 = 9. One sample does not give the average for all tours. Tours that are no longer sold may have no months: they would need just the detail call, or they may be gone from the API.
+
+| Assumption | Requests per night | At 3 s each (plus response time) | Fits the 170-minute nightly job? |
+|---|---|---|---|
+| Sitemap fetch only (index + 1 child) | 2 on `bigline.hk` | – | – |
+| 586 tours × 9 (every tour like 9109) | 5,274 | 4 h 24 min | **no** |
+| 586 tours × 4 (detail + the next 3 months only) | 2,344 | 1 h 57 min | yes, but tightly |
+| 586 tours × 2 (detail + the current month only) | 1,172 | 59 min | yes |
+| all 691 sitemap URLs × 9, if non-tour pages were also counted | 6,219 | 5 h 11 min | no (only the 586 tour URLs are needed) |
+
+Ways to cut the cost, none of them tried: a months horizon; skipping a tour's POSTs when its detail shows no `availableMonths`; or spreading tours across nights.
 
 ## Owner decision (2026-11-12)
 
@@ -56,7 +138,7 @@ The device id is generated in the browser as `web_` plus `crypto.randomUUID()` w
 | Seats and rooms for one selected departure | `GET /bigline/global/product/tour/frontend/get-bookseat-jointour/<departure id>` | the id comes from the month list above | no (needs the POST's result) |
 | User agreement / privacy text | `GET /bigline/global/protocol/center` | `?protocolId=<id>` (the footer's `《用戶協議》` link uses `1`); without a parameter it lists the agreements | **yes, once** (`protocolId=1`): `{"code":401,"msg":"未授权"}` |
 
-The field names in the first row are what the front-end code reads from the detail response. They were not observed, because the API returned no data. The same chunk also has a GET tour listing (`/bigline/global/product/tour/frontend/page`) that the tour page does not use. It was not called, and its contents are unknown.
+The field names in the first row are what the front-end code reads from the detail response. They were not observed in Task 14b, because the API returned no data. Task 14c observed them (see "Where each fact is in the API"); the detail and dates rows above were called then with `tenantCode: DH`. The same chunk also has a GET tour listing (`/bigline/global/product/tour/frontend/page`) that the tour page does not use. It was not called, and its contents are unknown.
 
 No fixtures were saved: no tour data was returned.
 
@@ -102,6 +184,8 @@ No prices or dates are in the pages, so nothing to report. The SEO text uses ASC
 ## Fixtures
 
 **None saved**: none of the facts is in the `bigline.hk` pages, and the API that serves them returned no data to a plain GET (`{"code":401,"msg":"未授权"}`). There is nothing to trim, so `trimFixture` was not changed.
+
+Task 14c: the API responses are saved only as raw pages under `.superpowers/raw-pages/bigline/` (git-ignored). They contain personal and internal data, so they must not be committed as they are. A fixture must keep only the fields in "Where each fact is in the API".
 
 ## Every URL fetched (Task 14: 9 page fetches; Task 14b: 5; robots.txt not counted)
 
