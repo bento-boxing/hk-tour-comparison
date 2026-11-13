@@ -1,0 +1,34 @@
+{
+  "sourceUrl": "https://www.texpert.com/zh-hk/tour/1359-guangdong-province-tour-1-day-new-huanggang-experience",
+  "verifiedByOwner": false,
+  "scraped": {
+    "operatorId": "texpert",
+    "code": "YDEA01R",
+    "url": "https://www.texpert.com/zh-hk/tour/1359-guangdong-province-tour-1-day-new-huanggang-experience",
+    "title": "【廣東省團】1天「皇崗新體驗」非遺老街 K11 ECOAST 歎大閘蟹+乳鴿 東莞美食純玩",
+    "days": 1,
+    "nights": null,
+    "dayHeadings": [
+      "新皇崗口岸集合→乘坐國內旅遊車前往 東莞→【松山湖】外觀華為歐洲小鎮→ 午餐【金秋大閘蟹+紅燒乳鴿宴】→暢 遊國家非物質文化遺產老街【牙香街】 →潮玩熱點·高端地標【K11 ECOAST】 打卡靚景、食嘢、Shopping等一次過 滿足曬→深圳灣口岸/新皇崗口岸散團， 結束愉快行程！"
+    ],
+    "startPoint": "新皇崗口岸",
+    "endPoint": "深圳灣口岸/新皇崗口岸",
+    "fromPriceHkd": 139,
+    "departures": [
+      { "date": "2026-11-14", "priceHkd": 139 },
+      { "date": "2026-11-15", "priceHkd": 139 },
+      { "date": "2026-11-21", "priceHkd": 139 },
+      { "date": "2026-11-22", "priceHkd": 139 },
+      { "date": "2026-11-28", "priceHkd": 139 },
+      { "date": "2026-11-29", "priceHkd": 139 },
+      { "date": "2026-12-05", "priceHkd": 139 },
+      { "date": "2026-12-06", "priceHkd": 139 },
+      { "date": "2026-12-12", "priceHkd": 139 },
+      { "date": "2026-12-13", "priceHkd": 139 },
+      { "date": "2026-12-19", "priceHkd": 139 },
+      { "date": "2026-12-20", "priceHkd": 139 }
+    ]
+  },
+  "stopNames": ["東莞"],
+  "unmatched": ["新皇崗口岸集合", "外觀華為歐洲小鎮", "打卡靚景", "食嘢", "滿足曬", "新皇崗口岸散團", "結束愉快行程！"]
+}
