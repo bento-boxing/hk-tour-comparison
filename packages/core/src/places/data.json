@@ -143,6 +143,8 @@
     { "id": "china-guangdong-zhuhai", "regionId": "china-guangdong", "nameZh": "珠海", "nameEn": "Zhuhai", "aliases": [] },
     { "id": "china-guangdong-chaozhou", "regionId": "china-guangdong", "nameZh": "潮州", "nameEn": "Chaozhou", "aliases": [] },
     { "id": "china-guangdong-shantou", "regionId": "china-guangdong", "nameZh": "汕頭", "nameEn": "Shantou", "aliases": [] },
+    { "id": "china-guangdong-jiangmen", "regionId": "china-guangdong", "nameZh": "江門", "nameEn": "Jiangmen", "aliases": [] },
+    { "id": "china-guangdong-dongguan", "regionId": "china-guangdong", "nameZh": "東莞", "nameEn": "Dongguan", "aliases": [] },
 
     { "id": "china-beijing-beijing", "regionId": "china-beijing", "nameZh": "北京", "nameEn": "Beijing", "aliases": [] },
     { "id": "china-beijing-tianjin", "regionId": "china-beijing", "nameZh": "天津", "nameEn": "Tianjin", "aliases": [] },
@@ -170,6 +172,8 @@
 
     { "id": "china-hunan-zhangjiajie", "regionId": "china-hunan", "nameZh": "張家界", "nameEn": "Zhangjiajie", "aliases": [] },
     { "id": "china-hunan-changsha", "regionId": "china-hunan", "nameZh": "長沙", "nameEn": "Changsha", "aliases": [] },
+    { "id": "china-hunan-hengyang", "regionId": "china-hunan", "nameZh": "衡陽", "nameEn": "Hengyang", "aliases": [] },
+    { "id": "china-hunan-fenghuang", "regionId": "china-hunan", "nameZh": "鳳凰古城", "nameEn": "Fenghuang", "aliases": [] },
 
     { "id": "china-shandong-qingdao", "regionId": "china-shandong", "nameZh": "青島", "nameEn": "Qingdao", "aliases": [] },
     { "id": "china-shandong-penglai", "regionId": "china-shandong", "nameZh": "蓬萊", "nameEn": "Penglai", "aliases": [] },
