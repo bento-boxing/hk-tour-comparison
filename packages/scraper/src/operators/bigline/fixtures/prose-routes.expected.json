@@ -1,0 +1,62 @@
+{
+  "sourceUrl": "https://bigline.hk/tour-group/624469",
+  "verifiedByOwner": false,
+  "notes": "Tour 624469 (CHET08F), Inner Mongolia: a fourth fixture, beyond the three asked for, kept because its route lines are the worst seen (places joined by --, each followed by a sentence or more of description, and #註 notes on later lines), so it tests the heading rules on real data. It also shows that a 6-digit sitemap id answers the same detail request as a 4-digit one. Fixture: the detail and ONE month (2026-12; captured 2026-11-13 22:04-22:05 UTC, trimmed by public.ts); the scraper would also request 2027-01 and 2027-02, not captured, to keep within the request budget. Title: basic.nameCn has a line break, collapsed to a space. From price: memberFee 6299. Start: the first of four gathering places. Departures: all seven December dates (19 seats left each). Day headings: most chunks are descriptions and are cut at their first sentence mark or left out when over 16 characters; what is left is the short chunks (酒店, 「大召寺」, 返回鄂爾多斯晚餐 …). Route: 呼和浩特 only. 鄂爾多斯 (Ordos, day 5, 返回鄂爾多斯晚餐) is not in the places list (proposed in the task report), and is not even reported unmatched: its token contains 晚餐, one of the shared ignored words. The other leftover chunks are over 8 characters, so only 「大召寺」 is reported. 內蒙古 appears only inside 「內蒙古博物院」草原歷史展館 and is not a stop.",
+  "scraped": {
+    "operatorId": "bigline",
+    "code": "CHET08F",
+    "url": "https://bigline.hk/tour-group/624469",
+    "title": "內蒙古 #直航呼和浩特 全港獨家房型 響沙灣內蓮花酒店270° 觀景房 「鄂爾多斯草原 10 項玩樂・沙漠迪士尼 響沙灣套票暢玩+蓮花酒店4自助餐・大召寺蒙古袍旅拍・敕勒川冰雪雪原・成吉思汗陵 農場採摘+下午茶 伊利健康谷 大黑河冰雪樂園 2+1旅遊巴 8天",
+    "days": 8,
+    "nights": null,
+    "dayHeadings": [
+      "香港國際機場 → 呼和浩特機場 → 後入住酒店",
+      "酒店 → 「大召寺」 → 「敕勒川草原」冬日敕勒川草原",
+      "酒店 → 晚餐後入住酒店",
+      "酒店 → 「美好農場」放下旅途奔波",
+      "酒店 → 安排草原精選10項活動 → 返回鄂爾多斯晚餐",
+      "酒店 → 晚上沙漠手持仙女棒5支/人 → 蓮花酒店3樓酒吧暢飲",
+      "酒店 → 特別體驗手工搓蓧面",
+      "酒店 → 「內蒙古博物院」草原歷史展館 → 呼和浩特機場 → 香港國際機場"
+    ],
+    "startPoint": "香港國際機場",
+    "endPoint": null,
+    "fromPriceHkd": 6299,
+    "departures": [
+      {
+        "date": "2026-12-09",
+        "priceHkd": 6299
+      },
+      {
+        "date": "2026-12-13",
+        "priceHkd": 6999
+      },
+      {
+        "date": "2026-12-16",
+        "priceHkd": 6999
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": 6999
+      },
+      {
+        "date": "2026-12-23",
+        "priceHkd": 6999
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": 6999
+      },
+      {
+        "date": "2026-12-30",
+        "priceHkd": 6999
+      }
+    ]
+  },
+  "stopNames": [
+    "呼和浩特"
+  ],
+  "unmatched": [
+    "「大召寺」"
+  ]
+}

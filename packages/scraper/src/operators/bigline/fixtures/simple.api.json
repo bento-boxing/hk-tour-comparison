@@ -1,0 +1,235 @@
+{
+  "detail": {
+    "code": 200,
+    "data": {
+      "id": 9109,
+      "memberFee": 5799,
+      "availableMonths": [
+        "2026-11",
+        "2026-12",
+        "2027-01",
+        "2027-02",
+        "2027-03",
+        "2027-04",
+        "2027-05",
+        "2027-06"
+      ],
+      "basic": {
+        "tourNo": "CSIAA06",
+        "nameCn": "【純玩•西安】（提升2+1旅遊巴及粵語導遊） 西嶽華山   秦始皇陵兵馬俑   夜遊大唐不夜城   高家大院（地道民間藝術）  長安十二時辰主題街區（沉浸式實景體驗）  直航6天",
+        "tourDays": 6
+      },
+      "projectItinerary": {
+        "dailyTripList": [
+          {
+            "days": 1,
+            "tripContent": "香港機場集合 | 西安機場 | 入住酒店"
+          },
+          {
+            "days": 2,
+            "tripContent": "酒店 | 世界八大奇跡【 兵馬俑】 | 【皇陵】"
+          },
+          {
+            "days": 3,
+            "tripContent": "酒店 | 西安"
+          },
+          {
+            "days": 4,
+            "tripContent": "酒店 | 【高家大院】 | 鐘鼓樓廣場 | 回民一條街 | 【大慈恩寺】 | 【大雁塔景區】 | 換唐裝 | 夜遊大唐不夜城"
+          },
+          {
+            "days": 5,
+            "tripContent": "酒店 | 【大明宮國家遺址公園】 | 丹鳳門博物館《微縮景觀》 | 遺址博物館 | 袁家村"
+          },
+          {
+            "days": 6,
+            "tripContent": "酒店 | 西安機場 | 香港機場散團"
+          }
+        ]
+      },
+      "signUp": {
+        "settlementCurrencyCode": "HKD",
+        "locationGroupList": [
+          {
+            "locationName": "香港國際機場"
+          }
+        ]
+      }
+    }
+  },
+  "months": [
+    {
+      "yearMonth": "2026-11",
+      "dates": {
+        "code": 200,
+        "data": {
+          "list": [
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-11-04",
+              "memberFee": 6199,
+              "seatRemain": 0,
+              "soldTotal": 20,
+              "maxPersonTotal": 20,
+              "registrationStatus": 1,
+              "tourFlag": "1,2,5",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-11-11",
+              "memberFee": 6199,
+              "seatRemain": 0,
+              "soldTotal": 20,
+              "maxPersonTotal": 20,
+              "registrationStatus": 1,
+              "tourFlag": "1,2,5",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-11-22",
+              "memberFee": 6199,
+              "seatRemain": 0,
+              "soldTotal": 22,
+              "maxPersonTotal": 22,
+              "registrationStatus": 1,
+              "tourFlag": "1,2,5",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-11-29",
+              "memberFee": 5799,
+              "seatRemain": 7,
+              "soldTotal": 13,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "yearMonth": "2026-12",
+      "dates": {
+        "code": 200,
+        "data": {
+          "list": [
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-01",
+              "memberFee": 5799,
+              "seatRemain": 3,
+              "soldTotal": 0,
+              "maxPersonTotal": 3,
+              "registrationStatus": 0,
+              "tourFlag": "2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-04",
+              "memberFee": 5799,
+              "seatRemain": 12,
+              "soldTotal": 8,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-09",
+              "memberFee": 6199,
+              "seatRemain": 14,
+              "soldTotal": 6,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-20",
+              "memberFee": 6499,
+              "seatRemain": 10,
+              "soldTotal": 10,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-21",
+              "memberFee": 6899,
+              "seatRemain": 12,
+              "soldTotal": 8,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-23",
+              "memberFee": 6899,
+              "seatRemain": 12,
+              "soldTotal": 8,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "1,2",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2026-12-25",
+              "memberFee": 6899,
+              "seatRemain": 4,
+              "soldTotal": 16,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "2,1",
+              "isCutofftour": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "yearMonth": "2027-01",
+      "dates": {
+        "code": 200,
+        "data": {
+          "list": [
+            {
+              "productId": 9109,
+              "scheduleDate": "2027-01-04",
+              "memberFee": 5799,
+              "seatRemain": 16,
+              "soldTotal": 4,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "2,1",
+              "isCutofftour": false
+            },
+            {
+              "productId": 9109,
+              "scheduleDate": "2027-01-17",
+              "memberFee": 5799,
+              "seatRemain": 20,
+              "soldTotal": 0,
+              "maxPersonTotal": 20,
+              "registrationStatus": 0,
+              "tourFlag": "2,1",
+              "isCutofftour": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
