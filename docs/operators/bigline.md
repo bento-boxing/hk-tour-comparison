@@ -1,11 +1,11 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-13: owner approved the nightly use of the tenantCode header and the monthly dates request (next 3 months)
 
-DATES NOT AVAILABLE WITHIN THE RULES (`api.biglinehk.com` answers our plain GET with `{"code":401,"msg":"未授权"}` ("unauthorised"); the site's own app sends `tenantCode`, `X-Device-Id` and `X-Device-Type` headers, which we must not imitate; and the departure dates and per-date prices are served only by a POST request, which is beyond a plain GET)
+DATES AVAILABLE WITH ONE STATIC HEADER AND A MONTHLY POST (`api.biglinehk.com` answers with data when sent the fixed site key `tenantCode: DH`, and nothing else beyond our User-Agent; each month's departure dates and per-date prices come from one POST, made for at most the first 3 listed months from the current Hong Kong month)
 
 # Big Line Holiday 大航假期 (`bigline`): operator investigation
 
 - Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`). Task 14 pages were fetched 2026-11-12 22:13–22:34 UTC; Task 14b requests were made 2026-11-13 00:03–00:11 UTC; the Task 14c probe ran 2026-11-13 20:46–20:55 UTC.
-- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **9 of 10** in Task 14. In Task 14b: **5 of 10** (3 script files on `bigline.hk` and 2 API calls on `api.biglinehk.com`), plus that host's robots.txt. In Task 14c: **7 of 12** requests to `api.biglinehk.com`, robots.txt included.
+- All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **9 of 10** in Task 14. In Task 14b: **5 of 10** (3 script files on `bigline.hk` and 2 API calls on `api.biglinehk.com`), plus that host's robots.txt. In Task 14c: **7 of 12** requests to `api.biglinehk.com`, robots.txt included. In Task 17 (fixtures): **8 of 10** requests to `api.biglinehk.com`, 2026-11-13 22:01–22:07 UTC (see "Fixtures").
 
 ## Recommendation
 
@@ -19,11 +19,26 @@ The conditions:
 
 - **A standing approval for the header and the POST.** The owner approved them for this probe only. A nightly scraper would send `tenantCode: DH` and one POST per month on every run.
 - **The nightly cost does not fit as it stands.** One tour needs 1 detail GET plus 1 POST per month it has departures in. Tour 9109 has 8 months, so it needs 9 requests. If all 586 sitemap tours were like that, a night would take 5,274 requests, about 4 h 24 min at 3 s each (plus response time). The nightly job's limit is 170 minutes. A horizon of the next 3 months would make it 586 × 4 = 2,344 requests, about 1 h 57 min plus response time. That fits, but tightly. How many months the other tours have was not measured (see "Nightly cost").
-- **The API returns internal and personal data along with the public facts.** Examples: a tour leader's full name (`data.list[].tourLeader[].guideName`), staff sales notes (`internalSaleRemark`, e.g. "(a short staff sales note)", roughly "we need customers, the flights are booked, we need 6 guests"), supplier names and supplier cost prices, and leader subsidies. The scraper must keep only the public facts listed under "Where each fact is in the API". Any fixture must be trimmed down to those facts. The raw probe responses stay under `.superpowers/` and should be deleted once the fixtures are made.
+- **The API returns internal and personal data along with the public facts.** Examples: a tour leader's full name (`data.list[].tourLeader[].guideName`), staff sales notes (`internalSaleRemark`, e.g. "(a short staff sales note)", roughly "we need customers, the flights are booked, we need 6 guests"), supplier names and supplier cost prices, and leader subsidies. The scraper must keep only the public facts listed under "Where each fact is in the API". Any fixture must be trimmed down to those facts. The raw probe responses stay under `.superpowers/` and should be deleted once the fixtures are made (Task 17 made them; the orchestrator deletes the raw answers).
 
 The plan's note that the data is in embedded page state (`__NUXT__`) is no longer true: the embedded state now carries only SEO fields.
 
-## Owner decision (2026-11-13)
+## Owner decision (2026-11-13, standing approval for the scraper)
+
+The owner approved the three conditions above:
+
+- **Standing approval.** Each night the scraper may send `tenantCode: DH` (and `Content-Type: application/json` on the POST) with our honest User-Agent `tour-comparison-bot/0.1`, to `api.biglinehk.com` only. No `X-Device-Id`, `X-Device-Type`, cookies, Referer, Origin or anything else. If the API ever refuses (JSON `code` 401, HTTP 403/429, or a block page), the tour counts as not fetched; nothing is escalated or varied.
+- **Months.** For each tour, dates are requested for at most the next 3 calendar months that the detail's `availableMonths` lists, starting from the current Hong Kong month: 0 to 3 POSTs per tour. A tour with no listed month from the current one on gets no POST and is skipped as `no-departures`. 3 is the constant `MAX_MONTHS_PER_TOUR` in `packages/scraper/src/operators/bigline/fetch-page.ts`.
+- **Only public facts are read:** tour code, title, days, day route lines, gathering place, "from" price, departure dates, per-date price and the full markers. Never tour-leader names, `internalSaleRemark`, supplier names, cost prices or any other field.
+
+How the scraper keeps to it (Task 17):
+
+- The header is declared once, as `requestHeaders` on the Big Line scraper (`{ 'api.biglinehk.com': { tenantCode: 'DH' } }`). The CLI makes the run's fetcher with the running operator's headers only, and the fetcher sends them only to a request whose host is exactly `api.biglinehk.com`: never on robots.txt, never to `bigline.hk`, never to another host a redirect leads to. A POST is never retried or redirected.
+- "The next 3 months" is read as the first 3 months **listed** in `availableMonths` from the current month on (a gap in the list does not use one up), earliest first. Each month must be `YYYY-MM` and each id digits before it goes into a URL or body.
+- Every answer passes through an allow-list (`public.ts`) before anything else sees it: only the fields under "Where each fact is in the API" are kept, rebuilt key by key, and each day's route line is cut down to its short chunks (see "Day route lines"). So names, notes, suppliers and costs never reach the parser, the logs or the database; a test runs the whole pipeline over answers full of such fields and checks.
+- A JSON `code` other than 200 (inside HTTP 200) fails that tour, logged with the code only (never the API's message). Three refusals in a row (code 401/403/429, or a 200 answer that is not JSON) stop all further requests for the night, like the fetcher's own pushback rule for HTTP 403/429/503.
+
+## Owner decision (2026-11-13, the probe)
 
 The owner explicitly authorised one staged probe of `api.biglinehk.com`, and nothing beyond it. The steps were to be done in this order, stopping at the first failure:
 
@@ -81,9 +96,13 @@ Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. D
 | Months with departures | detail `data.availableMonths` (`YYYY-MM`) | `2026-11` … `2027-06` (8 months) |
 | Departure dates | dates `data.list[].scheduleDate` (`YYYY-MM-DD`). **Past dates are included**: the November answer had 11-04 and 11-11, before the capture date 11-13. | 7 in 2026-12, 4 in 2026-11 |
 | Per-date price | dates `data.list[].memberFee` (also `adultFee`, `childFee`, `babyFee`; numbers such as `6899.0`; `currencySymbol` is `null`) | 12-01 `5799.0` … 12-25 `6899.0` |
-| Full | observed together on all 3 full departures (2026-11-04, -11, -22): `seatRemain: 0`, `soldTotal` equal to `maxPersonTotal`, `registrationStatus: 1` and `tourFlag` containing `5` (`"1,2,5"`). Open departures had `seatRemain` 3–14, `registrationStatus: 0`, and no `5` in `tourFlag`. The front end's own "已滿" (full) test is the function `ot` in chunk `/_nuxt/C8-td2ew.js`. That chunk was not fetched, so the exact rule is **not verified**. `seatRemain === 0` is the safest reading. | |
-| Closed / cut off | `data.list[].isCutofftour` was `false` on all 11 departures; no closed departure was seen. `tourStatus` was `"1"` on 10 departures and `"2"` on one (2026-12-01: `maxPersonTotal: 3`, `releaseStatusDaily: ""`). What `"2"` means is **unknown**. | |
-| Guaranteed departure | `data.list[].releaseStatusDaily: "已成團"` ("tour confirmed") on 10 of 11 departures | |
+| Full | observed together on all 3 full departures (2026-11-04, -11, -22): `seatRemain: 0`, `soldTotal` equal to `maxPersonTotal`, `registrationStatus: 1` and `tourFlag` containing `5` (`"1,2,5"`). Open departures had `seatRemain` 3–20, `registrationStatus: 0`, and no `5` in `tourFlag`. The front end's own "已滿" (full) test is the function `ot` in chunk `/_nuxt/C8-td2ew.js`. That chunk was not fetched, so the exact rule is **not verified**. **The scraper takes the conservative reading:** a departure is left out when ANY of those markers is present, when `seatRemain` is missing, or when `isCutofftour` is true. | |
+| Closed / cut off | `data.list[].isCutofftour` was `false` on all 28 departures seen (Task 14c and 17); no closed departure was seen. `tourStatus` was `"1"`, `"2"` or `"3"`; `"3"` came with `releaseStatusDaily: "快成團"` ("nearly confirmed"), `"2"` with `""`. What the values mean is **unknown**, and the scraper does not read them. | |
+| Guaranteed departure | `data.list[].releaseStatusDaily`: `"已成團"` ("tour confirmed"), `"快成團"` ("nearly confirmed") or `""`. Not read. | |
+
+### Day route lines
+
+`tripContent` is one line per day written by staff, in several styles: places joined by `~` with a leading `.` (9109), by ` | ` (8923), by `|` after a `D1 ` day marker with a prose second line (22042), or by `--` with a sentence or more of description after each place and `#註：…` notes on later lines (624469). The parser (and the allow-list, which stores the same result) reads: the first line with text; without notes in round brackets (either width, mixed, nested) or `〈…〉`; split at `~ ～ | ｜ →` and runs of two or more hyphens; each chunk cut at its first sentence mark (`，。；！？：;:!?`), leading `.`/`-` and extra spaces removed; chunks over 16 characters left out as descriptions (`MAX_CHUNK_CHARS`). The day heading is the chunks joined with ` → `. Route extraction then uses the shared rules unchanged.
 
 **Do not take** these fields: `tourLeader`, `guideLeader`, `internalSaleRemark`, `internalRemark`, `agencySupplier`, `projectItinerary.projectItineraryList` (supplier names and cost prices), `extraCost`, `salesCommission`, `soldTotal`/`soldCount` beyond the full test, `departureFlightTime`/`returnFlightTime` (staff-typed text), or `reservationPolicies` (long terms text).
 
@@ -92,6 +111,8 @@ Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. D
 **Tour ids** come from the sitemap: `https://bigline.hk/sitemap-1.xml` lists 586 `https://bigline.hk/tour-group/<id>` URLs, out of 691 URLs in all. `<id>` is the `id` the detail endpoint takes. The site also has a GET tour listing (`/bigline/global/product/tour/frontend/page`). It was not called, so what it returns is unknown.
 
 **Requests per tour per night:** 1 detail GET, plus 1 POST for each month in `availableMonths`. Tour 9109 needs 1 + 8 = 9. One sample does not give the average for all tours. Tours that are no longer sold may have no months: they would need just the detail call, or they may be gone from the API.
+
+**Task 17 update.** The sitemap's ids have 4 digits (4 of 586), 5 digits (284) or 6 digits (298); a 6-digit id (624469) answers the same detail request as a 4-digit one. Of the 4 tours sampled, 3 had months listed (9109: 8, 8923: 4, 624469: 4) and 1 had none (22042, a 15-day Nordic tour, `availableMonths: []`, `memberFee: null`). With the owner's 3-month horizon a tour costs 1 + at most 3 requests: at most 586 × 4 = 2,344 a night, about 1 h 57 min at 3 s each plus response time, inside the 170-minute job. Not measured: the real total, until the measured crawl.
 
 | Assumption | Requests per night | At 3 s each (plus response time) | Fits the 170-minute nightly job? |
 |---|---|---|---|
@@ -183,9 +204,29 @@ No prices or dates are in the pages, so nothing to report. The SEO text uses ASC
 
 ## Fixtures
 
-**None saved**: none of the facts is in the `bigline.hk` pages, and the API that serves them returned no data to a plain GET (`{"code":401,"msg":"未授权"}`). There is nothing to trim, so `trimFixture` was not changed.
+Task 14 saved none: none of the facts is in the `bigline.hk` pages. Task 14c saved the raw API answers only under `.superpowers/raw-pages/bigline/` (git-ignored): they contain personal and internal data and must never be committed as they are.
 
-Task 14c: the API responses are saved only as raw pages under `.superpowers/raw-pages/bigline/` (git-ignored). They contain personal and internal data, so they must not be committed as they are. A fixture must keep only the fields in "Where each fact is in the API".
+**Task 17** (2026-11-13): four fixtures in `packages/scraper/src/operators/bigline/fixtures/`, each `<name>.api.json` (exactly what fetchPage hands the parser: the detail and each month's dates, after the allow-list in `public.ts`, so only the keys the parser reads, rebuilt key by key, with route lines cut to their short chunks: no names, notes, suppliers, costs or descriptions) and a hand-written `<name>.expected.json` (`verifiedByOwner: false`, with notes on every judgment call). `trimFixture` (for HTML pages) was not used or changed. The raw answers stay under `.superpowers/raw-pages/bigline/` (`fixture-*.json`, `probe-*.json`) for the orchestrator to delete.
+
+| Fixture | Tour | Why | Months in the fixture |
+|---|---|---|---|
+| `multi-city` | 8923 BKKCA05, Chiang Mai and Chiang Rai, 5 days | several cities | 2026-12, 2027-01, 2027-02 (the 3 the scraper requests today) |
+| `simple` | 9109 CSIAA06, Xi'an, 6 days | one city; three full dates and two past ones | 2026-11, 2026-12 (Task 14c), 2027-01 |
+| `edge` | 22042 LENCH15-00, Nordic countries and Iceland, 15 days | no upcoming dates: no month listed, no POST, skipped as `no-departures` | none |
+| `prose-routes` | 624469 CHET08F, Inner Mongolia, 8 days (a 6-digit id) | the most prose-heavy route lines seen | 2026-12 only (the scraper would also ask for 2027-01 and 2027-02) |
+
+Requests made for them (budget 10; robots.txt was not requested again: the copy read in the Task 14c probe at 20:46 UTC the same day was reused, as RFC 9309 allows for 24 hours). Each through `createFetcher` with the header declared for `api.biglinehk.com` only, at least 3 s apart, logged to `.superpowers/raw-pages/bigline/ledger-fixtures.tsv`. Every answer was HTTP 200 with `code` 200; no refusal was seen. Extra headers: `tenantCode: DH` on all, plus `Content-Type: application/json` on the POSTs.
+
+| # | UTC (2026-11-13) | Method and URL | Body |
+|---|---|---|---|
+| 1 | 22:01:56 | GET …/bigline/global/product/tour/frontend/detail?id=8923 | – |
+| 2 | 22:03:40 | POST …/bigline/global/product/release/page | `{"pageNo":1,"productId":"8923","yearMonth":"2026-12","pageSize":1000}` |
+| 3 | 22:03:52 | POST …/bigline/global/product/release/page | `{"pageNo":1,"productId":"8923","yearMonth":"2027-01","pageSize":1000}` |
+| 4 | 22:04:24 | GET …/bigline/global/product/tour/frontend/detail?id=624469 | – |
+| 5 | 22:05:30 | POST …/bigline/global/product/release/page | `{"pageNo":1,"productId":"624469","yearMonth":"2026-12","pageSize":1000}` |
+| 6 | 22:05:42 | GET …/bigline/global/product/tour/frontend/detail?id=22042 | – |
+| 7 | 22:07:01 | POST …/bigline/global/product/release/page | `{"pageNo":1,"productId":"8923","yearMonth":"2027-02","pageSize":1000}` |
+| 8 | 22:07:14 | POST …/bigline/global/product/release/page | `{"pageNo":1,"productId":"9109","yearMonth":"2027-01","pageSize":1000}` |
 
 ## Every URL fetched (Task 14: 9 page fetches; Task 14b: 5; robots.txt not counted)
 
