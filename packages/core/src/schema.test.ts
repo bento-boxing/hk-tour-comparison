@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrapedTourSchema, parsePriceHkd, isIsoDate } from './schema';
+import { scrapedTourSchema, parsePriceHkd, isIsoDate, TOUR_CODE_PATTERN } from './schema';
 import type { ScrapedTour } from './types';
 
 const valid: ScrapedTour = {
@@ -26,6 +26,20 @@ describe('scrapedTourSchema', () => {
     ['fractional price', { fromPriceHkd: 3999.5 }],
   ])('rejects %s', (_n, patch) => {
     expect(scrapedTourSchema.safeParse({ ...valid, ...patch }).success).toBe(false);
+  });
+
+  // A tour's code travels in the chain page's address (chain-url.ts), so the schema accepts only codes
+  // that decodeChain can carry: anything else is a parse failure here instead of a link that decodes to nothing.
+  it.each([
+    ['a space', 'TH B'], ['a slash', 'TH/B'], ['a Chinese character', 'THB東'], ['41 characters', 'A'.repeat(41)],
+    ['an @', 'THB@1'], ['a colon', 'egl:THB'], ['a comma', 'THB,1'],
+  ])('rejects a code with %s', (_n, code) => {
+    expect(scrapedTourSchema.safeParse({ ...valid, code }).success).toBe(false);
+  });
+
+  it.each(['CZZMEDNC_26346_JJ', 'TUNB-1', 'EIMz', 'A'.repeat(40), '0'])('accepts the code %s', (code) => {
+    expect(scrapedTourSchema.safeParse({ ...valid, code }).success).toBe(true);
+    expect(TOUR_CODE_PATTERN.test(code)).toBe(true);
   });
 
   // The 'bad date' case above also has an out-of-range price; this pins the date rule on its own.

@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { encodeChain, decodeChain, MAX_CHAIN_LEGS } from './index';
+import { encodeChain, decodeChain, MAX_CHAIN_LEGS, TOUR_CODE_PATTERN } from './index';
 
 const state = {
   legs: [{ tourKey: 'egl:HTBKOK06', departure: '2026-12-18' }, { tourKey: 'jetour:THB', departure: '2026-12-24' }],
@@ -67,4 +67,12 @@ it('returns a fresh default gap object each time', () => {
   const a = decodeChain({});
   a.gap.min = 9;
   expect(decodeChain({}).gap).toEqual({ min: 1, max: 3 });
+});
+it('accepts a leg exactly when its code is one the tour schema accepts (one shared pattern)', () => {
+  const codes = ['CZZMEDNC_26346_JJ', 'TUNB-1', 'EIMz', 'A'.repeat(40), 'A'.repeat(41), 'TH B', 'TH/B', 'THB東', 'TH.B', ''];
+  for (const code of codes) {
+    const decoded = decodeChain({ legs: `egl:${code}@2026-12-18` }).legs;
+    expect(decoded.length === 1, code).toBe(TOUR_CODE_PATTERN.test(code));
+    if (decoded.length === 1) expect(decoded[0].tourKey).toBe(`egl:${code}`);
+  }
 });
