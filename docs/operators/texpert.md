@@ -1,13 +1,20 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-12: owner confirms personal, non-commercial use
 
 # Texpert 專業旅運 (`texpert`): operator investigation
 
 - Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`); pages fetched 2026-11-12 22:13–22:34 UTC.
 - All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **6 of 10**.
 
+## Owner decision
+
+**APPROVED by the owner, 2026-11-12** (decision made in chat). The owner confirms that this project is personal and non-commercial, and that is the use Travel Expert's terms permit (`您可列印或下載網站內容供個人非商業用途` / "You may print or download website content for personal, non-commercial use"; `網站僅供個人用途` / "The website is for personal use only"; both quoted under Recommendation below). This approval is the owner's own decision, not a controller's application of a rule.
+
+- **Caveat:** the approval rests on the project staying non-commercial. If it ever becomes commercial (advertising, paid features, selling or licensing the data, or use by a business), this approval no longer holds and the terms must be read again before any further scraping.
+- **Fixtures:** the three fixtures keep eight day-heading lines whole (up to about 150 characters each: the longest `h3` is 147 characters with its `Day 1` prefix), some with promotional wording (for example `打卡靚景、食嘢、Shopping等一次過滿足曬` and `結束愉快行程！`) and meal names, because stops are parsed from them. The owner may ask for them to be hand-trimmed.
+
 ## Recommendation
 
-**HOLD.** The terms of use restrict use of site content to personal, non-commercial use, claim database rights, and say the website is for personal use only. A public comparison site that stores and shows Texpert's dates and prices is plausibly covered. Every needed fact is reachable within robots.txt, so terms are the only reason for the hold.
+Task 14 recommendation, before the owner's decision above: **HOLD.** The terms of use restrict use of site content to personal, non-commercial use, claim database rights, and say the website is for personal use only. A public comparison site that stores and shows Texpert's dates and prices is plausibly covered. Every needed fact is reachable within robots.txt, so terms are the only reason for the hold.
 
 The terms say the English version prevails (`如本條款之中、英文版本存在差異，概以英文版本為準。` / `In case of discrepancies between the Chinese and English versions of these Terms, the English version shall prevail.`). The two versions differ on copying, so both are quoted.
 
@@ -84,11 +91,11 @@ The server-rendered calendar (`td[data-day="2026-11-27"]`, `data-disabled="true"
 
 - Data: ISO dates and integer prices in the flight data and JSON-LD.
 - Visible text: prices `HKD 1,999` (ASCII, comma). Related-tour cards list dates as `12/24` and `2/3` (**month/day, no year**). Calendar labels read `2026年11月25日 星期三`. No full-width digits seen.
-- Day headings are long (up to 147 characters in the samples). The fixtures keep them whole, both in the HTML and where the flight data repeats them (see Fixtures).
+- Day headings are long (the route text is up to 142 characters in the samples; 147 with the `Day N` prefix). The fixtures keep them whole, both in the HTML and where the flight data repeats them (see Fixtures).
 
 ## Fixtures (`packages/scraper/src/operators/texpert/fixtures/`)
 
-These fixtures are held outside the repository until the owner decides on this operator; they are committed to this path only if it is approved.
+Committed after the owner's approval (2026-11-12): moved unchanged from the copies held outside the repository, which were regenerated in Task 14's fix round 1. Before committing, they were re-checked (Task 14b) and confirmed byte-identical to what the regeneration command below produces from the saved pages, after the two meta tags are removed.
 
 Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>` and one `--keep` selector for the day headings. To regenerate:
 
@@ -96,7 +103,7 @@ Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>`
 pnpm --filter @hktours/scraper fixture --keep 'details summary h3' --from <saved tour page> <output>
 ```
 
-then remove the two tracing meta tags by hand (below). `trimFixture` keeps the flight data merged into a single `self.__next_f.push([1,"…"])` script, with strings over 120 characters and text rows cut. Text inside `details summary h3` is cut only above 300 characters, and a flight data string that repeats such a text exactly is kept up to 300 characters too. Checked after regenerating: all 8 day headings are whole in the HTML (longest 147 characters, none ends in `…`), and the only flight data strings over 120 characters are day headings: `1386` day 1 (135 characters, as `children`) and `1359` day 1 (147 characters, as `children` and as an image `fallbackAlt`).
+then remove the two tracing meta tags by hand (below). `trimFixture` keeps the flight data merged into a single `self.__next_f.push([1,"…"])` script, with strings over 120 characters and text rows cut. Text inside `details summary h3` is cut only above 300 characters, and a flight data string that repeats such a text exactly is kept up to 300 characters too. Checked after regenerating: all 8 day headings are whole in the HTML (the longest `h3` is 147 characters including its `Day 1` prefix, and none ends in `…`). The only flight data strings over 120 characters are day headings without the prefix: `1386` day 1 (130 characters, as `children`) and `1359` day 1 (142 characters, as `children` and as an image `fallbackAlt`). Their `h3` texts, with the `Day 1` prefix, are 135 and 147 characters.
 
 | File | Source | Why |
 |---|---|---|

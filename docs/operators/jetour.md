@@ -1,9 +1,13 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-12: controller applying the owner's stated rule (no prohibiting clause; robots.txt allows everything)
 
 # Jetour 捷旅 (`jetour`): operator investigation
 
 - Capture date: **2026-11-13** (Hong Kong, from `todayInHongKong()`); pages fetched 2026-11-12 22:13–22:38 UTC.
 - All requests went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s per site). Page fetches used: **10 of 10**.
+
+## Owner decision
+
+**Approved by delegation, not by the owner personally.** On 2026-11-12 the owner delegated approval for operators whose terms have no clause prohibiting automated access, scraping, crawling or reproduction. Jetour meets that rule: it publishes no website terms of use, neither booking-terms document has such a clause (see Recommendation), and robots.txt allows everything. The controller applied the owner's rule and marked Jetour approved. The owner has not reviewed this document personally.
 
 ## Recommendation
 
@@ -88,7 +92,7 @@ Saved with `pnpm --filter @hktours/scraper fixture --from <saved page> <output>`
 pnpm --filter @hktours/scraper fixture --keep .day--title --keep .day--trip-work --from <saved tour page> <output>
 ```
 
-`.day--trip-work` is the stop line (`無錫 ~ 長廣溪濕地公園 ~ … ~ 太湖漁人碼頭燈光夜秀`, up to 66 characters in TSEQ); `.day--title` is the day title (up to 18 characters, kept for safety). Checked after regenerating: none of the 14 `.day--trip-work` lines in the three fixtures ends in `…`.
+`.day--trip-work` is the stop line (`無錫 ~ 長廣溪濕地公園 ~ … ~ 太湖漁人碼頭燈光夜秀`, up to 71 characters in TSEQ as the raw text node, including doubled spaces; 66 once runs of spaces are collapsed); `.day--title` is the day title (up to 18 characters, kept for safety). Checked after regenerating: none of the 14 `.day--trip-work` lines in the three fixtures ends in `…`.
 
 | File | Source | Why |
 |---|---|---|
