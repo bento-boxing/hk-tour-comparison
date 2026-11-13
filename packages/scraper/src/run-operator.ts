@@ -83,6 +83,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   const tours = new Map<string, NormalisedTour>(); // by code; the first wins
   const unmatched = new Map<string, string>();     // name → last tour code seen with it
   let pagesFetched = 0;
+  let pagesNotFetched = 0; // not parse failures, but counted toward checkRun's fetch-failure rate
   let parseFailures = 0;
   const keepUnmatched = (names: string[], tourCode: string) => {
     for (const name of names) unmatched.set(name, tourCode);
@@ -96,6 +97,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     const html = await fetcher.fetchText(url);
     if (html === null) {
       log(`${operatorId}: skipped ${url}: not fetched`);
+      pagesNotFetched++;
       continue;
     }
     pagesFetched++;
@@ -131,6 +133,8 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     parseFailures,
     previousGoodCount: await previousGoodTourCount(db, operatorId),
     minExpectedTours: scraper.minExpectedTours ?? null,
+    pagesDiscovered: urls.length,
+    pagesNotFetched,
   });
   const stats: RunStats = { startedAt, finishedAt: now(), pagesFetched, parseFailures };
   const unmatchedNames: UnmatchedName[] = [...unmatched].map(([name, tourCode]) => ({ name, tourCode }));

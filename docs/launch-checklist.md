@@ -230,6 +230,7 @@ Every test so far used an in-memory database. This run is the **first time the c
     - `below-minimum`: **first run only** (no successful run of that operator in `scrape_runs` yet): fewer tours than the operator's `minExpectedTours` (35 for Jetour, 40 for Travel Expert).
     - `tour-count-dropped`: **later runs only**: fewer than 60% of the tours of the last successful run, when that run saved at least 20 (exactly 60% passes).
     - `too-many-parse-failures`: any run: more than 20% of the tour pages fetched were parse failures (exactly 20% passes). Pages skipped for `no-departures`, for a duplicate tour code, or because they could not be fetched are not parse failures.
+    - `too-many-fetch-failures`: any run: more than 20% of the tour pages found could not be fetched (exactly 20% passes). Each such page is listed as `<operator>: skipped <address>: not fetched`, after a `not fetched <address>: <why>` line. The usual cause is the operator's site pushing back: after 3 answers in a row of HTTP 403, 429 or 503 to page requests, the scraper prints `not crawling site <site>: the site answered with HTTP <status> 3 times in a row and is not being requested further` and asks that site for nothing more that night. Do not run the workflow again that night; tell the assistant.
 
   A job can also fail without such a line, when the error comes before or during the save, for example a connection problem. Its log then ends with an error message (and usually a list of code locations under it). The messages below point to that.
 

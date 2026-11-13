@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import {
-  createFetcher, siteOf, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
+  createFetcher, siteOf, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
 } from './polite-fetch';
 import type { Fetcher } from './types';
 
@@ -17,8 +17,11 @@ interface TestServer {
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
 
-/** A local HTTP server on a random port that records each request's path, user-agent, start and end time. */
-async function startServer(handler: Handler): Promise<TestServer> {
+/**
+ * A local HTTP server on a random port that records each request's path, user-agent, start and end time.
+ * Every server on 127.0.0.1 is one site (see siteOf); one on `localhost` is another.
+ */
+async function startServer(handler: Handler, host: '127.0.0.1' | 'localhost' = '127.0.0.1'): Promise<TestServer> {
   const requests: RecordedRequest[] = [];
   const server = createServer((req, res) => {
     const record: RecordedRequest = {
@@ -28,10 +31,10 @@ async function startServer(handler: Handler): Promise<TestServer> {
     res.on('finish', () => { record.end = performance.now(); });
     handler(req, res);
   });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>(resolve => server.listen(0, host, resolve));
   const { port } = server.address() as AddressInfo;
   return {
-    url: path => `http://127.0.0.1:${port}${path}`,
+    url: path => `http://${host}:${port}${path}`,
     requests,
     close: () => new Promise<void>(resolve => {
       server.closeAllConnections();
@@ -361,6 +364,143 @@ it('a page on an origin with unreadable robots.txt is logged by URL', async () =
     expect(lines[0]).toMatch(/robots\.txt unreadable/);
   } finally {
     await broken.close();
+  }
+});
+
+/**
+ * A site that pushes back: `/<status>/<name>` answers with that status (a 503 at `/503-retry-after/<name>`
+ * carries Retry-After), `/ok/<name>` answers 200, robots.txt allows everything.
+ */
+const pushbackHandler: Handler = (req, res) => {
+  const path = req.url ?? '';
+  if (path === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow:');
+  if (path.startsWith('/ok/')) return send(res, 200, `ok${path}`);
+  if (path.startsWith('/503-retry-after/')) return send(res, 503, 'busy', { 'retry-after': '120' });
+  const status = Number(path.split('/')[1]);
+  return send(res, Number.isInteger(status) && status >= 200 ? status : 404);
+};
+
+/** Fetches the paths one after another, as a scraper's run does, and returns the bodies. */
+async function fetchInTurn(server: TestServer, paths: string[]): Promise<(string | null)[]> {
+  const bodies: (string | null)[] = [];
+  for (const path of paths) bodies.push(await f.fetchText(server.url(path)));
+  return bodies;
+}
+
+const pagesAsked = (server: TestServer) => server.requests.map(r => r.path).filter(path => path !== '/robots.txt');
+const refusalLines = () => logLines.filter(line => line.startsWith('not crawling'));
+
+it('three 429s in a row refuse the site: the 4th URL is never requested, and the refusal is said once', async () => {
+  expect(MAX_CONSECUTIVE_PUSHBACK).toBe(3);
+  const pushy = await startServer(pushbackHandler);
+  try {
+    const bodies = await fetchInTurn(pushy, ['/429/1', '/429/2', '/429/3', '/ok/4', '/ok/5']);
+    expect(bodies).toEqual([null, null, null, null, null]);
+    expect(pagesAsked(pushy)).toEqual(['/429/1', '/429/2', '/429/3']);
+    expect(refusalLines()).toHaveLength(1);
+    expect(refusalLines()[0]).toMatch(/answered with HTTP 429 3 times in a row and is not being requested further/);
+    for (const path of ['/ok/4', '/ok/5']) {
+      expect(logLines.filter(line => line.includes(pushy.url(path)) && /3 times in a row/.test(line))).toHaveLength(1);
+    }
+  } finally {
+    await pushy.close();
+  }
+});
+
+it('a 2xx answer between pushbacks starts the count again', async () => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    const paths = ['/429/1', '/429/2', '/ok/3', '/429/4', '/429/5', '/ok/6'];
+    const bodies = await fetchInTurn(pushy, paths);
+    expect(bodies).toEqual([null, null, 'ok/ok/3', null, null, 'ok/ok/6']);
+    expect(pagesAsked(pushy)).toEqual(paths);
+    expect(refusalLines()).toEqual([]);
+  } finally {
+    await pushy.close();
+  }
+});
+
+it('a 204 also starts the count again; a 404 neither counts nor resets', async () => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    await fetchInTurn(pushy, ['/429/1', '/429/2', '/204/3', '/429/4', '/404/5', '/429/6', '/ok/7']);
+    expect(pagesAsked(pushy)).toEqual(['/429/1', '/429/2', '/204/3', '/429/4', '/404/5', '/429/6', '/ok/7']);
+    expect(refusalLines()).toEqual([]);
+    await fetchInTurn(pushy, ['/429/8', '/404/9', '/429/10', '/429/11', '/ok/12']);
+    expect(pagesAsked(pushy).slice(7)).toEqual(['/429/8', '/404/9', '/429/10', '/429/11']);
+    expect(refusalLines()).toHaveLength(1);
+  } finally {
+    await pushy.close();
+  }
+});
+
+it.each([
+  ['403s', ['/403/1', '/403/2', '/403/3'], 403],
+  ['a mix of 403, 429 and 503', ['/403/1', '/429/2', '/503-retry-after/3'], 503],
+])('%s count the same as 429s', async (_name, pushbacks, lastStatus) => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    await fetchInTurn(pushy, [...pushbacks, '/ok/4']);
+    expect(pagesAsked(pushy)).toEqual(pushbacks);
+    expect(refusalLines()).toHaveLength(1);
+    expect(refusalLines()[0]).toContain(`HTTP ${lastStatus} 3 times in a row`);
+  } finally {
+    await pushy.close();
+  }
+});
+
+it('a 503 with Retry-After is final, not retried', async () => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    expect(await f.fetchText(pushy.url('/503-retry-after/1'))).toBeNull();
+    expect(pagesAsked(pushy)).toEqual(['/503-retry-after/1']);
+    expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+  } finally {
+    await pushy.close();
+  }
+});
+
+it('a 503 without Retry-After is retried, and each 503 answer counts toward the three', async () => {
+  const pushy = await startServer(pushbackHandler);
+  try {
+    expect(await fetchInTurn(pushy, ['/503/1', '/ok/2'])).toEqual([null, null]);
+    expect(pagesAsked(pushy)).toEqual(['/503/1', '/503/1', '/503/1']);
+    expect(refusalLines()).toHaveLength(1);
+    expect(refusalLines()[0]).toContain('HTTP 503 3 times in a row');
+  } finally {
+    await pushy.close();
+  }
+});
+
+it('robots.txt answers do not count toward the three', async () => {
+  // Both servers are on 127.0.0.1, so one site. The first one's robots.txt answers 503 three times
+  // (the request and two retries): that origin is not crawled, but the site is not refused.
+  const busyRobots = await startServer((_req, res) => send(res, 503, 'busy'));
+  const pushy = await startServer(pushbackHandler);
+  try {
+    expect(await f.fetchText(busyRobots.url('/ok/1'))).toBeNull();
+    expect(busyRobots.requests.map(r => r.path)).toEqual(['/robots.txt', '/robots.txt', '/robots.txt']);
+    expect(await f.fetchText(pushy.url('/ok/2'))).toBe('ok/ok/2');
+    expect(logLines.some(line => /times in a row/.test(line))).toBe(false);
+  } finally {
+    await busyRobots.close();
+    await pushy.close();
+  }
+});
+
+it('a site refused after pushback does not affect another site', async () => {
+  const pushy = await startServer(pushbackHandler);
+  const elsewhere = await startServer(pushbackHandler, 'localhost');
+  try {
+    await fetchInTurn(pushy, ['/429/1', '/429/2', '/429/3']);
+    expect(refusalLines()).toHaveLength(1);
+    expect(await f.fetchText(elsewhere.url('/ok/1'))).toBe('ok/ok/1');
+    expect(await f.fetchText(elsewhere.url('/429/2'))).toBeNull();
+    expect(await f.fetchText(elsewhere.url('/ok/3'))).toBe('ok/ok/3');
+    expect(pagesAsked(elsewhere)).toEqual(['/ok/1', '/429/2', '/ok/3']);
+  } finally {
+    await pushy.close();
+    await elsewhere.close();
   }
 });
 

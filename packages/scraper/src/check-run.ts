@@ -4,15 +4,23 @@ export interface RunCheckInput {
   parseFailures: number;            // parser null, schema failure, or normaliseTour 'no-stops' / 'no-price'
   previousGoodCount: number | null; // from previousGoodTourCount
   minExpectedTours?: number | null; // the scraper's floor for runs with no previous good count
+  pagesDiscovered: number;          // distinct tour page URLs the scraper found tonight
+  pagesNotFetched: number;          // of those, pages the fetcher could not get (fetchText returned null)
 }
 
-export type RunFailureReason = 'no-tours' | 'below-minimum' | 'tour-count-dropped' | 'too-many-parse-failures';
+export type RunFailureReason =
+  'no-tours' | 'below-minimum' | 'tour-count-dropped' | 'too-many-parse-failures' | 'too-many-fetch-failures';
 
 /** Tonight must have at least 60% of the last good count. */
 export const MIN_COUNT_RATIO = 0.6;
 /** The ratio rule applies only when the last good count was at least this. */
 export const MIN_PREVIOUS_FOR_RATIO = 20;
 export const MAX_PARSE_FAILURE_RATE = 0.2;
+/**
+ * More than this share of the discovered tour pages could not be fetched: the tours on them would
+ * be deactivated for a reason that says nothing about the operator's catalogue (a site pushing back, say).
+ */
+export const MAX_FETCH_FAILURE_RATE = 0.2;
 
 /**
  * Decides whether one operator's run is trustworthy enough to save.
@@ -22,7 +30,10 @@ export const MAX_PARSE_FAILURE_RATE = 0.2;
  * correctly rounded, so a quotient of exactly 60% or 20% equals the limit and passes.
  */
 export function checkRun(input: RunCheckInput): { ok: boolean; reasons: RunFailureReason[] } {
-  const { toursNormalised, tourPagesFetched, parseFailures, previousGoodCount, minExpectedTours = null } = input;
+  const {
+    toursNormalised, tourPagesFetched, parseFailures, previousGoodCount, minExpectedTours = null,
+    pagesDiscovered, pagesNotFetched,
+  } = input;
   const reasons: RunFailureReason[] = [];
 
   if (toursNormalised === 0) reasons.push('no-tours');
@@ -40,6 +51,10 @@ export function checkRun(input: RunCheckInput): { ok: boolean; reasons: RunFailu
 
   if (tourPagesFetched > 0 && parseFailures / tourPagesFetched > MAX_PARSE_FAILURE_RATE) {
     reasons.push('too-many-parse-failures');
+  }
+
+  if (pagesDiscovered > 0 && pagesNotFetched / pagesDiscovered > MAX_FETCH_FAILURE_RATE) {
+    reasons.push('too-many-fetch-failures');
   }
 
   return { ok: reasons.length === 0, reasons };

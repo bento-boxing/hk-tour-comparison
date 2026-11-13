@@ -9,7 +9,18 @@ export const USER_AGENT = 'tour-comparison-bot/0.1';
 /** A robots.txt Crawl-delay above this means "do not crawl": that origin gets no page requests at all. */
 export const MAX_CRAWL_DELAY_MS = 30_000;
 
-/** A failed request (network error, timeout or 5xx) is tried at most this many more times. */
+/**
+ * After this many page answers in a row from one site that push back (PUSHBACK_STATUSES), the site
+ * gets no more page requests for the rest of the process. A 2xx page answer starts the count again.
+ */
+export const MAX_CONSECUTIVE_PUSHBACK = 3;
+
+/** Page answers that mean "you are not welcome" or "slow down": they count toward MAX_CONSECUTIVE_PUSHBACK. */
+const PUSHBACK_STATUSES = [403, 429, 503];
+/**
+ * A failed request (network error, timeout, or 5xx other than a 503 with Retry-After) is tried
+ * at most this many more times.
+ */
 const MAX_RETRIES = 2;
 const MAX_REDIRECTS = 5;
 /** robots.txt answers that mean "there is no robots.txt": everything is allowed (RFC 9309). */
@@ -33,10 +44,11 @@ export function siteOf(url: URL): string {
 
 /**
  * What one HTTP request came back with. The body is read only for a 200.
+ * `retryAfter`: the response carried a Retry-After header.
  * `refused`: the request was never sent because its site was refused while it waited.
  */
 type Answer =
-  | { kind: 'response'; status: number; location: string | null; body: string | null }
+  | { kind: 'response'; status: number; location: string | null; body: string | null; retryAfter: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'refused'; why: string };
 
@@ -79,7 +91,9 @@ class SiteQueue {
 }
 
 const isRedirect = (status: number) => [301, 302, 303, 307, 308].includes(status);
-const isRetryable = (answer: Answer) => answer.kind === 'error' || (answer.kind === 'response' && answer.status >= 500);
+/** A network error or a 5xx, except a 503 that says when to come back (Retry-After): that one is final. */
+const isRetryable = (answer: Answer) => answer.kind === 'error'
+  || (answer.kind === 'response' && answer.status >= 500 && !(answer.status === 503 && answer.retryAfter));
 const describe = (answer: Answer) =>
   (answer.kind === 'error' ? answer.message : answer.kind === 'refused' ? answer.why : `HTTP ${answer.status}`);
 
@@ -114,6 +128,8 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
   /** Sites that must get no more page requests, with why. Once refused, a site stays refused. */
   const refusedSites = new Map<string, string>();
+  /** By site: how many page answers in a row pushed back (PUSHBACK_STATUSES). */
+  const pushbackInARow = new Map<string, number>();
 
   function queueFor(url: URL): SiteQueue {
     const site = siteOf(url);
@@ -123,29 +139,59 @@ export function createFetcher(opts: FetcherOptions = {}): Fetcher {
   }
 
   /**
+   * Counts a page answer toward its site's pushback: a 2xx starts the count again, a pushback
+   * status adds one, and the MAX_CONSECUTIVE_PUSHBACK-th in a row refuses the site.
+   */
+  function notePageAnswer(url: URL, status: number): void {
+    const site = siteOf(url);
+    if (status >= 200 && status < 300) {
+      pushbackInARow.delete(site);
+      return;
+    }
+    if (!PUSHBACK_STATUSES.includes(status)) return;
+    const inARow = (pushbackInARow.get(site) ?? 0) + 1;
+    pushbackInARow.set(site, inARow);
+    if (inARow >= MAX_CONSECUTIVE_PUSHBACK && !refusedSites.has(site)) {
+      refuseSite(url,
+        `the site answered with HTTP ${status} ${MAX_CONSECUTIVE_PUSHBACK} times in a row and is not being requested further`);
+    }
+  }
+
+  /**
    * One HTTP request, through its site's queue. Never throws. A page request whose
-   * site was refused while it waited in the queue is not sent.
+   * site was refused while it waited in the queue is not sent. Page answers count toward
+   * the site's pushback (robots.txt answers do not).
    */
   function request(url: URL, isPage: boolean): Promise<Answer> {
     return queueFor(url).run(async (): Promise<Answer> => {
       const siteRefusal = isPage ? refusedSites.get(siteOf(url)) : undefined;
       if (siteRefusal !== undefined) return { kind: 'refused', why: siteRefusal };
+      let res: Response;
       try {
-        const res = await fetch(url, {
+        res = await fetch(url, {
           headers: { 'user-agent': userAgent },
           redirect: 'manual',
           signal: AbortSignal.timeout(timeoutMs),
         });
-        if (res.status === 200) return { kind: 'response', status: 200, location: null, body: await res.text() };
+      } catch (error) {
+        return { kind: 'error', message: errorMessage(error) };
+      }
+      if (isPage) notePageAnswer(url, res.status);
+      try {
+        const retryAfter = res.headers.has('retry-after');
+        if (res.status === 200) return { kind: 'response', status: 200, location: null, body: await res.text(), retryAfter };
         await res.body?.cancel().catch(() => undefined); // the status is the answer, not a network error
-        return { kind: 'response', status: res.status, location: res.headers.get('location'), body: null };
+        return { kind: 'response', status: res.status, location: res.headers.get('location'), body: null, retryAfter };
       } catch (error) {
         return { kind: 'error', message: errorMessage(error) };
       }
     });
   }
 
-  /** One request, tried again up to MAX_RETRIES times after a network error or 5xx. 4xx is final. */
+  /**
+   * One request, tried again up to MAX_RETRIES times after a network error or 5xx (but not a 503
+   * with Retry-After). 4xx is final.
+   */
   async function requestWithRetries(url: URL, isPage: boolean): Promise<Answer> {
     let answer = await request(url, isPage);
     for (let retry = 1; retry <= MAX_RETRIES && isRetryable(answer); retry++) {
