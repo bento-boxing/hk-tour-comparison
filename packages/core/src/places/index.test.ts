@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { places, buildPlacesIndex, normaliseName } from './index';
+import { extractStops } from '../stops';
 import type { PlacesData } from './index';
 import rawData from './data.json';
 
@@ -79,6 +80,34 @@ describe('places', () => {
     expect(consistencyProblems({ ...base, countries: [{ ...base.countries[0], id: 'A' }], regions: [], cities: [] }))
       .toContain('bad slug A');
   });
+  it('every notPlaces entry contains a city name and is not itself a city', () => {
+    // An entry may be a country or region name (羅馬尼亞 contains 羅馬), never a city's own name.
+    const cityNames = places.data.cities.flatMap(c => [c.nameZh, ...c.aliases]).map(normaliseName);
+    const notPlaces = places.data.notPlaces ?? [];
+    expect(notPlaces).toContain('松山湖');
+    for (const entry of notPlaces) {
+      const key = normaliseName(entry);
+      expect(cityNames.some(name => key.includes(name)), entry).toBe(true);
+      expect(places.findCity(entry), entry).toEqual([]);
+    }
+  });
+  it('no country or region name reads as a city elsewhere through a name it contains', () => {
+    // e.g. 北海道 contains 北海 (Beihai) and 突尼斯 contains 尼斯 (Nice): a heading naming the
+    // region or country must not put a city of another place on the route.
+    const misread: string[] = [];
+    const check = (name: string, owns: (cityRegionId: string, cityCountryId: string) => boolean) => {
+      for (const stop of extractStops([name], places, []).stops) {
+        if (stop.cityId !== null && !owns(stop.regionId, stop.countryId)) misread.push(`${name} → ${stop.cityId}`);
+      }
+    };
+    for (const country of places.data.countries) {
+      for (const name of [country.nameZh, ...country.aliases]) check(name, (_, countryId) => countryId === country.id);
+    }
+    for (const region of places.data.regions) {
+      for (const name of [region.nameZh, ...region.aliases]) check(name, regionId => regionId === region.id);
+    }
+    expect(misread).toEqual([]);
+  });
   it('every entry has a Chinese and an English name', () => {
     const all = [...places.data.countries, ...places.data.regions, ...places.data.cities];
     for (const p of all) {
@@ -137,10 +166,13 @@ describe('seed list', () => {
   });
 
   it('has the seed countries and region counts', () => {
-    const counts = Object.fromEntries(places.data.countries.map(c => [c.id, places.regionsOf(c.id).length]));
-    // china: the 11 seed regions plus 東北三省, added for Jetour's Harbin tours (Task 15).
+    // Only the seed countries: Task 19's dry runs added many more.
+    const seedIds = ['japan', 'korea', 'taiwan', 'thailand', 'china', 'vietnam', 'singapore', 'malaysia', 'hongkong', 'macau'];
+    const counts = Object.fromEntries(seedIds.map(id => [id, places.regionsOf(id).length]));
+    // china: the 11 seed regions plus 東北三省, added for Jetour's Harbin tours (Task 15),
+    // and 西北, 華中, 貴州, 內蒙古 and 海南, added from the operator dry runs (Task 19).
     expect(counts).toEqual({
-      japan: 9, korea: 4, taiwan: 4, thailand: 3, china: 12, vietnam: 3,
+      japan: 9, korea: 4, taiwan: 4, thailand: 3, china: 17, vietnam: 3,
       singapore: 1, malaysia: 2, hongkong: 1, macau: 1,
     });
   });

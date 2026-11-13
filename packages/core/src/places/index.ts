@@ -3,7 +3,11 @@ import rawData from './data.json';
 export interface Country { id: string; nameZh: string; nameEn: string; aliases: string[] }
 export interface Region { id: string; countryId: string; nameZh: string; nameEn: string; aliases: string[] }
 export interface City { id: string; regionId: string; nameZh: string; nameEn: string; aliases: string[] }
-export interface PlacesData { countries: Country[]; regions: Region[]; cities: City[] }
+export interface PlacesData {
+  countries: Country[]; regions: Region[]; cities: City[];
+  /** Names that contain a city name but are not that city, e.g. 松山湖 (Dongguan), which contains 松山. */
+  notPlaces?: string[];
+}
 
 export interface PlacesIndex {
   data: PlacesData;
