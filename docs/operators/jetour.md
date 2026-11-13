@@ -159,3 +159,26 @@ Known limits seen in the output:
 Unmatched names (EID only, each on 1 page): 三尖峰, 上城區, 下城區, 乘小火車遊覽, 乘纜車登刀鋒山, 乘纜車登薩索倫戈, 乘船往貝拉焦, 加爾達湖, 卡雷扎湖, 史卡拉城堡, 地道酒莊品嚐佳釀, 多比亞科湖, 多洛米蒂地區, 巴蒂斯蒂廣場, 布拉耶斯湖, 特倫托, 特雷維索, 瓦爾特廣場, 米蘇里納湖, 老廣場, 聖母大殿, 聖瑪達萊娜健行 (22).
 
 **Offline check instead of the sample** (no request made): the practice crawl's 451 printed pages were re-processed with the current code and data: still 1 parse failure (0.2%, `TCPA-1`, parser null). A sample of 40 of those tours found no wrong city from a name collision; the wrong stops left are transit cities named without transit wording (`巴黎 ~ 利馬` on the day after `途經巴黎轉機`; `巴黎 或 阿姆斯特丹 ~ 香港`; `成都/西安` as the flight home), and real stops removed by the single-outlier rule (Kirkenes, Vaduz, Tirano, Vatican, San Marino on otherwise one-country routes). Details in the Task 19 fix-round report.
+
+## Sitemap re-check (Task 19, fix round 2)
+
+One run of a throwaway script through `createFetcher` (same proxy setup as the CLI), **2 requests**: `robots.txt` (read by the fetcher), then `https://www.jetour.com.hk/sitemap.xml` at **2026-11-13 04:26:34–04:26:39 UTC**. No child sitemap exists, so nothing else was fetched. Body saved outside git as `.superpowers/raw-pages/jetour/sitemap-2.xml`.
+
+| | 2026-11-12 22:13 UTC (`sitemap.xml`) | 2026-11-13 03:45 UTC (confirmation crawl) | 2026-11-13 04:26 UTC (`sitemap-2.xml`) |
+|---|---|---|---|
+| Root element | `urlset` | (not saved) | `urlset` |
+| `<loc>` entries | 1,394 | | 1,425 |
+| Matching `isTourUrl` | 451 | **1** (`/tour/EID`) | 453 |
+| Child sitemaps | none | | none |
+| Other paths | `/cruise` 465, `/cruise-tour` 259, `/tour/dest/…` and others | | `/cruise` 496, `/cruise-tour` 259, `/tour/dest/…` |
+| `<lastmod>` range | 2026-11-11 05:16 – 2026-11-12 22:01 UTC | | **2026-11-13 03:49:04 – 04:09:53 UTC** |
+
+The tour URL pattern is unchanged (`/tour/<CODE>`): 450 tours are in both full files; `TCPA-1` has gone; `EID`, `EWIB-2` and `EWAI` are new. `discover.ts` needs no change.
+
+**Reading:** every entry of the new file was stamped between 03:49 and 04:10 UTC, i.e. the site rebuilt its sitemap in that window, and the confirmation crawl's fetch at 03:45 UTC caught it mid-rebuild with one tour listed. So the sitemap is **unstable during its rebuilds** (served incomplete for a while), not changed once. When the rebuilds run is not known (the earlier file's newest stamps are around 22:00 UTC, this one 03:49–04:10 UTC).
+
+Consequence for the nightly job (18:00 UTC): if a rebuild overlaps the run, discovery sees few tours. With a previous good run, `checkRun` refuses the run (`tour-count-dropped` below 60%) and yesterday's data stays. On the **first** run there is no previous count, so a partial sitemap whose few tours parse would pass and save only those. Open for the owner: run the first real scrape by hand and check its tour count, or retry later in the night.
+
+No confirmation dry run was made this round: discovery did not need a fix, which was the condition for one.
+
+**Route rules narrowed in fix round 2** (offline, practice-crawl headings): the single-outlier removal now applies only to names on `collisionNames` (`塔林`, `黃金海岸`), so Kirkenes, Vaduz, Tirano, the Vatican, San Marino and Rovaniemi are back on 19 routes; a transit word now drops only its whitespace-delimited chunk, so Rio stays on `QPE`. 23 routes changed against fix round 1; still 1 tour page without stops (`TCPA-1`, parser null). Known limits: hubs named plainly (`巴黎 ~ 利馬`, `巴黎或阿姆斯特丹 ~ 香港`, `成都/北京`, `香港 ~ 廣州 ~ 阿拉木圖`), and hubs a space away from `轉機` (`途經巴黎 轉機` on QSG, QSC; `經巴黎 或 阿姆斯特丹 轉機` on QTCRR, QTDR). New `notPlaces` entry `蘇州河` (Suzhou Creek, Shanghai; TSSKQ, TSDQ, TWAQ, TSSHQ).

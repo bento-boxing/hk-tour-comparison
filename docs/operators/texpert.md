@@ -167,3 +167,5 @@ Sample of 40 tours (routes compared with their headings by eye). Wrong stops fou
 - `YZAA03R`, `TGLZ04R`: 深圳 as the first and last stop: the tour boards the train at 深圳北站 / 福田站 but the first heading has no `集合`, so no start point is read and Shenzhen is not excluded. Not a places problem.
 - `YASP03R`: 韶關 is only the railway station (`前往韶關站乘坐高鐵返回深圳北`); the tour is in Chenzhou (Mangshan, Dongjiang Lake). Transit without transit wording.
 Missing stops (no wrong city, places not in the list): 百色, 羅平, 曲靖, 彌勒 (`TGGK06R`), 金門 (`TXJA05R`), 泉州 and 潮州 named only through attractions (`YESB04R`).
+
+**Fix round 2** (offline, both crawls' headings): narrowing the single-outlier rule to `collisionNames` (`塔林`, `黃金海岸`) and the transit rule to whitespace-delimited chunks changed no Travel Expert route. Still 1 tour page without stops (YASR02R). Wrong stops still seen in a fresh sample of 40: 深圳 as a departure station when the first heading has no `集合` (YZAB03R) and as the return point (`乘車返回深圳`, YAFS02R).
