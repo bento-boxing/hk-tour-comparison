@@ -25,6 +25,7 @@ export interface TourCardData {
   stops: Stop[]; start: TourPoint; end: TourPoint;
   fromPriceHkd: number;               // lowest across all upcoming departures
   windowPriceHkd: number;             // lowest across the departures listed below
+  fallbackPriceHkd: number;           // the stored tours.from_price_hkd: the price of a departure whose priceHkd is null
   departures: ScrapedDeparture[];     // upcoming and inside the window, ascending
   priceChange: PriceChange | null;    // compares fromPriceHkd with the snapshots
   lastUpdated: string;                // operator's last_good_run_at, ISO timestamp
@@ -100,7 +101,7 @@ interface TourRow {
   id: string; key: string; operator_id: OperatorId; url: string; title: string;
   days: number; nights: number | null;
   start_kind: StartKind; start_label: string | null; end_kind: StartKind; end_label: string | null;
-  from_price: number; window_price: number; last_updated: string;
+  from_price: number; window_price: number; fallback_price: number; last_updated: string;
 }
 
 /** One page of `matched`, in sort order. `limit` null means every row. */
@@ -109,7 +110,7 @@ function selectPage(sort: SortKey): string {
   return `${MATCHED_CTE}
 select m.id::text as id, m.key, t.operator_id, t.url, t.title, t.days, t.nights,
        t.start_kind, t.start_label, t.end_kind, t.end_label,
-       m.from_price, m.window_price, ${isoUtc('o.last_good_run_at')} as last_updated
+       m.from_price, m.window_price, t.from_price_hkd as fallback_price, ${isoUtc('o.last_good_run_at')} as last_updated
 from matched m
 join tours t on t.id = m.id
 join operators o on o.id = t.operator_id
@@ -217,6 +218,7 @@ async function toCards(db: Db, rows: TourRow[], params: Params): Promise<TourCar
     end: { kind: r.end_kind, label: r.end_label },
     fromPriceHkd: r.from_price,
     windowPriceHkd: r.window_price,
+    fallbackPriceHkd: r.fallback_price,
     departures: departuresById.get(r.id) ?? [],
     priceChange: comparePrice(r.from_price, snapshotsById.get(r.id) ?? [], today),
     lastUpdated: r.last_updated,
