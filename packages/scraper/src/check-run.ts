@@ -5,7 +5,7 @@ export interface RunCheckInput {
   previousGoodCount: number | null; // from previousGoodTourCount
   minExpectedTours?: number | null; // the scraper's floor for runs with no previous good count
   pagesDiscovered: number;          // distinct tour page URLs the scraper found tonight
-  pagesNotFetched: number;          // of those, pages the fetcher could not get (fetchText returned null)
+  pagesNotFetched: number;          // of those, pages the fetcher could not get (fetchText, or the scraper's fetchPage, gave null)
 }
 
 export type RunFailureReason =

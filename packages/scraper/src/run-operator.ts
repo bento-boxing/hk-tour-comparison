@@ -94,9 +94,16 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   };
 
   for (const url of urls) {
-    const html = await fetcher.fetchText(url);
+    let html: string | null;
+    let why = '';
+    try {
+      html = scraper.fetchPage ? await scraper.fetchPage(fetcher, url) : await fetcher.fetchText(url);
+    } catch (error) {
+      html = null;
+      why = ` (fetchPage threw: ${errorMessage(error)})`;
+    }
     if (html === null) {
-      log(`${operatorId}: skipped ${url}: not fetched`);
+      log(`${operatorId}: skipped ${url}: not fetched${why}`);
       pagesNotFetched++;
       continue;
     }
