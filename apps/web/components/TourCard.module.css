@@ -39,6 +39,7 @@
 .more { background: none; color: var(--text-muted); }
 
 .foot { font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 8px; }
+.footLeft { display: flex; flex-direction: column; gap: 2px; }
 .go { color: var(--cerulean); font-weight: 600; white-space: nowrap; }
 
 /* Not in the mockup as a button: it must sit outside the link, so it gets its own row. */

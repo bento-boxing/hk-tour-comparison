@@ -272,8 +272,17 @@ it('shows the start note only for a non-HK, non-Shenzhen start', () => {
   expect(screen.getByText('澳門外港碼頭出發')).toBeInTheDocument();
 });
 
-it('shows a footNote in place of the updated time', () => {
+it('shows a footNote and, beneath it, the updated time', () => {
   render(<TourCard {...props} footNote="休息 1–2 日後出發" />);
+  const note = screen.getByText('休息 1–2 日後出發');
+  const updated = screen.getByText('更新：今日 03:10');
+  expect(note.parentElement).toBe(updated.parentElement); // together, on the footer's left side
+  expect(note.compareDocumentPosition(updated) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // the note first
+  expect(screen.getByText('前往東瀛遊網站 ↗').previousElementSibling).toBe(note.parentElement);
+});
+
+it('a footNote with a bad last-updated timestamp shows the foot note alone', () => {
+  render(<TourCard {...props} tour={{ ...tour, lastUpdated: 'garbage' }} footNote="休息 1–2 日後出發" />);
   expect(screen.getByText('休息 1–2 日後出發')).toBeInTheDocument();
   expect(screen.queryByText(/更新/)).toBeNull();
 });

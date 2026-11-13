@@ -13,7 +13,7 @@ export interface ResultsProps {
   operators: OperatorInfo[]; places: PlacesIndex; today: IsoDate; t: T;
   /** When given, every card has the 加入行程 button and calls this with the chosen date. */
   onAdd?: (tour: TourCardData, departure: IsoDate) => void;
-  /** When given, each card's footer note (in place of its 'updated' text), e.g. '休息 1–2 日後出發'. */
+  /** When given, each card's footer note (shown above its 'updated' text), e.g. '休息 1–2 日後出發'. */
   footNote?: (tour: TourCardData) => string | undefined;
   /** When given, shown instead of the default empty message and its clear-all link (only when total is 0). */
   empty?: ReactNode;
