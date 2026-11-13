@@ -41,14 +41,19 @@ it('same-named cities in two countries give two distinguishable labels', () => {
     regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: '', aliases: [] }, { id: 'b-r', countryId: 'b', nameZh: '乙區', nameEn: '', aliases: [] }],
     cities: [{ id: 'a-r-x', regionId: 'a-r', nameZh: '聖城', nameEn: '', aliases: [] }, { id: 'b-r-x', regionId: 'b-r', nameZh: '聖城', nameEn: '', aliases: [] }],
   });
+  // Each exact city row is followed by its own country's 全部地區 row.
   expect(suggestRegions('聖城', idx)).toEqual([
     { destination: { countryId: 'a', regionId: 'a-r' }, label: '甲國 → 甲區', via: '聖城' },
+    { destination: { countryId: 'a', regionId: null }, label: `甲國 → ${ALL_REGIONS_LABEL}`, via: null },
     { destination: { countryId: 'b', regionId: 'b-r' }, label: '乙國 → 乙區', via: '聖城' },
+    { destination: { countryId: 'b', regionId: null }, label: `乙國 → ${ALL_REGIONS_LABEL}`, via: null },
   ]);
 });
 it('a region name shared by several countries suggests each of them', () => {
-  expect(labels('北部').slice(0, 3)).toEqual(['台灣 → 北部', '泰國 → 北部', '越南 → 北部']);
-  expect(labels('中部').slice(0, 2)).toEqual(['台灣 → 中部', '越南 → 中部']);
+  expect(labels('北部').slice(0, 6)).toEqual([
+    '台灣 → 北部', '台灣 → 全部地區', '泰國 → 北部', '泰國 → 全部地區', '越南 → 北部', '越南 → 全部地區',
+  ]);
+  expect(labels('中部').slice(0, 4)).toEqual(['台灣 → 中部', '台灣 → 全部地區', '越南 → 中部', '越南 → 全部地區']);
 });
 it('exact matches come before prefix matches, prefix before contains', () => {
   // city 京都 starts with 京; region alias 京畿 starts with 京; cities 東京, 北京, 南京 only contain it
@@ -82,4 +87,28 @@ it('never returns duplicates and respects the limit', () => {
   expect(all.length).toBe(10); // 全部地區 + 9 regions
   expect(new Set(all.map(s => s.label)).size).toBe(all.length);
   expect(suggestRegions('日本', places).length).toBe(8);
+});
+
+it('an exact city offers its country-wide row straight after its region (mockup)', () => {
+  expect(labels('大阪').slice(0, 2)).toEqual(['日本 → 關西', '日本 → 全部地區']);
+  expect(suggestRegions('大阪', places)[1]).toEqual({
+    destination: { countryId: 'japan', regionId: null }, label: `日本 → ${ALL_REGIONS_LABEL}`, via: null,
+  });
+});
+it('an exact region offers its country-wide row straight after it', () => {
+  expect(labels('關西').slice(0, 2)).toEqual(['日本 → 關西', '日本 → 全部地區']);
+});
+it('an exact country still offers 全部地區 first and only once', () => {
+  const l = suggestRegions('日本', places, 100).map(s => s.label);
+  expect(l[0]).toBe('日本 → 全部地區');
+  expect(l.filter(x => x === '日本 → 全部地區')).toHaveLength(1);
+  expect(l.slice(1)).toEqual(places.regionsOf('japan').map(r => `日本 → ${r.nameZh}`));
+});
+it('prefix and contains matches do not add a country-wide row', () => {
+  expect(labels('婆羅')).toEqual(['馬來西亞 → 東馬']);
+  expect(labels('口湖')).toEqual(['日本 → 中部北陸']);
+});
+it('the country-wide rows count towards the limit', () => {
+  expect(suggestRegions('大阪', places, 1).map(s => s.label)).toEqual(['日本 → 關西']);
+  expect(suggestRegions('北部', places, 3).map(s => s.label)).toEqual(['台灣 → 北部', '台灣 → 全部地區', '泰國 → 北部']);
 });

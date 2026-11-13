@@ -23,6 +23,7 @@ function matching<T extends Place>(items: T[], test: NameTest): T[] {
 /**
  * Turns a search-bar query into `Country → Region` suggestions, best matches first:
  * exact city, region, country; then prefix city, region, country; then substring city, region.
+ * A country reached by an exact city or region match also gets its 全部地區 row, after its last such row.
  * Chinese names, aliases and English names all match; labels are always Chinese.
  */
 export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Suggestion[] {
@@ -43,8 +44,7 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
     add({ destination: { countryId: country.id, regionId: region.id }, label: `${country.nameZh} → ${region.nameZh}`, via });
   };
   const addCity = (city: City) => addRegion(index.region(city.regionId), city.nameZh);
-  const addAllRegions = (country: Country) =>
-    add({ destination: { countryId: country.id, regionId: null }, label: `${country.nameZh} → ${ALL_REGIONS_LABEL}`, via: null });
+  const addAllRegions = (country: Country) => add(allRegionsRow(country));
 
   const { countries, regions, cities } = index.data;
   const equals: NameTest = n => n === q;
@@ -55,6 +55,7 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   // 1–3: exact city, region, country.
   matching(cities, equals).forEach(addCity);
   matching(regions, equals).forEach(r => addRegion(r));
+  const exactRegionRows = results.length;
   for (const country of matching(countries, equals)) {
     addAllRegions(country);
     index.regionsOf(country.id).forEach(r => addRegion(r));
@@ -67,5 +68,24 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   matching(cities, contains).forEach(addCity);
   matching(regions, contains).forEach(r => addRegion(r));
 
-  return results.slice(0, limit);
+  return withAllRegionsAfterExact(results, exactRegionRows, index).slice(0, limit);
+}
+
+function allRegionsRow(country: Country): Suggestion {
+  return { destination: { countryId: country.id, regionId: null }, label: `${country.nameZh} → ${ALL_REGIONS_LABEL}`, via: null };
+}
+
+/**
+ * The first `exactRows` results come from exact city or region matches (rules 1–2). For each country among
+ * them that has no 全部地區 row anywhere yet, puts one right after that country's last such row.
+ */
+function withAllRegionsAfterExact(results: Suggestion[], exactRows: number, index: PlacesIndex): Suggestion[] {
+  const offered = new Set(results.filter(s => s.destination.regionId === null).map(s => s.destination.countryId));
+  const lastExactRow = new Map<string, number>();
+  results.slice(0, exactRows).forEach((s, i) => lastExactRow.set(s.destination.countryId, i));
+  return results.flatMap((s, i) => {
+    const country = index.country(s.destination.countryId);
+    if (!country || offered.has(country.id) || lastExactRow.get(country.id) !== i) return [s];
+    return [s, allRegionsRow(country)];
+  });
 }
