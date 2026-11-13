@@ -216,6 +216,42 @@ describe('extractStops drops a single foreign outlier', () => {
   });
 });
 
+describe('extractStops on crawled headings', () => {
+  const ids = (r: StopsResult) => r.stops.map(s => s.cityId);
+
+  it('reads 昆卡 as Cuenca, Ecuador on an Ecuador tour (Jetour QRDS1)', () => {
+    const r = extractStops(['阿姆斯特丹 ~ 基多', '瓜亞基爾 ~ 昆卡市內觀光 ~ 巴拿馬帽工廠', '昆卡 ~ 埃爾坦博 ~ 里奧班巴'], places);
+    expect(ids(r)).toEqual([
+      'netherlands-netherlands-amsterdam', 'ecuador-ecuador-quito', 'ecuador-ecuador-guayaquil',
+      'ecuador-ecuador-cuenca', 'ecuador-ecuador-riobamba',
+    ]);
+    expect(r.unmatched).not.toContain('昆卡');
+  });
+
+  it('reads 昆卡 as Cuenca, Spain on a Spain tour', () => {
+    const r = extractStops(['馬德里 ~ 昆卡', '昆卡 ~ 瓦倫西亞'], places);
+    expect(ids(r)).toEqual(['spain-spain-madrid', 'spain-spain-cuenca', 'spain-spain-valencia']);
+    expect(r.unmatched).toEqual([]);
+  });
+
+  it.each([
+    // the Charles Darwin Research Station (Galápagos) is not Darwin, Australia: Jetour QRCS1, QCG
+    [['阿約拉港 ~ 達爾文研究中心'], ['阿約拉港'], ['達爾文研究中心']],
+    [['加拉巴哥群島 ~ 查爾斯‧達爾文研究中心 ~ 普韋托阿約拉港'], ['加拉帕戈斯群島', '阿約拉港'], []],     // the 11-character token is too long to report
+    // the Ring of Kerry is not Kaili, Guizhou: Jetour EWIB-1
+    [['基拉尼 ~ 凱里之環 ~ 托克瀑布、貴婦觀景台等 ~ 科克 ~ 布拉尼城堡與花園'], ['基拉尼'],
+      ['凱里之環', '托克瀑布', '貴婦觀景台等', '科克', '布拉尼城堡與花園']],
+    // a beach in Gangneung is not Jiangmen, Guangdong: Jetour VGW
+    [['烏竹軒賞紅葉 ~ 江陵元宇宙體驗館 ~ 江陵咖啡街 ~ 江門海邊 ~ 江陵中央市場'], ['江陵'], ['烏竹軒賞紅葉', '江門海邊']],
+    // 郴州版鳳凰古城 ("Chenzhou's own Fenghuang") names Chenzhou, not Fenghuang: Travel Expert YASP03R
+    [['#同仁堂(購物店)→被稱為 “郴州版鳳凰古城”【裕後街】→晚餐特別安排'], ['郴州'], ['#同仁堂', '被稱為']],
+  ])('extractStops(%j)', (headings, expectedNames, expectedUnmatched) => {
+    const r = extractStops(headings, places);
+    expect(names(r)).toEqual(expectedNames);
+    expect(r.unmatched).toEqual(expectedUnmatched);
+  });
+});
+
 describe('extractStops with notPlaces', () => {
   // 松山 is a city; 松山湖 contains it but is not it.
   const index = buildPlacesIndex({
