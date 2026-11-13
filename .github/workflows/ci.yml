@@ -24,3 +24,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      # No DATABASE_URL here on purpose: no page queries the database at build time.
+      - run: pnpm --filter @hktours/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
