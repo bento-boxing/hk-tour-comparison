@@ -25,7 +25,8 @@ afterEach(async () => { await db.close(); });
 
 it('a run reads the REST list, saves the tours with dates and skips the old post as no-departures', async () => {
   const pages = new Map(['simple', 'multi-city', 'edge'].map(name => [sourceUrl(name), readFixture(`${name}.html`)]));
-  const list = JSON.stringify([...pages.keys()].map((link, i) => ({ id: i + 1, slug: `s${i}`, link, modified: '2026-11-11T00:00:00' })));
+  const posts = [...pages.keys()].map((link, i) => ({ id: i + 1, slug: `s${i}`, link, modified: '2026-11-11T00:00:00' }));
+  const list = JSON.stringify({ body: posts, status: 200, headers: { 'X-WP-Total': 3, 'X-WP-TotalPages': 1 } });
   const asked: string[] = [];
   const fetcher: Fetcher = {
     fetchText: async url => {
