@@ -179,3 +179,35 @@ describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', 
     expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
   });
 });
+
+describe('dropping a region whose city is listed (Yummy Holiday, owner decision 2026-11-14)', () => {
+  /** City id, or `region:<id>` for a region-only stop. */
+  const route = (dayHeadings: string[], dropRegionWithListedCity?: true) => {
+    const r = normaliseTour({ ...base, dayHeadings, ...(dropRegionWithListedCity ? { dropRegionWithListedCity } : {}) }, places, today);
+    return r.ok ? r.tour.stops.map(s => s.cityId ?? `region:${s.regionId}`) : r.reason;
+  };
+  it('drops a leading region when a city of it is listed', () => {
+    expect(route(['雲南', '大理', '瀘沽湖', '麗江', '昆明'], true)).toEqual([
+      'china-yunnan-dali', 'china-yunnan-lugu-lake', 'china-yunnan-lijiang', 'china-yunnan-kunming',
+    ]);
+  });
+  it('drops a region in the middle of the list when a city of it is listed', () => {
+    expect(route(['清遠', '雲南', '大理'], true)).toEqual(['china-guangdong-qingyuan', 'china-yunnan-dali']);
+  });
+  it('drops a region whose city comes only before it: the list is a set of tags, not an order', () => {
+    expect(route(['大理', '麗江', '雲南'], true)).toEqual(['china-yunnan-dali', 'china-yunnan-lijiang']);
+  });
+  it('keeps a region none of whose cities is listed', () => {
+    expect(route(['雲南', '清遠'], true)).toEqual(['region:china-yunnan', 'china-guangdong-qingyuan']);
+    expect(route(['雲南'], true)).toEqual(['region:china-yunnan']);
+  });
+  it('removes a repeat that dropping a region leaves side by side', () => {
+    expect(route(['昆明', '雲南', '昆明'], true)).toEqual(['china-yunnan-kunming']);
+  });
+  it('is opt-in: without it (every other operator) a region stays a stop', () => {
+    expect(route(['雲南', '大理', '瀘沽湖', '麗江', '昆明'])).toEqual([
+      'region:china-yunnan', 'china-yunnan-dali', 'china-yunnan-lugu-lake', 'china-yunnan-lijiang', 'china-yunnan-kunming',
+    ]);
+    expect(route(['昆明', '雲南', '昆明'])).toEqual(['china-yunnan-kunming', 'region:china-yunnan', 'china-yunnan-kunming']);
+  });
+});

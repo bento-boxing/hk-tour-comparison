@@ -1,6 +1,6 @@
 import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
 import { normaliseName, type PlacesIndex } from './places/index';
-import { extractStops } from './stops';
+import { extractStops, withoutRegionsOfListedCities } from './stops';
 import { normaliseStartPoint } from './start-point';
 
 export type NormaliseResult =
@@ -65,7 +65,9 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   if (start.kind === 'sz' || end.kind === 'sz') excluded.push(SHENZHEN_CITY_ID);
   const extracted = extractStops(scraped.dayHeadings, index, excluded);
   const { unmatched } = extracted;
-  let stops = withoutStatedEnds(extracted.stops, start, end, index);
+  // Opt-in (ScrapedTour.dropRegionWithListedCity): a province given only as a tag beside its own cities is not a stop.
+  const listed = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(extracted.stops) : extracted.stops;
+  let stops = withoutStatedEnds(listed, start, end, index);
 
   // A tour with nothing to book is skipped whatever its route: no-departures comes before no-stops.
   const departures = upcomingDepartures(scraped.departures, today);

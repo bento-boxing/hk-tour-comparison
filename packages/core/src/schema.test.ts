@@ -58,6 +58,14 @@ describe('scrapedTourSchema', () => {
     expect(without.success && 'fallbackRoute' in without.data).toBe(false);
     expect(scrapedTourSchema.safeParse({ ...valid, fallbackRoute: ['曼谷'] }).success).toBe(false);
   });
+
+  it('keeps the optional opt-in to drop a region whose city is listed, and has none unless the parser gives it', () => {
+    const withIt = scrapedTourSchema.safeParse({ ...valid, dropRegionWithListedCity: true });
+    expect(withIt.success && withIt.data.dropRegionWithListedCity).toBe(true);
+    const without = scrapedTourSchema.safeParse(valid);
+    expect(without.success && 'dropRegionWithListedCity' in without.data).toBe(false);
+    expect(scrapedTourSchema.safeParse({ ...valid, dropRegionWithListedCity: 'yes' }).success).toBe(false);
+  });
 });
 
 describe('parsePriceHkd', () => {

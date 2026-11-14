@@ -23,6 +23,13 @@ export interface ScrapedTour {
    * decision 2026-11-14); every other operator leaves it out.
    */
   fallbackRoute?: string;
+  /**
+   * Opt-in, for an operator whose route is a list of place tags rather than day headings: a region-only stop (a
+   * province matched with no city) is dropped when a city of that region is also a stop, wherever either sits in
+   * the list. Yummy Holiday sets it (owner decision 2026-11-14: `雲南,大理,瀘沽湖,麗江,昆明` is the four cities);
+   * every other operator leaves it out.
+   */
+  dropRegionWithListedCity?: boolean;
 }
 
 export interface Stop { countryId: string; regionId: string; cityId: string | null }

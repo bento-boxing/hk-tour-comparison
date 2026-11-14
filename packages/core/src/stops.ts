@@ -108,6 +108,15 @@ function withoutRepeats(stops: Stop[]): Stop[] {
 }
 
 /**
+ * The route without each region-only stop (cityId null) whose region also has a city stop anywhere in the route,
+ * before or after it, and without the consecutive repeats that leaves (see ScrapedTour.dropRegionWithListedCity).
+ */
+export function withoutRegionsOfListedCities(stops: Stop[]): Stop[] {
+  const regionsWithCities = new Set(stops.filter(stop => stop.cityId !== null).map(stop => stop.regionId));
+  return withoutRepeats(stops.filter(stop => stop.cityId !== null || !regionsWithCities.has(stop.regionId)));
+}
+
+/**
  * Where the route's single foreign outlier is, or -1: the one stop in a country no other stop is in,
  * neither first nor last, amid at least three other stops all in one other country. Only a place named
  * by a collisionNames entry counts (塔林, the Shaolin Pagoda Forest, read as Tallinn): real cross-border
