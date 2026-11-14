@@ -1,6 +1,6 @@
 import {
   normaliseTour, scrapedTourSchema,
-  type IsoDate, type NormalisedTour, type OperatorId, type PlacesIndex, type ScrapedTour,
+  type IsoDate, type NormalisedTour, type OperatorId, type PlacesIndex, type ScrapedTour, type Stop,
 } from '@hktours/core';
 import {
   previousGoodTourCount, recordFailedRun, saveOperatorRun,
@@ -33,6 +33,13 @@ function summaryLine(
     count(parseFailures, 'parse failure', 'parse failures'),
     count(unmatched, 'unmatched name', 'unmatched names'),
   ].join(', ');
+}
+
+/** `中山 → 珠海`: the stops by name. */
+function routeText(stops: Stop[], index: PlacesIndex): string {
+  return stops
+    .map(stop => (stop.cityId !== null ? index.city(stop.cityId)?.nameZh ?? stop.cityId : index.region(stop.regionId)?.nameZh ?? stop.regionId))
+    .join(' → ');
 }
 
 function errorMessage(error: unknown): string {
@@ -81,6 +88,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   }
 
   const tours = new Map<string, NormalisedTour>(); // by code; the first wins
+  const fromFallback = new Set<string>();           // codes of the saved tours whose route came from fallbackRoute
   const unmatched = new Map<string, string>();     // name → last tour code seen with it
   let pagesFetched = 0;
   let pagesNotFetched = 0; // not parse failures, but counted toward checkRun's fetch-failure rate
@@ -138,6 +146,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
       continue;
     }
     tours.set(result.tour.code, result.tour);
+    if (result.routeFromFallback) fromFallback.add(result.tour.code);
     keepUnmatched(result.unmatched, result.tour.code);
   }
 
@@ -155,7 +164,15 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
 
   const reasons: string[] = check.reasons;
   if (check.ok) {
-    await saveOperatorRun(db, { operatorId, runDate: today, tours: [...tours.values()], unmatched: unmatchedNames, stats });
+    const changed = await saveOperatorRun(db, { operatorId, runDate: today, tours: [...tours.values()], unmatched: unmatchedNames, stats });
+    // Routes read from a title are checked by eye (owner request 2026-11-14): only the new and changed ones are listed.
+    for (const { code, previous } of changed) {
+      if (!fromFallback.has(code)) continue;
+      const route = routeText(tours.get(code)!.stops, index);
+      log(previous.length === 0
+        ? `${operatorId}: new title route ${code}: ${route}`
+        : `${operatorId}: changed title route ${code}: ${route} (was ${routeText(previous, index)})`);
+    }
   } else {
     await recordFailedRun(db, { operatorId, runDate: today, stats, reasons });
   }

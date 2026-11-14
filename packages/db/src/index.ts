@@ -2,7 +2,7 @@ export { createPgDb, normaliseCaCert, type Db, type PgDbOptions } from './db';
 export { migrate } from './migrate';
 export {
   saveOperatorRun, recordFailedRun, previousGoodTourCount,
-  type GoodRun, type FailedRun, type RunStats, type UnmatchedName,
+  type GoodRun, type FailedRun, type RunStats, type UnmatchedName, type ChangedStops,
 } from './save-run';
 export {
   searchTours, getToursByKeys, getOperators, PAGE_SIZE,

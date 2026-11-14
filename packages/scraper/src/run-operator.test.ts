@@ -396,3 +396,39 @@ it('a throwing discover ends the run as failed', async () => {
   ]);
   expect(logMentions('sitemap moved')).toBe(true);
 });
+
+describe('the routes read from fallback text that are new or changed (so the owner reads only those)', () => {
+  /** A tour whose day headings name no place, its stops read from the fallback text. */
+  const titled = (code: string, fallbackRoute: string) =>
+    tour(code, { days: 2, dayHeadings: ['香港 → 溫泉', '酒店 → 香港'], fallbackRoute });
+  const routeLines = () => logLines.filter(line => line.includes('title route'));
+
+  it('lists each one new tonight, and no route read from day headings', async () => {
+    await run(site([['A', titled('A', '中山 珠海2天')], ['B', titled('B', '江門2天')], ['C', tour('C')]]));
+    expect(routeLines()).toEqual([
+      'jetour: new title route A: 中山 → 珠海',
+      'jetour: new title route B: 江門',
+    ]);
+    expect(logLines.at(-1)).toMatch(/^jetour: ok, 3 tours saved/); // the summary stays last
+  });
+  it('lists one whose stops differ from last night\'s, with them, and none whose stops are the same', async () => {
+    await run(site([['A', titled('A', '中山2天')], ['B', titled('B', '江門2天')], ['C', tour('C')]]));
+    logLines = [];
+    await run(site([['A', titled('A', '珠海2天')], ['B', titled('B', '江門 溫泉2天')], ['C', titled('C', '佛山2天')]]), NIGHT_2);
+    expect(routeLines()).toEqual([
+      'jetour: changed title route A: 珠海 (was 中山)',
+      'jetour: changed title route C: 佛山 (was 大阪 → 京都)',
+    ]);
+  });
+  it('does not list a tour whose route now comes from its day headings', async () => {
+    await run(site([['A', titled('A', '中山2天')]]));
+    logLines = [];
+    await run(site([['A', tour('A', { fallbackRoute: '中山2天' })]]), NIGHT_2);
+    expect(routeLines()).toEqual([]);
+  });
+  it('lists nothing for a run that saves nothing', async () => {
+    await run(site([['A', titled('A', '中山2天')], ['N1', 'null'], ['N2', 'null']]));
+    expect(await savedTours()).toEqual([]);
+    expect(routeLines()).toEqual([]);
+  });
+});

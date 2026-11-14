@@ -139,6 +139,42 @@ it('updates an existing tour and keeps first_seen', async () => {
   expect(await count('tour_stops')).toBe(2);
 });
 
+describe('the tours whose stops changed', () => {
+  const osaka = { countryId: 'japan', regionId: 'japan-kansai', cityId: 'japan-kansai-osaka' };
+  const kyoto = { countryId: 'japan', regionId: 'japan-kansai', cityId: 'japan-kansai-kyoto' };
+  const kansai = { countryId: 'japan', regionId: 'japan-kansai', cityId: null };
+
+  it('lists a tour new tonight with no previous stops', async () => {
+    expect(await saveOperatorRun(db, run('2026-11-12', [tour('A')]))).toEqual([{ code: 'A', previous: [] }]);
+  });
+  it('lists a tour whose stops differ from those stored, with the stored ones in order', async () => {
+    await saveOperatorRun(db, run('2026-11-12', [tour('A'), tour('B'), tour('C'), tour('D')]));
+    const changed = await saveOperatorRun(db, run('2026-11-13', [
+      tour('A'),                                // same stops
+      tour('B', { stops: [kyoto, osaka] }),     // same places, another order
+      tour('C', { stops: [osaka] }),            // one fewer
+      tour('D', { stops: [osaka, kansai] }),    // a region-only stop in place of a city
+    ]));
+    expect(changed).toEqual([
+      { code: 'B', previous: [osaka, kyoto] },
+      { code: 'C', previous: [osaka, kyoto] },
+      { code: 'D', previous: [osaka, kyoto] },
+    ]);
+  });
+  it('lists nothing when every tour keeps its stops, and saves the same rows either way', async () => {
+    await saveOperatorRun(db, run('2026-11-12', [tour('A')]));
+    expect(await saveOperatorRun(db, run('2026-11-13', [tour('A')]))).toEqual([]);
+    expect(await db.query('select position, city_id from tour_stops order by position')).toEqual([
+      { position: 0, city_id: 'japan-kansai-osaka' }, { position: 1, city_id: 'japan-kansai-kyoto' },
+    ]);
+  });
+  it('compares with a withdrawn tour\'s stored stops when it comes back', async () => {
+    await saveOperatorRun(db, run('2026-11-12', [tour('A')]));
+    await saveOperatorRun(db, run('2026-11-13', []));
+    expect(await saveOperatorRun(db, run('2026-11-14', [tour('A')]))).toEqual([]);
+  });
+});
+
 it('deactivates tours missing from tonight, for this operator only', async () => {
   await saveOperatorRun(db, run('2026-11-12', [tour('A'), tour('B')]));
   await saveOperatorRun(db, { ...run('2026-11-12', [tour('X')]), operatorId: 'egl' });

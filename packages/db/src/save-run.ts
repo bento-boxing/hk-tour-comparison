@@ -1,4 +1,4 @@
-import { addDays, SNAPSHOT_KEEP_NIGHTS, type IsoDate, type NormalisedTour, type OperatorId } from '@hktours/core';
+import { addDays, SNAPSHOT_KEEP_NIGHTS, type IsoDate, type NormalisedTour, type OperatorId, type Stop } from '@hktours/core';
 import type { Db } from './db';
 
 export interface RunStats { startedAt: Date; finishedAt: Date; pagesFetched: number; parseFailures: number }
@@ -10,6 +10,9 @@ export interface GoodRun {
 }
 
 export interface FailedRun { operatorId: OperatorId; runDate: IsoDate; stats: RunStats; reasons: string[] }
+
+/** A tour saved with stops other than those stored before the save: `previous` is empty for a tour new tonight. */
+export interface ChangedStops { code: string; previous: Stop[] }
 
 /**
  * Owner decision 2026-11-13: a tour inactive for more than this many days (counted in run dates from the
@@ -35,12 +38,17 @@ const LATEST_GOOD_RUN = `select id from scrape_runs
  * snapshots older than the rolling window pruned; unmatched place names
  * counted; the run recorded, run-log rows older than RUN_LOG_KEEP_DAYS pruned,
  * and the operator's freshness updated. Only this operator's rows are touched.
- * Tours are saved under `run.operatorId`.
+ * Tours are saved under `run.operatorId`. Returns the tours whose stops differ from those stored before, in the
+ * run's order (the stops replaced are read as they are deleted, so this adds no query).
  */
-export async function saveOperatorRun(db: Db, run: GoodRun): Promise<void> {
+export async function saveOperatorRun(db: Db, run: GoodRun): Promise<ChangedStops[]> {
   const { operatorId, runDate } = run;
+  const changed: ChangedStops[] = [];
   await db.transaction(async tx => {
-    for (const tour of run.tours) await saveTour(tx, operatorId, runDate, tour);
+    for (const tour of run.tours) {
+      const previous = await saveTour(tx, operatorId, runDate, tour);
+      if (!sameStops(previous, tour.stops)) changed.push({ code: tour.code, previous });
+    }
 
     // Only tours active until now: one already inactive keeps the night it went inactive.
     await tx.query(
@@ -78,6 +86,12 @@ export async function saveOperatorRun(db: Db, run: GoodRun): Promise<void> {
     await pruneRunLog(tx, operatorId, runDate);
     await tx.query('update operators set last_good_run_at = $2 where id = $1', [operatorId, run.stats.finishedAt]);
   });
+  return changed;
+}
+
+function sameStops(a: Stop[], b: Stop[]): boolean {
+  return a.length === b.length && a.every((stop, i) =>
+    stop.countryId === b[i].countryId && stop.regionId === b[i].regionId && stop.cityId === b[i].cityId);
 }
 
 /** Records a run that will not be saved. Inserts its scrape_runs row and changes or deletes nothing else. */
@@ -107,8 +121,8 @@ export async function pruneRunLog(tx: Db, operatorId: OperatorId, runDate: IsoDa
   );
 }
 
-/** Upserts one tour, replaces its stops and departures, and upserts tonight's snapshot. */
-async function saveTour(tx: Db, operatorId: OperatorId, runDate: IsoDate, tour: NormalisedTour): Promise<void> {
+/** Upserts one tour, replaces its stops and departures, and upserts tonight's snapshot. Returns the stops replaced. */
+async function saveTour(tx: Db, operatorId: OperatorId, runDate: IsoDate, tour: NormalisedTour): Promise<Stop[]> {
   // The id stays a string parameter for the queries below; its JS type never matters.
   const [{ id }] = await tx.query<{ id: string }>(
     `insert into tours (operator_id, code, url, title, days, nights, from_price_hkd,
@@ -125,7 +139,8 @@ async function saveTour(tx: Db, operatorId: OperatorId, runDate: IsoDate, tour: 
       tour.start.kind, tour.start.label, tour.end.kind, tour.end.label, runDate],
   );
 
-  await tx.query('delete from tour_stops where tour_id = $1', [id]);
+  const previous = await tx.query<{ position: number; country_id: string; region_id: string; city_id: string | null }>(
+    'delete from tour_stops where tour_id = $1 returning position, country_id, region_id, city_id', [id]);
   await tx.query(
     `insert into tour_stops (tour_id, position, country_id, region_id, city_id)
      select $1, s.ord - 1, s.country_id, s.region_id, s.city_id
@@ -146,6 +161,9 @@ async function saveTour(tx: Db, operatorId: OperatorId, runDate: IsoDate, tour: 
      on conflict (tour_id, date) do update set price_hkd = excluded.price_hkd`,
     [id, runDate, tour.fromPriceHkd],
   );
+  return previous
+    .sort((a, b) => a.position - b.position)
+    .map(row => ({ countryId: row.country_id, regionId: row.region_id, cityId: row.city_id }));
 }
 
 async function insertScrapeRun(
