@@ -46,6 +46,16 @@ function withoutStatedEnds(stops: Stop[], start: TourPoint, end: TourPoint, inde
 }
 
 /**
+ * A tour gathering at the Shenzhen border leaves Shenzhen out of its route (it is where the tour starts). But when a
+ * fallback text names Shenzhen and no other place (`2天深圳純玩團`), the tour is a Shenzhen day trip: its route is
+ * Shenzhen (task 34, 2026-11-15). Fallback text only; day headings are read as before.
+ */
+function shenzhenAlone(text: string, days: number, index: PlacesIndex): Stop[] {
+  const stops = extractFallbackStops(text, days, index, [HONG_KONG_CITY_ID]).stops;
+  return stops.length > 0 && stops.every(stop => stop.cityId === SHENZHEN_CITY_ID) ? stops.slice(0, 1) : [];
+}
+
+/**
  * Departures after today (the design's "its date is in the future": a tour leaving today has left
  * by the time anyone reads the card), one per date with its lowest known price, sorted by date.
  */
@@ -79,14 +89,21 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
 
   // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop, with the heading rules and the
   // fallback rules after them (extractFallbackStops), and its unmatched words are not reported (a title is not a list
-  // of place names).
+  // of place names). Several texts are read in order until one gives a stop; the drops of every text read are listed.
   let routeFromFallback = false;
   let drops: { fallbackDropped?: FallbackDrop[] } = {};
   if (stops.length === 0 && scraped.fallbackRoute !== undefined) {
-    const fallback = extractFallbackStops(scraped.fallbackRoute, scraped.days, index, excluded);
-    stops = withoutStatedEnds(fallback.stops, start, end, index);
+    const dropped: FallbackDrop[] = [];
+    for (const text of typeof scraped.fallbackRoute === 'string' ? [scraped.fallbackRoute] : scraped.fallbackRoute) {
+      const fallback = extractFallbackStops(text, scraped.days, index, excluded);
+      for (const drop of fallback.dropped) if (!dropped.some(d => d.name === drop.name && d.rule === drop.rule)) dropped.push(drop);
+      const listedOnly = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(fallback.stops) : fallback.stops;
+      stops = withoutStatedEnds(listedOnly, start, end, index);
+      if (stops.length === 0 && excluded.includes(SHENZHEN_CITY_ID)) stops = shenzhenAlone(text, scraped.days, index);
+      if (stops.length > 0) break;
+    }
     routeFromFallback = stops.length > 0;
-    if (fallback.dropped.length > 0) drops = { fallbackDropped: fallback.dropped };
+    if (dropped.length > 0) drops = { fallbackDropped: dropped };
   }
 
   if (stops.length === 0) {

@@ -510,6 +510,9 @@ describe('notPlaces guards found in title routes (task 34)', () => {
     expect(names(extractStops(['曼谷 芭堤雅 清邁小鎮'], places))).toEqual(['曼谷', '芭堤雅']);
     expect(names(extractStops(['清邁 古城'], places))).toEqual(['清邁']);
   });
+  it('深圳往返 is where a long-haul tour flies from, not a stop', () => {
+    expect(extractFallbackStops('中亞兩國8天 深圳往返', 8, places).stops).toEqual([]);
+  });
   it('a dish named for a town is not a visit to it (台山滋味, 正宗順德, 中山特色)', () => {
     expect(extractFallbackStops('台山滋味鵝宴 新會酒店2天', 2, places).stops.map(s => s.cityId)).toEqual(['china-guangdong-xinhui']);
     expect(extractFallbackStops('正宗順德私房菜 中山特色魚 珠海酒店2天', 2, places).stops.map(s => s.cityId)).toEqual(['china-guangdong-zhuhai']);

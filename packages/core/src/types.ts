@@ -20,10 +20,11 @@ export interface ScrapedTour {
   /**
    * Opt-in, for an operator whose day headings often name no place: text read only when the headings give no stop,
    * with the day-heading rules and the fallback rules after them (extractFallbackStops: comparisons, too far for the
-   * trip, a lone foreign stop), its unmatched words not reported. Big Line sets its title (owner decision 2026-11-14);
-   * Sunflower its Guangdong title or its area.
+   * trip, a lone foreign stop, airlines), its unmatched words not reported. Several texts are read in order, and the
+   * first that gives a stop after its rules is the route. Big Line sets its title (owner decision 2026-11-14);
+   * Sunflower its title, subarea and area for a Guangdong short trip, else its area then its title (2026-11-15).
    */
-  fallbackRoute?: string;
+  fallbackRoute?: string | string[];
   /**
    * Opt-in, for an operator whose route is a list of place tags rather than day headings: a region-only stop (a
    * province matched with no city) is dropped when a city of that region is also a stop, wherever either sits in

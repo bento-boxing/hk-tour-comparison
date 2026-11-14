@@ -19,7 +19,7 @@
       "釜山",
       "慶州"
     ],
-    "fallbackRoute": "韓國",
+    "fallbackRoute": ["韓國","暢遊冬日秘境釜山慶州食足13餐五天團"],
     "dropRegionWithListedCity": true,
     "startPoint": null,
     "endPoint": null,

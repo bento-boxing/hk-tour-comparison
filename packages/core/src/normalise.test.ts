@@ -235,6 +235,57 @@ describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', 
   });
 });
 
+describe('several fallback texts, read in order (Sunflower: title, subarea, area)', () => {
+  const noPlaces = { dayHeadings: [] as string[] };
+  const cityIds = (r: ReturnType<typeof normaliseTour>) => (r.ok ? r.tour.stops.map(s => s.cityId ?? `region:${s.regionId}`) : r.reason);
+
+  it('takes the first text that gives a stop, and reads no later one', () => {
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, fallbackRoute: ['溫泉美食5天', '京都', '大阪'] }, places, today)))
+      .toEqual(['japan-kansai-kyoto']);
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: ['溫泉美食5天', '京都'] }, places, today))
+      .toMatchObject({ ok: true, routeFromFallback: true });
+  });
+  it('falls through a text whose every place the rules drop, listing the drops', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, days: 2, fallbackRoute: ['東方威尼斯 高山溫泉2天', '中山'] }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhongshan']);
+    expect(r).toMatchObject({ fallbackDropped: [{ name: '威尼斯', rule: 'comparison' }, { name: '高山', rule: 'too-far' }] });
+  });
+  it('leaves the tour no-stops when none gives a stop, as with no fallback', () => {
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: ['溫泉', '美食'] }, places, today))
+      .toEqual(normaliseTour({ ...base, ...noPlaces }, places, today));
+  });
+  it('one text in a list reads as that text alone', () => {
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: ['京都賞楓5天'] }, places, today))
+      .toEqual(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都賞楓5天' }, places, today));
+  });
+  it('drops a province beside its own city in a text when the operator opts in, as for headings', () => {
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, dropRegionWithListedCity: true, fallbackRoute: ['廣西 桂林5天'] }, places, today)))
+      .toEqual(['china-guangxi-guilin']);
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, fallbackRoute: ['廣西 桂林5天'] }, places, today)))
+      .toEqual(['region:china-guangxi', 'china-guangxi-guilin']);
+  });
+});
+
+describe('a Shenzhen day trip gathering at the Shenzhen border', () => {
+  const szTrip = { ...base, days: 2, dayHeadings: [] as string[], startPoint: '深圳關口', endPoint: '深圳關口' };
+  const cityIds = (r: ReturnType<typeof normaliseTour>) => (r.ok ? r.tour.stops.map(s => s.cityId) : r.reason);
+
+  it('visits Shenzhen when its fallback text names Shenzhen and no other place', () => {
+    expect(cityIds(normaliseTour({ ...szTrip, fallbackRoute: ['2天深圳純玩團', '廣州、中山、深圳'] }, places, today)))
+      .toEqual(['china-guangdong-shenzhen']);
+    expect(cityIds(normaliseTour({ ...szTrip, fallbackRoute: '深圳美食2天' }, places, today))).toEqual(['china-guangdong-shenzhen']);
+  });
+  it('still leaves Shenzhen out when the text names another place too', () => {
+    expect(cityIds(normaliseTour({ ...szTrip, fallbackRoute: '深圳 東莞2天' }, places, today))).toEqual(['china-guangdong-dongguan']);
+  });
+  it('day headings naming only Shenzhen are read as before (no stop)', () => {
+    expect(cityIds(normaliseTour({ ...szTrip, dayHeadings: ['深圳'] }, places, today))).toBe('no-stops');
+  });
+  it('a tour gathering in Hong Kong is not changed: Hong Kong is never a stop', () => {
+    expect(cityIds(normaliseTour({ ...szTrip, startPoint: null, endPoint: null, fallbackRoute: '香港美食2天' }, places, today))).toBe('no-stops');
+  });
+});
+
 describe('dropping a region whose city is listed (Yummy Holiday, owner decision 2026-11-14)', () => {
   /** City id, or `region:<id>` for a region-only stop. */
   const route = (dayHeadings: string[], dropRegionWithListedCity?: true) => {

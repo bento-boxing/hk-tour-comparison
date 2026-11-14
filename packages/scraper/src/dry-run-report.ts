@@ -16,8 +16,8 @@ export type PageDescription =
     route: string[];
     unmatched: string[];
     dayHeadings: string[]; startPoint: string | null; endPoint: string | null;
-    /** Only for a parser that gives one (Big Line: the title), so a crawl log shows what it was read from. */
-    fallbackRoute?: string;
+    /** Only for a parser that gives one (Big Line: the title; Sunflower: its texts in order), so a crawl log shows what it was read from. */
+    fallbackRoute?: string | string[];
     /** With fallbackRoute: true when the saved route came from it (the day headings named no stop). */
     routeFromFallback?: boolean;
     /** With fallbackRoute: the tour's days (the too-far rule depends on them) and each place its rules dropped. */

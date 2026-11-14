@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
@@ -177,6 +177,47 @@ it('sameOriginRedirectsOnly refuses a redirect to another origin before requesti
 it('sameOriginRedirectsOnly still follows a redirect within the origin', async () => {
   expect(await f.fetchText(url('/to-a'), { sameOriginRedirectsOnly: true })).toBe('ok-a');
   expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/to-a', '/a']);
+});
+
+it('sameOriginRedirectsOnly refuses an http:// downgrade of the same host, before requesting it', async () => {
+  // No local https server is available to the tests, so fetch is replaced: https://shop.test answers a redirect
+  // to http://shop.test (same host, other scheme, so another origin) and lets robots.txt allow everything.
+  const requested: string[] = [];
+  vi.stubGlobal('fetch', async (input: URL | string) => {
+    const href = String(input);
+    requested.push(href);
+    if (href.endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow:', { status: 200 });
+    if (href.startsWith('https:')) return new Response(null, { status: 302, headers: { location: 'http://shop.test/tour' } });
+    return new Response('plain-http page', { status: 200 });
+  });
+  try {
+    const g = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line) });
+    expect(await g.fetchText('https://shop.test/tour', { sameOriginRedirectsOnly: true })).toBeNull();
+    expect(requested).toEqual(['https://shop.test/robots.txt', 'https://shop.test/tour']);
+    expect(logLines).toContain(
+      'not fetched https://shop.test/tour (redirected to http://shop.test/tour): a redirect leaving https://shop.test is not followed');
+    // Without the option the downgrade is followed, as before.
+    expect(await g.fetchText('https://shop.test/tour')).toBe('plain-http page');
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('sameOriginRedirectsOnly keeps the redirect limit: a same-origin loop stops after MAX_REDIRECTS hops', async () => {
+  const looping = await startServer((req, res) => {
+    if (req.url === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow:');
+    const hop = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('hop') ?? '0');
+    return send(res, 302, '', { location: `/loop?hop=${hop + 1}` });
+  });
+  try {
+    const g = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line) });
+    expect(await g.fetchText(looping.url('/loop'), { sameOriginRedirectsOnly: true })).toBeNull();
+    // the first request and 5 redirects followed; the 6th redirect is not
+    expect(looping.requests.map(r => r.path)).toEqual(['/robots.txt', '/loop', ...[1, 2, 3, 4, 5].map(n => `/loop?hop=${n}`)]);
+    expect(logLines).toContain(`not fetched ${looping.url('/loop')} (redirected to ${looping.url('/loop?hop=6')}): too many redirects`);
+  } finally {
+    await looping.close();
+  }
 });
 
 it('spaces requests across ports of one host when a redirect crosses them', async () => {

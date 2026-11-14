@@ -56,7 +56,12 @@ describe('scrapedTourSchema', () => {
     expect(withFallback.success && withFallback.data.fallbackRoute).toBe('曼谷5天');
     const without = scrapedTourSchema.safeParse(valid);
     expect(without.success && 'fallbackRoute' in without.data).toBe(false);
-    expect(scrapedTourSchema.safeParse({ ...valid, fallbackRoute: ['曼谷'] }).success).toBe(false);
+    expect(scrapedTourSchema.safeParse({ ...valid, fallbackRoute: 5 }).success).toBe(false);
+  });
+  it('accepts several fallback texts, read in order, but only texts', () => {
+    const several = scrapedTourSchema.safeParse({ ...valid, fallbackRoute: ['曼谷5天', '泰國'] });
+    expect(several.success && several.data.fallbackRoute).toEqual(['曼谷5天', '泰國']);
+    expect(scrapedTourSchema.safeParse({ ...valid, fallbackRoute: ['曼谷', 5] }).success).toBe(false);
   });
 
   it('keeps the optional opt-in to drop a region whose city is listed, and has none unless the parser gives it', () => {

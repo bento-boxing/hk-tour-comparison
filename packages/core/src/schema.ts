@@ -48,6 +48,6 @@ export const scrapedTourSchema: z.ZodType<ScrapedTour> = z.object({
   endPoint: z.string().nullable(),
   fromPriceHkd: priceHkd,
   departures: z.array(z.object({ date: isoDate, priceHkd })),
-  fallbackRoute: z.string().optional(),
+  fallbackRoute: z.union([z.string(), z.array(z.string())]).optional(),
   dropRegionWithListedCity: z.boolean().optional(),
 });

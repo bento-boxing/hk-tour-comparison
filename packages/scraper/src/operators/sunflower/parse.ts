@@ -1,8 +1,5 @@
 import { load } from 'cheerio';
-import {
-  extractStops, isIsoDate, normaliseStartPoint, parsePriceHkd, places,
-  type IsoDate, type ScrapedDeparture, type ScrapedTour,
-} from '@hktours/core';
+import { isIsoDate, parsePriceHkd, type IsoDate, type ScrapedDeparture, type ScrapedTour } from '@hktours/core';
 import { bookingUrl, codeOf } from './discover';
 import { splitPage } from './fetch-page';
 import { CALENDAR, DAYS, MONTH, PRICE } from './public';
@@ -57,18 +54,6 @@ const TITLE_MARKS = /[【】《》「」『』〔〕\[\]()（）<>＜＞“”"�
 /** The title as a route line for the shared rules. */
 function routeLine(title: string): string {
   return title.replace(TITLE_MARKS, ' ').replace(/\s+/g, ' ').trim();
-}
-
-const HONG_KONG_CITY_ID = 'hongkong-hongkong-hongkong';
-const SHENZHEN_CITY_ID = 'china-guangdong-shenzhen';
-
-/**
- * True when the route line names a stop by the shared rules, leaving out Hong Kong, and Shenzhen for a tour that
- * gathers at the Shenzhen border, as normaliseTour does.
- */
-function namesStop(line: string, gathering: string | null): boolean {
-  const excluded = normaliseStartPoint(gathering, places).kind === 'sz' ? [HONG_KONG_CITY_ID, SHENZHEN_CITY_ID] : [HONG_KONG_CITY_ID];
-  return extractStops([line], places, excluded).stops.length > 0;
 }
 
 /** A listing price, given as a number (`2699`) or text (`2,699`): whole HKD, or null under 100 or absent. */
@@ -152,16 +137,18 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   const title = titleText(entry.Title);
   const subarea = clean(entry.subarea).split(SUBAREA_SEPARATOR).map(name => name.trim()).filter(name => name !== '');
   const area = clean(entry.area);
-  // No day headings (the itinerary is a PDF robots.txt disallows). The region is a sales grouping, never read.
-  // - Every tour: the subarea's names stand in for the headings; the area is read only when they give no stop.
+  // No day headings (the itinerary is a PDF robots.txt disallows). The region is a sales grouping, never read. Which
+  // text gives a stop is left to normaliseTour, which reads the fallback texts in order under the title rules, so a
+  // text the rules empty falls through to the next one (the parser never matches places itself):
+  // - Every tour: the subarea's names stand in for the headings (their unmatched names are reported); then the area;
+  //   then, as a last resort (owner decision 2026-11-15), the title.
   // - Guangdong short trips (owner decision 2026-11-14): their subarea is the same `廣州、中山、深圳` whatever the tour
-  //   visits, so the title comes first. When it names a stop it is the tour's fallbackRoute with no headings, so the
-  //   shared rules read it and its other words are never reported as unmatched place names (a title is not a list
-  //   of places); when it names none, the subarea and the area are read as for any tour.
-  const titleRoute = guangdong ? routeLine(title) : '';
-  const route = titleRoute !== '' && namesStop(titleRoute, gathering)
-    ? { line: [], fallback: titleRoute }
-    : { line: subarea, fallback: area };
+  //   visits, so the title comes first, then the subarea, then the area, all as fallback texts.
+  const titleLine = routeLine(title);
+  const route = guangdong
+    ? { line: [], fallback: [titleLine, subarea.join('、'), area] }
+    : { line: subarea, fallback: [area, titleLine] };
+  const fallbackRoute = route.fallback.filter(text => text !== '');
   return {
     operatorId: 'sunflower',
     code,
@@ -170,7 +157,7 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     days: Number(days[1]),
     nights: null,
     dayHeadings: route.line,
-    ...(route.fallback === '' ? {} : { fallbackRoute: route.fallback }),
+    ...(fallbackRoute.length === 0 ? {} : { fallbackRoute }),
     // A province listed beside its own cities (`廣西、桂林`, `雲南、昆明、…`) is a tag, not a stop.
     dropRegionWithListedCity: true,
     startPoint: gathering,

@@ -18,7 +18,7 @@
     "dayHeadings": [
       "土耳其"
     ],
-    "fallbackRoute": "地中海、中東",
+    "fallbackRoute": ["地中海、中東","9天土耳其 直航 超值遊"],
     "dropRegionWithListedCity": true,
     "startPoint": null,
     "endPoint": null,

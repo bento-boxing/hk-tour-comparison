@@ -15,7 +15,7 @@
     "days": 3,
     "nights": null,
     "dayHeadings": [],
-    "fallbackRoute": "3天金秋韶關賞銀杏紅葉純玩美食團 旺角集散",
+    "fallbackRoute": ["3天金秋韶關賞銀杏紅葉純玩美食團 旺角集散","廣州、中山、深圳","廣東省"],
     "dropRegionWithListedCity": true,
     "startPoint": "香港旺角",
     "endPoint": "香港旺角",

@@ -30,7 +30,7 @@ describe('the tour', () => {
   it('reads code, title, days, the "from" price and the booking page as its link, with no nights or itinerary', () => {
     expect(tourOf()).toEqual({
       operatorId: 'sunflower', code: 'KKFE05WR', url: PAGE, title: '暢遊冬日秘境釜山慶州食足13餐五天團', days: 5, nights: null,
-      dayHeadings: ['釜山', '慶州'], fallbackRoute: '韓國', startPoint: null, endPoint: null, fromPriceHkd: 2699,
+      dayHeadings: ['釜山', '慶州'], fallbackRoute: ['韓國', '暢遊冬日秘境釜山慶州食足13餐五天團'], startPoint: null, endPoint: null, fromPriceHkd: 2699,
       departures: [{ date: '2026-12-01', priceHkd: 2999 }, { date: '2027-01-06', priceHkd: null }],
       dropRegionWithListedCity: true,
     });
@@ -173,18 +173,31 @@ describe('the route', () => {
   });
 
   it('falls back to the area where nothing in the subarea is recognised', () => {
-    const r = normalised({ subarea: '環島遊', area: '台灣', region: '台灣' });
+    const r = normalised({ subarea: '環島遊', area: '台灣', region: '台灣', Title: '環島遊5天' });
     expect(r.ok).toBe(false); // 台灣 is a country: no stop
     const area = normalised({ subarea: '北疆', area: '新疆', region: '中國長線' });
     expect(area.ok && stopNames(area.tour.stops)).toEqual(['新疆']);
     expect(area.unmatched).toEqual(['北疆']); // the subarea's word is reported, the area's are not
   });
 
-  it('has no stops where neither names a place, and never uses the region', () => {
-    const r = normalised({ subarea: '長江三峽', area: '長江三峽', region: '中國長線' });
+  it('reads the title as a last resort, brackets and marks as spaces, under the title rules (owner decision 2026-11-15)', () => {
+    const tour = tourOf(row({ subarea: '華川', area: '韓國', region: '日韓', Title: '【5天 首爾】華川山川魚節' }));
+    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['華川'], ['韓國', '5天 首爾 華川山川魚節']]);
+    const r = normalised({ subarea: '華川', area: '韓國', region: '日韓', Title: '【5天 首爾】華川山川魚節' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['首爾']);
+    expect(r.unmatched).toEqual(['華川']); // the subarea's word is reported, the title's are not
+  });
+
+  it('does not read the title while the subarea or the area gives a stop', () => {
+    const r = normalised({ subarea: '北疆', area: '新疆', region: '中國長線', Title: '烏魯木齊 喀什10天' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['新疆']);
+  });
+
+  it('has no stops where none of them names a place, and never uses the region', () => {
+    const r = normalised({ subarea: '長江三峽', area: '長江三峽', region: '中國長線', Title: '長江三峽遊輪7天' });
     expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
-    expect(normalised({ subarea: '', area: '', region: '日本' })).toMatchObject({ ok: false, reason: 'no-stops' });
-    expect(tourOf(row({ subarea: '', area: '  ' }))).not.toHaveProperty('fallbackRoute');
+    expect(normalised({ subarea: '', area: '', region: '日本', Title: '賞楓5天' })).toMatchObject({ ok: false, reason: 'no-stops' });
+    expect(tourOf(row({ subarea: '', area: '  ', Title: '' }))).not.toHaveProperty('fallbackRoute');
   });
 });
 
@@ -203,7 +216,7 @@ describe('the route of a Guangdong short trip (owner decision 2026-11-14)', () =
   it('is read from the title, inside its brackets, before the subarea, and its other words are not reported', () => {
     const { tour, r } = guangdong('CFAG03MK', { Title: '【3天金秋韶關賞銀杏紅葉純玩美食團】 旺角集散' });
     expect(tour.dayHeadings).toEqual([]);
-    expect(tour.fallbackRoute).toBe('3天金秋韶關賞銀杏紅葉純玩美食團 旺角集散');
+    expect(tour.fallbackRoute).toEqual(['3天金秋韶關賞銀杏紅葉純玩美食團 旺角集散', '廣州、中山、深圳', '廣東省']);
     expect(r.ok && stopNames(r.tour.stops)).toEqual(['韶關']);
     expect(r.unmatched).toEqual([]);
   });
@@ -214,23 +227,31 @@ describe('the route of a Guangdong short trip (owner decision 2026-11-14)', () =
   });
 
   it('falls back to the subarea, then the area, when the title names no place', () => {
-    const subarea = guangdong('CFPS02MK', { Title: '追蹤香港小姐拍攝地從化增城溫泉2天純玩團 旺角集散' });
-    expect(subarea.tour.dayHeadings).toEqual(['廣州', '中山', '深圳']);
-    expect(subarea.tour.fallbackRoute).toBe('廣東省');
+    const subarea = guangdong('CFPS02MK', { Title: '溫泉美食2天純玩團 旺角集散' });
     expect(subarea.r.ok && stopNames(subarea.r.tour.stops)).toEqual(['廣州', '中山', '深圳']);
     const area = guangdong('CFPS02MK', { Title: '溫泉2天純玩團', subarea: '', area: '澳門' });
     expect(area.r.ok && stopNames(area.r.tour.stops)).toEqual(['澳門']);
   });
 
-  it('does not count Shenzhen in the title of a tour gathering at the Shenzhen border', () => {
-    const { tour, r } = guangdong('CFQQ02LW', { Title: '2天深圳純玩團 關口集散' });
-    expect(tour.dayHeadings).toEqual(['廣州', '中山', '深圳']);
-    expect(r.ok && stopNames(r.tour.stops)).toEqual(['廣州', '中山']);
+  it('falls through to the subarea when the title rules drop every place it names', () => {
+    const { r } = guangdong('CFXX03SP', { Title: '廣東小香格里拉 東方威尼斯3天' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['廣州', '中山', '深圳']);
+    expect(r).toMatchObject({ fallbackDropped: [{ name: '香格里拉', rule: 'comparison' }, { name: '威尼斯', rule: 'comparison' }] });
   });
 
-  it('is not used for any other region', () => {
+  it('a border day trip to Shenzhen visits Shenzhen', () => {
+    const { r } = guangdong('CFQQ02LW', { Title: '2天深圳純玩團 關口集散' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['深圳']);
+  });
+
+  it('a border tour leaves Shenzhen out when the title names another place too', () => {
+    const { r } = guangdong('CFQQ02LW', { Title: '2天深圳 東莞純玩團 關口集散' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['東莞']);
+  });
+
+  it('is read title first only for Guangdong short trips; elsewhere the title is the last resort', () => {
     const tour = tourOf(row({ region: '日韓', Title: '首爾5天', subarea: '釜山', area: '韓國' }));
-    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['釜山'], '韓國']);
+    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['釜山'], ['韓國', '首爾5天']]);
   });
 });
 

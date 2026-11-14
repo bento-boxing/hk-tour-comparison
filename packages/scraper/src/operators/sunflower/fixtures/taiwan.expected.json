@@ -19,7 +19,7 @@
       "基隆",
       "宜蘭"
     ],
-    "fallbackRoute": "台灣",
+    "fallbackRoute": ["台灣","假期精選 台北 礁溪溫泉 地道美食 5天樂悠遊"],
     "dropRegionWithListedCity": true,
     "startPoint": null,
     "endPoint": null,

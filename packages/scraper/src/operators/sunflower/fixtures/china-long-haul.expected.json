@@ -25,7 +25,7 @@
       "東營",
       "青州"
     ],
-    "fallbackRoute": "山東",
+    "fallbackRoute": ["山東","樂享山東 8 天純玩團"],
     "dropRegionWithListedCity": true,
     "startPoint": null,
     "endPoint": null,
