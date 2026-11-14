@@ -12,10 +12,29 @@ export interface GoodRun {
 export interface FailedRun { operatorId: OperatorId; runDate: IsoDate; stats: RunStats; reasons: string[] }
 
 /**
+ * Owner decision 2026-11-13: a tour inactive for more than this many days (counted in run dates from the
+ * night it went inactive, tours.deactivated_on) is deleted with its stops, departures and price snapshots.
+ */
+export const WITHDRAWN_TOUR_KEEP_DAYS = 30;
+/**
+ * Owner decision 2026-11-13: scrape_runs rows more than this many days old (by run_date) are deleted, except
+ * the operator's most recent ok run, whatever its age: the run checks compare against it.
+ */
+export const RUN_LOG_KEEP_DAYS = 90;
+
+/** The id of operator $1's most recent ok run (no row if none). previousGoodTourCount and pruneRunLog share it. */
+const LATEST_GOOD_RUN = `select id from scrape_runs
+     where operator_id = $1 and ok
+     order by run_date desc, finished_at desc, id desc
+     limit 1`;
+
+/**
  * Writes one operator's good run in a single transaction: every tour with its
  * stops, departures and tonight's price snapshot; tours missing tonight marked
- * inactive; snapshots older than the rolling window pruned; unmatched place
- * names counted; the run recorded and the operator's freshness updated.
+ * inactive; tours inactive for more than WITHDRAWN_TOUR_KEEP_DAYS deleted;
+ * snapshots older than the rolling window pruned; unmatched place names
+ * counted; the run recorded, run-log rows older than RUN_LOG_KEEP_DAYS pruned,
+ * and the operator's freshness updated. Only this operator's rows are touched.
  * Tours are saved under `run.operatorId`.
  */
 export async function saveOperatorRun(db: Db, run: GoodRun): Promise<void> {
@@ -23,10 +42,17 @@ export async function saveOperatorRun(db: Db, run: GoodRun): Promise<void> {
   await db.transaction(async tx => {
     for (const tour of run.tours) await saveTour(tx, operatorId, runDate, tour);
 
+    // Only tours active until now: one already inactive keeps the night it went inactive.
     await tx.query(
-      `update tours set active = false
+      `update tours set active = false, deactivated_on = $3::date
        where operator_id = $1 and active and not (code = any($2::text[]))`,
-      [operatorId, run.tours.map(t => t.code)],
+      [operatorId, run.tours.map(t => t.code), runDate],
+    );
+
+    // Inactive for more than WITHDRAWN_TOUR_KEEP_DAYS; stops, departures and snapshots go with it (on delete cascade).
+    await tx.query(
+      `delete from tours where operator_id = $1 and not active and deactivated_on < $2::date`,
+      [operatorId, addDays(runDate, -WITHDRAWN_TOUR_KEEP_DAYS)],
     );
 
     // Keeps runDate - (SNAPSHOT_KEEP_NIGHTS - 1) … runDate.
@@ -49,11 +75,12 @@ export async function saveOperatorRun(db: Db, run: GoodRun): Promise<void> {
     }
 
     await insertScrapeRun(tx, operatorId, runDate, run.stats, { ok: true, toursSaved: run.tours.length, reasons: [] });
+    await pruneRunLog(tx, operatorId, runDate);
     await tx.query('update operators set last_good_run_at = $2 where id = $1', [operatorId, run.stats.finishedAt]);
   });
 }
 
-/** Records a run that will not be saved. Touches nothing but scrape_runs. */
+/** Records a run that will not be saved. Inserts its scrape_runs row and changes or deletes nothing else. */
 export async function recordFailedRun(db: Db, run: FailedRun): Promise<void> {
   await insertScrapeRun(db, run.operatorId, run.runDate, run.stats, { ok: false, toursSaved: 0, reasons: run.reasons });
 }
@@ -61,13 +88,23 @@ export async function recordFailedRun(db: Db, run: FailedRun): Promise<void> {
 /** tours_saved of the most recent ok run for this operator, or null if there is none. */
 export async function previousGoodTourCount(db: Db, operatorId: OperatorId): Promise<number | null> {
   const [row] = await db.query<{ tours_saved: number }>(
-    `select tours_saved from scrape_runs
-     where operator_id = $1 and ok
-     order by run_date desc, finished_at desc, id desc
-     limit 1`,
+    `select tours_saved from scrape_runs where id = (${LATEST_GOOD_RUN})`,
     [operatorId],
   );
   return row ? row.tours_saved : null;
+}
+
+/**
+ * Deletes this operator's scrape_runs rows with a run_date more than RUN_LOG_KEEP_DAYS before `runDate`,
+ * except its most recent ok run, whatever its age. Called only from a good save; exported for its tests.
+ */
+export async function pruneRunLog(tx: Db, operatorId: OperatorId, runDate: IsoDate): Promise<void> {
+  await tx.query(
+    `delete from scrape_runs
+     where operator_id = $1 and run_date < $2::date
+       and id is distinct from (${LATEST_GOOD_RUN})`,
+    [operatorId, addDays(runDate, -RUN_LOG_KEEP_DAYS)],
+  );
 }
 
 /** Upserts one tour, replaces its stops and departures, and upserts tonight's snapshot. */
@@ -82,7 +119,7 @@ async function saveTour(tx: Db, operatorId: OperatorId, runDate: IsoDate, tour: 
            from_price_hkd = excluded.from_price_hkd,
            start_kind = excluded.start_kind, start_label = excluded.start_label,
            end_kind = excluded.end_kind, end_label = excluded.end_label,
-           active = true, last_seen = excluded.last_seen
+           active = true, deactivated_on = null, last_seen = excluded.last_seen
      returning id::text`,
     [operatorId, tour.code, tour.url, tour.title, tour.days, tour.nights, tour.fromPriceHkd,
       tour.start.kind, tour.start.label, tour.end.kind, tour.end.label, runDate],
