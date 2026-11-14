@@ -13,9 +13,9 @@ function ClientSiteName() {
 }
 
 it.each([
-  [{ DEV_LOCALE: 'en' }, 'Tour Compare', "Not affiliated with any operator."],
-  [{ DEV_LOCALE: 'en', VERCEL: '1', VERCEL_ENV: '' }, '旅行團比較', '本網站與各旅行社並無任何關連。'],
-  [{ DEV_LOCALE: '' }, '旅行團比較', '本網站與各旅行社並無任何關連。'],
+  [{ DEV_LOCALE: 'en' }, 'Gan Bin Tyun', "Not affiliated with any operator."],
+  [{ DEV_LOCALE: 'en', VERCEL: '1', VERCEL_ENV: '' }, '跟邊團', '本網站與各旅行社並無任何關連。'],
+  [{ DEV_LOCALE: '' }, '跟邊團', '本網站與各旅行社並無任何關連。'],
 ])('server text and client text use the same locale (%j)', (env, siteName, disclaimer) => {
   vi.stubEnv('VERCEL', '');
   vi.stubEnv('VERCEL_ENV', '');

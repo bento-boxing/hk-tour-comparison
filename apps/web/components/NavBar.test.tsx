@@ -7,7 +7,7 @@ const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
 
 it('shows the site name and both links', () => {
   render(<NavBar current="search" t={tZh} />);
-  expect(screen.getByText('旅行團比較')).toBeInTheDocument();
+  expect(screen.getByText('跟邊團')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '搜尋旅行團' })).toHaveAttribute('href', '/');
   expect(screen.getByRole('link', { name: '連續行程' })).toHaveAttribute('href', '/chain');
 });
