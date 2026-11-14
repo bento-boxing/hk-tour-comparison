@@ -141,12 +141,12 @@ const comparisonRule = (index: PlacesIndex): Skip => {
 
 /**
  * What may follow `X航空` when it is not an airline (review of task 34): an airport town or district (`珠海航空城`,
- * `鄭州航空港`), an air show (`航空展`), an aviation museum or hall (`航空博物館`, `航空館`), a themed town
- * (`航空小鎮`). 航天 (space flight) and 航展 are never read as airlines in the first place. After a flight word
+ * but not `航空城市之旅`; `鄭州航空港` or `航空港區`, but not `航空港澳直航`), an air show (`航空展`), an aviation
+ * museum or hall (`航空博物館`, `航空館`), a themed town (`航空小鎮`). 航天 (space flight) and 航展 are never read as airlines in the first place. After a flight word
  * (`直航`, `航班`, `包機`), a bracket or nothing, X航空 is an airline. The saved crawl logs hold no other
  * continuation of `<place>航空`.
  */
-const NOT_AN_AIRLINE_AFTER = ['城', '港', '展', '博物館', '館', '小鎮', '主題'];
+const NOT_AN_AIRLINE_AFTER = /^(?:城(?!市)|港(?=$|\P{Script=Han}|區|区|經濟|经济|新城)|展|博物館|館|小鎮|主題)/u;
 
 /**
  * Rule 4 (fallback text only, owner decision 2026-11-15): a place name directly followed by 航空 (`澳門航空`,
@@ -157,7 +157,7 @@ const NOT_AN_AIRLINE_AFTER = ['城', '港', '展', '博物館', '館', '小鎮',
  */
 const isAirline: Skip = (key, at, name) => {
   const after = at + name.length;
-  if (key.startsWith('航空', after)) return !NOT_AN_AIRLINE_AFTER.some(word => key.startsWith(word, after + 2));
+  if (key.startsWith('航空', after)) return !NOT_AN_AIRLINE_AFTER.test(key.slice(after + 2));
   return key.startsWith('航', after) && after + 1 === key.length;
 };
 
@@ -268,11 +268,28 @@ export function extractStops(
   const unmatched: string[] = [];
   const countryOfRegion = (regionId: string) => index.region(regionId)!.countryId;
 
-  /** One match when the name is unambiguous; otherwise prefer a country already visited, else the first and flag the token. */
+  /** Each token with its city matches (whole, else contained) or, failing those, its region matches. */
+  const read = dayHeadings.flatMap(tokensOf).map(token => {
+    let cities = index.findCity(token);
+    if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames, notPlaces, skip);
+    return { token, cities, regions: cities.length > 0 ? [] : index.findRegion(token) };
+  });
+  // The countries the unambiguous names of the whole text are in, wherever they stand: a shared name (東北: Tohoku or
+  // north-east China) is read in the country the rest of the route is in, even when it comes first.
+  const routeCountries = new Set(read.flatMap(({ cities, regions }) => {
+    const countries = new Set([...cities.map(city => countryOfRegion(city.regionId)), ...regions.map(region => region.countryId)]);
+    return countries.size === 1 ? [...countries] : [];
+  }));
+
+  /**
+   * One match when the name is unambiguous; otherwise prefer a country already visited, then one the rest of the
+   * text names, else the first, and flag the token.
+   */
   const choose = <T>(token: string, matches: T[], countryOf: (match: T) => string): T => {
     if (new Set(matches.map(countryOf)).size > 1) {
       const visited = new Set(stops.map(stop => stop.countryId));
-      const preferred = matches.find(match => visited.has(countryOf(match)));
+      const preferred = matches.find(match => visited.has(countryOf(match)))
+        ?? matches.find(match => routeCountries.has(countryOf(match)));
       if (preferred !== undefined) return preferred;
       unmatched.push(token);
     }
@@ -283,22 +300,17 @@ export function extractStops(
   const regionStop = (region: Region): Stop =>
     ({ countryId: region.countryId, regionId: region.id, cityId: null });
 
-  for (const heading of dayHeadings) {
-    for (const token of tokensOf(heading)) {
-      let cities = index.findCity(token);
-      if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames, notPlaces, skip);
-      if (cities.length > 0) {
-        stops.push(cityStop(choose(token, cities, city => countryOfRegion(city.regionId))));
-        continue;
-      }
-      const regions = index.findRegion(token);
-      if (regions.length > 0) {
-        stops.push(regionStop(choose(token, regions, region => region.countryId)));
-        continue;
-      }
-      if (index.findCountry(token).length > 0) continue;
-      if (isReportable(token)) unmatched.push(token);
+  for (const { token, cities, regions } of read) {
+    if (cities.length > 0) {
+      stops.push(cityStop(choose(token, cities, city => countryOfRegion(city.regionId))));
+      continue;
     }
+    if (regions.length > 0) {
+      stops.push(regionStop(choose(token, regions, region => region.countryId)));
+      continue;
+    }
+    if (index.findCountry(token).length > 0) continue;
+    if (isReportable(token)) unmatched.push(token);
   }
 
   let route = withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId)));

@@ -646,6 +646,11 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
       expect(read('南昌航空館5天').names).toEqual(['南昌']);
       expect(read('鄭州航空港5天').names).toEqual(['鄭州']);
     });
+    it('an airport-town continuation that is really 城市 or 港澳 is still an airline', () => {
+      expect(read('廈門航空城市之旅 東京5天')).toEqual({ names: ['東京'], dropped: [{ name: '廈門', rule: 'airline' }] });
+      expect(read('澳門航空港澳直航 東京5天')).toEqual({ names: ['東京'], dropped: [{ name: '澳門', rule: 'airline' }] });
+      expect(read('鄭州航空港區5天').names).toEqual(['鄭州']);
+    });
     it('still drops X航空 followed by nothing, a flight word or a bracket', () => {
       for (const text of ['澳門航空 東京5天', '澳門航空直航東京5天', '澳門航空航班 東京5天', '澳門航空包機 東京5天', '澳門航空(A321) 東京5天']) {
         expect(read(text), text).toEqual({ names: ['東京'], dropped: [{ name: '澳門', rule: 'airline' }] });

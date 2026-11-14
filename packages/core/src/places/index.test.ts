@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { places, buildPlacesIndex, normaliseName, groupCountries, COUNTRY_GROUPS } from './index';
-import { extractStops } from '../stops';
+import { extractFallbackStops, extractStops } from '../stops';
 import type { PlacesData } from './index';
 import rawData from './data.json';
 
@@ -99,11 +99,45 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(route(['泰山'])).toEqual(['china-shandong-taian']);
   });
   it('does not read the short new names inside common phrases (fix round 1)', () => {
+    expect(route(['恩平安排溫泉2天'])).toEqual(['china-guangdong-enping']); // the guard is 感恩平安, not 恩平安
     for (const heading of [
       '文成公主廟', '文成城堡', '彌勒佛', '弥勒佛', '彌勒大佛', '青松觀', '奧巴馬故居', '太平南路', '和平南路', '金華火腿', '金华火腿',
       '富士蘋果', '富士電視台', '吉安慶修院', '吉安鄉', '感恩平安夜', '非常德國', '九龍南', '廣西江山', '江西江南', '金秀賢拍攝地',
     ]) expect(route([heading]), heading).toEqual([]);
     expect(route(['越南 廣南省會安'])).toEqual(['vietnam-central-hoi-an']);
+  });
+  it('themed and look-alike names in day lines are not the places they borrow (fix round 2)', () => {
+    const cases: [string, string[]][] = [
+      ['瀋陽 → 「威尼斯水城」 → 大連', ['china-northeast-shenyang', 'china-northeast-dalian']],
+      ['大連 → 夜遊臨江門大橋', ['china-northeast-dalian']],
+      ['【威尼斯水城】以威尼斯城為藍本 → 「大連」墻', ['china-northeast-dalian']],
+      ['湄南河源頭 → 彭世洛府', []],
+      ['曼谷 → 泰國最大的淡水湖泊', ['thailand-bangkok-bangkok']],
+      ['首爾 → 五台山國立公園', ['korea-seoul-seoul']],
+      ['奈羅比 → 馬賽人村落 → 馬賽馬拉', ['kenya-kenya-nairobi', 'kenya-kenya-masai-mara']],
+      ['馬賽族文化 → 馬賽傳統聚落', []],
+      ['昆明 → 大理-理想邦·聖托里尼-大理古城', ['china-yunnan-kunming', 'china-yunnan-dali']],
+      ['理想邦聖托里尼', []], ['大理聖托里尼', ['china-yunnan-dali']], ['雲南聖托里尼', []],
+      ['溫哥華 ~ 基隆拿 ~ 水怪湖', ['canada-west-vancouver', 'canada-west-kelowna']],
+      ['魯朗林海觀景臺 ~ 巨柏林', ['china-tibet-lulang']],
+      ['若羌 ~ 米蘭古城遺址', []], ['“中國版棉花堡”【白水台】', []], ['巴黎式騎樓街', []],
+      ['亞爾勒 ~ 羅馬圓形劇場', ['france-france-arles']], ['荷伯特 ~ 莎拉曼卡市集', ['australia-tasmania-hobart']],
+      ['莎拉哥莎', []], ['庫庫爾康金字塔', []], ['阿達巴斯卡瀑布', []], ['伊努維克鎮', []], ['埃蒙頓', []],
+      ['聖路加教堂', []], ['華沙號戰船博物館', []], ['波爾圖托雷斯', []], ['蓬蒂迪利馬', []], ['劍橋葡萄園', []],
+      ['吉默瓦爾德', []], ['阿特施泰騰城堡', []], ['菲爾斯霍芬', []], ['莫斯科維茨', []], ['富國大世界-威尼斯河', []],
+      ['雲頂觀景台', []], ['南昆山國家森林公園', []], ['船遊廣東小烏鎮', []], ['廣東版《麗江古城》', []],
+      ['夜上海風情街', []], ['享有“桂林之山水”美譽', []], ['小烏來天空步道', []],
+    ];
+    for (const [heading, ids] of cases) expect(route([heading]), heading).toEqual(ids);
+  });
+  it('淡水老城 is Danshui in Huizhou; 淡水老街 and 淡水河 stay Tamsui', () => {
+    expect(route(['淡水老城文化歷史街區'])).toEqual(['china-guangdong-danshui']);
+    expect(route(['淡水老街'])).toEqual(['taiwan-north-tamsui']);
+    expect(route(['橫渡淡水河'])).toEqual(['taiwan-north-tamsui']);
+  });
+  it('a lone 聖托里尼 amid a Chinese route is dropped as a collision name; a Greek tour keeps it', () => {
+    expect(route(['昆明', '大理', '洱海 ~ 聖托里尼', '麗江', '昆明'])).toEqual(['china-yunnan-kunming', 'china-yunnan-dali', 'china-yunnan-lijiang', 'china-yunnan-kunming']);
+    expect(route(['雅典', '米克諾斯', '聖托里尼', '雅典'])).toEqual(['greece-greece-athens', 'greece-greece-mykonos', 'greece-greece-santorini', 'greece-greece-athens']);
   });
   it('the short Korean and Chinese town names shared with other places are collision names', () => {
     expect(places.data.collisionNames).toEqual(expect.arrayContaining(['丹陽', '全州', '廣南', '吉安', '青松']));
@@ -117,6 +151,13 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(route(['黑龍江', '吉林', '長白山', '東北'])).toEqual(['region:china-northeast', 'china-northeast-jilin', 'china-northeast-changbaishan', 'region:china-northeast']);
     expect(route(['长白山', '东北'])).toEqual(['china-northeast-changbaishan', 'region:china-northeast']);
     expect(route(['仙台', '東北'])).toEqual(['japan-tohoku-sendai', 'region:japan-tohoku']);
+  });
+  it('東北 is decided by the rest of the route, wherever it stands (fix round 2)', () => {
+    expect(route(['東北', '吉林', '長白山'])).toEqual(['region:china-northeast', 'china-northeast-jilin', 'china-northeast-changbaishan']);
+    const japan = extractStops(['東北', '仙台', '松島'], places);
+    expect(japan.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['region:japan-tohoku', 'japan-tohoku-sendai', 'japan-tohoku-matsushima']);
+    expect(japan.unmatched).toEqual([]);
+    expect(extractFallbackStops('東北 長白山8天', 8, places).stops.map(s => s.regionId)).toEqual(['china-northeast', 'china-northeast']);
   });
 });
 
@@ -182,6 +223,32 @@ describe('places', () => {
       expect(places.findCity(entry), entry).toEqual([]);
     }
   });
+  it('every notPlaces entry hides its own phrase: without it the phrase would read as a place (fix round 2)', () => {
+    // 卡薩布蘭卡山谷 is covered by the shorter 卡薩布蘭卡山 (an older entry, kept as it was).
+    const covered = ['卡薩布蘭卡山谷'];
+    const key = (r: { stops: { cityId: string | null; regionId: string }[] }) => r.stops.map(s => s.cityId ?? s.regionId).join('>');
+    const notPlaces = places.data.notPlaces ?? [];
+    const idle = notPlaces.filter(entry => {
+      // The shared index with this one entry left out of its notPlaces (extractStops reads them from index.data).
+      const without = { ...places, data: { ...places.data, notPlaces: notPlaces.filter(e => e !== entry) } };
+      return key(extractStops([entry], places)) === key(extractStops([entry], without));
+    });
+    expect(idle).toEqual(covered);
+    // The guards added in task 34 (removing one fails here as well as in its own test).
+    const task34 = [
+      '清邁小鎮', '台山滋味', '正宗順德', '中山特色', '順德粥', '深圳往返', '阿格拉比', '西江花', '泰山島', '巴馬臣',
+      '恩平韓屋', '潮汕特產', '潮汕牛肉', '潮汕站', '富士見', '阿爾泰山', '阿尔泰山', '文成公主', '文成城堡', '彌勒佛',
+      '弥勒佛', '彌勒大佛', '弥勒大佛', '彌勒殿', '青松觀', '青松观', '廣南省', '广南省', '奧巴馬', '奥巴马',
+      '太平南', '平南路', '金華火腿', '金华火腿', '富士蘋果', '富士苹果', '富士電視', '富士电视', '吉安慶修院', '吉安庆修院',
+      '吉安鄉', '吉安乡', '感恩平安', '非常德', '九龍南', '九龙南', '廣西江', '广西江', '江西江', '金秀賢',
+      '金秀贤', '威尼斯水城', '威尼斯河', '臨江門', '淡水湖', '五台山國立公園', '馬賽人', '馬賽族', '馬賽傳統', '理想邦·聖托里尼',
+      '理想邦聖托里尼', '理聖托里尼', '南聖托里尼', '巨柏林', '米蘭古城', '版棉花堡', '巴黎式', '羅馬圓形', '莎拉曼卡', '莎拉哥莎',
+      '庫庫爾康', '巴斯卡', '努維克', '埃蒙頓', '聖路加', '華沙號', '波爾圖托雷斯', '迪利馬', '劍橋葡萄園', '默瓦爾德',
+      '特施泰騰', '斯霍芬', '莫斯科維茨', '雲頂觀景', '南昆山', '小烏鎮', '版《麗江古城', '上海風情街', '桂林之山', '小烏來',
+      '威尼斯城為', '河源頭',
+    ];
+    expect(task34.filter(entry => !notPlaces.includes(entry))).toEqual([]);
+  }, 30_000);
   it('every collisionNames entry is a city name or alias', () => {
     // 塔林 (Tallinn; the Shaolin Pagoda Forest, Travel Expert TZZA06R/TZZB08R) and 黃金海岸 (Gold Coast; a beach in Quanzhou, TXXF04R)
     const collisionNames = places.data.collisionNames ?? [];
