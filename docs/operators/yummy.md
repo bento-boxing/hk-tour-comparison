@@ -134,7 +134,7 @@ Later the same day (Task 30 review): a province on the list is dropped when one 
 
 ## Scraper and fixtures (2026-11-14)
 
-The scraper is `packages/scraper/src/operators/yummy/`. Registered with a **provisional** first-run floor of 196 (60% of the 327 tours listed on 2026-11-14, rounded down; no crawl has been measured). It is **not in the nightly matrix**: it joins after a measured crawl sets the real floor.
+The scraper is `packages/scraper/src/operators/yummy/`. Its first-run floor is **104**, a third of the 312 tours the practice crawl would have saved, and it is in the nightly matrix (see "Practice crawl" below). Until that crawl it had a provisional floor of 196 (60% of the 327 tours listed on 2026-11-14) and was kept out of the nightly job.
 
 **Requests.** Only three paths on `https://api.yummyholiday.net`, all plain GETs through the run's polite fetcher with no extra headers of any kind: `/bussiness/line/index?limit=500` once a night, then per tour `/bussiness/line/detail?id=<id>` and `/bussiness/group/list?line_id=<id>`. Two requests per tour every night (about 655 a night, some 33 minutes at 3 s each); nothing is cached across nights. Never a staff endpoint, a POST, an image or a PDF. Refusals are counted separately for the details and for the dates, each in a row and started again only by a success of its own kind, so details that answer cannot hide refused dates. A refusal is any answer that is not a success: none (an HTTP 403, 429, a 5xx or no answer at all), not JSON (a block page) or a code other than 1. When either count reaches 3, nothing more is requested that night, neither details nor dates. (Fix round 1: the first version had one count for both, which each tour's answering detail reset, so refused dates would never have stopped the run.)
 
@@ -179,6 +179,48 @@ Fixtures (`packages/scraper/src/operators/yummy/fixtures/`), each with `<name>.e
 | `listing` | the listing, cut to 5 rows | Discovery: 6212 (the first row), 6033, 6021 (`is_website_name` 1), 5906, 5662; `total` set to 5 to match |
 
 They are the raw answers saved under `.superpowers/raw-pages/yummy/` (outside git) put through `public.ts` and, for the tours, joined as fetchPage joins them (`{"detail": …, "dates": …}`); nothing else was changed, except the listing's rows and `total` as stated. Unmatched city names in the three tours: `富士` (5906) only; 佛岡 is in no list, only the title. No place was added.
+
+## Practice crawl (2026-11-14)
+
+`pnpm scrape --operator yummy --dry-run` from 14:12 to 14:48 UTC: **36 minutes** for the listing and 329 tour pages (two requests each), well inside the 170-minute job. Log: `.superpowers/raw-pages/yummy/dry-run-1.log` (git-ignored).
+
+| | Pages |
+|---|---|
+| Discovered, fetched | 329, 329 (no refusal) |
+| Would be saved | **312 tours** |
+| Skipped no-departures | 7 |
+| Parse failures | **10 (3.0%)**, all `no-stops` |
+| Run checks | ok |
+| Unmatched names | 61 |
+
+**First-run floor: 104**, a third of the 312. With it, `yummy` joined the nightly matrix.
+
+The 10 parse failures, each a tour none of whose `dist_list` names is recognised:
+
+| Tour id | Code | Unmatched names (`dist_list`) |
+|---|---|---|
+| 6207 | `KG-D-GL03` | 潮汕 |
+| 6206 | `KG-D-GH03` | 潮汕 |
+| 6179 | `AA-T-AF05` | 台灣 |
+| 6150 | `AA-R-ZM09` | 蒙古, 烏蘭巴托, 貝加爾湖 |
+| 5783 | `BG-R-RR03` | 清远 |
+| 5685 | `BG-E-YR02` | none: an empty `dist_list` |
+| 5651 | `BG-E-VK02` | none: an empty `dist_list` |
+| 5617 | `AL-S-JK06` | 陕西, 山西 |
+| 5587 | `AL-Y-MA08` | 云南 |
+| 5505 | `AL-M-DG06` | 陕西, 山西 |
+
+The most frequent unmatched names (pages each appeared on; the log's top 15 in its order, which cuts through the names on 2 pages: 遼寧 and 陕西 are on 2 pages too):
+
+| Name | Pages | Name | Pages | Name | Pages |
+|---|---|---|---|---|---|
+| 西江 | 7 | 響沙灣 | 3 | 德化 | 2 |
+| 長江三峽 | 6 | 儋州 | 2 | 東營 | 2 |
+| 宜章 | 5 | 南澳島 | 2 | 浙江 | 2 |
+| 銅仁 | 4 | 山西 | 2 | 海花島 | 2 |
+| 信宜 | 3 | 平南 | 2 | 潮汕 | 2 |
+
+**Open: a places pass**, to be done separately, with before-and-after sweeps over every operator's saved dry-run logs (as for Charming and EGL): province-only lists such as `陕西,山西` written with Simplified characters (also `云南`, and `清远` for 清遠), the region 潮汕, a 台灣-only list, and Mongolia (蒙古, 烏蘭巴托; 貝加爾湖 is in Russia). No place was added with this crawl; the two tours with an empty `dist_list` stay failures whatever the places list holds.
 
 ## Every URL fetched (investigation: 12 + 2 page fetches; robots.txt not counted)
 

@@ -11,7 +11,7 @@ import { yummyScraper } from './yummy';
 /**
  * Every approved, implemented operator, by id. Only these are scraped. To add one, add its
  * line here and, once a measured crawl has set its first-run floor, its id to the operator matrix
- * in .github/workflows/nightly-scrape.yml (bigline, yummy and sunflower are registered but not yet in the matrix).
+ * in .github/workflows/nightly-scrape.yml (bigline and sunflower are registered but not yet in the matrix).
  */
 export const SCRAPERS: Partial<Record<OperatorId, OperatorScraper>> = {
   bigline: biglineScraper,

@@ -12,8 +12,9 @@ This project is **not affiliated with any tour operator**. It stores and shows f
 | Travel Expert 專業旅運 (`texpert`) | texpert.com |
 | EGL Tours 東瀛遊 (`egl`) | egltours.com |
 | Charming Holidays 翠明假期 (`charming`) | charming-online.com |
+| Yummy Holiday 美味假期 (`yummy`) | yummyholiday.net |
 
-Big Line Holiday 大航假期 (`bigline`), Yummy Holiday 美味假期 (`yummy`, yummyholiday.net) and Sunflower Travel 新華旅遊 (`sunflower`, sunflower.com.hk) have scrapers but are not yet in the nightly run: each waits for a measured crawl. The findings for each operator are in [`docs/operators/`](docs/operators/).
+Big Line Holiday 大航假期 (`bigline`) and Sunflower Travel 新華旅遊 (`sunflower`, sunflower.com.hk) have scrapers but are not yet in the nightly run: each waits for a measured crawl. The findings for each operator are in [`docs/operators/`](docs/operators/).
 
 ## How the scraper treats operators' sites
 
@@ -43,7 +44,7 @@ A dry run of one operator's scrape, which fetches real pages from the operator's
 pnpm scrape --operator jetour --dry-run --limit 5
 ```
 
-`--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy` or `sunflower` (the nightly run scrapes `charming`, `egl`, `jetour` and `texpert`; `bigline`, `yummy` and `sunflower` wait for a measured crawl). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL` (and uses `DATABASE_CA_CERT` when it is set).
+`--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy` or `sunflower` (the nightly run scrapes `charming`, `egl`, `jetour`, `texpert` and `yummy`; `bigline` and `sunflower` wait for a measured crawl). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL` (and uses `DATABASE_CA_CERT` when it is set).
 
 To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>` (and, for a hosted database, optionally `DATABASE_CA_CERT=<certificate>`), then `pnpm --filter @hktours/web dev`. In `.env.local` the certificate must be on one line, with the two characters `\n` in place of each line break (`DATABASE_CA_CERT=-----BEGIN CERTIFICATE-----\nMII…\n-----END CERTIFICATE-----`); `awk '{printf "%s\\n", $0}' '<certificate file>'` prints it in that form. Pasted as-is over several lines, it would be read as its first line only. A value that is set but is not a whole certificate does not silently turn verification off: every page that reads the database fails with the error `DATABASE_CA_CERT is not a PEM certificate` in the server's output (the error does not show the value), and the page shows its "could not load" message. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
 

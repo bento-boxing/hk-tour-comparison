@@ -11,11 +11,11 @@ import { rawDates, rawDetail, rawGroup, rawListing, rawListingRow, SECRET_COUNT,
 const TODAY = '2026-11-14';
 const page = (id: number) => `https://www.yummyholiday.net/#/pages/detail/detail?id=${id}`;
 
-it('is registered as yummy, with a provisional first-run floor and no extra request headers', () => {
+it('is registered as yummy, with no extra request headers and a first-run floor of a third of the measured crawl', () => {
   expect(yummyScraper.id).toBe('yummy');
   expect(yummyScraper.requestHeaders).toBeUndefined(); // no extra headers of any kind
   expect(yummyScraper.fetchPage).toBeDefined();
-  expect(yummyScraper.minExpectedTours).toBe(196); // 60% of the 327 listed tours, until a measured crawl
+  expect(yummyScraper.minExpectedTours).toBe(104); // a third of the 312 tours the 2026-11-14 practice crawl would have saved
 });
 
 it('throws its reason for a page it rejects, so the run\'s log says why', () => {

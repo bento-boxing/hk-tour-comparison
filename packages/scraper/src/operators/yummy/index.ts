@@ -25,8 +25,7 @@ export const yummyScraper: OperatorScraper = {
     if ('why' in tour) throw new Error(tour.why);
     return tour;
   },
-  // First-run floor, PROVISIONAL: 60% of the 327 tours the listing held on 2026-11-14, rounded down. No crawl
-  // has been measured yet (every listed tour had a departure then); a measured crawl sets the real floor, and
-  // only then does yummy join the nightly matrix (docs/operators/yummy.md, "Scraper").
-  minExpectedTours: 196,
+  // First-run floor: a third of the 312 tours the 2026-11-14 practice crawl would have saved (329 pages
+  // fetched; 10 parse failures, 7 with no departures). docs/operators/yummy.md, "Practice crawl".
+  minExpectedTours: 104,
 };
