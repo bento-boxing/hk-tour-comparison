@@ -150,6 +150,15 @@ describe('the dates JSON', () => {
     expect(t).toMatchObject({ code: 'HTJSJG06', departures: [], fromPriceHkd: 16899 });
     expect(normaliseTour(t, places, CAPTURED)).toMatchObject({ ok: false, reason: 'no-departures' });
   });
+  it('returns null for the same empty fields when the answer is not a success or does not say "No Available Dates"', () => {
+    const empty = (patch: Record<string, unknown>, data: Record<string, unknown> = {}) => JSON.stringify({ isSuccess: true, messages: ['Ok'], ...patch,
+      data: { productCode: '', currency: '', sellingPrice: null, status: 'No Available Dates', dates: [], ...data } });
+    expect(parse(multiCity, empty({}), MULTI_URL, CAPTURED)).not.toBeNull();
+    expect(parse(multiCity, empty({ isSuccess: false }), MULTI_URL, CAPTURED)).toBeNull();
+    expect(parse(multiCity, empty({ isSuccess: undefined }), MULTI_URL, CAPTURED)).toBeNull();
+    expect(parse(multiCity, empty({}, { status: '' }), MULTI_URL, CAPTURED)).toBeNull();
+    expect(parse(multiCity, empty({}, { status: undefined }), MULTI_URL, CAPTURED)).toBeNull();
+  });
   it('still returns null for an answer without a code or currency that lists dates', () => {
     expect(parse(multiCity, response([row('2026-12-21')], { productCode: '', currency: '' }), MULTI_URL, CAPTURED)).toBeNull();
     expect(parse(multiCity, response([], { productCode: '', currency: 'HKD' }), MULTI_URL, CAPTURED)).toBeNull();
@@ -210,6 +219,17 @@ describe('day headings', () => {
       plans: [plan(1, '', ['澳門', '成田/羽田', '東京']), plan(2, '', ['東京', '成田/羽田', '澳門'])] }));
     expect(t?.dayHeadings).toEqual(['澳門 → 東京', '東京 → 澳門']);
   });
+  it('lose 〔…〕 notes on a stop, so the either/or leg next to home is still found (HTASCB08\'s last day)', () => {
+    const t = parseInline(page({ plans: [plan(1, '', ['香港', '(航機)悉尼']),
+      plan(2, '', ['黃金海岸', '布里斯本機場', '(轉機)悉尼/墨爾本', '香港〔註〕'])] }));
+    expect(t?.dayHeadings).toEqual(['香港 → (航機)悉尼', '黃金海岸 → 布里斯本機場 → 香港']);
+    const r = normaliseTour(t!, places, CAPTURED);
+    expect(r.ok && stopNames(r.tour.stops)).not.toContain('墨爾本');
+  });
+  it('lose 〔…〕 notes anywhere in a stop, and a stop that is only a note', () => {
+    const t = parseInline(page({ plans: [plan(1, '', ['香港', '科倫坡']), plan(2, '', ['佛牙寺〔註1〕 博物館', '〔註2〕', '香港'])] }));
+    expect(t?.dayHeadings).toEqual(['香港 → 科倫坡', '佛牙寺 博物館 → 香港']);
+  });
   it('are in day order', () => {
     const t = parseInline(page({ plans: [plan(2, '', ['京都']), plan(1, '', ['大阪'])] }));
     expect(t?.dayHeadings).toEqual(['大阪', '京都']);
@@ -262,6 +282,13 @@ describe('code and days', () => {
       expect(parseInline(page({ days: 2, plans: [...days12, { ...arrival, ...meals('<p>酒店早餐</p>') }] }))).toBeNull();
       expect(parseInline(page({ days: 2, plans: [...days12, { ...arrival, accomodation: '<p>酒店</p>' }] }))).toBeNull();
     });
+    it('is dropped only when the day before ends at Hong Kong or the stated end point', () => {
+      const awayDay2 = { ...plan(2, '', ['大阪', '京都']), ...meals('<p>酒店早餐</p>') };
+      expect(parseInline(page({ days: 2, plans: [days12[0], awayDay2, arrival] }))).toBeNull();
+      const toMacau = { ...plan(2, '', ['大阪', '澳門']), ...meals('<p>酒店早餐</p>') };
+      expect(parseInline(page({ days: 2, inbound: ['大阪', '澳門'], plans: [days12[0], toMacau, arrival] }))?.days).toBe(2);
+      expect(parseInline(page({ days: 2, plans: [days12[0], { ...plan(2, '', ['大阪', '香港〔註〕']), ...meals('x') }, arrival] }))?.days).toBe(2);
+    });
     it('only one day past the hero count is dropped', () => {
       const day4 = { ...arrival, dayNumber: 4 };
       expect(parseInline(page({ days: 2, plans: [...days12, arrival, day4] }))).toBeNull();
@@ -285,6 +312,9 @@ describe('code and days', () => {
     it('reads the longer variant the same way', () => {
       const t = parseInline(page({ code: 'HTTEST05', days: 5, plans: shared }), 'HTTEST05');
       expect(t).toMatchObject({ days: 5, dayHeadings: ['香港 → 悉尼', '悉尼 → 凱恩斯', '凱恩斯 → 墨爾本', '墨爾本', '墨爾本 → 香港'] });
+    });
+    it('returns null when a day is tagged for this tour but the hero gives no day count', () => {
+      expect(parseInline(page({ code: 'HTTEST03', days: null, plans: shared }), 'HTTEST03')).toBeNull();
     });
     it('ignores tags when none is this tour\'s', () => {
       expect(parseInline(page({ code: 'HTTEST04', days: 3, plans: shared }), 'HTTEST04')).toBeNull();

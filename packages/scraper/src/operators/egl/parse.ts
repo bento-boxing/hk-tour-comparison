@@ -22,6 +22,8 @@ const INBOUND = '回程交通資料';
 /** A transport block's places: origin and destination of each leg, in order. */
 const TRANSPORT_PLACE = 'p.egl-h5';
 const BRACKETED = /\([^)]*\)|（[^）]*）/g;
+/** A note marker on a stop (`香港〔註〕`, `佛牙寺〔註1〕`). */
+const NOTE = /〔[^〕]*〕/g;
 /** `大阪/東京`: either city, as in a flight leg into or out of one of two airports. */
 const EITHER_OR = /^[^/／]+(?:[/／][^/／]+)+$/;
 const HONG_KONG = '香港';
@@ -104,7 +106,7 @@ function dayPlans($: CheerioAPI): DayPlan[] | null {
       dayNumber: dayCount(plan.dayNumber) ?? 0,
       title: typeof plan.title === 'string' ? clean(plan.title) : '',
       stops: asArray(plan.journeyTextRows).flatMap(row => asArray(row))
-        .map(stop => (isObject(stop) && typeof stop.location === 'string' ? clean(stop.location) : ''))
+        .map(stop => (isObject(stop) && typeof stop.location === 'string' ? clean(stop.location.replace(NOTE, '')) : ''))
         .filter(stop => stop !== ''),
       hasMealsOrHotel: MEAL_AND_HOTEL_FIELDS.some(field => hasText(plan[field])),
     }))
@@ -121,13 +123,15 @@ function variantTag(plan: DayPlan): string | null {
 /**
  * This tour's days of an itinerary shared by two variants (HTASCB08 and HTASCB10 list one plan, with day 8
  * given twice, tagged `【ASCB08】` and `【ASCB10】`). Only when a day is tagged with this tour's code: days tagged
- * with another code are dropped, the tag is removed, and with a hero day count the untagged days after it
- * (the longer variant's) are dropped. Any other plan list is returned unchanged.
+ * with another code are dropped, the tag is removed, and the untagged days after the hero day count (the
+ * longer variant's) are dropped; null when there is no hero day count to cut at. Any other plan list is
+ * returned unchanged.
  */
-function ownVariant(plans: DayPlan[], code: string, days: number | null): DayPlan[] {
+function ownVariant(plans: DayPlan[], code: string, days: number | null): DayPlan[] | null {
   const tags = plans.map(variantTag);
   const ours = (tag: string | null) => tag !== null && code.endsWith(tag);
   if (!tags.some(ours)) return plans;
+  if (days === null) return null; // which untagged days are this tour's cannot be told
   const untag = (text: string) => text.replace(VARIANT_TAG, '');
   return plans
     .filter((plan, i) => (tags[i] === null ? days === null || plan.dayNumber <= days : ours(tags[i])))
@@ -137,13 +141,16 @@ function ownVariant(plans: DayPlan[], code: string, days: number | null): DayPla
 /**
  * The plans without a closing arrival day: when the flight home lands after midnight, the page adds a day
  * after the tour's last (`平安抵港` and a note), with no meal and no hotel. Dropped only when it is the one
- * day past the hero day count; anything else is left for the day-count check.
+ * day past the hero day count and the day before ends at home (Hong Kong or the stated end point);
+ * anything else is left for the day-count check.
  */
-function withoutArrivalDay(plans: DayPlan[], days: number | null): DayPlan[] {
+function withoutArrivalDay(plans: DayPlan[], days: number | null, end: string | null): DayPlan[] {
   const last = plans.at(-1);
   const beforeLast = plans.at(-2);
   if (days === null || last === undefined || beforeLast === undefined) return plans;
-  const isArrival = last.dayNumber === days + 1 && beforeLast.dayNumber === days && !last.hasMealsOrHotel;
+  const homeAt = beforeLast.stops.at(-1);
+  const endsAtHome = homeAt !== undefined && (homeAt === HONG_KONG || homeAt === end);
+  const isArrival = last.dayNumber === days + 1 && beforeLast.dayNumber === days && endsAtHome && !last.hasMealsOrHotel;
   return isArrival ? plans.slice(0, -1) : plans;
 }
 
@@ -192,7 +199,7 @@ interface Dates { departures: ScrapedDeparture[]; fromPriceHkd: number | null }
 /**
  * The dates JSON (`{"data":{"productCode","currency","sellingPrice","dates":[…]}}`) for the tour `code`:
  * every date not marked `isFull` or `isOffline` (the site's calendar lets neither be chosen), with its
- * `sellingPrice`. No departures for the "no available dates" answer (empty code, currency and dates).
+ * `sellingPrice`. No departures for the successful "No Available Dates" answer (empty code, currency and dates).
  * null when it is not that JSON, or otherwise does not say it is for this tour and in HKD.
  */
 function readDates(datesJson: string | null, code: string): Dates | null {
@@ -200,7 +207,8 @@ function readDates(datesJson: string | null, code: string): Dates | null {
   const data = isObject(response) ? response.data : undefined;
   if (!isObject(data) || !Array.isArray(data.dates)) return null;
   // A tour with nothing on sale is answered with an empty code and currency (`status: "No Available Dates"`).
-  const noDates = data.dates.length === 0 && data.productCode === '' && data.currency === '';
+  const noDates = isObject(response) && response.isSuccess === true && data.status === 'No Available Dates'
+    && data.dates.length === 0 && data.productCode === '' && data.currency === '';
   if (noDates) return { departures: [], fromPriceHkd: null };
   if (data.productCode !== code || data.currency !== CURRENCY) return null;
   const departures: ScrapedDeparture[] = [];
@@ -229,7 +237,10 @@ export function parse(html: string, datesJson: string | null, url: string, _toda
   if (listed === null) return null;
   const hero = HERO_DAYS.exec(clean($(`p:has(> ${HERO_PRICE})`).first().text()))?.[1];
   const heroDays = hero !== undefined ? Number(hero) : null;
-  const plans = withoutArrivalDay(ownVariant(listed, code, heroDays), heroDays);
+  const own = ownVariant(listed, code, heroDays);
+  if (own === null) return null;
+  const endPoint = point(transportPlaces($, INBOUND).at(-1));
+  const plans = withoutArrivalDay(own, heroDays, endPoint);
   const planDays = plans.length > 0 ? plans[plans.length - 1].dayNumber : 0;
   const days = heroDays ?? planDays;
   if (!(days > 0)) return null;
@@ -237,7 +248,6 @@ export function parse(html: string, datesJson: string | null, url: string, _toda
 
   const trip = product($);
   const startPoint = point(transportPlaces($, OUTBOUND)[0]);
-  const endPoint = point(transportPlaces($, INBOUND).at(-1));
 
   return {
     operatorId: 'egl',
