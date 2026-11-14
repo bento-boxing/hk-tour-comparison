@@ -240,3 +240,90 @@ Fetched with `createFetcher(...).fetchBytes` (same robots.txt check, queue, 3 s 
 | 19 | 2026-11-13 08:32:30 | https://www.egltours.com/pdf_src/terms/tour/cruise_disclaimer.pdf | 200, 1,339,046 bytes |
 | 20 | 2026-11-13 08:32:34 | https://www.egltours.com/pdf_src/terms/fit/fit_cruise_disclaimer.pdf | 200, 1,162,958 bytes |
 | 21 | 2026-11-13 08:32:38 | https://www.egltours.com/pdf_src/terms/tour/visa-terms.pdf | 200, 585,395 bytes |
+
+## Practice crawl (Task 19)
+
+`pnpm scrape --operator egl --dry-run`, run once on **2026-11-13** UTC (2026-11-14 in Hong Kong), **21:22:11–22:36:44 UTC (74 min 33 s)**, through `createFetcher` (one fetcher, 3 s spacing; each tour is two requests, the page and its dates JSON, so at most 1,148 requests with the sitemap and robots.txt). No 403, 429, bot challenge, retry or unfetched page.
+
+| | Count |
+|---|---|
+| Tour pages discovered (sitemap) | 573 |
+| Tour pages fetched | 573 (0 not fetched) |
+| Tours that would be saved | **495** |
+| Skipped, no upcoming departures | 28 (not failures) |
+| Parse failures | **50 (8.7%)**: 19 `no-stops`, 31 `parser returned null` |
+| Run checks | ok |
+| Distinct unmatched names | 2,455 |
+
+**Timing for the nightly job:** 74.5 minutes for the whole crawl, inside the scrape job's 170-minute timeout.
+
+The 19 `no-stops` pages were missing places, not parser faults: Okinawa (9 pages, `直航沖繩`), Bali (3), Brunei (3), Sri Lanka (2), Taoyuan (1), and one Shaoguan tour whose headings name only sights (`丹霞山風景區`).
+
+## Places pass (Task 19 Step 6)
+
+All from the printed unmatched names and the day headings each page line carries; no page was re-fetched. Commit `feat(core): places from EGL's practice crawl`.
+
+- **New countries**, each with its `group`: Indonesia 印度尼西亞 (`southeast-asia`), Brunei 汶萊 (`southeast-asia`), Sri Lanka 斯里蘭卡 (`south-central-asia`), India 印度 (`south-central-asia`), Kyrgyzstan 吉爾吉斯 (`south-central-asia`), Qatar 卡塔爾 (`middle-east`). One region each, plus Korea's 忠清道 and 全羅道.
+- **259 new cities.** The largest groups: Japan 61 (Hokkaido, Tohoku, Kanto, Chubu, Kansai, Chugoku, Shikoku and Kyushu towns that EGL's Japan tours name), mainland China 69, Taiwan 18, Europe 49, plus South and Southeast Asia, the Middle East, North Africa, Australia and New Zealand.
+- **41 alternate spellings** on existing cities. Most are EGL's own spellings: `艾芙` (Edfu), `高安堡` (Kom Ombo), `洪加達` (Hurghada), `希爾克內斯` (Kirkenes), `洛士托` (Luosto), `杜邦力` (Dubrovnik), `巴塞隆那`, `卡薩布蘭卡`, `加柏都斯亞` (Cappadocia), `華倫丹` (Volendam), `巴杜華` (Budva) and so on. There are also variant characters: `凱裡`, simplified `长沙`, `鐮倉`, and the Kangxi-radical forms `⾹港`, `狄⾂港` and `⽠啦雪蘭莪`.
+- **`直航沖繩`.** 沖繩 was in the list, but only as a **region**, and regions match only a whole heading token, never a name inside one. Only city names are found inside longer names. The fix is in the data, not the rule: 沖繩 is now also a city (Okinawa Island, aliases `沖縄`, `沖繩本島`), as 濟州 is for Jeju, so `直航沖繩` and `沖繩MAIN` find it. No matching rule was changed.
+- **27 `notPlaces`**, for names that matched a place they are not:
+  - on existing routes: `十和田湖` read as 和田 (Hotan); `復活節島巨石像` as Easter Island; `大理石` as 大理; `韓國版聖托里尼` as Santorini; `麥地那市集` (a medina) as Medina; `何維克大道` (Höheweg) as Vík; `拉珀斯維爾` as Perth; `華倫丹-北海小漁村` as 北海; `華沙戰船博物館` as Warsaw; and more;
+  - guards for the new names: `伊勢丹`, `昭和新山`, `桃園機場`, `青井阿蘇`, `卡薩布蘭卡山谷` (a Chilean valley).
+- **Estimate, offline** (the logged headings re-processed with the new data): every one of the 19 `no-stops` pages now has a route. Distinct unmatched names fall from 2,455 to 2,046, and what is left is sights, shops, activities and notes (`〔註1〕`, `珍珠養殖中心`, `📸大教堂`).
+  - 334 of the 573 routes change, nearly all by gaining stops. The removals are the wrong cities listed above. Every other removal was checked by hand: either a longer name now wins (南投 → 杉林溪 in `南投．杉林溪生態渡假園`), or a repeat collapsed.
+  - The Jetour and Travel Expert fixture tests pass unchanged.
+- **Known limits, not changed:**
+  - Overnight alternatives written `布里格/特施/夕昂/菲斯普` or `林茲/韋爾斯` give every alternative as a stop, as the shared rule does for any `/`.
+  - Flight hubs named plainly (`杜拜/多哈`) appear on routes.
+  - `〔註1〕` (full-width tortoise-shell brackets) is not dropped as a note.
+
+## Pages the parser rejected (`parser returned null`, 31)
+
+The log does not say why a page was rejected, so 8 of the 31 were fetched once each with their dates JSON (below, "Null-page probe"). They show four causes:
+
+| Cause | Pages fetched | What it is | Done |
+|---|---|---|---|
+| **No dates on sale.** The dates API answers `{"productCode":"","currency":"",…,"status":"No Available Dates","dates":[]}`, with no code and no currency, so the check that the JSON is for this tour in HKD failed. | HTENBT12, HTCWGK07 | A real tour with nothing on sale | **Fixed.** That answer (empty code, empty currency and no dates) now reads as a tour with no departures, which the runner skips as `no-departures`. An answer without a code that does list dates is still rejected. |
+| **A closing arrival day.** The plans run one day past the hero count (`5天．` with days 1–6). The extra day is a note such as `平安抵港，開心行程結束!*10月25日起回程航班，抵港日已踏入第6天*`, for a flight home that lands after midnight. It has no meal and no hotel. | HTKCEE05, HTKSMS05, HTLBAA06 (Bhutan) | A real tour wrongly rejected | **Fixed.** Exactly one day past the hero count, with no meal and no hotel, is dropped, and the hero count stands. A day with a meal or hotel, or two extra days, still disagree and are rejected. |
+| **One plan list for two variants.** HTASCB08 (8 days) and HTASCB10 (10 days) share a list where day 8 is given twice, tagged `【ASCB08】` and `【ASCB10】`. | HTASCB08 | A real tour wrongly rejected | **Fixed.** When a day is tagged with this tour's code without its first two letters, days tagged with another code are dropped, as are untagged days past the hero count; the tag is removed. This also takes the 8-day variant's last day out of HTASCB10's headings. |
+| **"Not found" page served with HTTP 200.** Title of the tour, body `404 找不到頁面` and `此旅行團已額滿，以下為您推薦其他精選熱門行程` (MTK3FF05) or `我們目前找不到您正在尋找的旅遊團` (HTJAMK06). No tour code, no day plans. | MTK3FF05, HTJAMK06 | Not a tour: the sitemap still lists a tour that is full or withdrawn | **Left rejected.** It still counts as a parse failure. No dates request is made for it. |
+
+**Not fetched (23):** HTKPAA05, HTKSEE05, HTKCEA07, HTKSEA05, HTKSGB05, HTKPEA05, HTKSED05, HTKSGE05, HTKCFF05, HTKPMV05, HTKSMY05, HTKPMA05, HTKSMT05, HTKSMF05, HTKSMB05, MTK3MG05, MTK3EE05, HTJKME07, HTJKMA05, HTLBAB06, HTEWSW10, HTENFD09 and HTENFI09. Their cause is not known. By analogy with the pages fetched, the 15 Korean `HTK…` pages and HTLBAB06 are probably the arrival day, the `MTK3…` and `HTJK…` pages may be "not found" pages, and the three European pages may be "no dates". Their siblings did parse: 14 `HTK…` pages, for example, passed in the same crawl.
+
+**Estimated parse-failure rate after these changes (estimate only, not re-crawled):**
+
+| Pages | Before | After |
+|---|---|---|
+| `no-stops` | 19 | 0 (offline re-processing of the logged headings) |
+| `parser returned null`, fetched | 8 | 2 (the "not found" pages) |
+| `parser returned null`, not fetched | 23 | between 0 and 23 (about 4 if the analogies above hold) |
+| **Rate** | **8.7%** | **0.3% to 4.4%, about 1%** |
+
+- **Tours that would be saved:** at least 499, which is 495 plus the 4 fetched pages that now parse and have dates. More would be saved if the 19 former `no-stops` pages and the unfetched arrival-day pages have dates on sale. That is not known: the log does not record their dates. Since `f045ac1`, a page with no dates is skipped as `no-departures` before its stops are looked at.
+
+## First-run floor
+
+`minExpectedTours: 165`: a third of the 495 tours that would have been saved in the practice crawl of 2026-11-13. It replaces the provisional 190, which was based on pages listed. A first real run that saves fewer than 165 tours fails `below-minimum`, and nothing is saved. EGL is in the nightly matrix from commit `ci: egl joins the nightly matrix`.
+
+## Null-page probe (8 page fetches, each with its dates request)
+
+One run of a throwaway script through `createFetcher` (same proxy setup as the CLI, User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, 3 s spacing), capped at 16 requests including robots.txt. **15 requests**, all HTTP 200. No refusal, retry or challenge. The pages without a tour code got no dates request. Bodies and the ledger are kept outside git under `.superpowers/raw-pages/egl/nulls/`.
+
+| # | UTC (2026-11-13) | URL | Result |
+|---|---|---|---|
+| 1 | 22:47:45 | https://www.egltours.com/robots.txt | 200 (requested again: the Task 14 copy was over 24 hours old) |
+| 2 | 22:47:49 | https://www.egltours.com/website/itinerary/HTKCEE05 | 200, arrival day |
+| 3 | 22:47:53 | https://www.egltours.com/api/v1/tours/HTKCEE05/dates?currencyCode=HKD | 200, 4 dates |
+| 4 | 22:47:57 | https://www.egltours.com/website/itinerary/HTKSMS05 | 200, arrival day |
+| 5 | 22:48:01 | https://www.egltours.com/api/v1/tours/HTKSMS05/dates?currencyCode=HKD | 200, 3 dates |
+| 6 | 22:48:05 | https://www.egltours.com/website/itinerary/MTK3FF05 | 200, "not found" page, no code |
+| 7 | 22:48:09 | https://www.egltours.com/website/itinerary/HTJAMK06 | 200, "not found" page, no code |
+| 8 | 22:48:13 | https://www.egltours.com/website/itinerary/HTLBAA06 | 200, arrival day |
+| 9 | 22:48:18 | https://www.egltours.com/api/v1/tours/HTLBAA06/dates?currencyCode=HKD | 200, 19 dates |
+| 10 | 22:48:21 | https://www.egltours.com/website/itinerary/HTENBT12 | 200 |
+| 11 | 22:48:26 | https://www.egltours.com/api/v1/tours/HTENBT12/dates?currencyCode=HKD | 200, "No Available Dates" |
+| 12 | 22:48:29 | https://www.egltours.com/website/itinerary/HTASCB08 | 200, shared variant plan |
+| 13 | 22:48:33 | https://www.egltours.com/api/v1/tours/HTASCB08/dates?currencyCode=HKD | 200, 9 dates |
+| 14 | 22:48:37 | https://www.egltours.com/website/itinerary/HTCWGK07 | 200 |
+| 15 | 22:48:41 | https://www.egltours.com/api/v1/tours/HTCWGK07/dates?currencyCode=HKD | 200, "No Available Dates" |
