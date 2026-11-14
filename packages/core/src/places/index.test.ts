@@ -75,7 +75,7 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(route(['華川', '全州', '楊平', '內藏山', '昆池岩', '永宗島'])).toEqual([
       'korea-gangwon-hwacheon', 'korea-jeolla-jeonju', 'korea-seoul-yangpyeong', 'korea-jeolla-naejangsan', 'korea-seoul-gonjiam', 'korea-seoul-incheon',
     ]);
-    expect(route(['富士', '潮汕', '佛岡'])).toEqual(['japan-chubu-mount-fuji', 'china-guangdong-chaoshan', 'china-guangdong-fogang']);
+    expect(route(['富士', '潮汕', '佛岡'])).toEqual(['japan-chubu-mount-fuji', 'china-guangdong-shantou', 'china-guangdong-fogang']);
   });
   it('Mongolia is a country of its own with a group, and 內蒙古 stays Inner Mongolia', () => {
     expect(places.country('mongolia')?.group).toBe('south-central-asia');
@@ -91,6 +91,32 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(route(['泰山島熱帶果園'])).toEqual([]);          // in the Mekong delta, not Mount Tai
     expect(route(['巴馬臣芝士工房'])).toEqual([]);          // Parmesan, not Bama
     expect(route(['潮汕特產手信', '潮汕牛肉火鍋', '潮汕站'])).toEqual([]);
+  });
+  it('Altai is not Mount Tai (fix round 1)', () => {
+    expect(route(['禾木 ~ 阿爾泰山脈高山冰雪風光 ~ 禾木村'])).toEqual(['china-xinjiang-hemu']);
+    expect(route(['阿尔泰山脉'])).toEqual([]);
+    expect(route(['阿勒泰山區'])).toEqual(['china-xinjiang-altay']);
+    expect(route(['泰山'])).toEqual(['china-shandong-taian']);
+  });
+  it('does not read the short new names inside common phrases (fix round 1)', () => {
+    for (const heading of [
+      '文成公主廟', '文成城堡', '彌勒佛', '弥勒佛', '彌勒大佛', '青松觀', '奧巴馬故居', '太平南路', '和平南路', '金華火腿', '金华火腿',
+      '富士蘋果', '富士電視台', '吉安慶修院', '吉安鄉', '感恩平安夜', '非常德國', '九龍南', '廣西江山', '江西江南', '金秀賢拍攝地',
+    ]) expect(route([heading]), heading).toEqual([]);
+    expect(route(['越南 廣南省會安'])).toEqual(['vietnam-central-hoi-an']);
+  });
+  it('the short Korean and Chinese town names shared with other places are collision names', () => {
+    expect(places.data.collisionNames).toEqual(expect.arrayContaining(['丹陽', '全州', '廣南', '吉安', '青松']));
+  });
+  it('潮汕 is another name for 汕頭, and a run of them collapses (fix round 1)', () => {
+    expect(route(['潮汕'])).toEqual(['china-guangdong-shantou']);
+    expect(route(['汕頭 → 古代潮汕遠洋地標 → 汕頭'])).toEqual(['china-guangdong-shantou']);
+    expect(places.city('china-guangdong-chaoshan')).toBeUndefined();
+  });
+  it('東北 beside Chinese stops is north-east China; beside Japanese ones it stays Tohoku (fix round 1)', () => {
+    expect(route(['黑龍江', '吉林', '長白山', '東北'])).toEqual(['region:china-northeast', 'china-northeast-jilin', 'china-northeast-changbaishan', 'region:china-northeast']);
+    expect(route(['长白山', '东北'])).toEqual(['china-northeast-changbaishan', 'region:china-northeast']);
+    expect(route(['仙台', '東北'])).toEqual(['japan-tohoku-sendai', 'region:japan-tohoku']);
   });
 });
 

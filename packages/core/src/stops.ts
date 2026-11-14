@@ -140,15 +140,25 @@ const comparisonRule = (index: PlacesIndex): Skip => {
 };
 
 /**
+ * What may follow `X航空` when it is not an airline (review of task 34): an airport town or district (`珠海航空城`,
+ * `鄭州航空港`), an air show (`航空展`), an aviation museum or hall (`航空博物館`, `航空館`), a themed town
+ * (`航空小鎮`). 航天 (space flight) and 航展 are never read as airlines in the first place. After a flight word
+ * (`直航`, `航班`, `包機`), a bracket or nothing, X航空 is an airline. The saved crawl logs hold no other
+ * continuation of `<place>航空`.
+ */
+const NOT_AN_AIRLINE_AFTER = ['城', '港', '展', '博物館', '館', '小鎮', '主題'];
+
+/**
  * Rule 4 (fallback text only, owner decision 2026-11-15): a place name directly followed by 航空 (`澳門航空`,
  * `廈門航空公司`), or by 航 ending its words (`廈航`'s long form `廈門航`), names an airline, not where the tour goes.
  * Derived from the name and the suffix, not from a list of airlines. 航 followed by anything else is left alone:
  * `珠海航展` (the Zhuhai airshow) and `X航班` (a flight to X) are about the place. No name in the places data
- * contains 航, so no real place is cut by the rule.
+ * contains 航, so no real place is cut by the rule. Exceptions: NOT_AN_AIRLINE_AFTER.
  */
 const isAirline: Skip = (key, at, name) => {
   const after = at + name.length;
-  return key.startsWith('航空', after) || (key.startsWith('航', after) && after + 1 === key.length);
+  if (key.startsWith('航空', after)) return !NOT_AN_AIRLINE_AFTER.some(word => key.startsWith(word, after + 2));
+  return key.startsWith('航', after) && after + 1 === key.length;
 };
 
 /** A skip rule that passes over a name when any of the given rules does. */

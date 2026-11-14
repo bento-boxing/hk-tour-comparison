@@ -639,6 +639,18 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     it('day headings are read as before: the rule is for fallback text only', () => {
       expect(names(extractStops(['乘澳門航空'], places))).toEqual(['澳門']);
     });
+    it('spares a place whose 航空 goes on into an airport town, an air show or an aviation museum', () => {
+      expect(read('珠海航空城2天', 2)).toEqual({ names: ['珠海'], dropped: [] });
+      expect(read('珠海航空展2天', 2)).toEqual({ names: ['珠海'], dropped: [] });
+      expect(read('南昌航空博物館5天').names).toEqual(['南昌']);
+      expect(read('南昌航空館5天').names).toEqual(['南昌']);
+      expect(read('鄭州航空港5天').names).toEqual(['鄭州']);
+    });
+    it('still drops X航空 followed by nothing, a flight word or a bracket', () => {
+      for (const text of ['澳門航空 東京5天', '澳門航空直航東京5天', '澳門航空航班 東京5天', '澳門航空包機 東京5天', '澳門航空(A321) 東京5天']) {
+        expect(read(text), text).toEqual({ names: ['東京'], dropped: [{ name: '澳門', rule: 'airline' }] });
+      }
+    });
   });
 
   describe('too far for the trip', () => {
