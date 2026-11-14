@@ -1,5 +1,6 @@
 import { normaliseName } from './places/index';
 import type { City, Country, PlacesIndex, Region } from './places/index';
+import { zhHansName } from './places/zh-hans';
 import type { Destination } from './destination';
 
 export interface Suggestion {
@@ -13,8 +14,11 @@ export const ALL_REGIONS_LABEL = '全部地區';
 type Place = { nameZh: string; nameEn: string; aliases: string[] };
 type NameTest = (name: string) => boolean;
 
-/** Every normalised name a place answers to: Chinese, English and aliases. */
-const namesOf = (p: Place) => [p.nameZh, p.nameEn, ...p.aliases].map(normaliseName).filter(n => n !== '');
+/** Every normalised name a place answers to: Traditional, Simplified, English and aliases (in both scripts). */
+const namesOf = (p: Place) => {
+  const chinese = [p.nameZh, ...p.aliases];
+  return [...chinese, ...chinese.map(zhHansName), p.nameEn].map(normaliseName).filter(n => n !== '');
+};
 
 function matching<T extends Place>(items: T[], test: NameTest): T[] {
   return items.filter(p => namesOf(p).some(test));
@@ -26,7 +30,8 @@ function matching<T extends Place>(items: T[], test: NameTest): T[] {
  * A country reached by an exact city or region match also gets its 全部地區 row, after its last such row.
  * A country with exactly one region never gets a region row: its single row is 全部地區 (with `via` when a
  * city matched), so 新加坡 reads `新加坡 → 全部地區`, not `新加坡 → 新加坡`.
- * Chinese names, aliases and English names all match; labels are always Chinese.
+ * Traditional and Simplified Chinese names, aliases and English names all match; labels are always
+ * Traditional Chinese (the website builds its own labels in the visitor's language from `destination`).
  */
 export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Suggestion[] {
   const q = normaliseName(query);
