@@ -1,4 +1,4 @@
-# 旅行團比較 · Hong Kong tour comparison
+# 跟邊團 · Hong Kong tour comparison
 
 A website that gathers package-tour listings from Hong Kong tour operators into one place, so a traveller can filter and compare them and chain tours one after another with a chosen break in between. A small scraper collects the listings once a night; the website only reads from the database and never contacts the operators.
 
