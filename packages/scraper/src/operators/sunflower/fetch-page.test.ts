@@ -11,14 +11,16 @@ const ENTRY = publicEntry(rawListingRow('KKFE05WR'));
 
 function pageFetcher(answer: string | null) {
   const asked: string[] = [];
+  const options: unknown[] = [];
   const fetcher: Fetcher = {
-    fetchText: async url => {
+    fetchText: async (url, opts) => {
       asked.push(url);
+      options.push(opts);
       return answer;
     },
     postJson: async url => { throw new Error(`POSTed ${url}`); },
   };
-  return { fetcher, asked };
+  return { fetcher, asked, options };
 }
 const entries = (...list: PublicEntry[]) => (code: string) => list.find(e => e.ItinCode === code);
 
@@ -34,9 +36,10 @@ describe('joinPage and splitPage', () => {
 
 describe('fetchPage', () => {
   it('requests the booking page once, by GET, and joins it with tonight\'s listing entry and date', async () => {
-    const { fetcher, asked } = pageFetcher(rawBookingPage());
+    const { fetcher, asked, options } = pageFetcher(rawBookingPage());
     const text = await createFetchPage(entries(ENTRY))(fetcher, PAGE, TODAY);
     expect(asked).toEqual([PAGE]);
+    expect(options).toEqual([{ sameOriginRedirectsOnly: true }]); // never a redirect off https://www.sunflower.com.hk
     expect(splitPage(text as string)).toEqual({ today: TODAY, entry: ENTRY, page: publicBookingPage(rawBookingPage()) });
   });
 

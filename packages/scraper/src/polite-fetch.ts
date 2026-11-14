@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import robotsParser from 'robots-parser';
-import type { Fetcher } from './types';
+import type { FetchOptions, Fetcher } from './types';
 
 export const REQUEST_DELAY_MS = 3000;
 export const REQUEST_TIMEOUT_MS = 30_000;
@@ -370,14 +370,21 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
     return originRules.isAllowed(url.href) ? null : 'disallowed by robots.txt';
   }
 
-  /** One page's bytes, or null (logged) when it may not be requested or did not answer 200. */
-  async function fetchBody(url: string): Promise<Uint8Array | null> {
+  /**
+   * One page's bytes, or null (logged) when it may not be requested or did not answer 200. With
+   * `sameOriginRedirectsOnly`, a redirect hop to another origin is refused before it is requested (its robots.txt
+   * is not read either).
+   */
+  async function fetchBody(url: string, options: FetchOptions = {}): Promise<Uint8Array | null> {
     const start = httpUrl(url);
     if (start === null) {
       log(`not an http(s) URL: ${url}`);
       return null;
     }
-    const result = await getFollowingRedirects(start, true, whyNotAllowed);
+    const whyNot = options.sameOriginRedirectsOnly === true
+      ? async (hop: URL) => (hop.origin === start.origin ? whyNotAllowed(hop) : `a redirect leaving ${start.origin} is not followed`)
+      : whyNotAllowed;
+    const result = await getFollowingRedirects(start, true, whyNot);
     if ('body' in result) return result.body;
     const { failure, at } = result;
     const why = typeof failure === 'string' ? failure : describe(failure);
@@ -413,11 +420,11 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   }
 
   return {
-    async fetchText(url) {
-      const body = await fetchBody(url);
+    async fetchText(url, options) {
+      const body = await fetchBody(url, options);
       return body === null ? null : decodeText(body);
     },
-    fetchBytes: fetchBody,
+    fetchBytes: url => fetchBody(url),
     postJson,
   };
 }

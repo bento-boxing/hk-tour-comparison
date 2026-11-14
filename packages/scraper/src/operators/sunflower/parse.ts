@@ -13,6 +13,8 @@ import { CALENDAR, DAYS, MONTH, PRICE } from './public';
 const DAYS_TEXT = /(\d+)\s*天/;
 /** `2026年12月`: the month the calendar shows. */
 const MONTH_TEXT = /^(\d{4})\s*年\s*(\d{1,2})\s*月$/;
+/** The class of a full date's cell (`額滿`): never a departure, whatever its link says. */
+const FULL_CELL = 'Ava-Calcell-F';
 /** A departure cell's link, `window.location='?date=20261201&TourCode=…'`. A full date (`額滿`) has none. */
 const CELL_DATE = /[?&]date=(\d{4})(\d{2})(\d{2})(?![0-9])/;
 /** A listed later date, `4/12`: day, month, no year. */
@@ -48,21 +50,24 @@ function listingPrice(value: unknown): number | null {
   return typeof value === 'string' ? parsePriceHkd(value) : null;
 }
 
-/** The day after `date` one year on: dates up to 12 months ahead come before it. 29 February rolls to 1 March. */
-function yearAfter(today: IsoDate): IsoDate {
-  const [year, month, day] = today.split('-').map(Number);
-  return new Date(Date.UTC(year + 1, month - 1, day)).toISOString().slice(0, 10);
-}
+/**
+ * How far ahead a listed `D/M` date may resolve. The furthest real date in the listing of 2026-11-14 was 321 days
+ * ahead; a date that passed within the last 30 days (the listing is not always updated at once) resolves 335 to
+ * 365 days ahead, a year out, and must be dropped, not listed as next year's departure.
+ */
+export const MAX_DAYS_AHEAD = 335;
+
+const dayNumber = (date: IsoDate) => Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) / 86_400_000;
 
 /**
  * The listing's `D/M,D/M,…` dates with their year, in the list's order: each the first date on or after `today`
- * with that day and month. One that is not a real calendar date, or that would land more than 12 months ahead
- * (only 29 February can), is dropped, as is any text that is not a `D/M` (the trailing `...`).
+ * with that day and month, dropped when that is more than MAX_DAYS_AHEAD days after today (so a date that has just
+ * passed is dropped, not moved a year on). One that is not a real calendar date is dropped, as is any text that is
+ * not a `D/M` (the trailing `...`).
  */
 export function laterDates(list: unknown, today: IsoDate): IsoDate[] {
   if (typeof list !== 'string') return [];
   const year = Number(today.slice(0, 4));
-  const limit = yearAfter(today);
   const dates: IsoDate[] = [];
   for (const item of list.split(',')) {
     const match = LISTED_DATE.exec(item.replace(/\.+$/, '').trim());
@@ -71,7 +76,7 @@ export function laterDates(list: unknown, today: IsoDate): IsoDate[] {
     const date = [year, year + 1, year + 2]
       .map(y => isoOf(y, month, day))
       .find(candidate => isIsoDate(candidate) && candidate >= today);
-    if (date !== undefined && date < limit) dates.push(date);
+    if (date !== undefined && dayNumber(date) - dayNumber(today) <= MAX_DAYS_AHEAD) dates.push(date);
   }
   return dates;
 }
@@ -96,13 +101,14 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   if (!month) return { why: 'the booking page has no calendar month' };
   const shownMonth = `${month[1]}-${pad(Number(month[2]))}`;
 
-  // The shown month: every available cell (Ava-Calcell, -G 保證成團, -H 快將成團) with its date link and price.
+  // The shown month: every available cell (Ava-Calcell, -G 保證成團, -H 快將成團) with its date link and price; a full
+  // cell (Ava-Calcell-F, 額滿) is left out by its class, and has no link either on the pages seen.
   const priceByDate = new Map<IsoDate, number | null>();
   $(CALENDAR).find('td.Calcell').each((_, cell) => {
     const classes = ($(cell).attr('class') ?? '').split(/\s+/);
-    if (!classes.some(name => name.startsWith('Ava-Calcell'))) return;
+    if (!classes.some(name => name.startsWith('Ava-Calcell')) || classes.includes(FULL_CELL)) return;
     const link = CELL_DATE.exec($(cell).attr('onclick') ?? '');
-    if (!link) return; // no date link: not bookable (a full date, 額滿, has none)
+    if (!link) return; // no date link: not bookable
     const date = `${link[1]}-${link[2]}-${link[3]}`;
     if (isIsoDate(date) && !priceByDate.has(date)) priceByDate.set(date, parsePriceHkd($(cell).find(PRICE).first().text()));
   });

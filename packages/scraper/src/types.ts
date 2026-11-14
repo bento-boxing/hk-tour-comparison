@@ -1,8 +1,18 @@
 import type { IsoDate, OperatorId, ScrapedTour } from '@hktours/core';
 
+/** Per-request options for Fetcher.fetchText. */
+export interface FetchOptions {
+  /**
+   * Follow a redirect only to the same origin (scheme, host and port) as the URL asked for: a redirect anywhere
+   * else (`http://`, another host or port) is not requested and the page counts as not fetched. Unset: any
+   * http(s) redirect is followed, under the same robots.txt and spacing rules.
+   */
+  sameOriginRedirectsOnly?: boolean;
+}
+
 export interface Fetcher {
   /** One page. null if robots.txt disallows it, or the response is not 200. */
-  fetchText(url: string): Promise<string | null>;
+  fetchText(url: string, options?: FetchOptions): Promise<string | null>;
   /**
    * POSTs `body` as JSON and returns the 200 answer's text, or null; never retried (see PoliteFetcher).
    * Optional, so a test fake need not have it; the run's real fetcher (createFetcher) always does.

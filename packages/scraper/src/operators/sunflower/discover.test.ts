@@ -82,13 +82,15 @@ describe('the listing fixture', () => {
 /** A fetcher that answers the listing with `answer` and records what it is asked. */
 function listingFetcher(answer: string | null) {
   const asked: string[] = [];
+  const options: unknown[] = [];
   const fetcher: Fetcher = {
-    fetchText: async url => {
+    fetchText: async (url, opts) => {
       asked.push(url);
+      options.push(opts);
       return url === LISTING_URL ? answer : null;
     },
   };
-  return { fetcher, asked };
+  return { fetcher, asked, options };
 }
 
 describe('discovery (through the scraper)', () => {
@@ -96,11 +98,12 @@ describe('discovery (through the scraper)', () => {
     const { createSunflowerScraper } = await import('./index');
     const logs: string[] = [];
     const scraper = createSunflowerScraper({ log: line => logs.push(line) });
-    const { fetcher, asked } = listingFetcher(JSON.stringify(rawListing([
+    const { fetcher, asked, options } = listingFetcher(JSON.stringify(rawListing([
       rawListingRow('KKFE05WR'), rawListingRow('', { region: '郵輪' }), rawListingRow('CFAG03MK'),
     ])));
     expect(await scraper.discover(fetcher)).toEqual([page('KKFE05WR'), page('CFAG03MK')]);
     expect(asked).toEqual([LISTING_URL]);
+    expect(options).toEqual([{ sameOriginRedirectsOnly: true }]);
     expect(logs).toEqual(['sunflower: left out 1 listing entry without an online booking code (郵輪 1)']);
   });
 

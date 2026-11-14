@@ -153,6 +153,32 @@ async function withSecondPort(run: (other: TestServer) => Promise<void>): Promis
   }
 }
 
+it('sameOriginRedirectsOnly refuses a redirect to another origin before requesting it; without it the redirect is followed', async () => {
+  await withSecondPort(async other => {
+    const hopping = await startServer((req, res) =>
+      (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: other.url('/a') })));
+    try {
+      expect(await f.fetchText(hopping.url('/go'), { sameOriginRedirectsOnly: true })).toBeNull();
+      expect(hopping.requests.map(r => r.path)).toEqual(['/robots.txt', '/go']);
+      expect(other.requests).toEqual([]); // neither the page nor its robots.txt
+      expect(logLines).toContain(
+        `not fetched ${hopping.url('/go')} (redirected to ${other.url('/a')}): a redirect leaving ${originOf(hopping.url('/'))} is not followed`);
+
+      // The default, and an explicit false, are unchanged: the same redirect is followed.
+      expect(await f.fetchText(hopping.url('/go'))).toBe('other/a');
+      expect(await f.fetchText(hopping.url('/go'), { sameOriginRedirectsOnly: false })).toBe('other/a');
+      expect(other.requests.map(r => r.path)).toEqual(['/robots.txt', '/a', '/a']);
+    } finally {
+      await hopping.close();
+    }
+  });
+});
+
+it('sameOriginRedirectsOnly still follows a redirect within the origin', async () => {
+  expect(await f.fetchText(url('/to-a'), { sameOriginRedirectsOnly: true })).toBe('ok-a');
+  expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/to-a', '/a']);
+});
+
 it('spaces requests across ports of one host when a redirect crosses them', async () => {
   await withSecondPort(async other => {
     const hopping = await startServer((req, res) =>

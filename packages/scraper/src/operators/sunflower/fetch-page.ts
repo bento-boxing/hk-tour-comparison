@@ -1,6 +1,6 @@
 import type { IsoDate } from '@hktours/core';
 import type { Fetcher } from '../../types';
-import { bookingUrl, codeOf } from './discover';
+import { bookingUrl, codeOf, SAME_SITE } from './discover';
 import { publicBookingPage, type PublicEntry } from './public';
 
 /**
@@ -30,7 +30,7 @@ export function splitPage(text: string): TourPage | null {
 
 /**
  * Sunflower's fetchPage: the tour's booking page, one plain GET through the run's fetcher (which spaces, checks and
- * logs every request), joined with the tour's entry from tonight's listing (`entryOf`, filled by discovery) and
+ * logs every request; a redirect off https://www.sunflower.com.hk is refused: not fetched), joined with the tour's entry from tonight's listing (`entryOf`, filled by discovery) and
  * the run's date. Only the public facts (public.ts) are kept. null, not fetched, when the page gets no answer. It
  * throws, requesting nothing, for a URL that is not a booking page or a code tonight's listing does not hold.
  */
@@ -42,7 +42,7 @@ export function createFetchPage(
     if (code === null) throw new Error('not a Sunflower booking page');
     const entry = entryOf(code);
     if (entry === undefined) throw new Error('not in tonight\'s listing');
-    const html = await fetcher.fetchText(bookingUrl(code));
+    const html = await fetcher.fetchText(bookingUrl(code), SAME_SITE);
     if (html === null) return null;
     return joinPage({ today, entry, page: publicBookingPage(html) });
   };

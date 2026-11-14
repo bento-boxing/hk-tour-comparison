@@ -84,6 +84,7 @@ describe('departures in the month the calendar shows', () => {
     { date: '20261225', status: '-H', holiday: true, price: '$5,099起' },
     { date: '20261219', status: '-H', price: '<p class="dollarsign">$</p>2,999+' },
     { status: '-F', price: '$5,399起' }, // 額滿: no date link
+    { date: '20261229', status: '-F', price: '$5,399起' }, // 額滿 with a date link: still left out, by its class
     { date: '20261230', price: '' },
   ];
   it('are every available cell with its date link and its price, whatever its status class', () => {
@@ -120,19 +121,29 @@ describe('later dates from the listing', () => {
 });
 
 describe('the year of a listed D/M date', () => {
-  it('is the first date on or after today with that day and month, across the year end', () => {
-    expect(laterDates('20/11,14/11,13/11,2/1,31/12', '2026-11-14')).toEqual(['2026-11-20', '2026-11-14', '2027-11-13', '2027-01-02', '2026-12-31']);
+  it('is the first date on or after today with that day and month, across the year end; today itself is kept', () => {
+    expect(laterDates('20/11,14/11,2/1,31/12', '2026-11-14')).toEqual(['2026-11-20', '2026-11-14', '2027-01-02', '2026-12-31']);
+    expect(laterDates('5/1', '2026-12-20')).toEqual(['2027-01-05']);
+  });
+  it('drops a date that has just passed instead of moving it a year on (more than 335 days ahead)', () => {
+    expect(laterDates('13/11', '2026-11-14')).toEqual([]);  // yesterday: 2027-11-13 would be 364 days ahead
+    expect(laterDates('16/10', '2026-11-14')).toEqual([]);  // 29 days past: 336 days ahead
+    expect(laterDates('15/10', '2027-11-14')).toEqual([]);  // 30 days past, across 29 February 2028: 336 days ahead
+  });
+  it('keeps a date 335 days ahead and drops one 336 days ahead', () => {
+    expect(laterDates('15/10', '2026-11-14')).toEqual(['2027-10-15']); // 335 days (also 30 days past: the boundary)
+    expect(laterDates('16/10', '2026-11-14')).toEqual([]);              // 336 days
   });
   it('drops a date that is not a real calendar date, and ignores the trailing ... and any other text', () => {
     expect(laterDates('31/4,0/1,1/13,30/2,abc,,1/12/2026,5/12...', '2026-11-14')).toEqual(['2026-12-05']);
     expect(laterDates('...', '2026-11-14')).toEqual([]);
     expect(laterDates(null, '2026-11-14')).toEqual([]);
   });
-  it('drops 29 February when the next one is more than 12 months ahead, and keeps it within 12 months', () => {
-    expect(laterDates('29/2', '2026-11-14')).toEqual([]);            // 2028-02-29 is 15 months ahead
-    expect(laterDates('29/2', '2027-11-14')).toEqual(['2028-02-29']);
-    expect(laterDates('29/2', '2027-02-28')).toEqual([]);            // a year and a day ahead
-    expect(laterDates('29/2', '2027-03-01')).toEqual(['2028-02-29']);
+  it('resolves 29 February to the next leap year, kept only within 335 days', () => {
+    expect(laterDates('29/2', '2026-11-14')).toEqual([]);             // 2028-02-29 is 472 days ahead
+    expect(laterDates('29/2', '2027-11-14')).toEqual(['2028-02-29']); // 107 days
+    expect(laterDates('29/2', '2027-04-01')).toEqual(['2028-02-29']); // 334 days
+    expect(laterDates('29/2', '2027-03-30')).toEqual([]);             // 336 days
     expect(laterDates('29/2', '2028-02-29')).toEqual(['2028-02-29']); // today
   });
 });

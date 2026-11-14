@@ -11,6 +11,13 @@ const SITE = 'https://www.sunflower.com.hk';
 /** Every listing entry of every region in one answer (616 entries on 2026-11-14, 370 of them with a booking code). */
 export const LISTING_URL = `${SITE}/App/Tour/Get?Region=&Area=&Subarea=&keyword=`;
 
+/**
+ * Every request: a redirect is followed only within https://www.sunflower.com.hk; one that leaves it (to `http://`,
+ * as the investigation saw for `/OnlineBooking?TourCode=…` without the slash) is not requested, and the page counts
+ * as not fetched.
+ */
+export const SAME_SITE = { sameOriginRedirectsOnly: true } as const;
+
 /** A tour code (`ItinCode`, `KKFE05WR`, `LWZA05X1`): the only text that goes into a request URL. */
 const CODE = /^[A-Za-z0-9]{1,40}$/;
 /** The booking page as bookingUrl writes it, exactly. */
@@ -86,7 +93,7 @@ export function readListing(text: string): Listing {
 
 /** One request: the listing, read by readListing. What was left out is logged. */
 export async function discoverTours(fetcher: Fetcher, log: (line: string) => void): Promise<PublicEntry[]> {
-  const text = await fetcher.fetchText(LISTING_URL);
+  const text = await fetcher.fetchText(LISTING_URL, SAME_SITE);
   if (text === null) throw new Error('sunflower: the listing was not fetched');
   const listing = readListing(text);
   const count = listing.leftOut.reduce((sum, [, n]) => sum + n, 0);
