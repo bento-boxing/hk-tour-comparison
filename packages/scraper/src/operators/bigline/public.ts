@@ -25,8 +25,11 @@ const plain = (value: unknown): Plain =>
 const NOTE = /[(（][^()（）]*[)）]|〈[^〈〉]*〉/g;
 /** Between the places of one day's route line. A single hyphen stays (`泰北傳統少數民族-長頸族村`). */
 const ROUTE_SEPARATOR = /[~～|｜→]|-{2,}/;
-/** A sentence mark: what follows it in a chunk is prose, left out. */
-const SENTENCE_MARK = /[，。；！？：;:!?]/;
+/**
+ * A sentence mark: what follows it in a chunk is prose, left out. The ASCII comma is one too: in the crawl of
+ * 2026-11-14 every one of the 35 chunks with one was a sentence written with it (`…櫻花,兩相交織…`).
+ */
+const SENTENCE_MARK = /[，。；！？：;:!?,]/;
 /** Leading marks before a chunk's text (`.香港機場集合`, `-酒店`). */
 const LEADING_MARKS = /^[\s.\-·•]+/;
 /** The separators the shared rules split a heading at (`、`, `-`, `—`, `>`, spaces …), kept when splitting. */
@@ -37,6 +40,12 @@ const PIECE_SEPARATORS = new RegExp(`(${CHUNK_SEPARATORS.source})`);
  * pieces). A longer one is a description (`「伊利健康谷」探訪全自動智慧奶業生產線`) and is left out whole.
  */
 export const MAX_PIECE_CHARS = 16;
+/**
+ * The longest chunk kept, whatever its pieces: in the crawl of 2026-11-14, 37 of 9,613 chunks were longer, all
+ * long lists of sights or descriptions (`黃帝開太平 問天石 軒轅雲道 - 山上自助午餐 - 始信峰 …`), none a place a
+ * route needs that the day does not also name on its own.
+ */
+export const MAX_CHUNK_CHARS = 40;
 
 /** The chunk without its pieces over MAX_PIECE_CHARS, each kept piece after the separator that preceded it. */
 function withoutLongPieces(chunk: string): string {
@@ -54,7 +63,7 @@ function withoutLongPieces(chunk: string): string {
  * The places of one day's route line (`tripContent`), in order: its first line with text only (later lines
  * are notes such as `#註：…`), without a leading day marker (`D1：`, `第1天：`, the shared DAY_MARKER) and
  * bracketed notes, split at the route separators; each chunk cut at its first sentence mark, spaces
- * collapsed, and its pieces over MAX_PIECE_CHARS left out; empty chunks dropped. Reading the chunks again,
+ * collapsed, and its pieces over MAX_PIECE_CHARS left out; empty chunks and chunks over MAX_CHUNK_CHARS dropped. Reading the chunks again,
  * joined with ` | `, gives the same chunks, so a trimmed fixture parses as the answer did.
  */
 export function routeChunks(tripContent: unknown): string[] {
@@ -64,9 +73,10 @@ export function routeChunks(tripContent: unknown): string[] {
     previous = line;
     line = line.replace(NOTE, '');
   }
+  line = line.replace(DAY_MARKER, ''); // again: a note may have come before it (`(早餐)D2 酒店`)
   return line.split(ROUTE_SEPARATOR)
     .map(chunk => withoutLongPieces(chunk.split(SENTENCE_MARK)[0].replace(LEADING_MARKS, '').replace(/\s+/g, ' ').trim()))
-    .filter(chunk => chunk !== '');
+    .filter(chunk => chunk !== '' && [...chunk].length <= MAX_CHUNK_CHARS);
 }
 
 export interface PublicDetail {

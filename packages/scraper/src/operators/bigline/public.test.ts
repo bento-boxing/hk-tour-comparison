@@ -78,6 +78,10 @@ describe('routeChunks', () => {
     ['without the long pieces of a chunk (the cap applies to the pieces the shared rules split at)', '中華文明發源地 素有"奇險天下第一山"之稱【華山】~西安', ['中華文明發源地', '西安']],
     ['without a long piece in the middle, keeping the separator before the next', '清邁、泰國重要的茶葉生產基地和旅遊聖地之一-清萊', ['清邁-清萊']],
     ['counting Latin words one by one', 'Maya shopping mall瑪雅購物中心~The One Nimman 文青商圈', ['Maya shopping mall瑪雅購物中心', 'The One Nimman 文青商圈']],
+    ['cut at an ASCII comma too: it separates prose, not places', '擁有5萬畝茶園與15萬多株櫻花,兩相交織之間~西安', ['擁有5萬畝茶園與15萬多株櫻花', '西安']],
+    ['without a chunk over 40 characters, however short its pieces', '黃帝開太平 問天石 軒轅雲道 - 山上自助午餐 - 始信峰 北海觀景平台 夢筆生花 猴子觀海 仙人曬靴 排雲亭~黃山', ['黃山']],
+    ['keeping a chunk of exactly 40 characters', `${'東京、'.repeat(13)}大阪~西安`.slice(0, 40) + '~西安', [`${'東京、'.repeat(13)}大`.slice(0, 40), '西安']],
+    ['without a day marker that follows a bracketed note', '(早餐)D2 酒店~西安', ['酒店', '西安']],
   ])('are %s', (_name, text, expected) => {
     expect(routeChunks(text)).toEqual(expected);
   });
@@ -85,6 +89,7 @@ describe('routeChunks', () => {
     for (const text of [
       'A(x~y)~B〈z〉|C，prose~(open|close)~)(', '酒店 --「大召寺」（包門票），感受--「敕勒川草原」',
       'D1：清邁、泰國重要的茶葉生產基地和旅遊聖地之一-清萊 長長長長長長長長長長長長長長長長長 ~東京、橫濱', '、A、~-B-',
+      '(早餐)D2 酒店~西安', '（註）第3天：東京~大阪,京都',
     ]) {
       const once = routeChunks(text);
       expect(routeChunks(once.join(' | '))).toEqual(once);
