@@ -172,12 +172,60 @@ describe('codes and variants', () => {
     ], [{ date: '1/12/2026', code: 'TSTB03E-261201', now: '9998' }]), URL_X)!;
     expect(t.dayHeadings).toEqual(['香港 ~ 巴黎', '巴黎 ~ 倫敦', '倫敦 ~ 香港']);
   });
+  it('takes the longest variant that has rows, when the longest has none', () => {
+    const t = parse(page('11/12天 歐洲 ~ GERD/E', HK_DAYS, [{ date: '19/12/2026', code: 'GERD11E-261219', now: '39898' }]), URL_X)!;
+    expect([t.code, t.days, t.departures]).toEqual(['GERD', 11, [{ date: '2026-12-19', priceHkd: 39898 }]]);
+  });
+  it('takes the first variant with rows on a tie, each row given to the variant whose code starts it', () => {
+    const t = parse(page('19天 北極圈 ~ GSAOA/B/O《2027》', HK_DAYS, [
+      { date: '10/06/2027', code: 'GSAOB19K-270610', now: '90000' },
+      { date: '10/06/2027', code: 'GSAOO19K-270610', now: '80000' },
+      { date: '17/06/2027', code: 'GSAOB19K-270617', now: '91000' },
+    ]), URL_X)!;
+    expect([t.code, t.days, t.departures.map(d => d.priceHkd)]).toEqual(['GSAOB', 19, [90000, 91000]]);
+  });
+  it('gives rows that two variants with the same letters and days could both claim to the first only', () => {
+    const t = parse(page('5天 測試團 ~ ABC1/2', HK_DAYS, [
+      { date: '1/12/2026', code: 'ABC05X-261201', now: '5000' },
+      { date: '8/12/2026', code: 'ABC05X-261208', now: '6000' },
+    ]), URL_X)!;
+    expect([t.code, t.departures.map(d => d.date)]).toEqual(['ABC1', ['2026-12-01', '2026-12-08']]);
+    const split = parse(page('5天 測試團 ~ ABC1/2', HK_DAYS, [
+      { date: '1/12/2026', code: 'ABC105X-261201', now: '5000' },
+      { date: '8/12/2026', code: 'ABC205X-261208', now: '6000' },
+    ]), URL_X)!;
+    expect([split.code, split.departures.map(d => d.date)]).toEqual(['ABC1', ['2026-12-01']]);
+  });
+  it('gives every row to the longest variant when the table has no code column (cabin grades on the same dates)', () => {
+    const t = parse(page('11天 河船 ~ GRCSB/A/S', HK_DAYS, [
+      { date: '1/12/2026', now: '30000' }, { date: '8/12/2026', status: 'FU', now: '30000' },
+    ]), URL_X)!;
+    expect([t.code, t.departures]).toEqual(['GRCSB', [{ date: '2026-12-01', priceHkd: 30000 }]]);
+  });
+  it('gives no departures, not null, for a page with variants and no dated rows', () => {
+    expect(parse(page('5天 越南 ~ ZSGN/ZSGB', HK_DAYS, []), URL_X)).toMatchObject({ code: 'ZSGN', days: 5, departures: [] });
+  });
+  it('reads a variant code before the day label, and a tag naming two variants', () => {
+    const t = parse(page('2/3天 測試團 ~ TSTA/B', [
+      ['TSTA Day 1', '香港 ~ 羅馬'], ['TSTB Day 1', '香港 ~ 巴黎'], ['Day 2 - TSTA/B', '巴黎 ~ 倫敦'], ['TSTB Day 3', '倫敦 ~ 香港'],
+    ], [{ date: '1/12/2026', code: 'TSTB03E-261201', now: '9998' }]), URL_X)!;
+    expect(t.dayHeadings).toEqual(['香港 ~ 巴黎', '巴黎 ~ 倫敦', '倫敦 ~ 香港']);
+  });
   it('is null when no row is the chosen variant\'s (its codes are not read as expected)', () => {
     expect(parse(page('11/12天 歐洲 ~ GERD/E', HK_DAYS, [{ date: '19/12/2026', code: 'ZZZ12E-261219', now: '45498' }]), URL_X))
       .toBeNull();
   });
   it.each([
+    ['GHTH', '10天 意大利深度遊 ~ GHTH 《農曆新年2027》'],
+    ['PCJSC', '12天 南疆【一年一度胡楊季】秘境遊 ~ PCJSC【南疆旅遊團｜售罄加開・最後一團】'],
+    ['GEFM', '10天 德國、奧地利[金秋阿爾卑斯] ~ GEFM (增遊法國童話夢幻小鎮:科爾馬)'],
+    ['CODE', '10天 意大利 ~ 羅馬 ~ ABC (假期) ~ CODE'],
+  ])('reads the code %s before a bracketed note at the end of the title', (code, title) => {
+    expect(parse(page(title, HK_DAYS, [{ date: '9/01/2027', now: '1998' }]), URL_X)?.code).toBe(code);
+  });
+  it.each([
     ['no code', '11天 意大利深度遊'],
+    ['a note that is not in brackets after the code', '11天 意大利深度遊 ~ GHTG 農曆新年'],
     ['a code with a space', '11天 意大利深度遊 ~ GH TG'],
     ['day counts that do not pair with the codes', '11/12/13天 歐洲 ~ GERD/E'],
     ['two day counts for one code', '6/7天 洛磯山 ~ RWB6'],
@@ -212,13 +260,26 @@ describe('day headings and start and end points', () => {
     // 三文灣 (Salmon Arm) is in the places list since the EGL review round; 灰熊鎮 is not.
     expect(r.ok && stopNames(r.tour.stops)).toEqual(['三文灣', '班夫', '卡加利']);
   });
-  it('a stated start abroad without `原居地` is its first place too', () => {
-    expect(tour([['Day 1', '溫哥華 ~ 基隆那'], ['Day 2', '甘露市 ~ 溫哥華']]).startPoint).toBe('溫哥華');
+  it('a start and end abroad without `原居地` count only when the page gives a gathering time and place', () => {
+    const days: [string, string][] = [['Day 1', '溫哥華 ~ 基隆那'], ['Day 2', '甘露市 ~ 溫哥華']];
+    expect([tour(days).startPoint, tour(days).endPoint]).toEqual([null, null]);
+    const gathering = tour([...days, ['集合時間及地點', '集合時間及地點(早上)']]);
+    expect([gathering.startPoint, gathering.endPoint]).toEqual(['溫哥華', '溫哥華']);
+  });
+  it('a Hong Kong tour whose last heading names only sights abroad ends in Hong Kong, not there', () => {
+    const t = tour([['Day 1', '香港 ~ 青島（八大關風景區）'], ['Day 2', '青島（中山公園- 龍江路- 雲上海天）']]);
+    expect([t.startPoint, t.endPoint]).toEqual(['香港', null]);
+    const r = normaliseTour(t, places, CAPTURED);
+    expect(r.ok && [r.tour.start, r.tour.end]).toEqual([{ kind: 'hk', label: null }, { kind: 'hk', label: null }]);
   });
   it('the start and end points lose bracketed notes, and are null when too long to be a place', () => {
-    const t = tour([['Day 1', '香港 ~ 羅馬[意大利]'], ['Day 2', '米蘭 ~ 是日早上自由活動後前往機場乘搭客機返回']]);
+    const t = tour([['Day 1', '香港 ~ 羅馬[意大利]'], ['Day 2', '米蘭 ~ 是日早上自由活動後前往機場乘搭客機返回香港']]);
     expect([t.startPoint, t.endPoint]).toEqual(['香港', null]);
-    expect(tour([['Day 1', '羅馬[意大利] ~ 佛羅倫斯'], ['Day 2', '米蘭']]).startPoint).toBe('羅馬');
+    expect(tour([['Day 1', '深圳灣口岸[集合] ~ 佛山'], ['Day 2', '佛山 ~ 深圳灣口岸']]).startPoint).toBe('深圳灣口岸');
+  });
+  it('removes bracketed notes before splitting at `~`, so a `~` inside brackets splits nothing', () => {
+    const t = tour([['集合時間及地點', '集合時間及地點'], ['Day 1', '原居地 ~ 溫哥華'], ['Day 2', '溫哥華(市區 ~ 史丹利公園)']]);
+    expect(t.endPoint).toBe('溫哥華');
   });
   it('drops the either/or flight leg next to Hong Kong on the first and last days only', () => {
     const t = tour([
