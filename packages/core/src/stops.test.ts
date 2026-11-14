@@ -578,6 +578,33 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     });
   });
 
+  describe('airlines are not places (rule 4)', () => {
+    it('X航空: the airline is passed over and the next place in the same words is read', () => {
+      expect(read('乘澳門航空直飛廈門')).toEqual({ names: ['廈門'], dropped: [{ name: '澳門', rule: 'airline' }] });
+    });
+    it('X航空公司', () => {
+      expect(read('廈門航空公司 東京5天')).toEqual({ names: ['東京'], dropped: [{ name: '廈門', rule: 'airline' }] });
+    });
+    it('X航 at the end of its words (the short form)', () => {
+      expect(read('廈門航 東京5天')).toEqual({ names: ['東京'], dropped: [{ name: '廈門', rule: 'airline' }] });
+    });
+    it('a region name or the excluded Hong Kong before 航空 gives no stop either', () => {
+      expect(read('四川航空 東京5天')).toEqual({ names: ['東京'], dropped: [] });
+      expect(read('海南航空 東京5天')).toEqual({ names: ['東京'], dropped: [] });
+      expect(read('香港航空 東京5天')).toEqual({ names: ['東京'], dropped: [] });
+    });
+    it('only the attached mention is passed over: the same place on its own is a stop', () => {
+      expect(read('廈門航空 廈門5天')).toEqual({ names: ['廈門'], dropped: [] });
+    });
+    it('航 followed by anything but 空 inside the words is not an airline (珠海航展 is in Zhuhai)', () => {
+      expect(read('珠海航展2天', 2)).toEqual({ names: ['珠海'], dropped: [] });
+      expect(read('廈門航班直飛', 5).names).toEqual(['廈門']);
+    });
+    it('day headings are read as before: the rule is for fallback text only', () => {
+      expect(names(extractStops(['乘澳門航空'], places))).toEqual(['澳門']);
+    });
+  });
+
   describe('too far for the trip', () => {
     it('drops a stop outside the short-trip regions on a tour of at most 3 days', () => {
       expect(read('高山賞紅葉 中山', 3)).toEqual({ names: ['中山'], dropped: [{ name: '高山', rule: 'too-far' }] });

@@ -220,6 +220,12 @@ describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', 
     expect(r).toMatchObject({ ok: false, reason: 'no-stops', fallbackDropped: [{ name: '威尼斯', rule: 'comparison' }, { name: '高山', rule: 'too-far' }] });
     expect(r.unmatched).toEqual(normaliseTour({ ...base, ...noPlaces }, places, today).unmatched);
   });
+  it('lists an airline the rules passed over, and does not report it as unmatched', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, fallbackRoute: '澳門航空直飛京都5天' }, places, today);
+    expect(cityIds(r)).toEqual(['japan-kansai-kyoto']);
+    expect(r).toMatchObject({ fallbackDropped: [{ name: '澳門', rule: 'airline' }] });
+    expect(r.unmatched).toEqual(normaliseTour({ ...base, ...noPlaces }, places, today).unmatched);
+  });
   it('lists no drops when the rules drop nothing, and never for day headings', () => {
     expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都5天' }, places, today)).not.toHaveProperty('fallbackDropped');
     // the same comparison in a day heading is read as before: the rules are for fallback text only

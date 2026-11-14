@@ -103,6 +103,22 @@ const isComparison: Skip = (key, at, name) => {
 };
 
 /**
+ * Rule 4 (fallback text only, owner decision 2026-11-15): a place name directly followed by 航空 (`澳門航空`,
+ * `廈門航空公司`), or by 航 ending its words (`廈航`'s long form `廈門航`), names an airline, not where the tour goes.
+ * Derived from the name and the suffix, not from a list of airlines. 航 followed by anything else is left alone:
+ * `珠海航展` (the Zhuhai airshow) and `X航班` (a flight to X) are about the place. No name in the places data
+ * contains 航, so no real place is cut by the rule.
+ */
+const isAirline: Skip = (key, at, name) => {
+  const after = at + name.length;
+  return key.startsWith('航空', after) || (key.startsWith('航', after) && after + 1 === key.length);
+};
+
+/** A skip rule that passes over a name when any of the given rules does. */
+const anyOf = (rules: Skip[]): Skip | undefined =>
+  rules.length === 0 ? undefined : (key, at, name) => rules.some(rule => rule(key, at, name));
+
+/**
  * Cities whose name is the longest city name contained in the token; ties go to the earliest in the token.
  * A city name lying inside a notPlaces entry in the token does not count, nor one the skip rule passes over.
  */
@@ -171,6 +187,8 @@ function loneForeignStopAt(route: Stop[], isCollision: (stop: Stop) => boolean):
 export interface ExtractOptions {
   /** Fallback text only: a place name attached to a comparison marker is not a stop (COMPARISON_PREFIXES, …_SUFFIXES). */
   comparisonsAreNotPlaces?: boolean;
+  /** Fallback text only: a place name forming an airline's name is not a stop (isAirline). */
+  airlinesAreNotPlaces?: boolean;
 }
 
 /**
@@ -184,7 +202,10 @@ export function extractStops(
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
   options: ExtractOptions = {},
 ): StopsResult {
-  const skip = options.comparisonsAreNotPlaces === true ? isComparison : undefined;
+  const skip = anyOf([
+    ...(options.comparisonsAreNotPlaces === true ? [isComparison] : []),
+    ...(options.airlinesAreNotPlaces === true ? [isAirline] : []),
+  ]);
   const cityNames = containedNameList(index);
   const notPlaces = notPlaceList(index);
   const stops: Stop[] = [];
@@ -240,7 +261,7 @@ export function extractStops(
 }
 
 /** Why a route read from fallback text left a place out (see extractFallbackStops). */
-export type FallbackRule = 'comparison' | 'too-far' | 'lone-country';
+export type FallbackRule = 'comparison' | 'airline' | 'too-far' | 'lone-country';
 export interface FallbackDrop { name: string; rule: FallbackRule }
 export interface FallbackStopsResult { stops: Stop[]; dropped: FallbackDrop[] }
 
@@ -270,8 +291,9 @@ function loneStopOf(stops: Stop[], index: PlacesIndex): Stop | undefined {
 
 /**
  * The route fallback text names (ScrapedTour.fallbackRoute: a tour title, not a list of places): the day-heading
- * rules, then three more that day headings never get (owner request 2026-11-14), in this order:
+ * rules, then four more that day headings never get (owner requests 2026-11-14 and 15), in this order:
  * - comparisons are not places, while reading (COMPARISON_PREFIXES, COMPARISON_SUFFIXES: `廣東小香格里拉`);
+ * - airlines are not places, while reading (isAirline: `澳門航空`);
  * - too far for the trip: on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside SHORT_TRIP_REGION_IDS goes;
  * - a lone foreign stop (loneStopOf): the one place alone in its country, on a route with another country of two or
  *   more places, goes (one place in each of two countries stays).
@@ -294,10 +316,17 @@ export function extractFallbackStops(
     return withoutRepeats(stops.filter(keep));
   };
 
-  let stops = extractStops([text], index, excludeCityIds, { comparisonsAreNotPlaces: true }).stops;
-  // The comparisons: the places the same text gives when they are read as places, and not otherwise.
-  const kept = new Set(stops.map(stopKey));
-  for (const stop of extractStops([text], index, excludeCityIds).stops) if (!kept.has(stopKey(stop))) noteDrop(stop, 'comparison');
+  // The rules applied while reading, each in turn; a place one of them removes is one the text gives without it.
+  const read = (options: ExtractOptions) => extractStops([text], index, excludeCityIds, options).stops;
+  const noteRemoved = (before: Stop[], after: Stop[], rule: FallbackRule) => {
+    const kept = new Set(after.map(stopKey));
+    for (const stop of before) if (!kept.has(stopKey(stop))) noteDrop(stop, rule);
+  };
+  const plain = read({});
+  const withoutComparisons = read({ comparisonsAreNotPlaces: true });
+  noteRemoved(plain, withoutComparisons, 'comparison');
+  let stops = read({ comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
+  noteRemoved(withoutComparisons, stops, 'airline');
 
   if (days <= SHORT_TRIP_MAX_DAYS) stops = keepOnly(stops, stop => SHORT_TRIP_REGION_IDS.includes(stop.regionId), 'too-far');
 
