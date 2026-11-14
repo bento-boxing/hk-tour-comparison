@@ -1,7 +1,7 @@
 import type { Stop } from './types';
 import { normaliseName } from './places/index';
 import type { City, PlacesIndex, Region } from './places/index';
-import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS } from './places/short-trips';
+import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS, SHORT_TRIP_REGION_IDS_WITHOUT_CHINA } from './places/short-trips';
 
 export interface StopsResult { stops: Stop[]; unmatched: string[] }
 
@@ -95,11 +95,48 @@ const COMPARISON_SUFFIXES = ['風格', '式'];
 /** Opening quote marks that may stand between a prefix marker and the name (`版“茶卡鹽湖”`). */
 const OPENING_QUOTES = /[“‘"'「『《〈]+$/;
 
-/** True when the name at `at` is directly attached to a comparison marker. */
-const isComparison: Skip = (key, at, name) => {
-  const before = key.slice(0, at).replace(OPENING_QUOTES, '');
-  return COMPARISON_PREFIXES.some(marker => before.endsWith(marker))
-    || COMPARISON_SUFFIXES.some(marker => key.startsWith(marker, at + name.length));
+/** The prefix marker that counts only after a place name (`廣東版麗江古城`), not after an edition word (`豪華版大阪`). */
+const AFTER_A_PLACE_ONLY = '版';
+/** The longest place name looked for before 版, in characters. */
+const MAX_NAME_LENGTH = 12;
+
+/** Every normalised country, region and city name and alias of at least 2 characters. */
+function placeNameSet(index: PlacesIndex): Set<string> {
+  const names = new Set<string>();
+  for (const place of [...index.data.countries, ...index.data.regions, ...index.data.cities]) {
+    for (const name of [place.nameZh, ...place.aliases]) {
+      const key = normaliseName(name);
+      if ([...key].length >= 2) names.add(key);
+    }
+  }
+  return names;
+}
+
+/** True when `text` ends with a place name. */
+function endsWithPlaceName(text: string, placeNames: Set<string>): boolean {
+  for (let length = 2; length <= Math.min(MAX_NAME_LENGTH, text.length); length++) {
+    if (placeNames.has(text.slice(-length))) return true;
+  }
+  return false;
+}
+
+/**
+ * True when the name at `at` is directly attached to a comparison marker. 版 counts only right after a place name
+ * (`廣東版麗江古城`, `韓國版聖托里尼`): after an edition word (`豪華版大阪`, `精華版廣州`, `升級版桂林`) the place is
+ * where the tour goes (review of task 33, 2026-11-14).
+ */
+const comparisonRule = (index: PlacesIndex): Skip => {
+  let placeNames: Set<string> | undefined;
+  return (key, at, name) => {
+    const before = key.slice(0, at).replace(OPENING_QUOTES, '');
+    if (COMPARISON_SUFFIXES.some(marker => key.startsWith(marker, at + name.length))) return true;
+    return COMPARISON_PREFIXES.some(marker => {
+      if (!before.endsWith(marker)) return false;
+      if (marker !== AFTER_A_PLACE_ONLY) return true;
+      placeNames ??= placeNameSet(index);
+      return endsWithPlaceName(before.slice(0, -marker.length), placeNames);
+    });
+  };
 };
 
 /**
@@ -203,7 +240,7 @@ export function extractStops(
   options: ExtractOptions = {},
 ): StopsResult {
   const skip = anyOf([
-    ...(options.comparisonsAreNotPlaces === true ? [isComparison] : []),
+    ...(options.comparisonsAreNotPlaces === true ? [comparisonRule(index)] : []),
     ...(options.airlinesAreNotPlaces === true ? [isAirline] : []),
   ]);
   const cityNames = containedNameList(index);
@@ -294,7 +331,8 @@ function loneStopOf(stops: Stop[], index: PlacesIndex): Stop | undefined {
  * rules, then four more that day headings never get (owner requests 2026-11-14 and 15), in this order:
  * - comparisons are not places, while reading (COMPARISON_PREFIXES, COMPARISON_SUFFIXES: `廣東小香格里拉`);
  * - airlines are not places, while reading (isAirline: `澳門航空`);
- * - too far for the trip: on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside SHORT_TRIP_REGION_IDS goes;
+ * - too far for the trip: on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside SHORT_TRIP_REGION_IDS goes,
+ *   and so does one in SHORT_TRIP_REGION_IDS_WITHOUT_CHINA (Seoul, Busan) when the route has a China-group stop;
  * - a lone foreign stop (loneStopOf): the one place alone in its country, on a route with another country of two or
  *   more places, goes (one place in each of two countries stays).
  * Every place left out is listed once per rule, by name. Unmatched words are not returned: a title is not a list of
@@ -328,7 +366,12 @@ export function extractFallbackStops(
   let stops = read({ comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
   noteRemoved(withoutComparisons, stops, 'airline');
 
-  if (days <= SHORT_TRIP_MAX_DAYS) stops = keepOnly(stops, stop => SHORT_TRIP_REGION_IDS.includes(stop.regionId), 'too-far');
+  if (days <= SHORT_TRIP_MAX_DAYS) {
+    const hasChinaStop = stops.some(stop => index.country(stop.countryId)?.group === 'china');
+    const nearEnough = (stop: Stop) => SHORT_TRIP_REGION_IDS.includes(stop.regionId)
+      && !(hasChinaStop && SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.includes(stop.regionId));
+    stops = keepOnly(stops, nearEnough, 'too-far');
+  }
 
   const lone = loneStopOf(stops, index);
   if (lone !== undefined) stops = keepOnly(stops, stop => stopKey(stop) !== stopKey(lone), 'lone-country');

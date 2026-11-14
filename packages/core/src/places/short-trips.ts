@@ -21,3 +21,10 @@ export const SHORT_TRIP_REGION_IDS: readonly string[] = [
   'korea-seoul',
   'korea-busan',
 ];
+
+/**
+ * Of SHORT_TRIP_REGION_IDS, the ones kept only on a route with no China-group stop (mainland, Hong Kong, Macau,
+ * Taiwan): a short Seoul or Busan tour is a flight there, so a Korean word beside a Guangdong town (`中山溫泉
+ * 首爾炸雞`) is a dish or a likeness, not a second country on a 3-day coach trip (review of task 33, 2026-11-14).
+ */
+export const SHORT_TRIP_REGION_IDS_WITHOUT_CHINA: readonly string[] = ['korea-seoul', 'korea-busan'];

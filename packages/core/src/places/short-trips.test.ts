@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { places } from './index';
-import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS } from './short-trips';
+import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS, SHORT_TRIP_REGION_IDS_WITHOUT_CHINA } from './short-trips';
 
 describe('the short-trip regions (a fallback route\'s "too far for the trip" rule)', () => {
   it('every id is a region in the places data', () => {
@@ -8,6 +8,10 @@ describe('the short-trip regions (a fallback route\'s "too far for the trip" rul
   });
   it('lists each region once', () => {
     expect(new Set(SHORT_TRIP_REGION_IDS).size).toBe(SHORT_TRIP_REGION_IDS.length);
+  });
+  it('the regions kept only without a China-group stop are short-trip regions (Seoul, Busan)', () => {
+    expect(SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.filter(id => !SHORT_TRIP_REGION_IDS.includes(id))).toEqual([]);
+    expect(SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.map(id => places.region(id)?.countryId)).toEqual(['korea', 'korea']);
   });
   it('applies to tours of up to 3 days', () => {
     expect(SHORT_TRIP_MAX_DAYS).toBe(3);

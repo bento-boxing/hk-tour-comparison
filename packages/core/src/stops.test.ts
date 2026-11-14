@@ -490,6 +490,32 @@ describe('extractStops on crawled headings', () => {
   });
 });
 
+describe('Songdo: Incheon\'s and Busan\'s', () => {
+  it('reads Incheon\'s Songdo (its central park, its hanok village) as Incheon, in headings and titles', () => {
+    expect(extractStops(['仁川機場/ 乘坐松島公園水上的士/ 韓國傳統村落【松島韓屋村】 → 首爾'], places).stops.map(s => s.cityId))
+      .toEqual(['korea-seoul-incheon', 'korea-seoul-seoul']);
+    expect(extractStops(['首爾 → 松島中央公園'], places).stops.map(s => s.cityId)).toEqual(['korea-seoul-seoul', 'korea-seoul-incheon']);
+    expect(extractFallbackStops('仁川首爾 水原5天 松島公園 松島韓屋村', 5, places).stops.map(s => s.cityId))
+      .toEqual(['korea-seoul-incheon', 'korea-seoul-suwon', 'korea-seoul-incheon']);
+  });
+  it('still reads Busan\'s Songdo as Busan\'s', () => {
+    for (const heading of ['釜山 → 松島天空步道', '釜山 → 松島海水浴場', '釜山 → 松島']) {
+      expect(extractStops([heading], places).stops.map(s => s.cityId), heading).toContain('korea-busan-songdo');
+    }
+  });
+});
+
+describe('notPlaces guards found in title routes (task 34)', () => {
+  it('清邁小鎮 is a themed stop near Pattaya, not Chiang Mai', () => {
+    expect(names(extractStops(['曼谷 芭堤雅 清邁小鎮'], places))).toEqual(['曼谷', '芭堤雅']);
+    expect(names(extractStops(['清邁 古城'], places))).toEqual(['清邁']);
+  });
+  it('a dish named for a town is not a visit to it (台山滋味, 正宗順德, 中山特色)', () => {
+    expect(extractFallbackStops('台山滋味鵝宴 新會酒店2天', 2, places).stops.map(s => s.cityId)).toEqual(['china-guangdong-xinhui']);
+    expect(extractFallbackStops('正宗順德私房菜 中山特色魚 珠海酒店2天', 2, places).stops.map(s => s.cityId)).toEqual(['china-guangdong-zhuhai']);
+  });
+});
+
 describe('extractStops with notPlaces', () => {
   // 松山 is a city; 松山湖 contains it but is not it.
   const index = buildPlacesIndex({
@@ -547,6 +573,13 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     it('a prefix marker sees through opening quote marks (版“X”, 小《X》)', () => {
       expect(read('廣東版“麗江古城”').names).toEqual([]);
       expect(read('廣東小《香格里拉》').names).toEqual([]);
+    });
+    it('版X only after a place name: an edition word before 版 leaves the place a stop', () => {
+      expect(read('豪華版大阪6天', 6)).toEqual({ names: ['大阪'], dropped: [] });
+      expect(read('精華版廣州2天', 2)).toEqual({ names: ['廣州'], dropped: [] });
+      expect(read('升級版桂林 陽朔', 5)).toEqual({ names: ['桂林', '陽朔'], dropped: [] });
+      expect(read('日本版威尼斯')).toEqual({ names: [], dropped: [{ name: '威尼斯', rule: 'comparison' }] });
+      expect(read('中山版“小阿勒泰”').names).toEqual(['中山']);
     });
     it('X版 is read as a place: X is where the tour goes, what follows the likeness (陽朔版“千裡江山圖”)', () => {
       expect(read('京都版清明上河圖').names).toEqual(['京都']);
@@ -609,6 +642,17 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     it('drops a stop outside the short-trip regions on a tour of at most 3 days', () => {
       expect(read('高山賞紅葉 中山', 3)).toEqual({ names: ['中山'], dropped: [{ name: '高山', rule: 'too-far' }] });
       expect(read('高山賞紅葉', 1)).toEqual({ names: [], dropped: [{ name: '高山', rule: 'too-far' }] });
+    });
+    it('drops a Korean stop on a short trip that also has a China-group stop (a word, not a flight)', () => {
+      expect(read('中山溫泉 首爾炸雞', 3)).toEqual({ names: ['中山'], dropped: [{ name: '首爾', rule: 'too-far' }] });
+      expect(read('澳門 釜山魚餅2天', 2)).toEqual({ names: ['澳門'], dropped: [{ name: '釜山', rule: 'too-far' }] });
+    });
+    it('keeps Seoul and Busan on a short trip with no China-group stop', () => {
+      expect(read('首爾 水原3天', 3)).toEqual({ names: ['首爾', '水原'], dropped: [] });
+      expect(read('釜山 慶州3天', 3)).toEqual({ names: ['釜山', '慶州'], dropped: [] });
+    });
+    it('keeps a Korean stop beside a China-group one on a longer tour', () => {
+      expect(read('中山 首爾', 4).names).toEqual(['中山', '首爾']);
     });
     it('keeps it on a tour of 4 days or more', () => {
       expect(read('高山賞紅葉', 4)).toEqual({ names: ['高山'], dropped: [] });
