@@ -32,9 +32,11 @@ export interface FetcherOptions {
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
   /**
-   * Extra request headers by host name (`api.example.com`, any case): sent on every page request (GET or
-   * POST) to exactly that host, never to any other host, not even a redirect hop to one (each hop is
-   * matched on its own host), and never on robots.txt. They cannot replace the User-Agent (or a POST's
+   * Extra request headers by host name (`api.example.com`, any case), which means `https://` on the
+   * default port only, or by an exact http(s) origin (`http://127.0.0.1:8080`, for tests). Sent on every
+   * page request (GET or POST) to exactly that origin, never to any other: not to the host over `http://`
+   * or on another port, not to another host, not even on a redirect hop (each hop is matched on its own
+   * origin), and never on robots.txt. They cannot replace the User-Agent (or a POST's
    * Content-Type). Headers that cannot be sent (an invalid name or value, or one that throws when read)
    * fail that one request, logged, without sending it; it is not retried.
    */
@@ -135,6 +137,22 @@ function httpUrl(url: string, base?: URL): URL | null {
   }
 }
 
+/** A bare host name, as an extraHeaders key. */
+const HOST_NAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+
+/**
+ * The origin an extraHeaders key names: `https://<host>` (default port) for a bare host name, or the key's
+ * own origin for an http(s) origin. Throws for anything else, so a mistyped key cannot widen where headers go.
+ */
+function headersOrigin(key: string): string {
+  if (HOST_NAME.test(key)) return `https://${key.toLowerCase()}`;
+  const origin = httpUrl(key);
+  if (origin === null || !key.includes('://') || origin.href.replace(/\/$/, '') !== origin.origin) {
+    throw new Error(`extraHeaders key ${JSON.stringify(key)} is neither a host name nor an origin`);
+  }
+  return origin.origin;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
@@ -152,7 +170,8 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
   /** By lower-cased host name. */
-  const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([host, headers]) => [host.toLowerCase(), headers]));
+  /** By origin. */
+  const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([key, headers]) => [headersOrigin(key), headers]));
 
   const queues = new Map<string, SiteQueue>();              // by site
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
@@ -193,7 +212,7 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
    * when the extra headers cannot be sent.
    */
   function headersFor(url: URL, isPage: boolean, post: boolean): Headers {
-    const headers = new Headers(isPage ? extraHeaders.get(url.hostname.toLowerCase()) : undefined);
+    const headers = new Headers(isPage ? extraHeaders.get(url.origin) : undefined);
     if (post) headers.set('content-type', 'application/json');
     headers.set('user-agent', userAgent);
     return headers;

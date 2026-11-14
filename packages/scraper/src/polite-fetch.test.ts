@@ -531,14 +531,17 @@ it('fetchBytes returns the exact bytes, through the same robots.txt check, queue
   expectSpacedAndSerial(main.requests, 190);
 });
 
+/** The origin of a test server's URL: an exact origin key, since a bare host name means https only. */
+const originOf = (serverUrl: string) => new URL(serverUrl).origin;
+
 /**
- * A fetcher that adds `x-site-key: k1` to every page request to the host 127.0.0.1 (the main server's),
- * and tries (and fails) to replace the User-Agent there.
+ * A fetcher that adds `x-site-key: k1` to every page request to the origin `origin` (by default the main
+ * server's), and tries (and fails) to replace the User-Agent there.
  */
-function fetcherWithExtraHeaders(): PoliteFetcher {
+function fetcherWithExtraHeaders(origin = originOf(url('/'))): PoliteFetcher {
   return createFetcher({
     userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
-    extraHeaders: { '127.0.0.1': { 'x-site-key': 'k1', 'User-Agent': 'Mozilla/5.0 pretend' } },
+    extraHeaders: { [origin]: { 'x-site-key': 'k1', 'User-Agent': 'Mozilla/5.0 pretend' } },
   });
 }
 
@@ -556,7 +559,7 @@ it('extraHeaders never go to another host, even when a redirect leads there, nor
   const hopping = await startServer((req, res) =>
     (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: elsewhere.url('/a') })));
   try {
-    const h = fetcherWithExtraHeaders();
+    const h = fetcherWithExtraHeaders(originOf(hopping.url('/')));
     expect(await h.fetchText(hopping.url('/go'))).toBe('elsewhere/a');
     expect(hopping.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([['/robots.txt', undefined], ['/go', 'k1']]);
     expect(elsewhere.requests.map(r => [r.path, r.headers['x-site-key']])).toEqual([['/robots.txt', undefined], ['/a', undefined]]);
@@ -568,13 +571,44 @@ it('extraHeaders never go to another host, even when a redirect leads there, nor
   }
 });
 
-it('extraHeaders are declared by host name, matched whatever its case', async () => {
-  const h = createFetcher({
-    userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
-    extraHeaders: { LocalHost: { 'x-site-key': 'k2' } },
-  });
+it('a host-name key means https on the default port only: an http:// request to that host gets none', async () => {
   const local = await startServer((req, res) => send(res, req.url === '/robots.txt' ? 404 : 200, 'ok'), 'localhost');
   try {
+    const h = createFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
+      extraHeaders: { LocalHost: { 'x-site-key': 'k2' } },
+    });
+    expect(await h.fetchText(local.url('/a'))).toBe('ok');
+    expect(await h.postJson(local.url('/b'), {})).toBe('ok');
+    expect(local.requests.map(r => r.headers['x-site-key'])).toEqual([undefined, undefined, undefined]);
+  } finally {
+    await local.close();
+  }
+});
+
+it('a redirect to http:// on the same host, or to another port of it, gets none of an origin\'s headers', async () => {
+  await withSecondPort(async other => {
+    const hopping = await startServer((req, res) =>
+      (req.url === '/robots.txt' ? send(res, 200, 'User-agent: *\nDisallow:') : send(res, 302, '', { location: other.url('/a') })));
+    try {
+      const h = fetcherWithExtraHeaders(originOf(hopping.url('/')));
+      expect(await h.fetchText(hopping.url('/go'))).toBe('other/a');
+      expect(hopping.requests.find(r => r.path === '/go')!.headers['x-site-key']).toBe('k1');
+      expect(other.requests.find(r => r.path === '/a')!.headers['x-site-key']).toBeUndefined();
+    } finally {
+      await hopping.close();
+    }
+  });
+});
+
+it('an origin key is matched exactly, its host whatever its case', async () => {
+  const local = await startServer((req, res) => send(res, req.url === '/robots.txt' ? 404 : 200, 'ok'), 'localhost');
+  try {
+    const port = new URL(local.url('/')).port;
+    const h = createFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
+      extraHeaders: { [`http://LocalHost:${port}`]: { 'x-site-key': 'k2' } },
+    });
     expect(await h.fetchText(local.url('/a'))).toBe('ok');
     expect(await h.fetchText(url('/a'))).toBe('ok-a');
     expect(local.requests.map(r => r.headers['x-site-key'])).toEqual([undefined, 'k2']);
@@ -583,6 +617,11 @@ it('extraHeaders are declared by host name, matched whatever its case', async ()
     await local.close();
   }
 });
+
+it.each(['example.com:8443', 'example.com/path', 'not a host', 'ftp://example.com'])(
+  'refuses an extraHeaders key that is neither a host name nor an http(s) origin: %s', key => {
+    expect(() => createFetcher({ extraHeaders: { [key]: { 'x-site-key': 'k' } } })).toThrow(/neither a host name nor an origin/);
+  });
 
 describe('extraHeaders that cannot be sent', () => {
   const throwing = {} as Record<string, string>;
@@ -593,7 +632,7 @@ describe('extraHeaders that cannot be sent', () => {
     ['a value that throws when read', throwing],
   ])('fail that request once, logged, with nothing sent, and the queue keeps going: %s', async (_name, headers) => {
     const h = createFetcher({
-      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line), extraHeaders: { '127.0.0.1': headers },
+      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line), extraHeaders: { [originOf(url('/'))]: headers },
     });
     expect(await h.fetchText(url('/a'))).toBeNull();
     expect(await h.postJson(url('/echo'), {})).toBeNull();
@@ -611,7 +650,7 @@ describe('extraHeaders that cannot be sent', () => {
   it('do not break the site\'s queue: requests queued behind one each fail once, in turn', async () => {
     const h = createFetcher({
       userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
-      extraHeaders: { '127.0.0.1': { 'x-site-key': 'bad\nvalue' } },
+      extraHeaders: { [originOf(url('/'))]: { 'x-site-key': 'bad\nvalue' } },
     });
     const answers = await Promise.all([h.fetchText(url('/a')), h.postJson(url('/echo'), {}), h.fetchBytes(url('/b'))]);
     expect(answers).toEqual([null, null, null]);
