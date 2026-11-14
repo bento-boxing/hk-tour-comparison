@@ -997,7 +997,7 @@
     { "id": "czech-czech-brno", "regionId": "czech-czech", "nameZh": "布爾諾", "nameEn": "Brno", "aliases": [] },
     { "id": "czech-czech-telc", "regionId": "czech-czech", "nameZh": "泰爾奇", "nameEn": "Telč", "aliases": [] },
     { "id": "czech-czech-pilsen", "regionId": "czech-czech", "nameZh": "皮爾森", "nameEn": "Pilsen", "aliases": [] },
-    { "id": "czech-czech-ceske-budejovice", "regionId": "czech-czech", "nameZh": "布傑約維策", "nameEn": "České Budějovice", "aliases": [] },
+    { "id": "czech-czech-ceske-budejovice", "regionId": "czech-czech", "nameZh": "布傑約維策", "nameEn": "České Budějovice", "aliases": ["布達賀維策", "布傑賀維策"] },
 
     { "id": "hungary-hungary-budapest", "regionId": "hungary-hungary", "nameZh": "布達佩斯", "nameEn": "Budapest", "aliases": [] },
     { "id": "hungary-hungary-szentendre", "regionId": "hungary-hungary", "nameZh": "森檀德", "nameEn": "Szentendre", "aliases": ["聖坦德"] },
@@ -1042,7 +1042,7 @@
     { "id": "serbia-serbia-belgrade", "regionId": "serbia-serbia", "nameZh": "貝爾格萊德", "nameEn": "Belgrade", "aliases": ["貝爾格勒"] },
     { "id": "serbia-serbia-novi-sad", "regionId": "serbia-serbia", "nameZh": "諾維薩德", "nameEn": "Novi Sad", "aliases": ["諾域錫"] },
     { "id": "serbia-serbia-zlatibor", "regionId": "serbia-serbia", "nameZh": "茲拉蒂博爾", "nameEn": "Zlatibor", "aliases": ["兹拉蒂博爾"] },
-    { "id": "serbia-serbia-nis", "regionId": "serbia-serbia", "nameZh": "尼什", "nameEn": "Niš", "aliases": [] },
+    { "id": "serbia-serbia-nis", "regionId": "serbia-serbia", "nameZh": "尼什", "nameEn": "Niš", "aliases": ["尼殊"] },
 
     { "id": "bulgaria-bulgaria-sofia", "regionId": "bulgaria-bulgaria", "nameZh": "索菲亞", "nameEn": "Sofia", "aliases": ["索非亞"] },
     { "id": "bulgaria-bulgaria-plovdiv", "regionId": "bulgaria-bulgaria", "nameZh": "普洛第夫", "nameEn": "Plovdiv", "aliases": ["普羅夫迪夫"] },
@@ -1194,7 +1194,7 @@
     { "id": "portugal-portugal-evora", "regionId": "portugal-portugal", "nameZh": "埃武拉", "nameEn": "Évora", "aliases": [] },
     { "id": "portugal-portugal-aveiro", "regionId": "portugal-portugal", "nameZh": "阿威羅", "nameEn": "Aveiro", "aliases": ["亞威羅", "阿維羅"] },
     { "id": "portugal-portugal-cascais", "regionId": "portugal-portugal", "nameZh": "卡斯凱什", "nameEn": "Cascais", "aliases": [] },
-    { "id": "portugal-portugal-obidos", "regionId": "portugal-portugal", "nameZh": "歐比多斯", "nameEn": "Óbidos", "aliases": ["奧比都斯"] },
+    { "id": "portugal-portugal-obidos", "regionId": "portugal-portugal", "nameZh": "歐比多斯", "nameEn": "Óbidos", "aliases": ["奧比都斯", "奥比都斯"] },
     { "id": "portugal-portugal-coimbra", "regionId": "portugal-portugal", "nameZh": "科英布拉", "nameEn": "Coimbra", "aliases": [] },
     { "id": "portugal-portugal-braga", "regionId": "portugal-portugal", "nameZh": "布拉加", "nameEn": "Braga", "aliases": [] },
     { "id": "portugal-portugal-guimaraes", "regionId": "portugal-portugal", "nameZh": "吉馬良斯", "nameEn": "Guimarães", "aliases": [] },
@@ -1317,7 +1317,7 @@
     { "id": "lithuania-lithuania-kaunas", "regionId": "lithuania-lithuania", "nameZh": "考納斯", "nameEn": "Kaunas", "aliases": [] },
 
     { "id": "poland-poland-warsaw", "regionId": "poland-poland", "nameZh": "華沙", "nameEn": "Warsaw", "aliases": [] },
-    { "id": "poland-poland-krakow", "regionId": "poland-poland", "nameZh": "克拉科夫", "nameEn": "Kraków", "aliases": [] },
+    { "id": "poland-poland-krakow", "regionId": "poland-poland", "nameZh": "克拉科夫", "nameEn": "Kraków", "aliases": ["克拉克夫"] },
     { "id": "poland-poland-oswiecim", "regionId": "poland-poland", "nameZh": "奧斯威辛", "nameEn": "Oświęcim", "aliases": [] },
     { "id": "poland-poland-zakopane", "regionId": "poland-poland", "nameZh": "札科帕內", "nameEn": "Zakopane", "aliases": [] },
     { "id": "poland-poland-wieliczka", "regionId": "poland-poland", "nameZh": "維利奇卡", "nameEn": "Wieliczka", "aliases": [] },
@@ -1792,7 +1792,7 @@
     { "id": "uruguay-uruguay-montevideo", "regionId": "uruguay-uruguay", "nameZh": "蒙特維多", "nameEn": "Montevideo", "aliases": ["蒙得維的亞"] },
     { "id": "falkland-islands-falkland-islands-stanley", "regionId": "falkland-islands-falkland-islands", "nameZh": "史丹尼港", "nameEn": "Stanley", "aliases": [] },
     { "id": "namibia-namibia-windhoek", "regionId": "namibia-namibia", "nameZh": "溫荷克", "nameEn": "Windhoek", "aliases": ["溫得和克"] },
-    { "id": "namibia-namibia-sossusvlei", "regionId": "namibia-namibia", "nameZh": "蘇雪威里", "nameEn": "Sossusvlei", "aliases": [] },
+    { "id": "namibia-namibia-sossusvlei", "regionId": "namibia-namibia", "nameZh": "蘇雪威里", "nameEn": "Sossusvlei", "aliases": ["索蘇斯"] },
     { "id": "namibia-namibia-swakopmund", "regionId": "namibia-namibia", "nameZh": "斯瓦科普蒙德", "nameEn": "Swakopmund", "aliases": [] },
     { "id": "namibia-namibia-walvis-bay", "regionId": "namibia-namibia", "nameZh": "鯨港灣", "nameEn": "Walvis Bay", "aliases": [] },
     { "id": "namibia-namibia-spitzkoppe", "regionId": "namibia-namibia", "nameZh": "史匹茲柯普", "nameEn": "Spitzkoppe", "aliases": [] },
@@ -1853,8 +1853,10 @@
     { "id": "china-guangdong-hengqin", "regionId": "china-guangdong", "nameZh": "橫琴", "nameEn": "Hengqin", "aliases": [] },
     { "id": "china-guangdong-sihui", "regionId": "china-guangdong", "nameZh": "四會", "nameEn": "Sihui", "aliases": [] },
     { "id": "china-guangdong-xinfeng", "regionId": "china-guangdong", "nameZh": "新豐", "nameEn": "Xinfeng", "aliases": [] },
-    { "id": "china-guangdong-lufeng", "regionId": "china-guangdong", "nameZh": "陸豐", "nameEn": "Lufeng", "aliases": [] }
+    { "id": "china-guangdong-lufeng", "regionId": "china-guangdong", "nameZh": "陸豐", "nameEn": "Lufeng", "aliases": [] },
+
+    { "id": "norway-norway-narvik", "regionId": "norway-norway", "nameZh": "納爾維克", "nameEn": "Narvik", "aliases": ["那維克"] }
   ],
-  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾", "聖保羅大教堂", "聖保羅教堂", "聖保羅醫院", "聖保羅舊城", "加勒菲斯", "孟菲斯"],
-  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖", "聖保羅"]
+  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾", "聖保羅大教堂", "聖保羅教堂", "聖保羅醫院", "聖保羅舊城", "加勒菲斯", "孟菲斯", "臥龍潭", "臥龍灣", "臥龍峽谷", "臥龍書院", "臥龍崗", "臥龍寺", "普洱茶", "新北海賓館", "高山流水", "高山綠洲", "高山草原", "高山紅楓", "高山動物園", "最高山", "高山牧場", "高山平原", "高山冰雪", "高山中心", "埃沃內斯機場"],
+  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖", "聖保羅", "高山"]
 }

@@ -415,6 +415,44 @@ describe('extractStops on crawled headings', () => {
     expect(names(extractStops(headings, places))).toEqual(expectedNames);
   });
 
+  // The Big Line places pass (2026-11-14) and its review: short names inside longer words, and the new names.
+  it.each([
+    [['羅弗敦群島 ~ 納爾維克'], ['羅弗敦群島', '納爾維克']],                    // Narvik, not Vík (Iceland)
+    [['那維克 ~ 那維克戰争博物館'], ['納爾維克']],                              // Big Line's spelling of Narvik
+    [['荔波 ~ 觀臥龍潭'], ['荔波']],                                            // a pool at Libo, not Wolong
+    [['喀納斯 ~ 臥龍灣'], ['喀納斯']],                                          // a bay at Kanas
+    [['贛州 ~ 臥龍峽谷'], ['贛州']],
+    [['漳州 ~ 出片率極佳·臥龍書院'], ['漳州']],
+    [['樂山 ~ 臥龍 ~ 四姑娘山'], ['樂山', '臥龍', '四姑娘山']],                  // Wolong itself still matches
+    [['昆明 ~ 普洱茶廠'], ['昆明']],                                            // tea, not Pu'er the city
+    [['溫荷克 ~ 索蘇斯 ~ 紅沙漠'], ['溫荷克', '蘇雪威里']],                    // Sossusvlei, not Sousse
+    [['黃山 ~ 100%入住山頂最新北海賓館 ~ 屯溪'], ['黃山', '屯溪']],               // a hotel, not New Taipei or Beihai
+    [['凱里 ~ 高山流水等苗族最崇高代客禮儀 ~ 貴陽'], ['凱里', '貴陽']],           // an idiom, not Takayama
+    [['河內 ~ 越南最高山峰'], ['河內']],
+    [['高山小京都 ~ 高山宮川朝市'], ['高山']],                                  // Takayama itself still matches
+    [['斯沃爾韋爾 ~ (車程約4小時)埃沃內斯機場 ~ (內陸機)奧斯陸'], ['斯沃爾韋爾', '奧斯陸']], // Evenes only as the airport
+    [['奧斯陸 ~ 埃沃內斯 ~ 斯沃爾韋爾'], ['奧斯陸', '埃沃內斯', '斯沃爾韋爾']],    // Evenes as a stop stays
+    [['波德戈里察 ~ 尼殊 ~ 貝爾格萊德'], ['波德戈里察', '尼什', '貝爾格萊德']],
+    [['加勒菲斯綠地廣場 ~ 康提'], ['康提']],                                    // Galle Face Green (Colombo), not Galle or Fes
+    [['馬六甲 ~ 聖保羅教堂'], ['馬六甲']],                                      // St Paul's, Malacca, not São Paulo
+    [['伊瓜蘇 ~ 聖保羅 ~ 里約熱內盧'], ['伊瓜蘇', '聖保羅', '里約熱內盧']],
+    [['安曼 ~ 伯特拉古城 ~ 瓦地倫'], ['安曼', '佩特拉', '瓦迪倫']],
+  ])('Big Line pass: reads %j as %j', (headings, expectedNames) => {
+    expect(names(extractStops(headings, places))).toEqual(expectedNames);
+  });
+
+  it('drops 高山 (Takayama) as a lone foreign stop on a Guizhou route, and reports it', () => {
+    const r = extractStops(['都勻 ~ 荔波 ~ 凱里 ~ 高山 ~ 貴陽'], places);
+    expect(names(r)).toEqual(['都勻', '荔波', '凱里', '貴陽']);
+    expect(r.unmatched).toContain('高山');
+  });
+
+  it('drops 聖保羅 as a lone foreign stop on a France route (Saint-Paul-de-Vence), and reports it', () => {
+    const r = extractStops(['巴黎 ~ 里昂 ~ 聖保羅 ~ 馬賽'], places);
+    expect(names(r)).toEqual(['巴黎', '里昂', '馬賽']);
+    expect(r.unmatched).toContain('聖保羅');
+  });
+
   it('drops 千島湖 on a Canada route as a lone foreign stop (the Thousand Islands), and reports it', () => {
     const r = extractStops(['多倫多 ~ 千島湖遊船 ~ 渥太華 ~ 滿地可 ~ 魁北克'], places);
     expect(names(r)).toEqual(['多倫多', '渥太華', '滿地可', '魁北克']);
