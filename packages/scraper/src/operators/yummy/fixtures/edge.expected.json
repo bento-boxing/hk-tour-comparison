@@ -70,7 +70,8 @@
         "date": "2027-03-18",
         "priceHkd": 5599
       }
-    ]
+    ],
+    "dropRegionWithListedCity": true
   },
   "stopNames": [
     "東京"

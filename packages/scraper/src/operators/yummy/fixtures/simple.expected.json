@@ -112,7 +112,8 @@
         "date": "2026-12-29",
         "priceHkd": 699
       }
-    ]
+    ],
+    "dropRegionWithListedCity": true
   },
   "stopNames": [
     "清遠"

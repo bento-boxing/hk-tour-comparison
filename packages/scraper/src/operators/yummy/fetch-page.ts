@@ -46,6 +46,9 @@ function read(text: string): { json: Record<string, unknown> } | { why: string }
   return { why: `the API answered code ${code}` };
 }
 
+/** One kind of request's refusals in a row: only a success of the same kind starts the count again. */
+interface RefusalCount { what: string; inARow: number }
+
 /**
  * Yummy Holiday's fetchPage: one tour's detail, then its dates, each a plain GET through the run's fetcher
  * (which spaces, checks and logs every request), with no extra headers. Only the public facts (public.ts) are
@@ -54,38 +57,43 @@ function read(text: string): { json: Record<string, unknown> } | { why: string }
  *   dates are not requested when the detail got none.
  * - It throws (also counted as not fetched, with the reason in the run's log) when an answer is not JSON or
  *   carries a code other than 1.
- * - Every answer that is not a success (none, not JSON, another code) counts toward one count of refusals in
- *   a row; any success starts it again. At MAX_CONSECUTIVE_PUSHBACK, nothing more is sent for the rest of the
- *   process: nothing is retried, escalated or varied.
+ * - Refusals are counted separately for the details and for the dates, each in a row and started again only by a
+ *   success of its own kind, so details that answer cannot hide refused dates (or the other way round). A refusal
+ *   is any answer that is not a success: none, not JSON, or a code other than 1. When either count reaches
+ *   MAX_CONSECUTIVE_PUSHBACK, nothing more is sent for the rest of the process (no detail, no dates): nothing is
+ *   retried, escalated or varied.
  */
 export function createFetchPage(): (fetcher: Fetcher, url: string, today: IsoDate) => Promise<string | null> {
-  let refusedInARow = 0;
+  const detailRefusals: RefusalCount = { what: 'tour detail', inARow: 0 };
+  const datesRefusals: RefusalCount = { what: 'dates', inARow: 0 };
 
   /** The answer's JSON, or null for no answer; throws for an answer that is not a success. */
-  async function answer(request: Promise<string | null>, what: string): Promise<Record<string, unknown> | null> {
+  async function answer(request: Promise<string | null>, count: RefusalCount): Promise<Record<string, unknown> | null> {
     const text = await request;
     if (text === null) {
-      refusedInARow++;
+      count.inARow++;
       return null;
     }
     const result = read(text);
     if ('json' in result) {
-      refusedInARow = 0;
+      count.inARow = 0;
       return result.json;
     }
-    refusedInARow++;
-    throw new Error(`${what}: ${result.why}`);
+    count.inARow++;
+    throw new Error(`${count.what}: ${result.why}`);
   }
 
   return async (fetcher, url) => {
-    if (refusedInARow >= MAX_CONSECUTIVE_PUSHBACK) {
-      throw new Error(`not requested: the Yummy Holiday API refused ${MAX_CONSECUTIVE_PUSHBACK} requests in a row`);
+    for (const count of [detailRefusals, datesRefusals]) {
+      if (count.inARow >= MAX_CONSECUTIVE_PUSHBACK) {
+        throw new Error(`not requested: the Yummy Holiday API refused ${MAX_CONSECUTIVE_PUSHBACK} ${count.what} requests in a row`);
+      }
     }
     const id = tourIdOf(url);
     if (id === null) throw new Error('not a Yummy Holiday tour page');
-    const detail = await answer(fetcher.fetchText(detailUrl(id)), 'tour detail');
+    const detail = await answer(fetcher.fetchText(detailUrl(id)), detailRefusals);
     if (detail === null) return null;
-    const dates = await answer(fetcher.fetchText(datesUrl(id)), 'dates');
+    const dates = await answer(fetcher.fetchText(datesUrl(id)), datesRefusals);
     if (dates === null) return null;
     return joinTour({ detail: publicDetail(detail), dates: publicDates(dates) });
   };

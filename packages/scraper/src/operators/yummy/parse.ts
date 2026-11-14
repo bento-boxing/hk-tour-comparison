@@ -44,14 +44,14 @@ function price(value: unknown): number | null {
 /** The title the tour page shows: `website_name` when `is_website_name` is 1 and it has text, else `name`. */
 function title(data: JsonObject): string {
   const websiteName = clean(data.website_name);
-  return (data.is_website_name === 1 || data.is_website_name === '1') && websiteName !== '' ? websiteName : clean(data.name);
+  return data.is_website_name === 1 && websiteName !== '' ? websiteName : clean(data.name);
 }
 
 /**
  * The tour's city list (`日本,東京,富士`), one name per entry in the operator's order, for the shared place
  * matching. Yummy Holiday has no day headings (owner decision 2026-11-14: reduced fields), so these stand in
  * for them; the shared rules read each entry as they would a heading's piece, a country name (`日本`) giving no
- * stop.
+ * stop, and a province giving none when one of its cities is listed (see dropRegionWithListedCity below).
  */
 function cityList(distList: unknown): string[] {
   return typeof distList === 'string'
@@ -130,6 +130,9 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     endPoint: null,
     fromPriceHkd: price(data.price),
     departures,
+    // Owner decision 2026-11-14: the list is a set of place tags, and a province given beside its own cities
+    // (`雲南,大理,瀘沽湖,麗江,昆明`) is not a stop of its own; normaliseTour drops it, wherever it sits.
+    dropRegionWithListedCity: true,
   };
 }
 

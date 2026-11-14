@@ -82,8 +82,47 @@ describe('fetchPage', () => {
     await expect(run(fetcher, pageOf(3))).rejects.toThrow(/code 0/);
     expect(await run(fetcher, pageOf(4))).toBeNull(); // no answer
     const before = asked.length;
-    await expect(run(fetcher, pageOf(1))).rejects.toThrow(/not requested: the Yummy Holiday API refused 3 requests in a row/);
+    await expect(run(fetcher, pageOf(1))).rejects.toThrow(/not requested: the Yummy Holiday API refused 3 tour detail requests in a row/);
     expect(asked).toHaveLength(before);
+  });
+  it(`stops after the ${MAX_CONSECUTIVE_PUSHBACK}rd refused dates request, though every detail answers`, async () => {
+    // Each detail's success must not start the dates count again (fix round 1: one shared count went 0,1,0,1).
+    const run = fetchPage();
+    const answers: Record<string, unknown> = {};
+    for (const id of [1, 2, 3, 4, 5]) answers[detailUrl(String(id))] = rawDetail({ id });
+    answers[datesUrl('1')] = '<html>blocked</html>'; // not JSON
+    answers[datesUrl('2')] = { code: 0 }; // an error code
+    // dates for 3: no answer (a 429 or 403 reaches fetchPage as null)
+    answers[datesUrl('4')] = rawDates([rawGroup('2026-12-10')]);
+    const { fetcher, asked } = fakeFetcher(answers);
+    await expect(run(fetcher, pageOf(1))).rejects.toThrow(/dates: the answer is not JSON/);
+    await expect(run(fetcher, pageOf(2))).rejects.toThrow(/dates: the API answered code 0/);
+    expect(await run(fetcher, pageOf(3))).toBeNull();
+    for (const id of [4, 5]) {
+      await expect(run(fetcher, pageOf(id))).rejects.toThrow(/not requested: the Yummy Holiday API refused 3 dates requests in a row/);
+    }
+    expect(asked).toEqual([detailUrl('1'), datesUrl('1'), detailUrl('2'), datesUrl('2'), detailUrl('3'), datesUrl('3')]);
+  });
+  it(`stops after the ${MAX_CONSECUTIVE_PUSHBACK}rd refused detail request (the mirror case), sending no dates request`, async () => {
+    const run = fetchPage();
+    const { fetcher, asked } = fakeFetcher({ ...goodAnswers(4), [detailUrl('1')]: '<html>blocked</html>', [detailUrl('2')]: { code: 0 } });
+    await expect(run(fetcher, pageOf(1))).rejects.toThrow(/tour detail: the answer is not JSON/);
+    await expect(run(fetcher, pageOf(2))).rejects.toThrow(/tour detail: the API answered code 0/);
+    expect(await run(fetcher, pageOf(3))).toBeNull();
+    await expect(run(fetcher, pageOf(4))).rejects.toThrow(/refused 3 tour detail requests in a row/);
+    expect(asked).toEqual([detailUrl('1'), detailUrl('2'), detailUrl('3')]);
+  });
+  it('keeps the two counts apart: a refusal of one kind never adds to the other kind\'s count', async () => {
+    const run = fetchPage();
+    const { fetcher, asked } = fakeFetcher({ ...goodAnswers(1), [detailUrl('5')]: rawDetail({ id: 5 }), [datesUrl('5')]: { code: 0 } });
+    for (const id of [2, 2]) expect(await run(fetcher, pageOf(id))).toBeNull(); // details refused: 1, 2
+    for (const id of [5, 5]) await expect(run(fetcher, pageOf(id))).rejects.toThrow(/dates/); // details 0; dates refused: 1, 2
+    for (const id of [2, 2]) expect(await run(fetcher, pageOf(id))).toBeNull(); // details refused: 1, 2 (still requested)
+    await expect(run(fetcher, pageOf(5))).rejects.toThrow(/dates: the API answered code 0/); // details 0; dates 3
+    const before = asked.length;
+    await expect(run(fetcher, pageOf(1))).rejects.toThrow(/refused 3 dates requests in a row/);
+    expect(asked).toHaveLength(before);
+    expect(before).toBe(2 + 4 + 2 + 2);
   });
   it('starts the count again after an answer', async () => {
     const run = fetchPage();

@@ -70,10 +70,11 @@ export function publicDates(response: unknown): PublicDates {
   };
 }
 
-export interface PublicListing { code: Plain; data: { total: Plain; last_page: Plain; page: Plain; rows: PublicTour[] } | null }
+export interface PublicListing { code: Plain; data: { total: Plain; last_page: Plain; rows: PublicTour[] } | null }
 
 /**
- * The public facts of the listing (`GET /bussiness/line/index?limit=500`): its counts, and each row's tour facts.
+ * The public facts of the listing (`GET /bussiness/line/index?limit=500`): the two counts discovery checks (`total`,
+ * `last_page`), and each row's tour facts.
  * The rows' departures (`group_list`) are not kept: the dates come from each tour's own dates answer.
  */
 export function publicListing(response: unknown): PublicListing {
@@ -84,7 +85,7 @@ export function publicListing(response: unknown): PublicListing {
   return {
     code,
     data: {
-      total: plain(data.total), last_page: plain(data.last_page), page: plain(data.page),
+      total: plain(data.total), last_page: plain(data.last_page),
       rows: data.rows.map(row => publicTour(objectAt(row))),
     },
   };

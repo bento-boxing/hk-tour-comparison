@@ -65,7 +65,7 @@ describe('the tour', () => {
     expect(tourOf(rawDetail())).toEqual({
       operatorId: 'yummy', code: 'AA-J-TD05', url: PAGE, title: '【關東巡遊】東京・富士・鎌倉古都(紅葉)溫泉五天團', days: 5,
       nights: null, dayHeadings: ['日本', '東京', '富士'], startPoint: null, endPoint: null, fromPriceHkd: 5399,
-      departures: [{ date: '2026-12-10', priceHkd: 5699 }],
+      departures: [{ date: '2026-12-10', priceHkd: 5699 }], dropRegionWithListedCity: true,
     });
   });
   it('sets no fallback route: a city list with no known place is no-stops, not read from the title', () => {
@@ -91,6 +91,7 @@ describe('the title', () => {
     ['name when is_website_name is 1 but website_name is only spaces', { is_website_name: 1, website_name: '  ' }, '原名'],
     ['name when is_website_name is 1 but website_name is missing', { is_website_name: 1, website_name: null }, '原名'],
     ['name when is_website_name is anything but 1', { is_website_name: 2, website_name: '網站名' }, '原名'],
+    ['name when is_website_name is the text "1", not the number', { is_website_name: '1', website_name: '網站名' }, '原名'],
   ])('is %s', (_name, patch, title) => {
     expect(tourOf(rawDetail({ name: '原名', ...patch })).title).toBe(title);
   });
@@ -108,6 +109,16 @@ describe('the route', () => {
     const reversed = extractStops(tourOf(rawDetail({ dist_list: '日本,東京,京都,大阪' })).dayHeadings, places);
     expect(stopNames(reversed.stops)).toEqual(['東京', '京都', '大阪']);
     expect(reversed.unmatched).toEqual([]);
+  });
+  it('drops a province when one of its cities is listed, before or after it (owner decision 2026-11-14)', () => {
+    const route = (distList: string) => {
+      const r = normaliseTour(tourOf(rawDetail({ dist_list: distList })), places, CAPTURED);
+      return r.ok ? stopNames(r.tour.stops) : r.reason;
+    };
+    expect(route('雲南,大理,瀘沽湖,麗江,昆明')).toEqual(['大理', '瀘沽湖', '麗江', '昆明']);
+    expect(route('清遠,雲南,大理')).toEqual(['清遠', '大理']);
+    expect(route('大理,麗江,雲南')).toEqual(['大理', '麗江']);
+    expect(route('雲南,清遠')).toEqual(['雲南', '清遠']); // no city of Yunnan listed: the province stays
   });
 });
 

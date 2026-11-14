@@ -61,7 +61,7 @@ describe('publicListing', () => {
     expect(publicListing(rawListing([rawListingRow(5906)]))).toEqual({
       code: 1,
       data: {
-        total: 1, last_page: 1, page: 1,
+        total: 1, last_page: 1,
         rows: [{ id: 5906, code: 'AA-J-T5906', name: '東京5906五天團', is_website_name: 0, website_name: '', daycount: 5, price: 5399 }],
       },
     });
