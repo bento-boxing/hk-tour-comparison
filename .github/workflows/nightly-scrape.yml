@@ -48,7 +48,7 @@ jobs:
       fail-fast: false # one operator failing must not stop the others
       matrix:
         # Every key of SCRAPERS in packages/scraper/src/operators/index.ts.
-        operator: [egl, jetour, texpert]
+        operator: [egl, jetour, texpert, charming]
     steps:
       - uses: actions/checkout@v7
         with:

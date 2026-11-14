@@ -12,11 +12,11 @@ const TODAY = '2026-11-14';
 const readFixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 const sourceUrl = (name: string): string => JSON.parse(readFixture(`${name}.expected.json`)).sourceUrl;
 
-it('is registered as charming, with no extra request headers and a provisional first-run floor', () => {
+it('is registered as charming, with no extra request headers and a first-run floor of a third of the measured crawl', () => {
   expect(charmingScraper.id).toBe('charming');
   expect(charmingScraper.requestHeaders).toBeUndefined();
   expect(charmingScraper.fetchPage).toBeUndefined();
-  expect(charmingScraper.minExpectedTours).toBe(40);
+  expect(charmingScraper.minExpectedTours).toBe(51);
 });
 
 let db: Db;

@@ -14,9 +14,7 @@ export const charmingScraper: OperatorScraper = {
   id: 'charming',
   discover,
   parse: (html, url) => parse(html, url),
-  // First-run floor, PROVISIONAL and cautious: of the 789 posts most are old tours with no dates left (a 2023
-  // post still lists its 2023 date), and how many have dates on sale is not known. The 100 newest posts were
-  // all modified from August 2026 on; this assumes at least 120 tours have dates on sale and takes a third.
-  // Replace it with a third of the tours with dates once the measured crawl has run.
-  minExpectedTours: 40,
+  // First-run floor: a third of the 153 tours the 2026-11-14 practice crawl would have saved (789 pages
+  // fetched; most of the rest are old posts with no dates left). docs/operators/charming.md, "Practice crawl".
+  minExpectedTours: 51,
 };
