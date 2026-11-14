@@ -690,6 +690,18 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     expect(read('小香格里拉 中山 高山', 8)).toEqual({ names: ['中山', '高山'], dropped: [{ name: '香格里拉', rule: 'comparison' }] });
   });
 
+  it('passes over an excluded city inside a run of text, so the place after it is read (香港直航#廣西南寧)', () => {
+    expect(read('香港直航#廣西南寧 6天')).toEqual({ names: ['南寧'], dropped: [] });
+    expect(extractFallbackStops('深圳灣口岸東莞2天', 2, places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']).stops.map(s => s.cityId))
+      .toEqual(['china-guangdong-dongguan']);
+  });
+  it('a dish named for a town after the passed-over city is still not a stop (順德粥)', () => {
+    expect(extractFallbackStops('深圳招牌順德粥底火鍋2天', 2, places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']).stops).toEqual([]);
+  });
+  it('day headings keep reading the earliest city of a run of text, excluded or not (unchanged)', () => {
+    expect(names(extractStops(['香港直航#廣西南寧'], places))).toEqual([]);
+  });
+
   it('uses the given exclusions (Hong Kong by default)', () => {
     expect(read('香港 中山').names).toEqual(['中山']);
     expect(extractFallbackStops('深圳 中山', 2, places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']).stops.map(s => s.cityId))

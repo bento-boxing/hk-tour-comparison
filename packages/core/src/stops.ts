@@ -226,6 +226,12 @@ export interface ExtractOptions {
   comparisonsAreNotPlaces?: boolean;
   /** Fallback text only: a place name forming an airline's name is not a stop (isAirline). */
   airlinesAreNotPlaces?: boolean;
+  /**
+   * Fallback text only: an excluded city's name (Hong Kong, a stated start) is passed over inside a run of text, so it
+   * does not take the run's one city and hide the place after it (`香港直航#廣西南寧`). Day headings keep reading the
+   * earliest city of a run, as before.
+   */
+  passOverExcludedCities?: boolean;
 }
 
 /**
@@ -239,7 +245,10 @@ export function extractStops(
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
   options: ExtractOptions = {},
 ): StopsResult {
+  const excluded = new Set(excludeCityIds);
+  const isExcludedCity: Skip = (_key, _at, name) => index.findCity(name).every(city => excluded.has(city.id));
   const skip = anyOf([
+    ...(options.passOverExcludedCities === true ? [isExcludedCity] : []),
     ...(options.comparisonsAreNotPlaces === true ? [comparisonRule(index)] : []),
     ...(options.airlinesAreNotPlaces === true ? [isAirline] : []),
   ]);
@@ -282,7 +291,6 @@ export function extractStops(
     }
   }
 
-  const excluded = new Set(excludeCityIds);
   let route = withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId)));
   const collisionNames = new Set((index.data.collisionNames ?? []).map(normaliseName));
   const placeOf = (stop: Stop): City | Region =>
@@ -360,10 +368,10 @@ export function extractFallbackStops(
     const kept = new Set(after.map(stopKey));
     for (const stop of before) if (!kept.has(stopKey(stop))) noteDrop(stop, rule);
   };
-  const plain = read({});
-  const withoutComparisons = read({ comparisonsAreNotPlaces: true });
+  const plain = read({ passOverExcludedCities: true });
+  const withoutComparisons = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true });
   noteRemoved(plain, withoutComparisons, 'comparison');
-  let stops = read({ comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
+  let stops = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
   noteRemoved(withoutComparisons, stops, 'airline');
 
   if (days <= SHORT_TRIP_MAX_DAYS) {
