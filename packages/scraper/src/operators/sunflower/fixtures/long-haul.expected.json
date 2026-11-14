@@ -1,0 +1,62 @@
+{
+  "sourceUrl": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=BTTK09SP",
+  "verifiedByOwner": false,
+  "notes": [
+    "Booking page fetched for this task, 2026-11-14 14:06 UTC (22:06 Hong Kong), task request #14, through createFetcher. The run's date is 2026-11-14 (Hong Kong). Trimmed with public.ts: the listing entry keeps only ItinCode, Title, region, area, subarea, minprice, discount, discounttext, tdp_confirm and tdp_hardpush; the booking page keeps only #Content_lbtnday and the calendar table, each cell's class, onclick and span.price, the month heading, and no other text or attribute.",
+    "Turkey, 9 days. The calendar shows November 2026 with one date, 27 November at 11,399, which has no status and so is not in either listing list. This contradicts the investigation's 'first month with departures' only in appearance: it is the first month with a departure; the listing names only dates with a status.",
+    "Later dates: tdp_hardpush 5/12, 18/12, 13/1, 14/1, 15/1, 17/1 (the January ones in 2027 by the year rule), no price of their own.",
+    "fromPriceHkd is the listing's 10,899 (base date 10 February 2027), lower than the shown month's 11,399; the stored from-price is 10,899.",
+    "The subarea `土耳其` is a country with a region of the same name in places/data.json, so the stop is the region (no city)."
+  ],
+  "scraped": {
+    "operatorId": "sunflower",
+    "code": "BTTK09SP",
+    "url": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=BTTK09SP",
+    "title": "9天土耳其(直航)超值遊",
+    "days": 9,
+    "nights": null,
+    "dayHeadings": [
+      "土耳其"
+    ],
+    "fallbackRoute": "地中海、中東",
+    "dropRegionWithListedCity": true,
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 10899,
+    "departures": [
+      {
+        "date": "2026-11-27",
+        "priceHkd": 11399
+      },
+      {
+        "date": "2026-12-05",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-13",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-14",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-15",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-17",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "土耳其"
+  ],
+  "unmatched": []
+}

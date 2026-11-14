@@ -1,0 +1,26 @@
+{
+  "sourceUrl": "https://www.sunflower.com.hk/App/Tour/Get?Region=&Area=&Subarea=&keyword=",
+  "verifiedByOwner": false,
+  "notes": "The full listing captured in the investigation, 2026-11-13 23:54 UTC (07:54 on 14 November, Hong Kong), fetch #10: 616 entries, 370 with a booking code. Trimmed by public.ts (only ItinCode, Title, region, area, subarea, minprice, discount, discounttext, tdp_confirm, tdp_hardpush), then cut to 8 entries in the listing's order: the five fixture tours, and the first entry without a booking code of the regions 郵輪, 包團 and 香港 (left out, counted by region).",
+  "discovered": [
+    "https://www.sunflower.com.hk/OnlineBooking/?TourCode=LTZB08SP",
+    "https://www.sunflower.com.hk/OnlineBooking/?TourCode=KKFE05WR",
+    "https://www.sunflower.com.hk/OnlineBooking/?TourCode=WTPJ05SD",
+    "https://www.sunflower.com.hk/OnlineBooking/?TourCode=BTTK09SP",
+    "https://www.sunflower.com.hk/OnlineBooking/?TourCode=CFAG03MK"
+  ],
+  "leftOut": [
+    [
+      "包團",
+      1
+    ],
+    [
+      "郵輪",
+      1
+    ],
+    [
+      "香港",
+      1
+    ]
+  ]
+}

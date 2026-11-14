@@ -1,0 +1,101 @@
+{
+  "status": true,
+  "data": [
+    {
+      "ItinCode": "LTZB08SP",
+      "Title": "樂享山東 8 天純玩團",
+      "region": "中國長線",
+      "area": "山東",
+      "subarea": "青島‧泰安‧曲阜‧尼山‧煙臺‧蓬萊‧東營‧青州",
+      "minprice": 5499,
+      "discount": 3899,
+      "discounttext": "3,899",
+      "tdp_confirm": "17/11,21/11,28/11,1/12,12/12,15/12...",
+      "tdp_hardpush": "3/12,8/12,10/12,22/12,26/12"
+    },
+    {
+      "ItinCode": "KKFE05WR",
+      "Title": "暢遊冬日秘境釜山慶州食足13餐五天團",
+      "region": "日韓",
+      "area": "韓國",
+      "subarea": "釜山、慶州",
+      "minprice": 3299,
+      "discount": 2699,
+      "discounttext": "2,699",
+      "tdp_confirm": "4/12,11/12,13/12,16/12,20/12,24/12...",
+      "tdp_hardpush": "2/12,6/12,8/12,9/12,10/12,17/12..."
+    },
+    {
+      "ItinCode": "WTPJ05SD",
+      "Title": "【假期精選】台北(礁溪溫泉) 地道美食 5天樂悠遊",
+      "region": "台灣",
+      "area": "台灣",
+      "subarea": "台北、基隆、宜蘭",
+      "minprice": 2699,
+      "discount": 1999,
+      "discounttext": "1,999",
+      "tdp_confirm": "16/12,23/12",
+      "tdp_hardpush": "19/12,20/12,22/12,25/12,26/12,25/3..."
+    },
+    {
+      "ItinCode": "BTTK09SP",
+      "Title": "9天土耳其(直航)超值遊",
+      "region": "長線",
+      "area": "地中海、中東",
+      "subarea": "土耳其",
+      "minprice": 15499,
+      "discount": 10899,
+      "discounttext": "10,899",
+      "tdp_confirm": "",
+      "tdp_hardpush": "5/12,18/12,13/1,14/1,15/1,17/1..."
+    },
+    {
+      "ItinCode": "",
+      "Title": "香港生態農莊本地一天遊 - 小白兔農莊、元朗公園（百鳥塔、瀑布花園、小橋流水）《農莊簡便餐盒》",
+      "region": "包團",
+      "area": "香港",
+      "subarea": "香港一天遊",
+      "minprice": 0,
+      "discount": 0,
+      "discounttext": "0",
+      "tdp_confirm": "",
+      "tdp_hardpush": ""
+    },
+    {
+      "ItinCode": "CFAG03MK",
+      "Title": "【3天金秋韶關賞銀杏紅葉純玩美食團】 旺角集散",
+      "region": "中國短線",
+      "area": "廣東省",
+      "subarea": "廣州、中山、深圳",
+      "minprice": 1299,
+      "discount": 1249,
+      "discounttext": "1,249",
+      "tdp_confirm": "",
+      "tdp_hardpush": "22/11,26/11,27/11,28/11,29/11,3/12..."
+    },
+    {
+      "ItinCode": "",
+      "Title": "香港生態農莊本地一天遊 - 蝶豆花公園、大埔海濱公園（昆蟲屋、香港回歸紀念塔）《農莊盆菜風味》",
+      "region": "香港",
+      "area": "香港",
+      "subarea": "香港一天遊",
+      "minprice": 0,
+      "discount": 0,
+      "discounttext": "0",
+      "tdp_confirm": "",
+      "tdp_hardpush": ""
+    },
+    {
+      "ItinCode": "",
+      "Title": "迪士尼遊輪  迪士尼探險號 Disney Adventure  3/4晚 新加坡郵輪之旅",
+      "region": "郵輪",
+      "area": "郵輪",
+      "subarea": "DisneyCruiseLine-迪士尼探險號2026",
+      "minprice": 3149,
+      "discount": 0,
+      "discounttext": "0",
+      "tdp_confirm": "",
+      "tdp_hardpush": ""
+    }
+  ]
+}

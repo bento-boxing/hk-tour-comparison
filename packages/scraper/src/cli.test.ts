@@ -313,7 +313,7 @@ describe('proxyWanted', () => {
 
 describe('SCRAPERS', () => {
   it('holds exactly the approved operators, each under its own id', () => {
-    expect(Object.keys(SCRAPERS).sort()).toEqual(['bigline', 'charming', 'egl', 'jetour', 'texpert', 'yummy']);
+    expect(Object.keys(SCRAPERS).sort()).toEqual(['bigline', 'charming', 'egl', 'jetour', 'sunflower', 'texpert', 'yummy']);
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
   });
 
@@ -324,6 +324,7 @@ describe('SCRAPERS', () => {
     expect(SCRAPERS.bigline?.minExpectedTours).toBe(126); // a third of the 380 tours its practice crawl normalised
     expect(SCRAPERS.charming?.minExpectedTours).toBe(51);
     expect(SCRAPERS.yummy?.minExpectedTours).toBe(196); // provisional: 60% of the 327 listed tours, until a measured crawl
+    expect(SCRAPERS.sunflower?.minExpectedTours).toBe(222); // provisional: 60% of the 370 bookable tours, until a measured crawl
   });
 
   it('only Big Line declares extra request headers, and only its one approved header for its API host', () => {
@@ -334,7 +335,7 @@ describe('SCRAPERS', () => {
 
   it('the nightly workflow scrapes every registered operator, except those awaiting their measured crawl', async () => {
     /** Registered, but added to the nightly matrix only after a measured crawl has set its first-run floor. */
-    const awaitingMeasuredCrawl = ['bigline', 'yummy'];
+    const awaitingMeasuredCrawl = ['bigline', 'yummy', 'sunflower'];
     const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
     const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
     expect(matrix, 'operator matrix line').not.toBeNull();

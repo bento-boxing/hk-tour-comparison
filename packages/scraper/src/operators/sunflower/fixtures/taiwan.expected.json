@@ -1,0 +1,101 @@
+{
+  "sourceUrl": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=WTPJ05SD",
+  "verifiedByOwner": false,
+  "notes": [
+    "Booking page fetched for this task, 2026-11-14 14:06 UTC (22:06 Hong Kong), task request #15, through createFetcher. The run's date is 2026-11-14 (Hong Kong). Trimmed with public.ts: the listing entry keeps only ItinCode, Title, region, area, subarea, minprice, discount, discounttext, tdp_confirm and tdp_hardpush; the booking page keeps only #Content_lbtnday and the calendar table, each cell's class, onclick and span.price, the month heading, and no other text or attribute.",
+    "Taiwan, 5 days. The calendar shows December 2026: 15 dates. Several cells show their price as `<p class=\"dollarsign\">$</p>2,999+` instead of `$2,999起` (no promotion that day); both are read as the date's own price.",
+    "Later dates: only 25/3 (tdp_hardpush) is outside December: 2027-03-25 by the year rule, across the year end.",
+    "fromPriceHkd is the listing's 1,999 (= the 16 December price, the base date)."
+  ],
+  "scraped": {
+    "operatorId": "sunflower",
+    "code": "WTPJ05SD",
+    "url": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=WTPJ05SD",
+    "title": "【假期精選】台北(礁溪溫泉) 地道美食 5天樂悠遊",
+    "days": 5,
+    "nights": null,
+    "dayHeadings": [
+      "台北",
+      "基隆",
+      "宜蘭"
+    ],
+    "fallbackRoute": "台灣",
+    "dropRegionWithListedCity": true,
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 1999,
+    "departures": [
+      {
+        "date": "2026-12-16",
+        "priceHkd": 1999
+      },
+      {
+        "date": "2026-12-17",
+        "priceHkd": 2599
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-19",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": 3199
+      },
+      {
+        "date": "2026-12-22",
+        "priceHkd": 3599
+      },
+      {
+        "date": "2026-12-23",
+        "priceHkd": 3599
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": 4099
+      },
+      {
+        "date": "2026-12-25",
+        "priceHkd": 3499
+      },
+      {
+        "date": "2026-12-26",
+        "priceHkd": 3699
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": 3799
+      },
+      {
+        "date": "2026-12-28",
+        "priceHkd": 3699
+      },
+      {
+        "date": "2026-12-29",
+        "priceHkd": 3699
+      },
+      {
+        "date": "2026-12-30",
+        "priceHkd": 3699
+      },
+      {
+        "date": "2026-12-31",
+        "priceHkd": 3699
+      },
+      {
+        "date": "2027-03-25",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "台北",
+    "基隆",
+    "宜蘭"
+  ],
+  "unmatched": []
+}

@@ -1,4 +1,4 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-14: owner approved a reduced listing (the first calendar month's dates with their own prices; the later dates the listing names, shown at the tour's "from" price marked 起; no per-date booking-step pages, no itinerary)
 
 DATES NOT AVAILABLE WITHIN THE RULES (a plain GET of a tour's booking page gives the dates, per-date prices and status for one calendar month only; the other months load through an ASP.NET postback, a `POST` with the page's `__VIEWSTATE`, and the listing JSON names at most 6 later dates per status, without a year; the day-by-day itinerary exists only as a PDF under `/tourpdf/`, which robots.txt disallows)
 
@@ -144,7 +144,7 @@ The 370 bookable entries are the listable group tours. 69 of the 103 Guangdong o
 
 All of these fit the 170-minute nightly limit.
 
-## Every URL fetched (12 page fetches; robots.txt not counted)
+## Every URL fetched (investigation: 12 page fetches; task 31: 3 more; robots.txt not counted)
 
 All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. The ledger (`.superpowers/raw-pages/sunflower/ledger.tsv`) also lists each time the saved robots.txt was reused instead of fetched again.
 
@@ -164,22 +164,80 @@ All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. 
 | 11 | 23:56:33 | https://www.sunflower.com.hk/OnlineBooking/?TourCode=CFAG03MK | 200, 105,272 bytes (coach tour, November 2026 calendar) |
 | 12 | 23:57:54 | https://www.sunflower.com.hk/App/Cookie | 200, 69,432 bytes (cookie policy; no use clause) |
 
+Task 31 (2026-11-14, UTC), through `createFetcher` with undici's `EnvHttpProxyAgent` as `cli.ts` installs it; robots.txt was read once more (`https://www.sunflower.com.hk/robots.txt`) before the first:
+
+| # | UTC (2026-11-14) | URL | Result |
+|---|---|---|---|
+| 13 | 14:06:04 | https://www.sunflower.com.hk/OnlineBooking/?TourCode=LTZB08SP | 200, 112,406 bytes (Shandong, November calendar, a `額滿` cell) |
+| 14 | 14:06:10 | https://www.sunflower.com.hk/OnlineBooking/?TourCode=BTTK09SP | 200, 107,877 bytes (Turkey, November calendar, one date) |
+| 15 | 14:06:14 | https://www.sunflower.com.hk/OnlineBooking/?TourCode=WTPJ05SD | 200, 104,539 bytes (Taiwan, December calendar) |
+
 **Not fetched:** any `/tourpdf/` itinerary (disallowed); the privacy policy PDF; any `__doPostBack` month change (POST); `CheckUpdate.ashx`; `/App/API/GetTourTable` and `/App/API/LoadIMG` (menu and images, not needed); any script file (the data requests are inline in the pages); a third tour of a different kind (for example long-haul or a cruise); `/pricelistpdf/` and `/visa/` PDFs.
 
 Before fetch #1, a run that requested only robots.txt was used to learn the rules. Its page request was stopped inside the probe before it was sent (nothing reached the server; it is not in the ledger and not counted).
 
 ## Fixtures
 
-**None saved.** The operator is waiting for an owner decision. The raw pages stay under `.superpowers/raw-pages/sunflower/` only.
+See "Scraper and fixtures (2026-11-14)" below. The raw pages stay under `.superpowers/raw-pages/sunflower/` only.
+
+## Owner decision (2026-11-14)
+
+A reduced listing: (a) accepted, with dates complete only for the first calendar month and no day-by-day itinerary; (b) declined: the per-date booking-step pages (`?date=…`) are **not** used. The later dates the listing names are listed without a price of their own and shown at the tour's "from" price followed by 起.
+
+## Scraper and fixtures (2026-11-14)
+
+The scraper is `packages/scraper/src/operators/sunflower/`. Registered with a **provisional** first-run floor of 222 (60% of the 370 tours with a booking code on 2026-11-14, rounded down; no crawl has been measured). It is **not in the nightly matrix**: it joins after a measured crawl sets the real floor.
+
+**Requests.** Only two paths on `https://www.sunflower.com.hk`, always in the `https://` form, plain GETs through the run's polite fetcher with no extra headers: `/App/Tour/Get?Region=&Area=&Subarea=&keyword=` once a night, then `/OnlineBooking/?TourCode=<ItinCode>` once per tour (about 371 requests a night, some 19 minutes at 3 s each). Never a `?date=` booking step, a `/tourpdf/` itinerary (disallowed by robots.txt), a `__doPostBack` POST for another month, or `CheckUpdate.ashx`.
+
+**Discovery** reads the listing once. Only entries with a non-empty `ItinCode` are tours (370 on 2026-11-14); the others (cruises, private groups, Hong Kong day trips, an air-ticket entry, some tours) are left out, not counted as failures, and logged as one line with their number by region. A booking code that is not plain letters and digits, an answer that is not JSON, `status` other than `true`, no `data` list, or no entry with a booking code makes discovery throw (the run fails as `discover-error` and last night's tours stay). A code on more than one entry keeps the first (logged). Each tour's identity and "view on the operator's site" link is its booking page URL.
+
+**The allow-list** (`public.ts`): from each listing entry only `ItinCode`, `Title`, `region`, `area`, `subarea`, `minprice`, `discount`, `discounttext`, `tdp_confirm` and `tdp_hardpush`; from the booking page only `#Content_lbtnday` and the calendar table `#Content_cdrDateOfDeparture`, with each element's `id`, `class`, `onclick` and `width` and the text of the days tag, the month heading (`td[width="70%"]`) and each `span.price`. `SubTitle`, `Description`, `TourMainTourName`, `promotext`, images, PDF links, the promotion notes in the calendar cells, holiday names, statuses as text, scripts and the booking form are never kept. fetchPage joins the run's date, the listing entry and the trimmed page as one JSON text for the parser.
+
+What the parser reads, and its rules:
+
+- **Code, title**: `ItinCode`; `Title` with any HTML removed (`<br>` a space, entities decoded; `<環島>`, `<榴槤>` and `<皇城根下尋古韻…>` are not tags and stay), whitespace collapsed, compatibility ideographs read as the ordinary character (Unicode NFC).
+- **Days**: the booking page's `#Content_lbtnday` (`#5天團`). Without it the page is a parse failure; the code's characters are never used.
+- **Route**: `subarea` split on `、`, ASCII and full-width commas and the middle dots `‧` (U+2027), `．` (U+FF0E), `·`, `・` (judgment call: the brief names only `、` and commas, but 6 Shandong and Fujian subareas list their cities with `‧`, and 4 Shanxi ones `山西．陝西`), one name per entry of `dayHeadings`, through the shared place matching. `area` is the tour's `fallbackRoute` (the opt-in read only when the subarea gives no stop, its unmatched words not reported). `region` is never read for the route. The tour also sets `dropRegionWithListedCity`, so a province listed beside one of its own cities (`廣西、桂林`, `雲南、昆明、…`) is not a stop.
+- **"From" price**: `discount` when it is a price (HK$100 or more), else `discounttext`, else `minprice`. All 370 tours had a discount on 2026-11-14.
+- **Departures, the shown month**: every `td.Calcell` with a class starting `Ava-Calcell` (`Ava-Calcell`, `-G` 保證成團, `-H` 快將成團, holiday cells `holcell` included) whose `onclick` holds `?date=YYYYMMDD`, at its `span.price` (`$2,999起`, or `$2,999+` where the date has no promotion). A cell without a date link is not a departure (see the full marker below).
+- **Departures, later**: the `D/M` dates of `tdp_confirm` and `tdp_hardpush` outside the month the calendar shows, with **no price of their own**. Year: the first date on or after the run's date (Hong Kong) with that day and month; one that is not a real calendar date, or would land more than 12 months ahead (only 29 February can), is dropped; the trailing `...` and any other text are ignored. A listed date in the shown month is never added (the calendar is the source for that month).
+- **Gathering point**: only for `中國短線` (Guangdong) tours, by code suffix: `LW` → `深圳關口` (read as the Shenzhen border, kind `sz`, as other operators' border checkpoints are; the operator's text, `關口集散`, names no checkpoint), `MK` → `香港旺角`, `TO` → `香港將軍澳`, `YL` → `香港元朗` (all read as Hong Kong, kind `hk`). Start and end are the same (`集散`). Any other tour: none.
+- **Nights**: none. No full marker is read.
+
+**Dates without a price of their own, on the website.** They were already supported: `departures.price_hkd` may be null; the search counts such a date at the tour's stored from-price (`coalesce(d.price_hkd, t.from_price_hkd)`) for the window price, the price filter and sorting; the date list shows that price followed by 起, and a chain leg on such a date shows it with 起 and makes the chain total 起. The one change: normaliseTour's from-price, which is the stored price those dates are shown at, now also counts the operator's own "from" price whenever an upcoming departure has no price of its own (the lower wins). Without it, a Sunflower tour whose listing "from" price is below every price of the shown month (BTTK09SP: 10,899 against 11,399; LTZB08SP: 3,899 against 4,599) would show its later dates above the price the operator states.
+
+**What the fixture pages verified or contradicted** (3 new booking pages, 2026-11-14 14:06 UTC, task 31 requests #13–#15 in the ledger; the listing and the KKFE05WR and CFAG03MK pages were reused from the investigation):
+
+- **A full marker exists.** LTZB08SP's 17 November is `td.Calcell.Ava-Calcell-F` with the text `額滿` (full), `onclick=""` and a price. It has no date link, so the parser does not list it; no marker was invented. The same date is in the listing's `tdp_confirm` (`17/11`): a full date can stay in the listing lists, so a later-month date the listing names may be full (it cannot be checked within the rules).
+- **The first month with departures** is shown on all five pages (KKFE05WR December, CFAG03MK, LTZB08SP and BTTK09SP November, WTPJ05SD December).
+- **Long-haul, China long-haul and Taiwan pages** use the same layout (`#Content_lbtnday`, the same calendar table and cell classes). WTPJ05SD shows some prices as `<p class="dollarsign">$</p>2,999+` instead of `$2,999起`.
+- **The listing's "from" price is not always in the first month**: its base date (`費用根據…的成人佔半房價格而定`) was 2 December (KKFE05WR), 22 November (CFAG03MK), 26 December (LTZB08SP), 10 February 2027 (BTTK09SP) and 16 December (WTPJ05SD).
+- **Dates with no status** are in neither listing list (BTTK09SP's 27 November), as the investigation said.
+- **Does `subarea` name cities?** Mostly, but not for Guangdong: 99 of the 103 `中國短線` tours have the same `廣州、中山、深圳` (the other 4 are Macau), whatever the tour visits (CFAG03MK goes to 韶關). By the brief's rule those tours' routes are 廣州 → 中山 (→ 深圳, except for the `LW` border-gathering variants, where Shenzhen is the start). Elsewhere it names cities (`釜山、慶州`, `昆明、大理、麗江、香格里拉`), a province or region (`江原道`, `貴州`), a sub-region (`北疆`, `川西`) or a multi-country area (`西歐`, `北歐`, `中亞細亞`).
+
+**Places, over all 370 tours** (the listing's `area`/`subarea`, offline, places/data.json as of 2026-11-14, gathering points applied): **245 with at least one city stop, 59 with region-only stops, 66 with no stops** (`no-stops`). 297 routes come from the subarea, 7 from the area fallback. The no-stops tours: 西歐 13, 長江三峽 12, 北歐 7, 中亞細亞 6, 巴爾幹半島 4, 澳洲 4 (a country), 西葡 3, 環島遊 3 (Taiwan), 東歐 2, 新西蘭 2 (a country), single Korean places (華川, 永宗島, 全州, 楊平, 內藏山, 昆池岩), 北非, 西澳州, 馬來西亞. Unmatched names (tours; a no-stops tour reports its subarea names, countries included): 西歐 13, 長江三峽 12, 山西 7, 北歐 7, 中亞細亞 6, 澳洲 4, 巴爾幹半島 4, 東營 3, 中原古都 3, 環島遊 3, 西葡 3, 尼山 2, 鳳凰 2, 川西 2, 彌勒 2, 普者黑 2, 北疆 2, 新西蘭 2, 東歐 2, 北非 2, and 20 names once (金華, 泰山, 冠豸山, 泰寧, 石林, 蒙自, 怒江, 華川, 永宗島, 青松, 濟扶島, 全州, 楊平, 內藏山, 對馬島, 昆池岩, 陸龍灣, 馬來西亞, 西澳州, 地中海). No place was added: none is a clear, frequent city (東營 is a city, on 3 tours each of which has other cities; 鳳凰 as an alias would match inside 鳳凰城, Phoenix).
+
+Fixtures (`packages/scraper/src/operators/sunflower/fixtures/`), each a `<name>.page.json` (the run's date, the trimmed listing entry and the trimmed booking page, as fetchPage joins them) with `<name>.expected.json` (`verifiedByOwner: false`, notes on every judgment call):
+
+| Fixture | Tour | Why |
+|---|---|---|
+| `air-korea` | KKFE05WR, Busan 5 days | All three status classes, holiday cells, every listed date in the shown month |
+| `coach-mongkok` | CFAG03MK, Shaoguan 3 days (Mong Kok pick-up) | Gathering point `MK`, the fixed Guangdong subarea, one later date |
+| `china-long-haul` | LTZB08SP, Shandong 8 days | The `額滿` cell, `‧` in the subarea, eight later dates, the "from" price below the shown month |
+| `long-haul` | BTTK09SP, Turkey 9 days | One date in the shown month, later dates into 2027, the "from" price below the shown month |
+| `taiwan` | WTPJ05SD, Taipei 5 days | `$2,999+` prices, a later date across the year end |
+| `listing` | the listing, cut to 8 entries | Discovery: the five tours and one entry without a booking code from each of 郵輪, 包團, 香港 |
 
 ## Not verified
 
-- Whether the booking page always shows the first month that has departures (two samples).
-- How a full or closed date appears: no such date was seen. It may be a cell without a link, which would look like a day with no departure.
+- Whether the booking page always shows the first month that has departures (five samples now: all did).
+- How a full or closed date appears: **seen in task 31** (LTZB08SP 17 November: `Ava-Calcell-F`, `額滿`, no date link; the parser leaves it out). Whether a full date in a later month is still in the listing's lists: likely (17/11 was), not checked.
 - Whether `尚餘名額` reaches `0` or disappears when a group is full.
 - Whether the `tdp_*` lists always hold the earliest 6 dates of each status (true for `KKFE05WR` in December).
 - Whether the code's 5th–6th characters always equal the days (two samples, and the counts look plausible).
 - The deposit and cancellation tables at the top of the terms PDF's page 1 were read only at the lower resolution.
 - The privacy policy, and whether any other terms exist on other Sunflower sites.
-- Whether long-haul tours, cruises or Taiwan tours use the same booking page layout (only Korea and Guangdong were seen).
+- Whether cruises use the same booking page layout (cruises have no booking code, so they are not tours here). Long-haul (BTTK09SP), China long-haul (LTZB08SP) and Taiwan (WTPJ05SD) pages do.
+- Whether `subarea` names the tour's cities: not for Guangdong (`廣州、中山、深圳` on 99 of 103); mostly elsewhere (see "Scraper and fixtures").
 - The `http://` robots.txt was not requested (see robots.txt above). It is the same host, so it is expected to be the same file.

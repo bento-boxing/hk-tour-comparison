@@ -1,0 +1,148 @@
+{
+  "sourceUrl": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=KKFE05WR",
+  "verifiedByOwner": false,
+  "notes": [
+    "Booking page captured in the investigation, 2026-11-13 23:42 UTC (07:42 on 14 November, Hong Kong), fetch #8 (the investigation's request followed a 301 to the http:// form; the scraper always asks for the https:// form). Listing entry from the full listing, fetch #10. The run's date is 2026-11-14 (Hong Kong). Trimmed with public.ts: the listing entry keeps only ItinCode, Title, region, area, subarea, minprice, discount, discounttext, tdp_confirm and tdp_hardpush; the booking page keeps only #Content_lbtnday and the calendar table, each cell's class, onclick and span.price, the month heading, and no other text or attribute.",
+    "Korea by air, 5 days (`#5天團`). The calendar shows December 2026, the first month with departures: 28 cells with a date link, of all three status classes (plain, -G 保證成團, -H 快將成團), two of them holiday cells (`holcell`, 25 and 26 December); all 28 are kept with their own price (`$2,999起`, already discounted).",
+    "Every date in tdp_confirm and tdp_hardpush (4/12 … 24/12, 2/12 … 17/12) is in the shown month, so no later date is added.",
+    "fromPriceHkd is the listing's discounted price, 2,699 (= the 2 December price the page names as its base date), not minprice 3,299.",
+    "The route is the subarea `釜山、慶州`; the area `韓國` is the fallback and is not needed. No gathering point (not a Guangdong coach tour)."
+  ],
+  "scraped": {
+    "operatorId": "sunflower",
+    "code": "KKFE05WR",
+    "url": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=KKFE05WR",
+    "title": "暢遊冬日秘境釜山慶州食足13餐五天團",
+    "days": 5,
+    "nights": null,
+    "dayHeadings": [
+      "釜山",
+      "慶州"
+    ],
+    "fallbackRoute": "韓國",
+    "dropRegionWithListedCity": true,
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 2699,
+    "departures": [
+      {
+        "date": "2026-12-01",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-02",
+        "priceHkd": 2699
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-04",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-05",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-06",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-08",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-09",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-10",
+        "priceHkd": 2899
+      },
+      {
+        "date": "2026-12-11",
+        "priceHkd": 2699
+      },
+      {
+        "date": "2026-12-12",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-13",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-15",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-16",
+        "priceHkd": 2799
+      },
+      {
+        "date": "2026-12-17",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": 2699
+      },
+      {
+        "date": "2026-12-19",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": 2999
+      },
+      {
+        "date": "2026-12-22",
+        "priceHkd": 5299
+      },
+      {
+        "date": "2026-12-23",
+        "priceHkd": 5399
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": 5199
+      },
+      {
+        "date": "2026-12-25",
+        "priceHkd": 5099
+      },
+      {
+        "date": "2026-12-26",
+        "priceHkd": 4299
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": 3999
+      },
+      {
+        "date": "2026-12-28",
+        "priceHkd": 3799
+      },
+      {
+        "date": "2026-12-29",
+        "priceHkd": 3799
+      },
+      {
+        "date": "2026-12-30",
+        "priceHkd": 3799
+      },
+      {
+        "date": "2026-12-31",
+        "priceHkd": 3799
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "釜山",
+    "慶州"
+  ],
+  "unmatched": []
+}

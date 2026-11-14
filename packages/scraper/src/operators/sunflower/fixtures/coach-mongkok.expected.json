@@ -1,0 +1,61 @@
+{
+  "sourceUrl": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=CFAG03MK",
+  "verifiedByOwner": false,
+  "notes": [
+    "Booking page captured in the investigation, 2026-11-13 23:56 UTC (07:56 on 14 November, Hong Kong), fetch #11. The run's date is 2026-11-14 (Hong Kong). Trimmed with public.ts: the listing entry keeps only ItinCode, Title, region, area, subarea, minprice, discount, discounttext, tdp_confirm and tdp_hardpush; the booking page keeps only #Content_lbtnday and the calendar table, each cell's class, onclick and span.price, the month heading, and no other text or attribute.",
+    "Guangdong coach tour, Mong Kok variant (`MK`): start and end are `香港旺角`, which the shared rules read as Hong Kong (kind hk), as other operators' Hong Kong gathering points are.",
+    "The calendar shows November 2026: five dates (-H) at 1,249. tdp_hardpush adds 3/12 (2026-12-03) with no price of its own.",
+    "JUDGMENT CALL / CONCERN: the subarea `廣州、中山、深圳` is the same on 99 of the 103 Guangdong short trips and does not name this tour's cities (the title says 韶關, Shaoguan). The brief's rule is applied as written, so the route is 廣州 → 中山 → 深圳; flagged in the task report."
+  ],
+  "scraped": {
+    "operatorId": "sunflower",
+    "code": "CFAG03MK",
+    "url": "https://www.sunflower.com.hk/OnlineBooking/?TourCode=CFAG03MK",
+    "title": "【3天金秋韶關賞銀杏紅葉純玩美食團】 旺角集散",
+    "days": 3,
+    "nights": null,
+    "dayHeadings": [
+      "廣州",
+      "中山",
+      "深圳"
+    ],
+    "fallbackRoute": "廣東省",
+    "dropRegionWithListedCity": true,
+    "startPoint": "香港旺角",
+    "endPoint": "香港旺角",
+    "fromPriceHkd": 1249,
+    "departures": [
+      {
+        "date": "2026-11-22",
+        "priceHkd": 1249
+      },
+      {
+        "date": "2026-11-26",
+        "priceHkd": 1249
+      },
+      {
+        "date": "2026-11-27",
+        "priceHkd": 1249
+      },
+      {
+        "date": "2026-11-28",
+        "priceHkd": 1249
+      },
+      {
+        "date": "2026-11-29",
+        "priceHkd": 1249
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "廣州",
+    "中山",
+    "深圳"
+  ],
+  "unmatched": []
+}
