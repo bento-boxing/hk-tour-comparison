@@ -320,7 +320,7 @@ describe('SCRAPERS', () => {
   it('gives each operator a floor for runs with no history, about a third of the tours seen with dates on sale', () => {
     expect(SCRAPERS.jetour?.minExpectedTours).toBe(35);
     expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
-    expect(SCRAPERS.egl?.minExpectedTours).toBe(190); // provisional, until EGL's measured crawl
+    expect(SCRAPERS.egl?.minExpectedTours).toBe(165);
     expect(SCRAPERS.bigline?.minExpectedTours).toBe(100); // provisional, until Big Line's measured crawl
   });
 
@@ -332,7 +332,7 @@ describe('SCRAPERS', () => {
 
   it('the nightly workflow scrapes every registered operator, except those awaiting their measured crawl', async () => {
     /** Registered, but added to the nightly matrix only after a measured crawl has set its first-run floor. */
-    const awaitingMeasuredCrawl = ['egl', 'bigline'];
+    const awaitingMeasuredCrawl = ['bigline'];
     const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
     const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
     expect(matrix, 'operator matrix line').not.toBeNull();
