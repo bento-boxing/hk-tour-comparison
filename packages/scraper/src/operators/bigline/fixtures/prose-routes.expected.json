@@ -1,7 +1,7 @@
 {
   "sourceUrl": "https://bigline.hk/tour-group/624469",
   "verifiedByOwner": false,
-  "notes": "Tour 624469 (CHET08F), Inner Mongolia: a fourth fixture, beyond the three asked for, kept because its route lines are the worst seen (places joined by --, each followed by a sentence or more of description, and #註 notes on later lines), so it tests the heading rules on real data. It also shows that a 6-digit sitemap id answers the same detail request as a 4-digit one. Fixture: the detail and ONE month (2026-12; captured 2026-11-13 22:04-22:05 UTC, trimmed by public.ts); the scraper would also request 2027-01 and 2027-02, not captured, to keep within the request budget. Title: basic.nameCn has a line break, collapsed to a space. From price: memberFee 6299. Start: the first of four gathering places. Departures: all seven December dates (19 seats left each). Day headings: most chunks are descriptions and are cut at their first sentence mark or left out when over 16 characters; what is left is the short chunks (酒店, 「大召寺」, 返回鄂爾多斯晚餐 …). Route: 呼和浩特 only. 鄂爾多斯 (Ordos, day 5, 返回鄂爾多斯晚餐) is not in the places list (proposed in the task report), and is not even reported unmatched: its token contains 晚餐, one of the shared ignored words. The other leftover chunks are over 8 characters, so only 「大召寺」 is reported. 內蒙古 appears only inside 「內蒙古博物院」草原歷史展館 and is not a stop.",
+  "notes": "Tour 624469 (CHET08F), Inner Mongolia: a fourth fixture, beyond the three asked for, kept because its route lines are the worst seen (places joined by --, each followed by a sentence or more of description, and #註 notes on later lines), so it tests the heading rules on real data. It also shows that a 6-digit sitemap id answers the same detail request as a 4-digit one. Fixture: the detail and ONE month (2026-12; captured 2026-11-13 22:04-22:05 UTC, trimmed by public.ts); the scraper would also request 2027-01 and 2027-02, not captured, to keep within the request budget. Title: basic.nameCn has a line break, collapsed to a space. From price: memberFee 6299. Start: the first of four gathering places. Departures: all seven December dates (19 seats left each). Day headings: most chunks are descriptions and are cut at their first sentence mark or left out when over 16 characters; what is left is the short chunks (酒店, 「大召寺」, 返回鄂爾多斯晚餐 …). Route: 呼和浩特 only. 鄂爾多斯 (Ordos, day 5, 返回鄂爾多斯晚餐) is not in the places list (proposed in the task report), and is not even reported unmatched: its token contains 晚餐, one of the shared ignored words. Review round 1 brought back day 5's 「鄂爾多斯草原」 白雪漫過遼闊曠野 (two pieces of 8, split at the space; before, the 17-character chunk was dropped whole): both are reported unmatched, and 白雪漫過遼闊曠野 is a short fragment of description that the per-piece rule lets through. The other leftover chunks are over 8 characters, so they are not reported. 內蒙古 appears only inside 「內蒙古博物院」草原歷史展館 and is not a stop.",
   "scraped": {
     "operatorId": "bigline",
     "code": "CHET08F",
@@ -14,7 +14,7 @@
       "酒店 → 「大召寺」 → 「敕勒川草原」冬日敕勒川草原",
       "酒店 → 晚餐後入住酒店",
       "酒店 → 「美好農場」放下旅途奔波",
-      "酒店 → 安排草原精選10項活動 → 返回鄂爾多斯晚餐",
+      "酒店 → 「鄂爾多斯草原」 白雪漫過遼闊曠野 → 安排草原精選10項活動 → 返回鄂爾多斯晚餐",
       "酒店 → 晚上沙漠手持仙女棒5支/人 → 蓮花酒店3樓酒吧暢飲",
       "酒店 → 特別體驗手工搓蓧面",
       "酒店 → 「內蒙古博物院」草原歷史展館 → 呼和浩特機場 → 香港國際機場"
@@ -57,6 +57,8 @@
     "呼和浩特"
   ],
   "unmatched": [
-    "「大召寺」"
+    "「大召寺」",
+    "「鄂爾多斯草原」",
+    "白雪漫過遼闊曠野"
   ]
 }

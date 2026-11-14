@@ -1,7 +1,7 @@
 {
   "sourceUrl": "https://bigline.hk/tour-group/9109",
   "verifiedByOwner": false,
-  "notes": "Tour 9109 (CSIAA06), Xi'an. Fixture: the detail and the three months the scraper requests on 2026-11-13 (2026-11, 2026-12, 2027-01 of availableMonths 2026-11..2027-06); the detail and 2026-11/2026-12 are the Task 14c probe answers (2026-11-13 20:50-20:54 UTC), 2027-01 was captured 22:07 UTC; trimmed by public.ts. From price: the detail's memberFee 5799. Start: 香港國際機場 (the detail's gathering place; the departures of 11-04/11/22 name 香港國際機場T1航站樓A區, not read). Full dates: 2026-11-04, 11-11 and 11-22 have seatRemain 0, soldTotal = maxPersonTotal, registrationStatus 1 and tourFlag 1,2,5, so they are left out (11-04 and 11-11 are also past). The site's exact full rule (the function ot in /_nuxt/C8-td2ew.js) was not read: the parser treats a date as full when ANY of those markers is present, or seatRemain is missing, the conservative reading. 2026-12-01 has 3 seats left of 3 (soldTotal 0, maxPersonTotal 3), tourStatus 2 and releaseStatusDaily empty: none of the full markers, so it is kept; what tourStatus 2 means is unknown. Prices are memberFee (6199.0 read as 6199). Day headings: bracketed notes removed; day 2's 古都西安的標誌性景觀 【西安城墻】 (19), day 3's 中華文明發源地 素有\"奇險天下第一山\"之稱【華山】 and day 4's 【長安十二時辰主題街區】沉浸式實景體驗 (19) are over 16 characters and left out (沉浸式實景體驗--換唐裝 splits at --). Route: 西安 only; 華山 (in 【】 and dropped) and 袁家村 are not in the places list; the shared rules drop text in 【】 anyway.",
+  "notes": "Tour 9109 (CSIAA06), Xi'an. Fixture: the detail and the three months the scraper requests on 2026-11-13 (2026-11, 2026-12, 2027-01 of availableMonths 2026-11..2027-06); the detail and 2026-11/2026-12 are the Task 14c probe answers (2026-11-13 20:50-20:54 UTC), 2027-01 was captured 22:07 UTC; trimmed by public.ts. From price: the detail's memberFee 5799. Start: 香港國際機場 (the detail's gathering place; the departures of 11-04/11/22 name 香港國際機場T1航站樓A區, not read). Full dates: 2026-11-04, 11-11 and 11-22 have seatRemain 0, soldTotal = maxPersonTotal, registrationStatus 1 and tourFlag 1,2,5, so they are left out (11-04 and 11-11 are also past). The site's exact full rule (the function ot in /_nuxt/C8-td2ew.js) was not read: the parser treats a date as full when ANY of those markers is present, or seatRemain is missing, the conservative reading. 2026-12-01 has 3 seats left of 3 (soldTotal 0, maxPersonTotal 3), tourStatus 2 and releaseStatusDaily empty: none of the full markers, so it is kept; what tourStatus 2 means is unknown. Prices are memberFee (6199.0 read as 6199). Day headings: bracketed notes removed; within each chunk, pieces (split where the shared rules split: spaces, 、, - …) over 16 characters are left out. Review round 1 changed day 2 and 3: day 2's 古都西安的標誌性景觀 【西安城墻】 is now kept (two short pieces; before, the 19-character chunk was dropped whole), and of day 3's 中華文明發源地 素有\"奇險天下第一山\"之稱【華山】 the first piece 中華文明發源地 is kept (now an unmatched name) and the 17-character rest left out. Day 4's 【長安十二時辰主題街區】沉浸式實景體驗 (19, no separator) is still left out (沉浸式實景體驗--換唐裝 splits at --). Route: 西安 only; 華山 (in 【】 and dropped) and 袁家村 are not in the places list; the shared rules drop text in 【】 anyway.",
   "scraped": {
     "operatorId": "bigline",
     "code": "CSIAA06",
@@ -11,8 +11,8 @@
     "nights": null,
     "dayHeadings": [
       "香港機場集合 → 西安機場 → 入住酒店",
-      "酒店 → 世界八大奇跡【 兵馬俑】 → 【皇陵】",
-      "酒店 → 西安",
+      "酒店 → 古都西安的標誌性景觀 【西安城墻】 → 世界八大奇跡【 兵馬俑】 → 【皇陵】",
+      "酒店 → 中華文明發源地 → 西安",
       "酒店 → 【高家大院】 → 鐘鼓樓廣場 → 回民一條街 → 【大慈恩寺】 → 【大雁塔景區】 → 換唐裝 → 夜遊大唐不夜城",
       "酒店 → 【大明宮國家遺址公園】 → 丹鳳門博物館《微縮景觀》 → 遺址博物館 → 袁家村",
       "酒店 → 西安機場 → 香港機場散團"
@@ -68,6 +68,7 @@
   ],
   "unmatched": [
     "世界八大奇跡",
+    "中華文明發源地",
     "鐘鼓樓廣場",
     "回民一條街",
     "換唐裝",

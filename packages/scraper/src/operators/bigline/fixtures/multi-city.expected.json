@@ -1,7 +1,7 @@
 {
   "sourceUrl": "https://bigline.hk/tour-group/8923",
   "verifiedByOwner": false,
-  "notes": "Tour 8923 (BKKCA05), Chiang Mai and Chiang Rai. Fixture: the detail and the three months the scraper requests on 2026-11-13 (2026-12, 2027-01, 2027-02 of availableMonths 2026-12..2027-03), captured 2026-11-13 22:01-22:07 UTC, trimmed by public.ts. Title: basic.nameCn, spaces collapsed. From price: the detail's memberFee 4099 (the site shows memberFee with 起). Start: the first gathering place, 香港國際機場; no dismissal place is stated, so endPoint is null. Nights: not given by the API, null as for EGL. Departures: every date of the three months with its memberFee; all have seats left and none is full. Day headings: each day's route line split at | (and ~), bracketed notes removed, chunks over 16 characters left out as descriptions: Kad Farang Village ~ 獨特蘭納風格星巴克 splits at ~; Maya shopping mall瑪雅購物中心, The One Nimman 文青商圈, 午餐於網紅打卡餐廳 Lalita Cafe and 清邁Central Plaza 購物廣場 are over 16 and dropped; day 3's 泰國重要的茶葉生產基地和旅遊聖地，素有… is cut at the full-width comma, leaving its 16-character lead (美斯樂 is after the comma and is lost; it is not in the places list anyway). Route: 清邁 (day 1, 清邁機場), 清萊 (day 3), 清邁 again (day 5, 清邁機場 for the flight home): the shared rules keep a return to an earlier city. 金三角 (Golden Triangle) and 美斯樂 are not in the places list.",
+  "notes": "Tour 8923 (BKKCA05), Chiang Mai and Chiang Rai. Fixture: the detail and the three months the scraper requests on 2026-11-13 (2026-12, 2027-01, 2027-02 of availableMonths 2026-12..2027-03), captured 2026-11-13 22:01-22:07 UTC, trimmed by public.ts. Title: basic.nameCn, spaces collapsed. From price: the detail's memberFee 4099 (the site shows memberFee with 起). Start: the first gathering place, 香港國際機場; no dismissal place is stated, so endPoint is null. Nights: not given by the API, null as for EGL. Departures: every date of the three months with its memberFee; all have seats left and none is full. Day headings: each day's route line split at | (and ~), bracketed notes removed, and within each chunk the pieces the shared rules split at (、 - > spaces …) over 16 characters left out as descriptions: Kad Farang Village ~ 獨特蘭納風格星巴克 splits at ~; Maya shopping mall瑪雅購物中心, The One Nimman 文青商圈, 午餐於網紅打卡餐廳 Lalita Cafe and 清邁Central Plaza 購物廣場 are kept, their Latin words counted one by one (review round 1 changed this: they were dropped whole as over 16 characters before), which adds 文青商圈 and 購物廣場 to the unmatched names and makes the day-2 heading 92 characters long; day 3's 泰國重要的茶葉生產基地和旅遊聖地，素有… is cut at the full-width comma, leaving its 16-character lead (美斯樂 is after the comma and is lost; it is not in the places list anyway). Route: 清邁 (day 1, 清邁機場), 清萊 (day 3), 清邁 again (day 5, 清邁機場 for the flight home): the shared rules keep a return to an earlier city. 金三角 (Golden Triangle) and 美斯樂 are not in the places list.",
   "scraped": {
     "operatorId": "bigline",
     "code": "BKKCA05",
@@ -10,11 +10,11 @@
     "days": 5,
     "nights": null,
     "dayHeadings": [
-      "清邁機場 → 素貼山雙龍寺 → 獨特蘭納風格星巴克 → PREMIUM OUTLET → 清邁夜市 → 酒店",
-      "酒店早餐 → 大象訓練營 → 泰北傳統少數民族-長頸族村 → 清邁古城塔佩門 → 酒店",
-      "酒店早餐 → 泰北溫泉區 → 清萊 → 清萊觀音寺 → 藍廟 → 泰國重要的茶葉生產基地和旅遊聖地 → 酒店",
+      "清邁機場 → 素貼山雙龍寺 → Kad Farang Village → 獨特蘭納風格星巴克 → PREMIUM OUTLET → 清邁夜市 → 酒店",
+      "酒店早餐 → 大象訓練營 → 泰北傳統少數民族-長頸族村 → 清邁古城塔佩門 → Maya shopping mall瑪雅購物中心 → The One Nimman 文青商圈 → 酒店",
+      "酒店早餐 → 泰北溫泉區 → 清萊 → 午餐於網紅打卡餐廳 Lalita Cafe → 清萊觀音寺 → 藍廟 → 泰國重要的茶葉生產基地和旅遊聖地 → 酒店",
       "酒店早餐 → 酒店內觀賞雲海 → 泰北義民民史館 → 段希文陵墓 → 金三角鴉片博物館 → 湄公河三角洲 → 金三角大佛 → 清萊鐘樓 → 清萊夜市 → 酒店",
-      "酒店早餐 → 龍坤藝術廟 → 清邁機場 → 香港國際機場"
+      "酒店早餐 → 龍坤藝術廟 → 清邁Central Plaza 購物廣場 → 清邁機場 → 香港國際機場"
     ],
     "startPoint": "香港國際機場",
     "endPoint": null,
@@ -60,6 +60,7 @@
     "大象訓練營",
     "泰北傳統少數民族",
     "長頸族村",
+    "文青商圈",
     "泰北溫泉區",
     "藍廟",
     "泰北義民民史館",
@@ -67,6 +68,7 @@
     "金三角鴉片博物館",
     "湄公河三角洲",
     "金三角大佛",
-    "龍坤藝術廟"
+    "龍坤藝術廟",
+    "購物廣場"
   ]
 }
