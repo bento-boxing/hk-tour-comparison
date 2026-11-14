@@ -346,6 +346,29 @@ describe('extractStops on crawled headings', () => {
     // a visit named on the same day still reads
     expect(names(extractStops(['重本包門票暢玩【廣東千古情景區】~帶你一秒穿越至武術街、風情街、椰風海韻街等多個大型場景街道，沉浸式體驗大型實景劇場《廣州起義》；5D全方位視覺盛宴《大地震》等多個表演令你目不暇接→午餐【園區內自理】→約16:30離開前往廣州→晚餐 【玫瑰豉油雞宴】→前往廣州中山紀念堂'], places))).toEqual(['廣州']);
   });
+
+  // EGL's practice crawl (2026-11-13): places added, and names that matched a place they are not.
+  it.each([
+    // 沖繩 is a region and regions match only exactly; the island is a city too (as 濟州), so it is found inside a name
+    [['香港 → 直航沖繩 → 沖繩MAIN PLACE購物城'], ['沖繩']],
+    [['香港 → 峇里島 → 海神廟', '峇里島 → 烏布小鎮 → 烏布皇宮'], ['峇里島', '烏布']],
+    [['香港 → 汶萊 → 清真寺', '汶萊 → 遊覽淡武隆市鎮'], ['斯里巴加灣', '淡武廊']],
+    [['香港 → (航機)科倫坡(斯里蘭卡)', '科倫坡 → (車程約4小時)丹布勒', '(車程約3小時)康堤 → 佛牙寺'], ['科倫坡', '丹布勒', '康提']],
+    [['秘景奧入瀨溪流 → 十和田湖美景 → 青森港展望台'], ['十和田', '青森']],                  // not 和田 (Hotan)
+    [['蘇黎世 → 拉珀斯維爾(瑞士) → 蘇黎世'], ['蘇黎世', '拉珀斯維爾', '蘇黎世']],          // not 珀斯 (Perth)
+    [['布達佩斯(匈牙利) → 班斯卡-比斯特里察(斯洛伐克)'], ['布達佩斯', '班斯卡比斯特里察']],
+    [['清津峽 → 小千谷錦鯉之鄉 → 新潟伊勢丹萬代大道'], ['小千谷']],                         // 伊勢丹 is a store, not 伊勢
+    [['洞爺湖美景 → 昭和新山 → 熊牧場'], ['洞爺湖']],                                      // 昭和新山 is not 新山 (Johor Bahru)
+    [['香港 → 桃園機場 → 台北'], ['台北']],                                               // the airport is not a visit to 桃園
+    [['聖地牙哥 → 卡薩布蘭卡山谷(葡萄園) → 聖地牙哥'], ['聖地牙哥']],                     // a Chilean valley, not Casablanca
+    [['非斯 → 舊城觀光 → 麥地那市集 → 皮革染坊'], ['費斯']],                               // a medina, not Medina
+    [['仁川 → 欣賞峽谷、大理石冰'], ['仁川']],                                             // marble, not Dali
+    [['嘉義 → 台灣小京都「檜意森活村」'], ['嘉義']],
+    [['茵特拉肯(瑞士) → 何維克大道‧自由購物'], ['茵特拉肯']],                               // Höheweg, not Vík
+    [['布加勒斯特(羅馬尼亞) → 加勒市區觀光'], ['布加勒斯特', '加勒']],                    // the longer name wins
+  ])('reads the EGL headings %j', (headings, expectedNames) => {
+    expect(names(extractStops(headings, places))).toEqual(expectedNames);
+  });
 });
 
 describe('extractStops with notPlaces', () => {

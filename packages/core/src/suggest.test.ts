@@ -145,8 +145,8 @@ it('single-region countries reached by prefix or contains matches also give the 
     { destination: { countryId: 'germany', regionId: null }, label: '德國 → 全部地區', via: '巴登巴登' },
   ]);
   expect(l.every(s => s.destination.regionId === null)).toBe(true);
-  // 雲南 is a region of multi-region 中國, so it stays a region row.
-  expect(labels('瑞')).toEqual(['中國 → 雲南', '瑞士 → 全部地區', '瑞典 → 全部地區']);
+  // 雲南 (via 瑞麗) and 忠清道 (via 瑞山) are regions of multi-region countries, so they stay region rows.
+  expect(labels('瑞')).toEqual(['韓國 → 忠清道', '中國 → 雲南', '瑞士 → 全部地區', '瑞典 → 全部地區']);
 });
 it('same-named cities in two single-region countries give one row per country', () => {
   expect(suggestRegions('聖城', buildPlacesIndex(oneRegionEach))).toEqual([

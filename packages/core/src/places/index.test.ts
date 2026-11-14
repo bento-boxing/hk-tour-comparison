@@ -261,8 +261,9 @@ describe('seed list', () => {
     const counts = Object.fromEntries(seedIds.map(id => [id, places.regionsOf(id).length]));
     // china: the 11 seed regions plus 東北三省, added for Jetour's Harbin tours (Task 15),
     // and 西北, 華中, 貴州, 內蒙古 and 海南, added from the operator dry runs (Task 19).
+    // korea: the 4 seed regions plus 忠清道 and 全羅道, added from EGL's practice crawl.
     expect(counts).toEqual({
-      japan: 9, korea: 4, taiwan: 4, thailand: 3, china: 17, vietnam: 3,
+      japan: 9, korea: 6, taiwan: 4, thailand: 3, china: 17, vietnam: 3,
       singapore: 1, malaysia: 2, hongkong: 1, macau: 1,
     });
   });
