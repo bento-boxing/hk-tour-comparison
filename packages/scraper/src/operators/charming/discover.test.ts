@@ -1,6 +1,6 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Fetcher } from '../../types';
-import { discover, isTourUrl, listUrl, MAX_LIST_PAGES, PER_PAGE } from './discover';
+import { discover, isNotAGroupTour, isTourUrl, listUrl, MAX_LIST_PAGES, PER_PAGE } from './discover';
 
 // Real links from the site's REST list (docs/operators/charming.md), plus off-site and non-tour variants.
 it.each([
@@ -25,20 +25,24 @@ it.each([
   expect(isTourUrl(url)).toBe(expected);
 });
 
-it('listUrl asks for 100 posts per page, only the fields discover reads', () => {
+it('listUrl asks for 100 posts per page, only the fields discover reads, in an envelope', () => {
   expect(PER_PAGE).toBe(100);
   expect(listUrl(3)).toBe(
-    'https://www.charming-online.com/index.php?rest_route=/wp/v2/tour&per_page=100&_fields=id,slug,link,modified&page=3');
+    'https://www.charming-online.com/index.php?rest_route=/wp/v2/tour&per_page=100&_fields=id,slug,link,modified&_envelope&page=3');
 });
 
-/** A list page of `n` posts whose links are `?tour=t<start + i>`. */
-const page = (start: number, n: number, extra: object[] = []) => JSON.stringify([
+/** `n` posts whose links are `?tour=t<start + i>`. */
+const posts = (start: number, n: number, extra: unknown[] = []) => [
   ...Array.from({ length: n }, (_, i) => ({
     id: 50000 - start - i, slug: `t${start + i}`, link: `https://www.charming-online.com/?tour=t${start + i}`,
     modified: '2026-11-11T16:05:42',
   })),
   ...extra,
-]);
+];
+/** A list page as the site answers it with `_envelope` (shape seen 2026-11-14, e01-envelope-p1.raw). */
+const envelope = (body: unknown, totalPages: unknown = 3, status = 200) => JSON.stringify({
+  body, status, headers: { 'X-WP-Total': 289, 'X-WP-TotalPages': totalPages, Link: '<…>; rel="next"', Allow: 'GET' },
+});
 
 /** A fetcher answering the list pages given (by page number), null for any other URL; records every URL asked. */
 function listFetcher(pages: Record<number, string | null>): { fetcher: Fetcher; asked: string[] } {
@@ -53,11 +57,12 @@ function listFetcher(pages: Record<number, string | null>): { fetcher: Fetcher; 
   return { fetcher, asked };
 }
 
-it('discover reads list pages until one holds fewer than 100 posts, keeping each tour link once, in order', async () => {
+it('discover reads every page up to the page count page 1 gives, keeping each tour link once, in order', async () => {
   const { fetcher, asked } = listFetcher({
-    1: page(0, 100),
-    2: page(100, 100, [{ id: 1, slug: 't5', link: 'https://www.charming-online.com/?tour=t5' }]),
-    3: page(200, 89),
+    1: envelope(posts(0, 100)),
+    2: envelope(posts(100, 100, [{ id: 1, slug: 't5', link: 'https://www.charming-online.com/?tour=t5' }])),
+    3: envelope(posts(200, 89)),
+    4: envelope(posts(300, 5)), // past the count: never asked for
   });
   const urls = await discover(fetcher);
   expect(urls).toHaveLength(289);
@@ -66,9 +71,14 @@ it('discover reads list pages until one holds fewer than 100 posts, keeping each
   expect(asked).toEqual([listUrl(1), listUrl(2), listUrl(3)]);
 });
 
+it('discover reads the page count given as digits, in any header case', async () => {
+  const body = JSON.stringify({ body: posts(0, 2), status: 200, headers: { 'x-wp-totalpages': '1' } });
+  expect(await discover(listFetcher({ 1: body }).fetcher)).toHaveLength(2);
+});
+
 it('discover keeps only links to tour pages on the site', async () => {
   const { fetcher } = listFetcher({
-    1: JSON.stringify([
+    1: envelope([
       { id: 1, link: 'https://www.charming-online.com/?tour=f-26-mono-008-ghtg' },
       { id: 2, link: 'https://www.charming-online.com/?page_id=31' },
       { id: 3, link: 'https://elsewhere.example.test/?tour=x' },
@@ -76,7 +86,7 @@ it('discover keeps only links to tour pages on the site', async () => {
       { id: 5 },
       'junk',
       { id: 6, link: 'https://www.charming-online.com/?tour=f-25-eur-010-gerd_gere&tour-destination=europe' },
-    ]),
+    ], 1),
   });
   expect(await discover(fetcher)).toEqual([
     'https://www.charming-online.com/?tour=f-26-mono-008-ghtg',
@@ -84,26 +94,48 @@ it('discover keeps only links to tour pages on the site', async () => {
   ]);
 });
 
-it('discover ends the list at a page that is not fetched (WordPress refuses a page past the last)', async () => {
-  const { fetcher, asked } = listFetcher({ 1: page(0, 100), 2: page(100, 100) });
-  expect(await discover(fetcher)).toHaveLength(200);
-  expect(asked).toEqual([listUrl(1), listUrl(2), listUrl(3)]);
+// Real slugs from the 2026-11-14 practice crawl (docs/operators/charming.md, "The 109 null pages").
+const link = (slug: string) => `https://www.charming-online.com/?tour=${encodeURIComponent(slug).toLowerCase()}`;
+it.each([
+  ['康養度假體驗套餐-3天2晚單人價錢：9300-雙人價錢：15200', true], // a spa package
+  ['臻享單日放鬆之旅-價錢：1480', true],
+  ['臻林-悅康會籍', true], // a membership
+  ['機票及郵輪套票', true],
+  ['加拿大航空《溫哥華機票-1晚酒店》優越之選-lcpa', true],
+  ['122回-100-日-北歐峽灣與北極圈', true], // Peace Boat world cruise
+  ['9-晚-希臘精選之旅《海洋奧德賽號》', true], // cruise only
+  ['5晚-沖繩、石垣精選《海洋光譜號》', true],
+  ['2-3晚三亞海上遊-5晚沖繩那霸及宮古島-rwkh-2', true],
+  ['6天杜拜悠閒之旅-gdxd', false],
+  ['f-26-cruise-023-grcll', false], // a group tour with a cruise in it
+  ['8天-呼倫貝爾．漠河．滿洲里．北極村邂逅極光-pcmhp', false],
+  ['2天1晚高端退休考察遊-mchsc', false],
+  ['f-26-mono-008-ghtg', false],
+])('isNotAGroupTour(%s) is %s', (slug, expected) => {
+  expect(isNotAGroupTour(link(slug))).toBe(expected);
 });
 
-it('discover ends the list at an answer that is not a JSON list', async () => {
-  const { fetcher, asked } = listFetcher({ 1: page(0, 100), 2: '{"code":"rest_post_invalid_page_number"}' });
-  expect(await discover(fetcher)).toHaveLength(100);
-  expect(asked).toHaveLength(2);
-  expect(await discover(listFetcher({ 1: '<html>not json</html>' }).fetcher)).toEqual([]);
+it('discover leaves out the posts that are not group tours', async () => {
+  const { fetcher } = listFetcher({ 1: envelope([
+    { id: 1, link: link('f-26-mono-008-ghtg') }, { id: 2, link: link('中醫入門套餐-單人價錢：5100-雙人價錢：8100') },
+  ], 1) });
+  expect(await discover(fetcher)).toEqual([link('f-26-mono-008-ghtg')]);
 });
 
-it(`discover never asks for more than ${MAX_LIST_PAGES} list pages`, async () => {
-  const pages = Object.fromEntries(Array.from({ length: MAX_LIST_PAGES + 5 }, (_, i) => [i + 1, page(i * 100, 100)]));
-  const { fetcher, asked } = listFetcher(pages);
-  expect(await discover(fetcher)).toHaveLength(MAX_LIST_PAGES * 100);
-  expect(asked).toHaveLength(MAX_LIST_PAGES);
-});
-
-it('discover returns [] when the first list page cannot be fetched', async () => {
-  expect(await discover({ fetchText: async () => null })).toEqual([]);
+describe('discover throws rather than return part of the list', () => {
+  it.each([
+    ['a page is not fetched', { 1: envelope(posts(0, 100)), 2: null, 3: envelope(posts(200, 89)) }, /page 2 was not fetched/],
+    ['a page is not JSON', { 1: envelope(posts(0, 100)), 2: '<html>busy</html>', 3: envelope(posts(200, 89)) }, /page 2 is not JSON/],
+    ['a page answers an error', {
+      1: envelope(posts(0, 100)), 2: envelope({ code: 'rest_post_invalid_page_number', data: { status: 400 } }, 3, 400),
+    }, /page 2 is not a list of posts \(status 400\)/],
+    ['a page is not an envelope (the parameter ignored)', { 1: JSON.stringify(posts(0, 100)) }, /page 1 is not a list of posts/],
+    ['page 1 is not fetched', {}, /page 1 was not fetched/],
+    ['page 1 gives no page count', { 1: JSON.stringify({ body: posts(0, 3), status: 200, headers: {} }) }, /no page count/],
+    ['page 1 gives a page count of 0', { 1: envelope([], 0) }, /no page count/],
+    ['page 1 gives a page count that is not a whole number', { 1: envelope(posts(0, 3), '2.5') }, /no page count/],
+    [`the list has more than ${MAX_LIST_PAGES} pages`, { 1: envelope(posts(0, 100), MAX_LIST_PAGES + 1) }, /21 pages, more than the 20/],
+  ] as [string, Record<number, string | null>, RegExp][])('when %s', async (_, pages, message) => {
+    await expect(discover(listFetcher(pages).fetcher)).rejects.toThrow(message);
+  });
 });
