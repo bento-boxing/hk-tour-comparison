@@ -31,6 +31,18 @@ function clean(text: unknown): string {
   return typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
 }
 
+/** The brackets of a title read as spaces in its fallback route (`【入住中山溫泉酒店】`). */
+const TITLE_BRACKETS = /[【】]/g;
+
+/**
+ * The title as the fallback route: its 【】 turned into spaces so their text is read (owner decision 2026-11-15,
+ * reversing the earlier "ignore brackets" now that the title rules guard title routes), runs of spaces as one.
+ * Other brackets stay, so the shared rules still drop `(…)` and `[…]` notes with their text.
+ */
+export function titleRouteLine(title: string): string {
+  return title.replace(TITLE_BRACKETS, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /** A price given as a JSON number (`6199.0`), as whole HKD; null below 100 or if absent. */
 function price(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? parsePriceHkd(String(Math.trunc(value))) : null;
@@ -130,8 +142,8 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     departures,
     // Owner decision 2026-11-14: about a third of the tours name no place in their day lines (coach tours
     // whose town is only in the title, cruises, empty lines), so their stops are read from the title,
-    // with the day-line rules, when the day lines give none (normaliseTour).
-    fallbackRoute: clean(basic.nameCn),
+    // with the day-line rules, when the day lines give none (normaliseTour). Text inside 【】 is read too.
+    fallbackRoute: titleRouteLine(clean(basic.nameCn)),
   };
 }
 

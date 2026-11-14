@@ -222,4 +222,19 @@ describe('stops from the title when the day lines name no place (owner decision 
   it('a tour whose title names no place either is still no-stops', () => {
     expect(normalised(titled('溫泉美食2天', ['.溫泉~入住酒店']))).toMatchObject({ ok: false, reason: 'no-stops' });
   });
+  it('reads inside 【】 (owner decision 2026-11-15): the brackets are spaces in the fallback route', () => {
+    const tour = parseRaw(titled('溫泉2天【入住中山溫泉酒店】【美食】', ['.溫泉~入住酒店']));
+    expect(tour?.fallbackRoute).toBe('溫泉2天 入住中山溫泉酒店 美食');
+    const r = normalised(titled('溫泉2天【入住中山溫泉酒店】', ['.溫泉~入住酒店']));
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['中山']);
+  });
+  it('keeps the title itself, and its other brackets in the fallback route, as given', () => {
+    const tour = parseRaw(titled('溫泉2天【中山】(珠海)', ['.溫泉~入住酒店']));
+    expect(tour?.title).toBe('溫泉2天【中山】(珠海)');
+    expect(tour?.fallbackRoute).toBe('溫泉2天 中山 (珠海)');
+  });
+  it('day lines keep dropping their bracketed notes', () => {
+    const r = normalised(titled('溫泉美食2天', ['.集合~午餐【中山農家宴】~江門', '.早餐~散團']));
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['江門']);
+  });
 });
