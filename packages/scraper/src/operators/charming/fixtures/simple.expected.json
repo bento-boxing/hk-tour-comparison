@@ -1,0 +1,52 @@
+{
+  "sourceUrl": "https://www.charming-online.com/?tour=8%e5%a4%a9-%e8%8f%af%e6%9d%b1%e3%80%90%e4%b9%be%e9%9a%86%e9%81%8a%e6%b1%9f%e5%8d%97%e3%80%91%e6%b1%9f%e5%8d%97%e5%b0%8b%e5%a4%a2%e4%b9%8b%e6%97%85-pccgg",
+  "verifiedByOwner": false,
+  "notes": [
+    "Saved 2026-11-14 (Hong Kong) through createFetcher (fixture request 7 of 8, .superpowers/raw-pages/charming/ledger-fixtures.tsv), trimmed with the allow list in docs/operators/charming.md.",
+    "One tour code (PCCGG), one variant, twelve dates, all status HP (plain): none full, so all twelve are kept.",
+    "Each price is the adult (sharing a room) price after the early-booking discount (.detail-discount-price, 3398), not the price before it (.detail-original-price, 5398): it is the price the page shows as current. The page says offers are limited; the card's 'check with the operator' covers that.",
+    "fromPriceHkd is null: the page's only 'from' figure is in a script (min_original_price, before the discount); normaliseTour takes the lowest date price.",
+    "Day 1 `香港 ~ 無錫/南京/上海 ~ 南京 ~ …` loses the flight leg `無錫/南京/上海` (either city, next to Hong Kong), and the last day `烏鎮（…） ~ 杭州/上海機場 ~ 香港` loses `杭州/上海機場`, as Jetour's and EGL's parsers do. Every other heading is as the page gives it, whitespace collapsed.",
+    "The day-4 label is `Day ４` with a full-width digit; it counts as a day.",
+    "startPoint and endPoint are the first place of day 1 and the last place of the last day (`香港`), the page's only statement of where the tour starts; both normalise to Hong Kong.",
+    "The title is kept as the page gives it, with its ` ~ PCCGG`.",
+    "Stops and unmatched names are as they come out with places/data.json as it stood on 2026-11-14; the unmatched names are sights, not places."
+  ],
+  "scraped": {
+    "operatorId": "charming",
+    "code": "PCCGG",
+    "url": "https://www.charming-online.com/?tour=8%e5%a4%a9-%e8%8f%af%e6%9d%b1%e3%80%90%e4%b9%be%e9%9a%86%e9%81%8a%e6%b1%9f%e5%8d%97%e3%80%91%e6%b1%9f%e5%8d%97%e5%b0%8b%e5%a4%a2%e4%b9%8b%e6%97%85-pccgg",
+    "title": "8天 華東【乾隆遊江南】江南尋夢之旅 ~ PCCGG",
+    "days": 8,
+    "nights": null,
+    "dayHeadings": [
+      "香港 ~ 南京 ~ 夜游南京金陵小城",
+      "南京 ~ 牛首山景區 ~ 大報恩寺 ~ 夜遊南京老門東",
+      "南京 ~ 揚州瘦西湖景區 ~ 無錫惠山古鎮+錫惠公園 ~ 南長街（清名橋美食街）",
+      "無錫太湖黿頭渚公園 ~ 太湖珍珠工廠 ~ 紫砂博物館 ~ 蘇州 ~ 蘇州麗思卡爾頓酒店",
+      "蘇州獅子林（乾隆御筆親提“真趣”亭） ~ 江南絲綢廠 ~ 杭州西湖（特別安排乘畫舫船遊覽）",
+      "杭州十里梅塢 · 龍井問茶 ~ 《富春山居圖》黃公望隱居地（黃公望紀念館、小洞天）",
+      "杭州銅鑑湖（特別安排乘船遊覽） ~ 嘉興烏鎮西柵",
+      "烏鎮（白蓮塔、西柵大街、烏鎮水上集市） ~ 香港"
+    ],
+    "startPoint": "香港",
+    "endPoint": "香港",
+    "fromPriceHkd": null,
+    "departures": [
+      { "date": "2026-12-18", "priceHkd": 3398 },
+      { "date": "2026-12-24", "priceHkd": 3998 },
+      { "date": "2026-12-30", "priceHkd": 3998 },
+      { "date": "2027-01-10", "priceHkd": 3398 },
+      { "date": "2027-01-18", "priceHkd": 3398 },
+      { "date": "2027-01-24", "priceHkd": 3398 },
+      { "date": "2027-02-02", "priceHkd": 4598 },
+      { "date": "2027-02-08", "priceHkd": 4998 },
+      { "date": "2027-02-13", "priceHkd": 3398 },
+      { "date": "2027-02-18", "priceHkd": 3398 },
+      { "date": "2027-02-22", "priceHkd": 3398 },
+      { "date": "2027-02-26", "priceHkd": 3398 }
+    ]
+  },
+  "stopNames": ["南京", "揚州", "無錫", "蘇州", "杭州", "嘉興", "烏鎮"],
+  "unmatched": ["牛首山景區", "大報恩寺", "南長街", "太湖珍珠工廠", "紫砂博物館", "江南絲綢廠", "龍井問茶"]
+}

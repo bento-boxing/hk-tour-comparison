@@ -1,0 +1,35 @@
+{
+  "sourceUrl": "https://www.charming-online.com/?tour=6%e5%a4%a9%e6%9d%9c%e6%8b%9c%e6%82%a0%e9%96%92%e4%b9%8b%e6%97%85-gdxd",
+  "verifiedByOwner": false,
+  "notes": [
+    "Saved 2026-11-14 (Hong Kong) through createFetcher (fixture request 1 of 8, .superpowers/raw-pages/charming/ledger-fixtures.tsv), trimmed with the allow list in docs/operators/charming.md. An old post: the REST list gives it as modified 2023-11-29.",
+    "What an expired tour page looks like: still HTTP 200, the full page, with its old date in the table (30/11/2023), here marked FU (`額滿`, full) in two places. The parser drops the full date, so departures is []; normaliseTour skips the tour as no-departures (not a failure). Were the date not full, normaliseTour would drop it as past.",
+    "This is the only FU row seen: the status class `reservation-table-status FU`, the date cell's status empty and the booking cell's saying `額滿`.",
+    "No early-booking discount on this page: the adult price is only in .detail-discount-price (9998). The tax (633) is shown separately and not added.",
+    "The last label is `Day 5/6` (a night flight): five headings for six days; the days come from the title's `6天`.",
+    "normalised is no-departures, so stopNames is extractStops over the day headings (Hong Kong excluded), not normaliseTour's route: 杜拜 only. `阿布達比` (Abu Dhabi; the list has 阿布扎比) is missing from places/data.json as it stood on 2026-11-14.",
+    "Unmatched names are normaliseTour's, which it reports even for a tour it skips."
+  ],
+  "scraped": {
+    "operatorId": "charming",
+    "code": "GDXD",
+    "url": "https://www.charming-online.com/?tour=6%e5%a4%a9%e6%9d%9c%e6%8b%9c%e6%82%a0%e9%96%92%e4%b9%8b%e6%97%85-gdxd",
+    "title": "6天杜拜悠閒之旅 ~ GDXD",
+    "days": 6,
+    "nights": null,
+    "dayHeadings": [
+      "香港 ~ 杜拜 ~ 酒店休息",
+      "杜拜 ~ 阿布達比 ~ 阿布達比大清真寺 ~ Yas Marina海濱大道(途經法拉利一級方程式 錦標賽賽道) ~ 遠眺拍照(全球最斜人工塔 Capital Gate[健力士紀錄]、阿蒂斯克大樓、 謝赫札耶德大橋) ~ 杜拜",
+      "杜拜 ~ [棕櫚島Palm Island] ~ [迷失海底世界水族館](包門票) ~ 單軌觀光火車(單程) ~ 重本增遊：杜拜世博城Expo City[Al Wasl 廣場、 空中花園觀景塔、超現實水景]",
+      "杜拜 ~ 黃金街 ~ 香料市場 ~ 皮革中心 ~ 水上的士(ABRAS) ~ 下午自費參加[沙漠四驅車 越野之旅浩瀚沙漠一嘗衝沙、欣賞肚皮舞及享用 阿拉伯式燒烤大餐]",
+      "杜拜 ~「杜拜之框」(外觀) ~ 杜拜未來博物館(外觀) ~ 哈利法塔(包入場) ~ 杜拜購物中心 ~ 藍水島上的日落景觀 ~ 艾因杜拜摩天輪(自費乘坐) ~ 香港"
+    ],
+    "startPoint": "香港",
+    "endPoint": "香港",
+    "fromPriceHkd": null,
+    "departures": []
+  },
+  "normalised": "no-departures",
+  "stopNames": ["杜拜"],
+  "unmatched": ["阿布達比", "阿布達比大清真寺", "遠眺拍照", "單軌觀光火車", "黃金街", "香料市場", "皮革中心", "水上的士", "下午自費參加", "哈利法塔"]
+}

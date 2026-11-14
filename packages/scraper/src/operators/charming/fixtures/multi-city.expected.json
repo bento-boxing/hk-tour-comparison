@@ -1,0 +1,46 @@
+{
+  "sourceUrl": "https://www.charming-online.com/?tour=f-25-eur-010-gerd_gere",
+  "verifiedByOwner": false,
+  "notes": [
+    "Saved 2026-11-14 (Hong Kong; 2026-11-13 23:52 UTC) in the operator investigation (.superpowers/raw-pages/charming/09-tour-gerd-gere.raw), trimmed with the allow list in docs/operators/charming.md.",
+    "The page sells two variants on the same six dates: GERD (11 days, back from Paris) and GERE (12 days, with London). The title says `11/12天 … ~ GERD/E`. One page gives one tour, so the parser takes the longest variant, GERE: its code (the `E` replaces the end of `GERD`, and the table's codes `GERE12E-…` confirm it), its 12 days and its six rows (45498 each, after the early-booking discount; 48498 before). GERD's rows (39898) are left out, so GERD is not listed. Judgment call.",
+    "The `Day 10/11 … - GERD` entry (`巴黎 ~ 自由活動 ~ 香港`, GERD's flight home) is tagged with the other variant's code and left out; 11 headings remain for 12 days because `Day 11/12` covers the night flight.",
+    "`羅馬(鬥獸場 ~ 許願池)` has a `~` inside its brackets; the heading is kept as the page gives it.",
+    "startPoint and endPoint are `香港` (day 1's first place, the last day's last place): Hong Kong.",
+    "Stops are as they come out with places/data.json as it stood on 2026-11-14: `博訥/迪戎` gives 波本 (Beaune, by its alias 博訥) only, because `迪戎` (Dijon; the list has 第戎) is missing; `梵蒂崗` (the list has 梵蒂岡), `貝林佐納` (Bellinzona) and `英高柏` (Engelberg) are real places missing from the list, so the route lacks them. 溫莎 comes from `自費：溫莎古堡半日遊`, an optional excursion, by core's contained-name rule."
+  ],
+  "scraped": {
+    "operatorId": "charming",
+    "code": "GERE",
+    "url": "https://www.charming-online.com/?tour=f-25-eur-010-gerd_gere",
+    "title": "11/12天【經典歐洲】【意大利、梵蒂岡、 瑞士、法國/英國】文化藝術饗宴之旅 ~ GERD/E",
+    "days": 12,
+    "nights": null,
+    "dayHeadings": [
+      "香港 ~ 羅馬[意大利]",
+      "羅馬 ~ 梵蒂崗(聖彼得大教堂) ~ 羅馬(鬥獸場 ~ 許願池)",
+      "羅馬 ~ 佛羅倫斯 ~ 聖母百花大教堂 ~ 領主廣場 ~ 比薩斜塔",
+      "比薩 ~ 威尼斯 ~ (嘆息橋 ~ 聖馬可廣場 ~ 道奇皇宮 ~ 慕蘭奴玻璃製作過程) ~ 維羅納",
+      "維羅納 ~ 米蘭 ~ 米蘭大教堂：門外拍照 ~ 盧加諾[瑞士]",
+      "盧加諾 ~ 貝林佐納 ~ 格朗德大城堡 ~ 琉森 ~ 自由購物",
+      "琉森 ~ 英高柏 ~ 乘360 度旋轉纜車往鐵力士雪山 ~ 博訥/迪戎[法國]",
+      "博訥/迪戎 ~ 巴黎 ~ 市內觀光 ~ 塞納河船河 ~法式海鮮大餐",
+      "巴黎 ~ 蒙馬特 ~ 莎瑪麗丹百貨公司 ~ LV咖啡廳(打卡聖地) ~ 自由活動 ~ 自費：羅浮宮博物館 ~ 悠閒購物",
+      "巴黎(歐洲之星) ~ 倫敦[英國] ~ (白金漢宮 ~ 西敏寺 ~ 大笨鐘 ~ 大英博物館)",
+      "倫敦 ~ 自費：溫莎古堡半日遊 ~ 香港"
+    ],
+    "startPoint": "香港",
+    "endPoint": "香港",
+    "fromPriceHkd": null,
+    "departures": [
+      { "date": "2026-12-19", "priceHkd": 45498 },
+      { "date": "2027-01-09", "priceHkd": 45498 },
+      { "date": "2027-01-23", "priceHkd": 45498 },
+      { "date": "2027-02-13", "priceHkd": 45498 },
+      { "date": "2027-02-27", "priceHkd": 45498 },
+      { "date": "2027-03-13", "priceHkd": 45498 }
+    ]
+  },
+  "stopNames": ["羅馬", "佛羅倫斯", "比薩", "威尼斯", "維羅納", "米蘭", "盧加諾", "琉森", "波本", "巴黎", "倫敦", "溫莎"],
+  "unmatched": ["梵蒂崗", "聖母百花大教堂", "領主廣場", "貝林佐納", "格朗德大城堡", "自由購物", "英高柏", "乘360", "迪戎", "塞納河船河", "法式海鮮大餐", "蒙馬特", "莎瑪麗丹百貨公司", "LV咖啡廳", "悠閒購物"]
+}
