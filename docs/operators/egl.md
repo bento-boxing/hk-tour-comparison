@@ -263,12 +263,13 @@ The 19 `no-stops` pages were missing places, not parser faults: Okinawa (9 pages
 
 All from the printed unmatched names and the day headings each page line carries; no page was re-fetched. Commit `feat(core): places from EGL's practice crawl`.
 
-- **New countries**, each with its `group`: Indonesia 印度尼西亞 (`southeast-asia`), Brunei 汶萊 (`southeast-asia`), Sri Lanka 斯里蘭卡 (`south-central-asia`), India 印度 (`south-central-asia`), Kyrgyzstan 吉爾吉斯 (`south-central-asia`), Qatar 卡塔爾 (`middle-east`). One region each, plus Korea's 忠清道 and 全羅道.
+- **New countries**, each with its `group`: Indonesia 印度尼西亞 (`southeast-asia`), Brunei 汶萊 (`southeast-asia`), Sri Lanka 斯里蘭卡 (`south-central-asia`), India 印度 (`south-central-asia`), Kyrgyzstan 吉爾吉斯 (`south-central-asia`). One region each, plus Korea's 忠清道 and 全羅道. (Qatar, added with Doha in the first pass, was removed in review: every 多哈 on EGL is a flight connection, so 多哈 stays unmatched until a tour really visits it.)
 - **259 new cities.** The largest groups: mainland China 67, Japan 62 (towns in Hokkaido, Tohoku, Kanto, Chubu, Kansai, Chugoku, Shikoku and Kyushu that EGL's Japan tours name), Europe 42, Taiwan 18, Sri Lanka 10 and Korea 9. The rest are in South and Southeast Asia, the Middle East, North Africa, Australia and New Zealand.
 - **41 alternate spellings** on existing cities. Most are EGL's own spellings: `艾芙` (Edfu), `高安堡` (Kom Ombo), `洪加達` (Hurghada), `希爾克內斯` (Kirkenes), `洛士托` (Luosto), `杜邦力` (Dubrovnik), `巴塞隆那`, `卡薩布蘭卡`, `加柏都斯亞` (Cappadocia), `華倫丹` (Volendam), `巴杜華` (Budva) and so on. There are also variant characters: `凱裡`, simplified `长沙`, `鐮倉`, and the Kangxi-radical forms `⾹港`, `狄⾂港` and `⽠啦雪蘭莪`.
 - **`直航沖繩`.** 沖繩 was in the list, but only as a **region**, and regions match only a whole heading token, never a name inside one. Only city names are found inside longer names. The fix is in the data, not the rule: 沖繩 is now also a city (Okinawa Island, aliases `沖縄`, `沖繩本島`), as 濟州 is for Jeju, so `直航沖繩` and `沖繩MAIN` find it. No matching rule was changed.
-- **27 `notPlaces`**, for names that matched a place they are not:
-  - on existing routes: `十和田湖` read as 和田 (Hotan); `復活節島巨石像` as Easter Island; `大理石` as 大理; `韓國版聖托里尼` as Santorini; `麥地那市集` (a medina) as Medina; `何維克大道` (Höheweg) as Vík; `拉珀斯維爾` as Perth; `華倫丹-北海小漁村` as 北海; `華沙戰船博物館` as Warsaw; and more;
+- **Wrong cities on existing routes.** Two were fixed by adding the real place, whose longer name now wins: `十和田湖` was read as 和田 (Hotan) and is now 十和田 (Towada); `拉珀斯維爾` was read as Perth and is now Rapperswil. The rest were fixed by `notPlaces`.
+- **27 `notPlaces`** in the first pass, for names that matched a place they are not:
+  - on existing routes: `復活節島巨石像` as Easter Island; `大理石` as 大理; `韓國版聖托里尼` as Santorini; `麥地那市集` (a medina) as Medina; `何維克大道` (Höheweg) as Vík; `華倫丹-北海小漁村` as 北海; `華沙戰船博物館` as Warsaw; and more;
   - guards for the new names: `伊勢丹`, `昭和新山`, `桃園機場`, `青井阿蘇`, `卡薩布蘭卡山谷` (a Chilean valley).
 - **Estimate, offline** (the logged headings re-processed with the new data): every one of the 19 `no-stops` pages now has a route. Distinct unmatched names fall from 2,455 to 2,046, and what is left is sights, shops, activities and notes (`〔註1〕`, `珍珠養殖中心`, `📸大教堂`).
   - 334 of the 573 routes change, nearly all by gaining stops. The removals are the wrong cities listed above. Every other removal was checked by hand: either a longer name now wins (南投 → 杉林溪 in `南投．杉林溪生態渡假園`), or a repeat collapsed.
@@ -276,7 +277,30 @@ All from the printed unmatched names and the day headings each page line carries
 - **Known limits, not changed:**
   - Overnight alternatives written `布里格/特施/夕昂/菲斯普` or `林茲/韋爾斯` give every alternative as a stop, as the shared rule does for any `/`.
   - Flight hubs named plainly (`杜拜/多哈`) appear on routes.
-  - `〔註1〕` (full-width tortoise-shell brackets) is not dropped as a note.
+  - `〔註1〕` (full-width tortoise-shell brackets) is not dropped as a note by the shared rules. The EGL parser now removes it from each stop (review, below).
+
+### Review of the places pass (2026-11-14)
+
+- **Short new names found inside unrelated words** (Jetour runs nightly on the same data). Guarded with `notPlaces`:
+  - `雅拉河`, `萬雅拉` and `雅拉雪山`: not Yala (the Yarra Valley, Lake Manyara, a Yunnan mountain);
+  - `樂天水`: Lotte's aquarium, not 天水;
+  - `熱海景區`: the Rehai hot springs in Tengchong, not Atami;
+  - `黃龍溪` and `黃龍洞`;
+  - `天童寺`: a Ningbo temple, not Tendo;
+  - `加勒比`: the Caribbean, not Galle;
+  - `新山口` and `安平橋`.
+  
+  雅拉 and 熱海 are also in `collisionNames`. The proposed `騰衝熱海` guard was not added: equal-length names go to the earlier one, so `騰衝熱海` already reads as 騰衝, and the guard would have hidden 騰衝 too.
+- **Sweep.** Every heading token in the EGL crawl log, and every unmatched name in the Jetour, Travel Expert, Big Line and Charming dry-run logs, was matched against the new data. Every match found inside a longer word, for each city or alias added, was read by hand. Two more were wrong and are now guarded: `北角館` (Jetour, read as 角館) and `沙溪堡` (Travel Expert, read as Shaxi, Yunnan).
+  - The rest are the right place: `伊勢神宮`, `熱海梅園`, `太宰府天滿宮`, `黃果樹瀑布`, `九江港`, `怡保夜市`, `新竹城隍廟` and others.
+  - Busan's 松島 (`松島海上纜車`) is entered as a Korean city as well as Japan's Matsushima, so a Busan route picks the Korean one.
+- **安順** names Anshun (Guizhou) and Teluk Intan (Malaysia). China's entry now comes first, so it wins when no country is known.
+- **10 EGL routes lost Qatar** (offline): HTEEPP09, HTEEEK09, HTEWEG14, HTEWRA12, HTRMDX11, HTREEK10, HTRMMQ10, HTREQR09, HTESLB10 and HTESLB11. No other EGL route changed in the review round.
+- **Also added, from the Big Line and Charming scrapers:**
+  - aliases `奥斯陸`, `呂勒奥`, `班芙`, `阿布達比`, `梵蒂崗`, `迪戎`, `摩特納`, `聖吉米那諾` and `奧爾維耶托`;
+  - cities 鄂爾多斯, 根河, 滿歸, 呼倫湖 (as 日月潭 is a lake entry), 萊陽, 德清, 基隆那 (Kelowna, which had matched 基隆), 露易斯湖, 甘露市, 三文灣, 維農, 貝林佐納, 英高柏 and 特倫托.
+  
+  維多利亞 (Victoria, BC) was **not** added: it would match 維多利亞港, 維多利亞女皇購物中心, 維多利亞廣場 and 維多利亞州 in other tours.
 
 ## Pages the parser rejected (`parser returned null`, 31)
 
@@ -284,10 +308,12 @@ The log does not say why a page was rejected, so 8 of the 31 were fetched once e
 
 | Cause | Pages fetched | What it is | Done |
 |---|---|---|---|
-| **No dates on sale.** The dates API answers `{"productCode":"","currency":"",…,"status":"No Available Dates","dates":[]}`, with no code and no currency, so the check that the JSON is for this tour in HKD failed. | HTENBT12, HTCWGK07 | A real tour with nothing on sale | **Fixed.** That answer (empty code, empty currency and no dates) now reads as a tour with no departures, which the runner skips as `no-departures`. An answer without a code that does list dates is still rejected. |
-| **A closing arrival day.** The plans run one day past the hero count (`5天．` with days 1–6). The extra day is a note such as `平安抵港，開心行程結束!*10月25日起回程航班，抵港日已踏入第6天*`, for a flight home that lands after midnight. It has no meal and no hotel. | HTKCEE05, HTKSMS05, HTLBAA06 (Bhutan) | A real tour wrongly rejected | **Fixed.** Exactly one day past the hero count, with no meal and no hotel, is dropped, and the hero count stands. A day with a meal or hotel, or two extra days, still disagree and are rejected. |
-| **One plan list for two variants.** HTASCB08 (8 days) and HTASCB10 (10 days) share a list where day 8 is given twice, tagged `【ASCB08】` and `【ASCB10】`. | HTASCB08 | A real tour wrongly rejected | **Fixed.** When a day is tagged with this tour's code without its first two letters, days tagged with another code are dropped, as are untagged days past the hero count; the tag is removed. By the same rule, HTASCB10's headings (not fetched) would lose the 8-day variant's last day. |
+| **No dates on sale.** The dates API answers `{"productCode":"","currency":"",…,"status":"No Available Dates","dates":[]}`, with no code and no currency, so the check that the JSON is for this tour in HKD failed. | HTENBT12, HTCWGK07 | A real tour with nothing on sale | **Fixed.** That answer (`isSuccess: true`, `status: "No Available Dates"`, empty code, empty currency and no dates; all five required since the review) now reads as a tour with no departures, which the runner skips as `no-departures`. An answer without a code that does list dates is still rejected. |
+| **A closing arrival day.** The plans run one day past the hero count (`5天．` with days 1–6). The extra day is a note such as `平安抵港，開心行程結束!*10月25日起回程航班，抵港日已踏入第6天*`, for a flight home that lands after midnight. It has no meal and no hotel. | HTKCEE05, HTKSMS05, HTLBAA06 (Bhutan) | A real tour wrongly rejected | **Fixed.** Exactly one day past the hero count, with no meal and no hotel, after a day that ends at Hong Kong or the stated end point (required since the review), is dropped, and the hero count stands. A day with a meal or hotel, or two extra days, still disagree and are rejected. |
+| **One plan list for two variants.** HTASCB08 (8 days) and HTASCB10 (10 days) share a list where day 8 is given twice, tagged `【ASCB08】` and `【ASCB10】`. | HTASCB08 | A real tour wrongly rejected | **Fixed.** When a day is tagged with this tour's code without its first two letters, days tagged with another code are dropped, as are untagged days past the hero count; the tag is removed. A page with this tour's tag but no hero day count is rejected (since the review). By the same rule, HTASCB10's headings (not fetched) would lose the 8-day variant's last day. |
 | **"Not found" page served with HTTP 200.** Title of the tour, body `404 找不到頁面` and `此旅行團已額滿，以下為您推薦其他精選熱門行程` (MTK3FF05) or `我們目前找不到您正在尋找的旅遊團` (HTJAMK06). No tour code, no day plans. | MTK3FF05, HTJAMK06 | Not a tour: the sitemap still lists a tour that is full or withdrawn | **Left rejected.** It still counts as a parse failure. No dates request is made for it. |
+
+**Stop notes (review).** Each stop now loses its `〔…〕` notes. On HTASCB08 the last stop was `香港〔註〕`, so the rule that drops the either/or flight leg next to home did not fire, and `(轉機)悉尼/墨爾本` put Melbourne on the route. The re-parsed saved page now ends `悉尼 凱恩斯 布里斯本 黃金海岸 布里斯本`.
 
 **Not fetched (23):** HTKPAA05, HTKSEE05, HTKCEA07, HTKSEA05, HTKSGB05, HTKPEA05, HTKSED05, HTKSGE05, HTKCFF05, HTKPMV05, HTKSMY05, HTKPMA05, HTKSMT05, HTKSMF05, HTKSMB05, MTK3MG05, MTK3EE05, HTJKME07, HTJKMA05, HTLBAB06, HTEWSW10, HTENFD09 and HTENFI09. Their cause is not known. By analogy with the pages fetched, the 15 Korean `HTK…` pages and HTLBAB06 are probably the arrival day, the `MTK3…` and `HTJK…` pages may be "not found" pages, and the three European pages may be "no dates". Their siblings did parse: 14 `HTK…` pages, for example, passed in the same crawl.
 
