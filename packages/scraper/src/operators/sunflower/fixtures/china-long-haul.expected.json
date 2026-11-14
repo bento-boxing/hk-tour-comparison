@@ -6,7 +6,7 @@
     "Shandong, 8 days. The calendar shows November 2026. The 17 November cell is `Ava-Calcell-F` with the text 額滿 (full) and an empty onclick: it has no date link, so it is not a departure. Six November dates are kept with their own prices.",
     "Later dates: tdp_confirm 1/12, 12/12, 15/12 and tdp_hardpush 3/12, 8/12, 10/12, 22/12, 26/12 (the November ones, 17/11, 21/11, 28/11, are in the shown month and not repeated; 17/11 is the full one), all with no price of their own; the trailing `...` is ignored.",
     "fromPriceHkd is the listing's 3,899 (the page names 26 December as its base date), lower than every November price (lowest 4,599). With dates that have no price, the stored from-price is 3,899 (normaliseTour), so those dates show HK$3,899 起.",
-    "The subarea uses `‧` (U+2027) between names: split on it (judgment call, beside 、 and commas). 尼山 and 東營 are not in places/data.json and are reported unmatched; 煙臺 matches 煙台."
+    "The subarea uses `‧` (U+2027) between names: split on it (judgment call, beside 、 and commas). 尼山 (an alias of 曲阜 since task 34, so it adds no stop beside 曲阜) and 東營 (a city since task 34) match; 煙臺 matches 煙台."
   ],
   "scraped": {
     "operatorId": "sunflower",
@@ -90,16 +90,6 @@
     ]
   },
   "normalised": "ok",
-  "stopNames": [
-    "青島",
-    "泰安",
-    "曲阜",
-    "煙台",
-    "蓬萊",
-    "青州"
-  ],
-  "unmatched": [
-    "尼山",
-    "東營"
-  ]
+  "stopNames": ["青島", "泰安", "曲阜", "煙台", "蓬萊", "東營", "青州"],
+  "unmatched": []
 }

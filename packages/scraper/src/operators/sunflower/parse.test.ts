@@ -175,26 +175,26 @@ describe('the route', () => {
   it('falls back to the area where nothing in the subarea is recognised', () => {
     const r = normalised({ subarea: '環島遊', area: '台灣', region: '台灣', Title: '環島遊5天' });
     expect(r.ok).toBe(false); // 台灣 is a country: no stop
-    const area = normalised({ subarea: '北疆', area: '新疆', region: '中國長線' });
+    const area = normalised({ subarea: '天山北麓', area: '新疆', region: '中國長線' });
     expect(area.ok && stopNames(area.tour.stops)).toEqual(['新疆']);
-    expect(area.unmatched).toEqual(['北疆']); // the subarea's word is reported, the area's are not
+    expect(area.unmatched).toEqual(['天山北麓']); // the subarea's word is reported, the area's are not
   });
 
   it('reads the title as a last resort, brackets and marks as spaces, under the title rules (owner decision 2026-11-15)', () => {
-    const tour = tourOf(row({ subarea: '華川', area: '韓國', region: '日韓', Title: '【5天 首爾】華川山川魚節' }));
-    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['華川'], ['韓國', '5天 首爾 華川山川魚節']]);
-    const r = normalised({ subarea: '華川', area: '韓國', region: '日韓', Title: '【5天 首爾】華川山川魚節' });
+    const tour = tourOf(row({ subarea: '雪國秘境', area: '韓國', region: '日韓', Title: '【5天 首爾】雪國山川魚節' }));
+    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['雪國秘境'], ['韓國', '5天 首爾 雪國山川魚節']]);
+    const r = normalised({ subarea: '雪國秘境', area: '韓國', region: '日韓', Title: '【5天 首爾】雪國山川魚節' });
     expect(r.ok && stopNames(r.tour.stops)).toEqual(['首爾']);
-    expect(r.unmatched).toEqual(['華川']); // the subarea's word is reported, the title's are not
+    expect(r.unmatched).toEqual(['雪國秘境']); // the subarea's word is reported, the title's are not
   });
 
   it('does not read the title while the subarea or the area gives a stop', () => {
-    const r = normalised({ subarea: '北疆', area: '新疆', region: '中國長線', Title: '烏魯木齊 喀什10天' });
+    const r = normalised({ subarea: '天山北麓', area: '新疆', region: '中國長線', Title: '烏魯木齊 喀什10天' });
     expect(r.ok && stopNames(r.tour.stops)).toEqual(['新疆']);
   });
 
   it('has no stops where none of them names a place, and never uses the region', () => {
-    const r = normalised({ subarea: '長江三峽', area: '長江三峽', region: '中國長線', Title: '長江三峽遊輪7天' });
+    const r = normalised({ subarea: '絲路秘境', area: '絲路秘境', region: '中國長線', Title: '絲路秘境遊輪7天' });
     expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
     expect(normalised({ subarea: '', area: '', region: '日本', Title: '賞楓5天' })).toMatchObject({ ok: false, reason: 'no-stops' });
     expect(tourOf(row({ subarea: '', area: '  ', Title: '' }))).not.toHaveProperty('fallbackRoute');
