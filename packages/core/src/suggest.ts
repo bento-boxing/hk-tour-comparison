@@ -1,6 +1,7 @@
 import { normaliseName } from './places/index';
 import type { City, Country, PlacesIndex, Region } from './places/index';
 import { zhHansName } from './places/zh-hans';
+import searchAliasesEn from './places/search-aliases.en.json';
 import type { Destination } from './destination';
 
 export interface Suggestion {
@@ -11,17 +12,45 @@ export interface Suggestion {
 
 export const ALL_REGIONS_LABEL = '全部地區';
 
-type Place = { nameZh: string; nameEn: string; aliases: string[] };
+type Place = { id: string; nameZh: string; nameEn: string; aliases: string[] };
 type NameTest = (name: string) => boolean;
 
-/** Every normalised name a place answers to: Traditional, Simplified, English and aliases (in both scripts). */
-const namesOf = (p: Place) => {
-  const chinese = [p.nameZh, ...p.aliases];
-  return [...chinese, ...chinese.map(zhHansName), p.nameEn].map(normaliseName).filter(n => n !== '');
-};
+// English names a visitor may type that are not the place's own (UK, USA, Holland…). Search only: they are
+// not data.json aliases, which the scraper's place index also reads, so operator text saying 'UK' or 'US'
+// never resolves to a stop through them.
+const englishSearchAliases: Record<string, string[]> = searchAliasesEn;
+const englishAliasesOf = (p: Place) => (Object.hasOwn(englishSearchAliases, p.id) ? englishSearchAliases[p.id] : []);
 
-function matching<T extends Place>(items: T[], test: NameTest): T[] {
-  return items.filter(p => namesOf(p).some(test));
+/** Every normalised name a place answers to: Traditional, Simplified, English, aliases, and English search aliases. */
+function namesOf(p: Place): string[] {
+  const chinese = [p.nameZh, ...p.aliases];
+  return [...chinese, ...chinese.map(zhHansName), p.nameEn, ...englishAliasesOf(p)].map(normaliseName).filter(n => n !== '');
+}
+
+/**
+ * The English names from each later word on, for prefix matching: 'South Korea' gives 'korea', 'Bosnia and
+ * Herzegovina' gives 'andherzegovina' and 'herzegovina'. Only English names are split: Chinese matching is unchanged.
+ */
+function laterEnglishWords(p: Place): string[] {
+  return [p.nameEn, ...englishAliasesOf(p)].flatMap(name => {
+    const words = name.split(/[^\p{L}\p{N}]+/u).filter(w => w !== '');
+    return words.slice(1).map((_, i) => normaliseName(words.slice(i + 1).join('')));
+  });
+}
+
+const namesCache = new WeakMap<Place, { all: string[]; withWords: string[] }>();
+function names(p: Place) {
+  let cached = namesCache.get(p);
+  if (!cached) {
+    const all = namesOf(p);
+    cached = { all, withWords: [...all, ...laterEnglishWords(p)] };
+    namesCache.set(p, cached);
+  }
+  return cached;
+}
+
+function matching<T extends Place>(items: T[], test: NameTest, byWord = false): T[] {
+  return items.filter(p => (byWord ? names(p).withWords : names(p).all).some(test));
 }
 
 /**
@@ -30,7 +59,8 @@ function matching<T extends Place>(items: T[], test: NameTest): T[] {
  * A country reached by an exact city or region match also gets its 全部地區 row, after its last such row.
  * A country with exactly one region never gets a region row: its single row is 全部地區 (with `via` when a
  * city matched), so 新加坡 reads `新加坡 → 全部地區`, not `新加坡 → 新加坡`.
- * Traditional and Simplified Chinese names, aliases and English names all match; labels are always
+ * Traditional and Simplified Chinese names, aliases, English names and English search aliases all match,
+ * and an English name also matches by prefix from any of its words ('korea' → South Korea). Labels are always
  * Traditional Chinese (the website builds its own labels in the visitor's language from `destination`).
  */
 export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Suggestion[] {
@@ -60,7 +90,7 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   const startsWith: NameTest = n => n.startsWith(q);
   const contains: NameTest = n => n.includes(q);
 
-  // Every rule matches nameZh, nameEn and aliases.
+  // Every rule matches nameZh, its Simplified form, nameEn, aliases and the English search aliases.
   // 1–3: exact city, region, country.
   matching(cities, equals).forEach(addCity);
   matching(regions, equals).forEach(r => addRegion(r));
@@ -69,10 +99,11 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
     addAllRegions(country);
     index.regionsOf(country.id).forEach(r => addRegion(r));
   }
-  // 4–5: city, region, then country starts with the query.
-  matching(cities, startsWith).forEach(addCity);
-  matching(regions, startsWith).forEach(r => addRegion(r));
-  matching(countries, startsWith).forEach(addAllRegions);
+  // 4–5: city, region, then country starts with the query; an English name also from any of its words
+  // ('korea' finds South Korea).
+  matching(cities, startsWith, true).forEach(addCity);
+  matching(regions, startsWith, true).forEach(r => addRegion(r));
+  matching(countries, startsWith, true).forEach(addAllRegions);
   // 6: city, then region, contains the query.
   matching(cities, contains).forEach(addCity);
   matching(regions, contains).forEach(r => addRegion(r));

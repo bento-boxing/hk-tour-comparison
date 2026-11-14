@@ -39,3 +39,19 @@ it('search suggestions match Simplified names and aliases', () => {
   expect(suggestRegions('東京', places)[0].destination).toEqual({ countryId: 'japan', regionId: 'japan-kanto' });
   expect(suggestRegions('Tokyo', places)[0].destination).toEqual({ countryId: 'japan', regionId: 'japan-kanto' });
 });
+
+it('mainland names for foreign cities, and both the Hong Kong and the mainland name find the city', () => {
+  const cases: [string, string, string][] = [
+    ['杜拜', '迪拜', 'uae'], ['佛羅倫斯', '佛罗伦萨', 'italy'], ['巴塞隆拿', '巴塞罗那', 'spain'],
+    ['伊斯坦堡', '伊斯坦布尔', 'turkey'], ['薩爾斯堡', '萨尔茨堡', 'austria'], ['拿坡里', '那不勒斯', 'italy'],
+    ['但尼丁', '达尼丁', 'new-zealand'], ['夏灣拿', '哈瓦那', 'cuba'], ['蒙地卡羅', '蒙特卡洛', 'monaco'],
+    ['布里斯本', '布里斯班', 'australia'],
+  ];
+  for (const [hk, mainland, countryId] of cases) {
+    expect(zhHansName(hk), hk).toBe(mainland);
+    expect(suggestRegions(hk, places)[0]?.destination.countryId, hk).toBe(countryId);
+    expect(suggestRegions(mainland, places)[0]?.destination.countryId, mainland).toBe(countryId);
+  }
+  expect(zhHansName('南澳洲')).toBe('南澳大利亚');
+  expect(zhHansName('西澳')).toBe('西澳大利亚');
+});
