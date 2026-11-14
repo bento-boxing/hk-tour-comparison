@@ -176,23 +176,39 @@ describe('codes and variants', () => {
     const t = parse(page('11/12天 歐洲 ~ GERD/E', HK_DAYS, [{ date: '19/12/2026', code: 'GERD11E-261219', now: '39898' }]), URL_X)!;
     expect([t.code, t.days, t.departures]).toEqual(['GERD', 11, [{ date: '2026-12-19', priceHkd: 39898 }]]);
   });
-  it('takes, among variants as long, the one whose lowest upcoming price is cheapest (cabin grades), rows by code', () => {
+  it('takes, among variants as long with rows on the same dates, the one with the lowest price over all its rows', () => {
     const t = parse(page('19天 北極圈 ~ GSAOA/B/O《2027》', HK_DAYS, [
       { date: '10/06/2027', code: 'GSAOB19K-270610', now: '90000' },
       { date: '10/06/2027', code: 'GSAOO19K-270610', now: '80000' },
       { date: '17/06/2027', code: 'GSAOB19K-270617', now: '91000' },
+      { date: '17/06/2027', code: 'GSAOO19K-270617', status: 'FU', now: '81000' }, // full still counts for the choice
     ]), URL_X, CAPTURED)!;
     expect([t.code, t.days, t.departures.map(d => d.priceHkd)]).toEqual(['GSAOO', 19, [80000]]);
   });
-  it('compares only prices after today, and takes the first on a tie', () => {
+  it('keeps the same code from night to night: a cheaper row that passes does not flip the choice', () => {
     const rows = [
-      { date: '10/06/2026', code: 'GSAOA19K-260610', now: '50000' }, // past: does not count
+      { date: '10/12/2026', code: 'GSAOA19K-261210', now: '90000' },
+      { date: '10/12/2026', code: 'GSAOB19K-261210', now: '50000' },
       { date: '10/06/2027', code: 'GSAOA19K-270610', now: '90000' },
-      { date: '10/06/2027', code: 'GSAOB19K-270610', now: '85000' },
-      { date: '10/06/2027', code: 'GSAOO19K-270610', now: '85000' },
+      { date: '10/06/2027', code: 'GSAOB19K-270610', now: '95000' },
     ];
-    expect(parse(page('19天 北極圈 ~ GSAOA/B/O', HK_DAYS, rows), URL_X, CAPTURED)!.code).toBe('GSAOB');
-    expect(parse(page('19天 北極圈 ~ GSAOA/B/O', HK_DAYS, rows), URL_X)!.code).toBe('GSAOA'); // no today: every date counts
+    const html = page('19天 北極圈 ~ GSAOA/B', HK_DAYS, rows);
+    const codes = ['2026-11-14', '2026-12-11', '2027-01-01'].map(today => parse(html, URL_X, today)!.code);
+    expect(codes).toEqual(['GSAOB', 'GSAOB', 'GSAOB']);
+  });
+  it('takes the first of variants as long whose rows are on different dates, whatever the prices', () => {
+    const t = parse(page('19天 北極圈 ~ GSAOA/B', HK_DAYS, [
+      { date: '10/06/2027', code: 'GSAOA19K-270610', now: '90000' },
+      { date: '17/06/2027', code: 'GSAOB19K-270617', now: '50000' },
+    ]), URL_X, CAPTURED)!;
+    expect(t.code).toBe('GSAOA');
+  });
+  it('takes the first on a tie of lowest prices', () => {
+    const t = parse(page('19天 北極圈 ~ GSAOA/B', HK_DAYS, [
+      { date: '10/06/2027', code: 'GSAOA19K-270610', now: '85000' },
+      { date: '10/06/2027', code: 'GSAOB19K-270610', now: '85000' },
+    ]), URL_X, CAPTURED)!;
+    expect(t.code).toBe('GSAOA');
   });
   it('gives a row to the longest code that starts it, followed by a digit (GVRB/GVRBX)', () => {
     const t = parse(page('8/10天 加拿大 ~ GVRB/GVRBX', HK_DAYS, [
@@ -201,10 +217,16 @@ describe('codes and variants', () => {
     ]), URL_X)!;
     expect([t.code, t.days, t.departures]).toEqual(['GVRBX', 10, [{ date: '2027-01-05', priceHkd: 15000 }]]);
   });
-  it('is null when a table with no code column lists dates for variants of different lengths (GAKA/GAKVA)', () => {
+  it('is null when a table with no code column lists an open upcoming date for variants of different lengths (GAKA/GAKVA)', () => {
     const title = '11/14天 【CEO系列】津巴布韋、肯尼亞 ~ GAKA/GAKVA';
-    expect(parse(page(title, HK_DAYS, [{ date: '13/08/2026', now: '60000' }]), URL_X)).toBeNull();
+    expect(parse(page(title, HK_DAYS, [{ date: '13/12/2026', now: '60000' }]), URL_X, CAPTURED)).toBeNull();
+    expect(parse(page(title, HK_DAYS, [{ date: '13/08/2026', now: '60000' }]), URL_X)).toBeNull(); // no today: every date counts
     expect(parse(page(title, HK_DAYS, []), URL_X)).toMatchObject({ code: 'GAKVA', days: 14, departures: [] });
+  });
+  it('gives the longest variant with no departures when those rows are all past or full (skipped as no-departures)', () => {
+    const title = '11/14天 【CEO系列】津巴布韋、肯尼亞 ~ GAKA/GAKVA';
+    const rows = [{ date: '13/08/2026', status: 'FU', now: '60000' }, { date: '1/11/2026', now: '60000' }, { date: '20/12/2026', status: 'FU', now: '60000' }];
+    expect(parse(page(title, HK_DAYS, rows), URL_X, CAPTURED)).toMatchObject({ code: 'GAKVA', days: 14, departures: [] });
   });
   it('gives rows that two variants with the same letters and days could both claim to the first only', () => {
     const t = parse(page('5天 測試團 ~ ABC1/2', HK_DAYS, [
