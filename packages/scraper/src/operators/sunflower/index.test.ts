@@ -10,11 +10,11 @@ import { rawBookingPage, rawListing, rawListingRow, SECRETS } from './test-respo
 
 const TODAY = '2026-11-14';
 
-it('is registered as sunflower, with a provisional first-run floor and no extra request headers', () => {
+it('is registered as sunflower, with a first-run floor of a third of the measured crawl and no extra request headers', () => {
   expect(sunflowerScraper.id).toBe('sunflower');
   expect(sunflowerScraper.requestHeaders).toBeUndefined();
   expect(sunflowerScraper.fetchPage).toBeDefined();
-  expect(sunflowerScraper.minExpectedTours).toBe(222); // 60% of the 370 bookable tours, until a measured crawl
+  expect(sunflowerScraper.minExpectedTours).toBe(116); // a third of the 350 tours its measured crawl would save
 });
 
 it('throws its reason for a page it rejects, so the run\'s log says why', () => {

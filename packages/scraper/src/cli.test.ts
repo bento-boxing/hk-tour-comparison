@@ -317,14 +317,14 @@ describe('SCRAPERS', () => {
     for (const [id, scraper] of Object.entries(SCRAPERS)) expect(scraper.id).toBe(id);
   });
 
-  it('gives each operator a floor for runs with no history, about a third of the tours seen with dates on sale, or a provisional one before a measured crawl', () => {
+  it('gives each operator a floor for runs with no history, about a third of the tours seen with dates on sale', () => {
     expect(SCRAPERS.jetour?.minExpectedTours).toBe(35);
     expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
     expect(SCRAPERS.egl?.minExpectedTours).toBe(165);
     expect(SCRAPERS.bigline?.minExpectedTours).toBe(169); // a third of the 507 tours its measured crawl would have saved
     expect(SCRAPERS.charming?.minExpectedTours).toBe(51);
     expect(SCRAPERS.yummy?.minExpectedTours).toBe(104); // a third of the 312 tours its practice crawl would have saved
-    expect(SCRAPERS.sunflower?.minExpectedTours).toBe(222); // provisional: 60% of the 370 bookable tours, until a measured crawl
+    expect(SCRAPERS.sunflower?.minExpectedTours).toBe(116); // a third of the 350 tours its measured crawl would save (task 34)
   });
 
   it('only Big Line declares extra request headers, and only its one approved header for its API host', () => {
@@ -335,7 +335,7 @@ describe('SCRAPERS', () => {
 
   it('the nightly workflow scrapes every registered operator, except those awaiting their measured crawl', async () => {
     /** Registered, but added to the nightly matrix only after a measured crawl has set its first-run floor. */
-    const awaitingMeasuredCrawl = ['sunflower'];
+    const awaitingMeasuredCrawl: string[] = [];
     const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
     const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
     expect(matrix, 'operator matrix line').not.toBeNull();

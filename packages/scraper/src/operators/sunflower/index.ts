@@ -34,10 +34,10 @@ export function createSunflowerScraper(opts: { log?: (line: string) => void } = 
       if ('why' in tour) throw new Error(tour.why);
       return tour;
     },
-    // First-run floor, PROVISIONAL: 60% of the 370 tours with a booking code the listing held on 2026-11-14, rounded
-    // down. No crawl has been measured yet; a measured crawl sets the real floor, and only then does sunflower join
-    // the nightly matrix (docs/operators/sunflower.md, "Scraper").
-    minExpectedTours: 222,
+    // First-run floor: a third of the 350 tours the 2026-11-14 measured crawl would save with the task 34 changes
+    // (370 pages fetched; 18 parse failures, 2 with no departures, re-processed offline). docs/operators/sunflower.md,
+    // "Measured crawl and task 34".
+    minExpectedTours: 116,
   };
 }
 

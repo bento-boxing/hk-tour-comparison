@@ -222,6 +222,17 @@ The most frequent unmatched names (pages each appeared on; the log's top 15 in i
 
 **Open: a places pass**, to be done separately, with before-and-after sweeps over every operator's saved dry-run logs (as for Charming and EGL): province-only lists such as `陕西,山西` written with Simplified characters (also `云南`, and `清远` for 清遠), the region 潮汕, a 台灣-only list, and Mongolia (蒙古, 烏蘭巴托; 貝加爾湖 is in Russia). No place was added with this crawl; the two tours with an empty `dist_list` stay failures whatever the places list holds.
 
+## Places pass (task 34, 2026-11-15)
+
+The open places pass above is done, with offline before-and-after sweeps over every operator's saved crawl log (`.superpowers/sdd/00-plan/task-34-changes.tsv`, git-ignored; every changed route read).
+
+- **Simplified spellings** are recognised in general, not one alias at a time: the shared places index also matches each city's and region's names in their Simplified form, from the generated `names.zh-Hans.json` (`清远` → 清遠, `揭阳` → 揭陽, `陕西` → 西北, `云南` → 雲南). A Simplified form that is a Traditional name of another place is not added; countries are matched by their data names only. Over the other operators' logs it changed only right routes (EGL's `神户` is Kobe, Big Line's `鲁朗`, `凯米`, `埃托沙` are Lulang, Kemi and Etosha), apart from 阿格拉 (the mainland name of Agra) inside `阿格拉比特儲水池` in Tunisia, now a guard.
+- **Province-only lists** become region stops: `陕西 | 山西` is 西北 → 華北 (山西 is now a name of 華北, where the data keeps 大同, 平遙, 太原), `云南` is 雲南, `浙江`, `安徽` are 上海及華東, `遼寧` is 東北三省.
+- **Added**: 潮汕 (a Guangdong place of its own), 長江三峽, 西江千戶苗寨 (with `西江`; `西江花…` in Zhongshan is a guard), 宜章, 汝城, 常德, 銅仁, 信宜, 電白, 恩平, 徐聞, 南澳島, 儋州 (with `海花島`), 平南, 金秀, 靖西, 巴馬, 德化, 吉安, 宜春, 新餘, 上猶, 龍南, 井岡山 (BL-J-BA06 read it as Okayama), 桐鄉, 文成, 橫店, 彭水, 彌勒, 丘北, 廣南, 東營, 賽里木湖 (`賽裏木湖`), 丹陽 (Korea), Mongolia (蒙古, 烏蘭巴托; group 南亞及中亞) and 貝加爾湖 (Russia); aliases 富士 (富士山), 響沙灣 (鄂爾多斯), 小七孔 (荔波), `天眼` and `中國天眼` (平塘), 巴拿山 (峴港).
+- **Not added**: 鳳凰 (inside 鳳凰城, 鳳凰嶺 and dish names), 長壽 (`長壽之鄉`), 南沙 (EGL's `南沙港` is a ferry pier), 無量山, 花江大橋, 中亞 (several countries), 西九 (Hong Kong), 嘉儀 (a misspelling of 嘉義), 溫泉 and 感謝周 (not places).
+
+**Yummy after the pass (offline, the practice crawl's log):** **319 would be saved, 3 `no-stops`, 7 no departures: 3 parse failures (0.9%)**, against 312 / 10 (3.0%). Still failing: the 台灣-only list (a country) and the two tours with an empty `dist_list`. The floor stays 104.
+
 ## Every URL fetched (investigation: 12 + 2 page fetches; robots.txt not counted)
 
 All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. The ledger (`.superpowers/raw-pages/yummy/ledger.tsv`) also lists each time a saved robots.txt was reused instead of fetched again.
