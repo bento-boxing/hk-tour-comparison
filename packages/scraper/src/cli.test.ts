@@ -321,7 +321,7 @@ describe('SCRAPERS', () => {
     expect(SCRAPERS.jetour?.minExpectedTours).toBe(35);
     expect(SCRAPERS.texpert?.minExpectedTours).toBe(40);
     expect(SCRAPERS.egl?.minExpectedTours).toBe(165);
-    expect(SCRAPERS.bigline?.minExpectedTours).toBe(100); // provisional, until Big Line's measured crawl
+    expect(SCRAPERS.bigline?.minExpectedTours).toBe(126); // a third of the 380 tours its practice crawl normalised
     expect(SCRAPERS.charming?.minExpectedTours).toBe(51);
   });
 
