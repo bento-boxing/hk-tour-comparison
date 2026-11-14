@@ -50,6 +50,14 @@ describe('scrapedTourSchema', () => {
   it('accepts empty departures and empty dayHeadings (rejected later, in normalise)', () => {
     expect(scrapedTourSchema.safeParse({ ...valid, departures: [], dayHeadings: [] }).success).toBe(true);
   });
+
+  it('keeps an optional fallback route, and has none unless the parser gives one', () => {
+    const withFallback = scrapedTourSchema.safeParse({ ...valid, fallbackRoute: '曼谷5天' });
+    expect(withFallback.success && withFallback.data.fallbackRoute).toBe('曼谷5天');
+    const without = scrapedTourSchema.safeParse(valid);
+    expect(without.success && 'fallbackRoute' in without.data).toBe(false);
+    expect(scrapedTourSchema.safeParse({ ...valid, fallbackRoute: ['曼谷'] }).success).toBe(false);
+  });
 });
 
 describe('parsePriceHkd', () => {

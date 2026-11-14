@@ -16,6 +16,10 @@ export type PageDescription =
     route: string[];
     unmatched: string[];
     dayHeadings: string[]; startPoint: string | null; endPoint: string | null;
+    /** Only for a parser that gives one (Big Line: the title), so a crawl log shows what it was read from. */
+    fallbackRoute?: string;
+    /** With fallbackRoute: true when the saved route came from it (the day headings named no stop). */
+    routeFromFallback?: boolean;
   };
 
 export interface DryRunRecorder {
@@ -74,7 +78,7 @@ export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDat
   if (!checked.success) return { url, result: 'invalid' };
   const scraped = checked.data;
   const normalised = normaliseTour(scraped, index, today);
-  return {
+  const description: PageDescription = {
     url,
     code: scraped.code,
     result: normalised.ok ? 'ok' : normalised.reason,
@@ -84,6 +88,12 @@ export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDat
     startPoint: scraped.startPoint,
     endPoint: scraped.endPoint,
   };
+  if (scraped.fallbackRoute === undefined) return description;
+  const { fallbackRoute, ...withoutFallback } = scraped;
+  // The fallback route is the only difference, so the tour is saved with it and not without it exactly when
+  // the route came from it.
+  const routeFromFallback = normalised.ok && !normaliseTour(withoutFallback, index, today).ok;
+  return { ...description, fallbackRoute, routeFromFallback };
 }
 
 /** Each unmatched name with the number of pages it appeared on, most frequent first. */

@@ -198,3 +198,28 @@ describe('the detail', () => {
     expect(parseRaw(rawDetail())?.nights).toBeNull();
   });
 });
+
+describe('stops from the title when the day lines name no place (owner decision 2026-11-14)', () => {
+  const titled = (nameCn: string, tripContents: string[]) => rawDetail({
+    basic: { tourNo: 'C12345', nameCn, tourDays: tripContents.length },
+    projectItinerary: { dailyTripList: tripContents.map((tripContent, at) => ({ days: at + 1, tripContent })) },
+  });
+  const normalised = (detail: unknown) =>
+    normaliseTour(parseRaw(detail, [['2026-12', rawDates([rawRow('2026-12-04')])]])!, places, CAPTURED);
+
+  it('hands the title to the shared rules as the fallback route', () => {
+    expect(parseRaw(titled(' 桂林\n 山水5天 ', ['.香港~桂林']))?.fallbackRoute).toBe('桂林 山水5天');
+  });
+  it('a tour whose day lines name no place takes its stops from the title, in the title\'s order', () => {
+    const r = normalised(titled('中山 珠海 溫泉美食2天', ['.集合~溫泉~入住酒店', '.早餐~午餐【農家宴】~散團']));
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['中山', '珠海']);
+    expect(r.unmatched).not.toContain('溫泉美食2天');
+  });
+  it('a tour whose day lines name a place keeps that route alone', () => {
+    const r = normalised(titled('中山 珠海 溫泉美食2天', ['.集合~江門~入住酒店', '.早餐~散團']));
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['江門']);
+  });
+  it('a tour whose title names no place either is still no-stops', () => {
+    expect(normalised(titled('溫泉美食2天', ['.溫泉~入住酒店']))).toMatchObject({ ok: false, reason: 'no-stops' });
+  });
+});

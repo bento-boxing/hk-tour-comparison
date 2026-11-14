@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { addDays, normaliseTour, places, buildPlacesIndex } from './index';
 import type { ScrapedTour } from './index';
 
@@ -120,4 +120,62 @@ it('drops a departure dated today: it has left by the time anyone reads the card
 it('a tour whose only departure is today has no upcoming departures', () => {
   const r = normaliseTour({ ...base, departures: [{ date: today, priceHkd: 7000 }] }, places, today);
   expect(r).toMatchObject({ ok: false, reason: 'no-departures' });
+});
+
+describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', () => {
+  /** Day headings that name no place: what about 31% of Big Line's pages hold. */
+  const noPlaces = { dayHeadings: ['香港 → 溫泉 → 入住酒店', '早餐 → 亞特蘭提斯'] };
+  const cityIds = (r: ReturnType<typeof normaliseTour>) => (r.ok ? r.tour.stops.map(s => s.cityId) : null);
+
+  it('gives the stops when the day headings match none', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都賞楓5天' }, places, today);
+    expect(cityIds(r)).toEqual(['japan-kansai-kyoto']);
+  });
+  it('is not read when the day headings match even one stop: no title places are mixed into a working route', () => {
+    const r = normaliseTour({ ...base, dayHeadings: ['香港 → 大阪', '溫泉'], fallbackRoute: '京都 奈良 5天' }, places, today);
+    expect(cityIds(r)).toEqual(['japan-kansai-osaka']);
+  });
+  it('is read when the only stop the headings name is the stated start place, which leaves none', () => {
+    const r = normaliseTour({ ...base, startPoint: '澳門外港碼頭', dayHeadings: ['澳門'], fallbackRoute: '珠海2天' }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhuhai']);
+  });
+  it('keeps the order of appearance', () => {
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都、大阪6天' }, places, today)))
+      .toEqual(['japan-kansai-kyoto', 'japan-kansai-osaka']);
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '大阪 京都 6天' }, places, today)))
+      .toEqual(['japan-kansai-osaka', 'japan-kansai-kyoto']);
+  });
+  it('is read with the day-heading rules: Hong Kong, the Shenzhen start and notPlaces guards as for headings', () => {
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '香港 京都5天' }, places, today)))
+      .toEqual(['japan-kansai-kyoto']);
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '香港美食2天' }, places, today))
+      .toMatchObject({ ok: false, reason: 'no-stops' });
+    expect(cityIds(normaliseTour({ ...base, ...noPlaces, startPoint: '深圳灣口岸', fallbackRoute: '深圳 惠州2天' }, places, today)))
+      .toEqual(['china-guangdong-huizhou']);
+    // 普洱茶 is a notPlaces entry: the tea is not a visit to Pu'er, in a title as in a heading.
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '普洱茶品茗2天' }, places, today))
+      .toMatchObject({ ok: false, reason: 'no-stops' });
+  });
+  it('that matches nothing either leaves the tour no-stops, exactly as without it', () => {
+    const without = normaliseTour({ ...base, ...noPlaces }, places, today);
+    expect(without).toMatchObject({ ok: false, reason: 'no-stops' });
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '溫泉美食 夢幻樂園2天' }, places, today)).toEqual(without);
+    expect(normaliseTour({ ...base, dayHeadings: [], fallbackRoute: '溫泉美食2天' }, places, today))
+      .toEqual(normaliseTour({ ...base, dayHeadings: [] }, places, today));
+  });
+  it('does not add its own words to the unmatched names; the headings\' still are', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都 夢幻樂園 雪見溫泉5天' }, places, today);
+    expect(r.ok).toBe(true);
+    expect(r.unmatched).toEqual(['溫泉', '亞特蘭提斯']);
+    expect(r.unmatched).toEqual(normaliseTour({ ...base, ...noPlaces }, places, today).unmatched);
+  });
+  it('leaves a tour with nothing to book no-departures, as before', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都5天', departures: [] }, places, today);
+    expect(r).toEqual(normaliseTour({ ...base, ...noPlaces, departures: [] }, places, today));
+    expect(r).toMatchObject({ ok: false, reason: 'no-departures' });
+  });
+  it('is opt-in: without one (every other operator), a title naming a place is never read', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, title: '京都賞楓5天' }, places, today);
+    expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
+  });
 });

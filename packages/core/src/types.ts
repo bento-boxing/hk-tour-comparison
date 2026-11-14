@@ -17,6 +17,12 @@ export interface ScrapedTour {
   endPoint: string | null;
   fromPriceHkd: number | null; // operator's displayed "from" price, if any
   departures: ScrapedDeparture[]; // not sold out; may include past dates
+  /**
+   * Opt-in, for an operator whose day headings often name no place: text read with the day-heading rules
+   * only when the headings give no stop, its unmatched words not reported. Big Line sets its title (owner
+   * decision 2026-11-14); every other operator leaves it out.
+   */
+  fallbackRoute?: string;
 }
 
 export interface Stop { countryId: string; regionId: string; cityId: string | null }

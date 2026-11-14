@@ -65,11 +65,17 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   if (start.kind === 'sz' || end.kind === 'sz') excluded.push(SHENZHEN_CITY_ID);
   const extracted = extractStops(scraped.dayHeadings, index, excluded);
   const { unmatched } = extracted;
-  const stops = withoutStatedEnds(extracted.stops, start, end, index);
+  let stops = withoutStatedEnds(extracted.stops, start, end, index);
 
   // A tour with nothing to book is skipped whatever its route: no-departures comes before no-stops.
   const departures = upcomingDepartures(scraped.departures, today);
   if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched };
+
+  // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop, with the same rules, and
+  // its unmatched words are not reported (a title is not a list of place names).
+  if (stops.length === 0 && scraped.fallbackRoute !== undefined) {
+    stops = withoutStatedEnds(extractStops([scraped.fallbackRoute], index, excluded).stops, start, end, index);
+  }
 
   if (stops.length === 0) {
     const reported = unmatched.length > 0

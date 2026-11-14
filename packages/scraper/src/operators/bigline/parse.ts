@@ -128,6 +128,10 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     endPoint: null,
     fromPriceHkd: price(data.memberFee),
     departures,
+    // Owner decision 2026-11-14: about a third of the tours name no place in their day lines (coach tours
+    // whose town is only in the title, cruises, empty lines), so their stops are read from the title,
+    // with the day-line rules, when the day lines give none (normaliseTour).
+    fallbackRoute: clean(basic.nameCn),
   };
 }
 

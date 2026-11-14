@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { places } from '@hktours/core';
 import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
-import { recordDryRun } from '../../dry-run-report';
+import { describePage, recordDryRun } from '../../dry-run-report';
 import { runOperator } from '../../run-operator';
 import type { Fetcher } from '../../types';
 import { DATES_URL, detailUrl } from './discover';
@@ -17,7 +17,36 @@ const TODAY = '2026-11-13';
 it('is registered as bigline, sending its one header only to the API host', () => {
   expect(biglineScraper.id).toBe('bigline');
   expect(biglineScraper.requestHeaders).toEqual({ 'api.biglinehk.com': { tenantCode: 'DH' } });
-  expect(MAX_MONTHS_PER_TOUR).toBe(3);
+  expect(MAX_MONTHS_PER_TOUR).toBe(2); // owner decision 2026-11-14
+});
+
+describe('a dry run of a page whose day lines name no place', () => {
+  const PAGE = 'https://bigline.hk/tour-group/9109';
+  const page = (nameCn: string, tripContent: string) => ({
+    url: PAGE,
+    parsed: parse(JSON.stringify({
+      detail: publicDetail(rawDetail({
+        basic: { tourNo: 'C12345', nameCn, tourDays: 1 },
+        projectItinerary: { dailyTripList: [{ days: 1, tripContent }] },
+      })),
+      months: [{ yearMonth: '2026-12', dates: publicDates(rawDates([rawRow('2026-12-04')])) }],
+    }), PAGE),
+  });
+  it('records the title and that the route came from it, so a crawl log can be reviewed tour by tour', () => {
+    expect(describePage(page('中山溫泉2天', '.溫泉~入住酒店'), places, TODAY)).toMatchObject({
+      result: 'ok', route: ['中山 (中國)'], fallbackRoute: '中山溫泉2天', routeFromFallback: true,
+    });
+  });
+  it('records that the day lines gave the route when they did', () => {
+    expect(describePage(page('中山溫泉2天', '.江門~入住酒店'), places, TODAY)).toMatchObject({
+      result: 'ok', route: ['江門 (中國)'], fallbackRoute: '中山溫泉2天', routeFromFallback: false,
+    });
+  });
+  it('records the title of a page that is still no-stops', () => {
+    expect(describePage(page('溫泉2天', '.溫泉~入住酒店'), places, TODAY)).toMatchObject({
+      result: 'no-stops', fallbackRoute: '溫泉2天', routeFromFallback: false,
+    });
+  });
 });
 
 describe('a page the parser rejects', () => {

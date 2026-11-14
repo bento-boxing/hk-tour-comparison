@@ -38,12 +38,12 @@ const fetchPage = () => {
 const posted = (asked: Asked[]) => asked.filter(a => a.method === 'POST').map(a => (a.body as { yearMonth: string }).yearMonth);
 
 describe('monthsToRequest', () => {
-  it('is at most the first three listed months from the current Hong Kong month on', () => {
-    expect(MAX_MONTHS_PER_TOUR).toBe(3);
-    expect(monthsToRequest(['2026-10', '2026-11', '2026-12', '2027-01', '2027-02'], TODAY)).toEqual(['2026-11', '2026-12', '2027-01']);
+  it('is at most the first two listed months from the current Hong Kong month on', () => {
+    expect(MAX_MONTHS_PER_TOUR).toBe(2);
+    expect(monthsToRequest(['2026-10', '2026-11', '2026-12', '2027-01', '2027-02'], TODAY)).toEqual(['2026-11', '2026-12']);
   });
-  it('counts listed months, not calendar months: a gap does not use up the three', () => {
-    expect(monthsToRequest(['2027-03', '2026-12', '2027-06', '2027-04'], TODAY)).toEqual(['2026-12', '2027-03', '2027-04']);
+  it('counts listed months, not calendar months: a gap does not use up the two', () => {
+    expect(monthsToRequest(['2027-03', '2026-12', '2027-06', '2027-04'], TODAY)).toEqual(['2026-12', '2027-03']);
   });
   it('is empty when no listed month is the current one or later', () => {
     expect(monthsToRequest(['2026-09', '2026-10'], TODAY)).toEqual([]);
@@ -78,12 +78,12 @@ describe('fetchPage', () => {
     const text = (await fetchPage()(fetcher, PAGE))!;
     for (const secret of SECRETS) expect(text).not.toContain(secret);
   });
-  it('requests at most three months', async () => {
+  it('requests at most two months', async () => {
     const detail = rawDetail({ availableMonths: ['2026-11', '2026-12', '2027-01', '2027-02', '2027-03'] });
     const all = Object.fromEntries(['2026-11', '2026-12', '2027-01', '2027-02', '2027-03'].map(m => [m, rawDates([])]));
     const { fetcher, asked } = fakeFetcher(detail, all);
     expect(await fetchPage()(fetcher, PAGE)).not.toBeNull();
-    expect(posted(asked)).toEqual(['2026-11', '2026-12', '2027-01']);
+    expect(posted(asked)).toEqual(['2026-11', '2026-12']);
   });
   it('sends no POST for a tour with no month from the current one on, and hands parse no months', async () => {
     const { fetcher, asked } = fakeFetcher(rawDetail({ availableMonths: ['2026-10'] }), {}, { canPost: false });

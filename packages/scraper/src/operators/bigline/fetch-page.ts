@@ -6,10 +6,11 @@ import { publicDates, publicDetail, type PublicDates, type PublicDetail } from '
 
 /**
  * At most this many months of departures are requested per tour, each a separate POST: the first months
- * the detail's `availableMonths` lists, from the current Hong Kong month on. The owner chose 3 on
- * 2026-11-13 to fit the 170-minute nightly job: 586 tours × (1 detail + 3 months) × 3 s is about 2 hours.
+ * the detail's `availableMonths` lists, from the current Hong Kong month on. The owner chose 2 on
+ * 2026-11-14, after the practice crawl at 3 took 152 of the nightly job's 170 minutes: 586 tours ×
+ * (1 detail + 2 months) × 3 s is about 88 minutes, plus response time.
  */
-export const MAX_MONTHS_PER_TOUR = 3;
+export const MAX_MONTHS_PER_TOUR = 2;
 
 const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
 /**
