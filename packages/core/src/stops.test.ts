@@ -391,6 +391,30 @@ describe('extractStops on crawled headings', () => {
     expect(names(extractStops(headings, places))).toEqual(expectedNames);
   });
 
+  // The Charming places pass (2026-11-14): guards for short names inside longer words, and the new short names.
+  it.each([
+    [['墨爾本 ~ 雅拉谷 ~ 酒莊'], ['墨爾本']],                                 // the Yarra Valley again, written 雅拉谷
+    [['漠河 ~ 圓滿歸程'], ['漠河']],                                          // "a happy trip home", not Mangui
+    [['北京 ~ 崇禮雲頂滑雪場'], ['北京']],                                     // a ski resort in Chongli
+    [['新加坡 ~ 登上雲頂夢號'], ['新加坡']],                                   // the cruise ship Genting Dream
+    [['吉隆坡 ~ 雲頂美景'], ['吉隆坡']],
+    [['北京 ~ 古北水鎮 ~ 臥龍湖碼頭'], ['北京']],                              // a lake by Gubei Water Town, not Wolong
+    [['成都 ~ 臥龍 ~ 四姑娘山'], ['成都', '臥龍', '四姑娘山']],                 // Wolong itself
+    [['柏斯 ~ 巴塞爾頓碼頭'], ['珀斯']],                                       // Busselton Jetty, not Basel
+    [['杭州 ~ 千島湖 ~ 黃山'], ['杭州', '千島湖', '黃山']],                     // Qiandao Lake
+    [['蓬塔阿雷納斯 ~ 百內國家公園'], ['蓬塔阿雷納斯']],                         // not 雷納 (Reine), which is left out
+    [['米蘭 ~ 斯卡利傑羅城堡 ~ 維羅納'], ['米蘭', '維羅納']],                    // not 卡利 (Cali), which is left out
+    [['特洛依古城 ~ 以弗所古城'], ['特洛依', '以弗所']],
+  ])('Charming pass: reads %j as %j', (headings, expectedNames) => {
+    expect(names(extractStops(headings, places))).toEqual(expectedNames);
+  });
+
+  it('drops 千島湖 on a Canada route as a lone foreign stop (the Thousand Islands), and reports it', () => {
+    const r = extractStops(['多倫多 ~ 千島湖遊船 ~ 渥太華 ~ 滿地可 ~ 魁北克'], places);
+    expect(names(r)).toEqual(['多倫多', '渥太華', '滿地可', '魁北克']);
+    expect(r.unmatched).toContain('千島湖');
+  });
+
   it('reports 多哈 (Doha) as unmatched: every EGL mention is a flight connection, so Qatar is not in the list', () => {
     const r = extractStops(['香港 ~ 多哈 ~ 里斯本'], places);
     expect(names(r)).toEqual(['里斯本']);
