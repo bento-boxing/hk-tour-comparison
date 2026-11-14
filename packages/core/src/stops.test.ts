@@ -405,6 +405,12 @@ describe('extractStops on crawled headings', () => {
     [['蓬塔阿雷納斯 ~ 百內國家公園'], ['蓬塔阿雷納斯']],                         // not 雷納 (Reine), which is left out
     [['米蘭 ~ 斯卡利傑羅城堡 ~ 維羅納'], ['米蘭', '維羅納']],                    // not 卡利 (Cali), which is left out
     [['特洛依古城 ~ 以弗所古城'], ['特洛依', '以弗所']],
+    [['波羅克瓦尼 ~ 梅西納 ~ 貝特布里奇'], ['波羅克瓦尼', '梅西納', '拜特布里奇']], // Musina (South Africa), not Messina
+    [['里約熱內盧 ~ 聖瑪爾塔 ~ 森巴樓梯街'], ['里約熱內盧']],                  // a Rio favela, not Santa Marta (Colombia)
+    [['香港 ~ 吉利馬札羅機場'], []],                                           // Kilimanjaro, not Lima
+    [['聖地牙哥 ~ 卡薩布蘭卡山山谷 ~ 瓦爾帕萊索'], ['聖地牙哥', '瓦爾帕萊索']],    // Chile's Casablanca valley
+    [['烏馬納克 ~ 格陵蘭的里維埃拉'], ['烏馬納克']],                            // "the Riviera", not Ella (Sri Lanka)
+    [['羅馬 ~ 卡斯特羅馬諾名品暢貨中心'], ['羅馬']],                            // Castel Romano outlet, not Castro (Chile)
   ])('Charming pass: reads %j as %j', (headings, expectedNames) => {
     expect(names(extractStops(headings, places))).toEqual(expectedNames);
   });
