@@ -2,9 +2,9 @@ OWNER DECISION PENDING
 
 # Yummy Holiday 美味假期 (`yummy`): operator investigation
 
-- Capture date: **2026-11-14** (Hong Kong). The requests were made 2026-11-13 23:08–23:59 UTC, which was 07:08–07:59 on 14 November in Hong Kong.
-- All requests to the operator's hosts went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, one at a time, 3 s per site), with undici's `EnvHttpProxyAgent` installed as `cli.ts` does. All were GETs with no extra headers, cookies or tokens. Page fetches used: **12 of 12**, plus robots.txt on three hosts (not counted). Every request is listed under "Every URL fetched".
-- Raw responses and the ledger are in `.superpowers/raw-pages/yummy/` (git-ignored). The probe script is outside the repository.
+- Capture date: **2026-11-14** (Hong Kong). The requests were made 2026-11-13 23:08–23:59 UTC, which was 07:08–07:59 on 14 November in Hong Kong. Two more (the remaining terms images, allowed afterwards) were made 2026-11-14 00:16 UTC (08:16 in Hong Kong).
+- All requests to the operator's hosts went through `createFetcher` (User-Agent `tour-comparison-bot/0.1`, robots.txt obeyed, one at a time, 3 s per site), with undici's `EnvHttpProxyAgent` installed as `cli.ts` does. All were GETs with no extra headers, cookies or tokens. Page fetches used: **12 of 12** in the investigation, then **2 of 2** more for the terms images (14 in all), plus robots.txt on three hosts (not counted). Every request is listed under "Every URL fetched".
+- Raw responses and the ledger are in `.superpowers/raw-pages/yummy/` (git-ignored). The probe scripts are outside the repository.
 - No block page, captcha, JavaScript challenge, login wall, 403 or 429 was met. All three hosts are plain `nginx` or Aliyun OSS, with no CDN or bot protection seen.
 
 ## Who the operator is
@@ -22,11 +22,11 @@ OWNER DECISION PENDING
 
 1. **robots.txt allows everything.** `www.yummyholiday.net` and `img.yummyholiday.net` have none (404). `api.yummyholiday.net` has `User-agent: *` with an empty `Disallow:`.
 2. **The data is a public JSON API used by GET, with no headers, tokens or signature.** The site's request client (axios, base URL `https://api.yummyholiday.net`) has empty request interceptors. Every tour call is `GET` with query parameters. One listing call returns all 327 tours with every departure date and its status. One call per tour returns each departure's price. This is the same kind of source as EGL's `/api/v1/tours/<code>/dates`.
-3. **The one terms document read has no clause on automated access, crawling, copying, reproduction or permitted use.** It is a booking terms sheet. But it is published as three images, and **only one of the three was read** (the budget ran out). See "Terms".
+3. **The terms document has no clause on automated access, robots, crawling, scraping, copying, reproduction, intellectual property, linking or permitted use.** It is published as three images, and **all three were read in full** by eye. They are customer booking terms: a membership notice, the travel terms and liability sheet, and a fee, deposit and balance table. See "Terms".
 
 The decisions the owner needs to make:
 
-- **A. The terms (needed).** Either allow **2 more fetches** (the other two images on the `旅遊細則` page, listed under "Terms"), or read `https://www.yummyholiday.net/#/pages/content/content?id=7&pageId=7` in a browser. The site has no other terms, website terms of use, copyright or privacy page in its menu.
+- **A. The terms: read in full, nothing prohibits.** The 2 extra fetches were allowed and made (the other two images on the `旅遊細則` page). None of the three images has a clause on automated access, robots, crawling, scraping, copying, reproduction, intellectual property, linking or permitted use, and no part of any image was illegible. This is a PROCEED result: the owner only has to accept it. The site has no other terms, website terms of use, copyright or privacy page in its menu, so the footer's `All Rights Reserved.` line is the only rights statement (we would copy facts, not text or images).
 - **B. Accept a reduced set of fields (needed).** **Day-by-day headings and the gathering point are not in the API as text.** The itinerary is a set of images (`descp_images`, `promot_pages`) and a PDF per departure (`promot_files`, the `行程單`, "itinerary sheet"). A Yummy Holiday listing would show: tour code, title, days, cities (`dist_list`), the transport mode (`巴士` coach, `飛機` air, `西九`/`高鐵` high-speed rail, `船` ship), "from" price, departure dates, per-date prices and full markers. It would not show day headings or the gathering place. Reading the PDFs would be a separate decision: they were not fetched, so whether they have a text layer is **not known**, and they would add requests.
 - **C. Stay on the three tour endpoints.** The same API also has staff endpoints the site's code calls for tour guides (`/bussiness/group/getGroupReport`, `getGroupWorkOrder`, `/tour/expenses/...`, and POSTs such as `saveGroupReport`). None was requested. A scraper must call only `line/index`, `group/list` and (optionally) `line/detail`. It must keep only public facts and drop the booking counts the dates call returns (`cur_enroll_headcount`, `start_headcount`, `early_prefer_used_headcount`).
 
@@ -36,18 +36,19 @@ The decisions the owner needs to make:
 |---|---|---|---|
 | `旅遊細則` (the site's only terms page; menu item id 7) | `https://www.yummyholiday.net/#/pages/content/content?id=7&pageId=7`, whose content comes from `GET https://api.yummyholiday.net/website/page/detail?id=7` | 2026-11-14 (fetched 23:49 UTC on 13 Nov) | HTTP 200 JSON. `data.content` is three `<img>` tags and nothing else: `uploads/20250203/65be3698….jpg`, `uploads/20261103/1b3a46ee….jpg` (title `旅遊細則 美味 2026.11.3.jpg`) and `uploads/20260603/4bf4ce7b….jpg`. |
 | Image 2 of 3: `旅遊細則及責任問題` (travel terms and liability), version `版本20261104(I)` | https://img.yummyholiday.net/uploads/20261103/1b3a46ee1eca9e138e74f9215193d8bf.jpg | 2026-11-14, **read in full** (2481 × 20951 px, read in 14 strips) | Sections: `報名手續` (booking), `臨時取消及退款細則` (cancellation and refunds), `團隊8號風球及天雨安排` (typhoon and rain), `責任問題` (liability, 38 items), `保險須知` (insurance). Customer booking terms only. |
-| Image 1 of 3 | https://img.yummyholiday.net/uploads/20250203/65be3698b7db9fb466076d5436fe652b.jpg | **not read** (page budget used up) | Content unknown. From the upload dates it may be an older version or a banner. **Not verified.** |
-| Image 3 of 3 | https://img.yummyholiday.net/uploads/20260603/4bf4ce7b8fffebab8b71c08496e9a224.jpg | **not read** (page budget used up) | Content unknown. **Not verified.** |
+| Image 1 of 3: membership notice | https://img.yummyholiday.net/uploads/20250203/65be3698b7db9fb466076d5436fe652b.jpg | 2026-11-14 (fetched 00:16 UTC), **read in full** (2481 × 264 px, one line of text) | The whole image, verbatim: `團費均為會員價，報團須先入會，會員費$10，有效期一年，不設退費!` ("all tour fees are member prices; you must join as a member before booking; the membership fee is $10, valid for one year, not refundable!"). Booking terms only. |
+| Image 3 of 3: `手續費，訂金，餘款` (fees, deposit, balance), `更新日期: 2026年3月31日` (updated 31 March 2026) | https://img.yummyholiday.net/uploads/20260603/4bf4ce7b8fffebab8b71c08496e9a224.jpg | 2026-11-14 (fetched 00:16 UTC), **read in full** (2433 × 1500 px, read whole and in six crops) | Deposit (`訂金`, peak-season `旺季訂金`) and balance (`餘款`) rules; a table of name-change (`轉名`), withdrawal (`退出`) and tour-change (`轉團`) charges by days before departure, for coach (`巴士線`, in and out of province), high-speed rail (`高鐵線`) and air (`飛機線`) tours, weekday (`平日`) and peak season (`旺季`); two notes (`註明`). Customer booking terms only. |
 | Website terms of use, privacy policy, copyright notice | – | – | **No such page found.** The menu (`GET /website/menu/list`) has 11 items: `榮譽獎項`, `公司簡介`, `招聘`, `聯系我們`, `開心時刻`, `現場實拍`, `我們的動態`, `波士開咪`, `好片分享`, `限時特惠`, `旅遊細則`. The footer has only the rights line and the ICP number. |
 
-Clauses on automated access, robots, crawling, scraping, copying, reproduction, intellectual property, linking or permitted use (personal / non-commercial) in the image that was read: **none**. The image was read in full by eye, not searched as text. The nearest clauses (short quotations):
+Clauses on automated access, robots, crawling, scraping, copying, reproduction, intellectual property, linking or permitted use (personal / non-commercial) in the whole three-image terms document: **none**. All three images were read in full by eye, not searched as text. **No part of any image is illegible**; image 3's small print (the `出發前1天 (14:00前)` / `(14:00後)` rows) was checked in full-resolution crops. The nearest clauses (short quotations):
 
+- Image 1: `團費均為會員價` ("all tour fees are member prices"). It is about who the prices apply to (members; membership is $10 a year). It does not restrict using the content. Our "check with the operator" wording covers it.
+- Image 3, the line above the table: `** 所有飛機/高鐵線, 有關(轉名/退出/轉團)需收取之手續費, 最終均以航空公司/鐵路局回覆確認為準, 以下價目表只供參考` ("for all air and high-speed-rail tours, the fees for name changes, withdrawals and tour changes are finally as confirmed by the airline or railway; the table below is for reference only"). It is about fees, not about using the content.
+- Quotations from images keep the punctuation as it looks; whether a comma is full-width or half-width cannot be told for certain from a picture.
 - `報名手續` 7): `行程及價格以報名時作準` ("itinerary and price are as at the time of booking"). It is about prices, not about using the content. Our "check with the operator" wording covers it.
 - `責任問題` 8): `本公司所持有有關顧客資料會嚴格保密。只會用於該名顧客在一般情況下旅遊有關服務時使用。` ("customer data held by the company is kept strictly confidential and used only for that customer's travel services"). It is about customer data. We collect none.
 - `責任問題` 17): `有可能實況與行程單張上所登出圖片或介紹有所不同` ("conditions may differ from the pictures or descriptions in the itinerary sheet"). It is about the trip, not about the website.
 - Footer: `深圳美味假期旅行社有限公司 Yummy holiday LTD. All Rights Reserved.` A rights notice, not a clause. We would copy facts (dates, prices, days, cities), not text or images.
-
-**Unknown until A is done:** what the two unread images say.
 
 ## robots.txt
 
@@ -125,7 +126,7 @@ The dates call's size grows with the departures (28.5 kB for 31 groups). The lis
 
 **None saved.** The raw responses stay under `.superpowers/raw-pages/yummy/` only. If the owner approves, good fixture candidates are 5906 (air, full, cancelled and discounted dates, several groups per date) and a 2-day `BG` coach tour and a `西九` rail tour from the listing. A fixture should keep only the fields under "Where each fact comes from".
 
-## Every URL fetched (12 page fetches; robots.txt not counted)
+## Every URL fetched (12 + 2 page fetches; robots.txt not counted)
 
 All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. The ledger (`.superpowers/raw-pages/yummy/ledger.tsv`) also lists each time a saved robots.txt was reused instead of fetched again.
 
@@ -146,14 +147,18 @@ All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. 
 | 11 | 23:57:27 | https://api.yummyholiday.net/bussiness/line/detail?id=5906 | 200 JSON, 4,550 bytes (detail: `dist_list`, no day text) |
 | – | 23:58:46 | https://img.yummyholiday.net/robots.txt | 404 (OSS `NoSuchKey`; no robots.txt) |
 | 12 | 23:58:51 | https://img.yummyholiday.net/uploads/20261103/1b3a46ee1eca9e138e74f9215193d8bf.jpg | 200, 4,654,381 bytes (terms image `旅遊細則及責任問題`, version 20261104(I)) |
+| – | 00:16:27 (14 Nov) | https://img.yummyholiday.net/robots.txt | not requested: the 404 saved at 23:58:46 was reused (logged in the ledger as `(cache)`) |
+| 13 | 00:16:30 (14 Nov) | https://img.yummyholiday.net/uploads/20250203/65be3698b7db9fb466076d5436fe652b.jpg | 200 `image/jpeg`, 133,055 bytes (terms image 1: membership notice) |
+| 14 | 00:16:35 (14 Nov) | https://img.yummyholiday.net/uploads/20260603/4bf4ce7b8fffebab8b71c08496e9a224.jpg | 200 `image/jpeg`, 3,083,002 bytes (terms image 3: `手續費，訂金，餘款`) |
+
+#13 and #14 were the 2 extra fetches allowed after the investigation, made by a second probe script (`fetchBytes`, default options) that would send only those two URLs and would stop at the first refusal, block or non-200. Neither was refused.
 
 **Order of fetches.** The brief's order was sitemaps, terms, listing, tour pages, scripts. The site has no sitemap and renders nothing on the server, so scripts #3–#6 had to come first, to find the API, the terms page and the tour calls. The terms (#7–#8) came before the listing (#9). Only one tour (two calls, #10–#11) could be read, and #12 went on the newest terms image rather than a second tour.
 
-**Not fetched:** the other two terms images; any itinerary image or PDF; a second or third tour (a coach or rail tour); the `pages-content-content` and `pages-filter-filter` scripts; `hk.yummyholiday.cn`; any staff endpoint; any POST.
+**Not fetched:** any itinerary image or PDF; a second or third tour (a coach or rail tour); the `pages-content-content` and `pages-filter-filter` scripts; `hk.yummyholiday.cn`; any staff endpoint; any POST.
 
 ## Not verified
 
-- What the two unread terms images say (owner decision A).
 - Whether the itinerary PDFs (`promot_files`) have a text layer with day headings and the gathering point.
 - That the dates call answers the same for coach and rail tours. Only one air tour was read; the listing's fields look the same across all kinds.
 - Why `price` differs from `adult_price` on 64 tours, and whether the "from" price is always the early-booking price.
