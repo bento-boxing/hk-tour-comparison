@@ -1,5 +1,5 @@
 import {
-  normaliseTour, scrapedTourSchema, type IsoDate, type PlacesIndex, type Stop,
+  normaliseTour, scrapedTourSchema, type IsoDate, type PlacesIndex, type ScrapedTour, type Stop,
 } from '@hktours/core';
 import type { OperatorScraper } from './types';
 
@@ -44,7 +44,13 @@ export function recordDryRun(scraper: OperatorScraper, limit: number | null): Dr
         return limit === null ? urls : urls.slice(0, limit);
       },
       parse(html, url) {
-        const parsed = scraper.parse(html, url);
+        let parsed: ScrapedTour | null;
+        try {
+          parsed = scraper.parse(html, url);
+        } catch (error) {
+          pages.push({ url, parsed: null }); // a parser that throws its reason rejected the page all the same
+          throw error;
+        }
         pages.push({ url, parsed });
         return parsed;
       },

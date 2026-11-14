@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { places } from '@hktours/core';
 import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
+import { recordDryRun } from '../../dry-run-report';
 import { runOperator } from '../../run-operator';
 import type { Fetcher } from '../../types';
 import { DATES_URL, detailUrl } from './discover';
 import { createFetchPage, MAX_MONTHS_PER_TOUR } from './fetch-page';
 import { biglineScraper } from './index';
+import { parse } from './parse';
+import { publicDates, publicDetail } from './public';
 import { rawDates, rawDetail, rawRow, SECRETS } from './test-responses';
 
 const TODAY = '2026-11-13';
@@ -15,6 +18,35 @@ it('is registered as bigline, sending its one header only to the API host', () =
   expect(biglineScraper.id).toBe('bigline');
   expect(biglineScraper.requestHeaders).toEqual({ 'api.biglinehk.com': { tenantCode: 'DH' } });
   expect(MAX_MONTHS_PER_TOUR).toBe(3);
+});
+
+describe('a page the parser rejects', () => {
+  const PAGE = 'https://bigline.hk/tour-group/9109';
+  const joined = (detail: unknown, months: [string, unknown][] = []) =>
+    JSON.stringify({ detail: publicDetail(detail), months: months.map(([yearMonth, dates]) => ({ yearMonth, dates: publicDates(dates) })) });
+  it.each([
+    ['not the joined text', '<html></html>', PAGE, /not the joined detail and dates/],
+    ['not a tour page', joined(rawDetail()), 'https://bigline.hk/x', /not a Big Line tour page/],
+    ['an error code', joined({ code: 401 }), PAGE, /detail answered a code other than 200/],
+    ['another tour', joined(rawDetail({ id: 9110 })), PAGE, /detail is for another tour/],
+    ['no valid code', joined(rawDetail({ basic: { tourNo: 'A B', nameCn: 'x', tourDays: 6 } })), PAGE, /no valid tour code/],
+    ['no day count', joined(rawDetail({ basic: { tourNo: 'CSIAA06', nameCn: 'x', tourDays: null } })), PAGE, /no day count/],
+    ['another currency', joined(rawDetail({ signUp: { settlementCurrencyCode: 'CNY', locationGroupList: [] } })), PAGE, /prices are not in HKD/],
+    ['a bad month', joined(rawDetail(), [['2026-12', { code: 200, data: {} }]]), PAGE, /a dates answer has an error code or no list/],
+    ['a departure of another tour', joined(rawDetail(), [['2026-12', rawDates([rawRow('2026-12-04', { productId: 9110 })])]]), PAGE, /a departure of another tour/],
+  ])('is a parse failure with its reason (%s), so a crawl log says why', (_name, text, url, reason) => {
+    expect(parse(text, url)).toBeNull();
+    expect(() => biglineScraper.parse(text, url)).toThrow(reason);
+  });
+  it('the reason never carries the answer\'s text', () => {
+    const text = joined(rawDetail({ basic: { tourNo: SECRETS[0], nameCn: SECRETS[1], tourDays: 6 } }));
+    expect(() => biglineScraper.parse(text, PAGE)).toThrow(/^(?!.*(LEADER|SALE)).*$/s);
+  });
+  it('a dry run still lists the page, as rejected by the parser', () => {
+    const recorder = recordDryRun(biglineScraper, null);
+    expect(() => recorder.scraper.parse('<html></html>', PAGE)).toThrow();
+    expect(recorder.pages).toEqual([{ url: PAGE, parsed: null }]);
+  });
 });
 
 let db: Db;
