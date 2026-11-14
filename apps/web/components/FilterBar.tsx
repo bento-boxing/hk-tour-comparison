@@ -34,8 +34,8 @@ const HIDDEN_COUNTRY_IDS = ['hongkong'];
 const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
 /** '12/1 – 12/31'; a date outside today's year shows its year, as on the cards: '12/20 – 2027/1/10'. */
-function datesText(f: TourFilters, today: IsoDate): string | null {
-  const date = (d: IsoDate) => formatChipDate(d, today);
+function datesText(f: TourFilters, today: IsoDate, t: T): string | null {
+  const date = (d: IsoDate) => formatChipDate(d, today, t);
   if (f.dateFrom && f.dateTo) return `${date(f.dateFrom)} – ${date(f.dateTo)}`;
   if (f.dateFrom) return `${date(f.dateFrom)} –`;
   if (f.dateTo) return `– ${date(f.dateTo)}`;
@@ -43,10 +43,11 @@ function datesText(f: TourFilters, today: IsoDate): string | null {
 }
 
 function daysText(min: number | undefined, max: number | undefined, t: T): string | null {
-  if (min !== undefined && max !== undefined) return min === max ? t('length.days', { days: min }) : t('filter.daysRange', { min, max });
-  if (min !== undefined) return t('filter.daysPlus', { min });
-  if (max !== undefined) return t('filter.daysRange', { min: DAYS_RANGE.min, max });
-  return null;
+  if (min === undefined && max === undefined) return null;
+  if (max === undefined) return t('filter.daysPlus', { min: min ?? DAYS_RANGE.min });
+  const from = min ?? DAYS_RANGE.min;
+  // One length ('1 day', '5日'), never a range from a number to itself.
+  return from === max ? t('length.days', { days: max }) : t('filter.daysRange', { min: from, max });
 }
 
 function priceText(f: TourFilters, t: T): string | null {
@@ -111,7 +112,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
 
   const days = daysText(f.daysMin, f.daysMax, t);
   const price = priceText(f, t);
-  const dates = datesText(f, today);
+  const dates = datesText(f, today, t);
   const separator = t('dest.listSeparator');
 
   return (

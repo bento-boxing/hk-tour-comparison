@@ -348,3 +348,21 @@ it.each([
   const northeast = screen.getByRole('group', { name: group });
   expect(within(northeast).getByRole('checkbox', { name: korea })).not.toBeChecked();
 });
+
+it.each([
+  ['zh-Hant', '出發日期：12/1 – 2027/1/3', '日數：1日以上', '日數：1日', '日數：4–6日'],
+  ['zh-Hans', '出发日期：12/1 – 2027/1/3', '天数：1天以上', '天数：1天', '天数：4–6天'],
+  ['en', 'Departure dates: 1 Dec – 3 Jan 2027', 'Length: 1 day or more', 'Length: 1 day', 'Length: 4–6 days'],
+] as const)('%s: dates and lengths in the pills', (locale, dates, plus, one, range) => {
+  const bar = (filters: SearchState['filters']) =>
+    render(<FilterBar state={{ filters, sort: 'price', page: 1 }} operators={operators} places={places} t={makeT(locale)} onChange={onChange} today="2026-11-12" />);
+  const first = bar({ dateFrom: '2026-12-01', dateTo: '2027-01-03', daysMin: 1 });
+  expect(pill(dates)).toBeInTheDocument();
+  expect(pill(plus)).toBeInTheDocument();
+  first.unmount();
+  const second = bar({ daysMax: 1 });
+  expect(pill(one)).toBeInTheDocument();
+  second.unmount();
+  bar({ daysMin: 4, daysMax: 6 });
+  expect(pill(range)).toBeInTheDocument();
+});

@@ -6,9 +6,13 @@ const tZh = makeT('zh-Hant');
 
 it('formatPrice', () => { expect(formatPrice(7999)).toBe('HK$7,999'); expect(formatPrice(12500)).toBe('HK$12,500'); });
 
-it('formatChipDate', () => {
-  expect(formatChipDate('2026-12-18', '2026-11-12')).toBe('12/18');
-  expect(formatChipDate('2027-01-03', '2026-11-12')).toBe('2027/1/3');
+it.each([
+  ['zh-Hant', '12/18', '2027/1/3'],
+  ['zh-Hans', '12/18', '2027/1/3'],
+  ['en', '18 Dec', '3 Jan 2027'],
+] as const)('formatChipDate in %s: day and month, with the year only outside today\'s year', (locale, sameYear, otherYear) => {
+  expect(formatChipDate('2026-12-18', '2026-11-12', makeT(locale))).toBe(sameYear);
+  expect(formatChipDate('2027-01-03', '2026-11-12', makeT(locale))).toBe(otherYear);
 });
 
 it('formatLength', () => { expect(formatLength(5, 4, tZh)).toBe('5日4夜'); expect(formatLength(5, null, tZh)).toBe('5日'); });

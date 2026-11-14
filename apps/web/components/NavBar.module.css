@@ -12,5 +12,5 @@
 .current { opacity: 1; border-bottom-color: var(--khaki); }
 
 @media (max-width: 639px) {
-  .inner { padding: 2px 16px; column-gap: 14px; }
+  .inner { padding: 2px 16px; column-gap: 10px; }
 }

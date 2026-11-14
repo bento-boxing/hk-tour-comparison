@@ -9,6 +9,7 @@ import { routeNames } from '../lib/card-text';
 import { operatorName } from '../lib/place-names';
 import { formatChipDate, formatPrice } from '../lib/format';
 import { GapSelector } from './GapSelector';
+import { PriceWithFrom } from './PriceWithFrom';
 import styles from './ChainStrip.module.css';
 
 export interface ChainStripProps {
@@ -33,8 +34,7 @@ const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 export function ChainStrip({ legs, operators, places, today, t, gap, departWindow, onGapChange, onRemoveLast }: ChainStripProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   const totals = chainTotals(legs);
-  const date = (d: IsoDate) => formatChipDate(d, today);
-  const from = ` ${t('card.from')}`;
+  const date = (d: IsoDate) => formatChipDate(d, today, t);
 
   return (
     <div className={styles.chain}>
@@ -44,7 +44,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
         const facts = [
           operator ? operatorName(operator, t.locale) : leg.tour.operatorId,
           `${date(leg.departure)} – ${date(leg.endDate)}`,
-          `${formatPrice(leg.priceHkd)}${leg.priceIsExact ? '' : from}`,
+          leg.priceIsExact ? formatPrice(leg.priceHkd) : t('card.priceFrom', { price: formatPrice(leg.priceHkd) }),
         ].join(' · ');
         return (
           <Fragment key={`${leg.tour.key}@${leg.departure}`}>
@@ -82,8 +82,9 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
       <div className={styles.total}>
         {t('chain.total')}
         <b className={styles.totalPrice}>
-          {formatPrice(totals.priceHkd)}
-          {!totals.priceIsExact && <small className={styles.from}>{from}</small>}
+          {totals.priceIsExact
+            ? formatPrice(totals.priceHkd)
+            : <PriceWithFrom price={formatPrice(totals.priceHkd)} t={t} fromClassName={styles.from} />}
         </b>
         {legs.length > 1
           ? t('chain.totalSpan', { days: totals.tourDays, span: totals.spanDays })

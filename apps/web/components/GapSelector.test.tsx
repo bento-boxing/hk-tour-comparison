@@ -258,3 +258,12 @@ describe('the address', () => {
     expect(max()).toHaveValue('1');
   });
 });
+
+it('in English the unit after the fields follows the larger number', () => {
+  const { rerender } = render(<GapSelector gap={{ min: 1, max: 1 }} onChange={onChange} t={makeT('en')} />);
+  expect(screen.getByRole('group')).toHaveTextContent(/day$/);
+  rerender(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={makeT('en')} />);
+  expect(screen.getByRole('group')).toHaveTextContent(/days$/);
+  rerender(<GapSelector gap={{ min: 1, max: 1 }} onChange={onChange} t={t} />);
+  expect(screen.getByRole('group')).toHaveTextContent(/日$/);
+});

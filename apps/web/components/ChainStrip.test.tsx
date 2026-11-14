@@ -175,3 +175,18 @@ it('names the route and the operator in the visitor\'s language', () => {
   expect(second).toHaveTextContent('Seoul');
   expect(second).toHaveTextContent('專業旅運 (Travel Expert)');
 });
+
+it('in English: day-first dates and "from" before an inexact price, in the legs and the total', () => {
+  renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('en') });
+  const [, second] = legBoxes();
+  expect(second).toHaveTextContent('專業旅運 (Travel Expert) · 25 Dec – 29 Dec · from HK$5,699');
+  const total = screen.getByText('Total so far', { exact: false });
+  expect(total).toHaveTextContent('from HK$13,698');
+  expect(total).toHaveTextContent('10 days (12 including rest)');
+  expect(screen.getByText('Departing 24 Dec – 26 Dec', { exact: false })).toBeInTheDocument();
+});
+
+it('in Simplified Chinese the total reads 含休息', () => {
+  renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('zh-Hans') });
+  expect(screen.getByText('目前合计', { exact: false })).toHaveTextContent('10天（含休息共12天）');
+});

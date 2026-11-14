@@ -11,10 +11,15 @@ function dateParts(date: IsoDate): { year: number; month: number; day: number } 
   return { year, month, day };
 }
 
-/** Same year as today → '12/18'; another year → '2027/1/3'. */
-export function formatChipDate(date: IsoDate, today: IsoDate): string {
+/**
+ * A short date: Chinese '12/18', or '2027/1/3' outside today's year; English '18 Dec' / '3 Jan 2027' (day first,
+ * month by name, so a Hong Kong or British reader never reads 3/1 the wrong way round).
+ */
+export function formatChipDate(date: IsoDate, today: IsoDate, t: T): string {
   const { year, month, day } = dateParts(date);
-  return year === dateParts(today).year ? `${month}/${day}` : `${year}/${month}/${day}`;
+  const sameYear = year === dateParts(today).year;
+  if (t.locale === 'en') return sameYear ? `${day} ${monthName(month, t)}` : `${day} ${monthName(month, t)} ${year}`;
+  return sameYear ? `${month}/${day}` : `${year}/${month}/${day}`;
 }
 
 /** '5日4夜', or '5日' when the number of nights is unknown. */

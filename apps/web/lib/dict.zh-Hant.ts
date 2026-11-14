@@ -29,7 +29,7 @@ const zh = {
   'countryGroup.africa': '非洲',
   'countryGroup.oceania': '大洋洲',
   'countryGroup.polar': '南北極',
-  'card.from': '起',
+  'card.priceFrom': '{price} 起', // a lowest price; components split it around {price} to style the marker
   'card.lower': '↓ {amount}　比{days}日前',
   'card.higher': '↑ {amount}　比{days}日前',
   'card.same': '— 與{days}日前相同',
@@ -100,7 +100,7 @@ const zh = {
   'chain.restDays': '休息 {n} 日',
   'chain.gapMin': '最少',
   'chain.gapMax': '最多',
-  'chain.days': '日',
+  'chain.days': '日', // the unit after the gap fields; called with { max } so English can say day or days
   'chain.pickNext': '＋ 從下方選擇下一個旅行團',
   'chain.window': '可出發日：{from} – {to}',
   'chain.total': '目前合計',

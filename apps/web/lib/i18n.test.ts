@@ -46,10 +46,14 @@ it('every key uses the same {placeholders} in every language', () => {
   }
 });
 
-it('a [name:one|other] word choice only refers to one of its key\'s placeholders', () => {
+/** Keys whose word choice counts a value that is shown elsewhere (the gap fields show their own numbers). */
+const COUNT_ONLY: Record<string, string> = { 'chain.days': 'max' };
+
+it('a [name:one|other] word choice only refers to one of its key\'s placeholders (or its documented count)', () => {
   for (const locale of LOCALES) {
     for (const [key, text] of Object.entries(dictionaries[locale])) {
-      for (const m of text.matchAll(/\[(\w+):/g)) expect(placeholders(text), `${locale} ${key}`).toContain(m[1]);
+      const allowed = [...placeholders(text), ...(COUNT_ONLY[key] ? [COUNT_ONLY[key]] : [])];
+      for (const m of text.matchAll(/\[(\w+):/g)) expect(allowed, `${locale} ${key}`).toContain(m[1]);
     }
   }
 });

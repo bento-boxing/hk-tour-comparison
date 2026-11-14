@@ -6,6 +6,7 @@ import type { T } from '../lib/i18n';
 import { usePopoverDismiss } from '../lib/use-popover-dismiss';
 import { formatPrice } from '../lib/format';
 import { departureDateText } from '../lib/card-text';
+import { PriceWithFrom } from './PriceWithFrom';
 import styles from './DeparturePicker.module.css';
 
 /** How the picker was closed, so the opener can decide where focus goes ('outside': leave it where the visitor pressed). */
@@ -50,8 +51,9 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
               <span>{departureDateText(d.date, t) ?? d.date}</span>
               {' '}
               <span className={styles.price}>
-                {formatPrice(d.priceHkd ?? fallbackPriceHkd)}
-                {d.priceHkd === null && <>{' '}<small className={styles.from}>{t('card.from')}</small></>}
+                {d.priceHkd === null
+                  ? <PriceWithFrom price={formatPrice(fallbackPriceHkd)} t={t} fromClassName={styles.from} />
+                  : formatPrice(d.priceHkd)}
               </span>
             </button>
           </li>

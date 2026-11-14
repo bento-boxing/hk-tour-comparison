@@ -67,9 +67,10 @@ const data: ChainPageData = {
   filterOperators: [operators[1], operators[2]], // jetour and texpert
 };
 
-async function renderPage(params: Record<string, string | string[] | undefined>) {
+async function renderPage(params: Record<string, string | string[] | undefined>, locale: 'zh-Hant' | 'zh-Hans' | 'en' = 'zh-Hant') {
+  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
   const element = await ChainPage({ searchParams: Promise.resolve(params) });
-  return render(<I18nProvider locale="zh-Hant">{element}</I18nProvider>);
+  return render(<I18nProvider locale={locale}>{element}</I18nProvider>);
 }
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -82,6 +83,17 @@ beforeEach(() => {
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => { consoleError.mockRestore(); });
+
+it.each([
+  ['zh-Hans', '可接续的旅行团（12/24 – 12/26 出发）', '東瀛遊 · 12/18 – 12/22 · HK$7,999', '可出发日期：12/24 – 12/26'],
+  ['en', 'Tours that can follow (departing 24 Dec – 26 Dec)', '東瀛遊 (EGL Tours) · 18 Dec – 22 Dec · HK$7,999', 'Departing 24 Dec – 26 Dec'],
+] as const)('in %s, the server heading and the strip give dates the language\'s way', async (locale, heading, leg, window) => {
+  mocks.loadChainPage.mockResolvedValue(data);
+  await renderPage({ legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'japan' }, locale);
+  expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
+  expect(screen.getByText(leg)).toBeInTheDocument();
+  expect(screen.getByText(window)).toBeInTheDocument();
+});
 
 it('loads the page from the address and lays it out: strip, then the next-leg heading, filters, cards and paging', async () => {
   mocks.loadChainPage.mockResolvedValue(data);

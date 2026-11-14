@@ -331,3 +331,17 @@ it('a departure with a bad date is left out of the chips and the picker', async 
   await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
   expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(2);
 });
+
+it('in English: day-first chip dates, "from" before the price, and the add button', () => {
+  render(<TourCard {...props} t={makeT('en')} onAdd={() => {}} />);
+  const dates = [...document.querySelectorAll('[id$="-dates"] span')].map(s => s.textContent);
+  expect(dates).toEqual(['18 Dec', '20 Dec', '23 Dec', '27 Dec', '+2 more dates']);
+  expect(screen.getByText(/HK\$7,999/).closest('div')).toHaveTextContent(/^from HK\$7,999$/);
+  expect(screen.getByRole('button', { name: '+ Add to trip' })).toBeInTheDocument();
+});
+
+it('in Simplified Chinese the chips and the price read as in Traditional', () => {
+  render(<TourCard {...props} t={makeT('zh-Hans')} />);
+  expect(screen.getByText('12/18')).toBeInTheDocument();
+  expect(screen.getByText(/HK\$7,999/).closest('div')).toHaveTextContent(/^HK\$7,999 起$/);
+});

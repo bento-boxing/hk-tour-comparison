@@ -36,7 +36,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
 
   const { address, legs, droppedCount, departWindow, next, full, operators, filterOperators } = data;
   const lastLeg = legs.at(-1);
-  const date = (d: string) => formatChipDate(d, today);
+  const date = (d: string) => formatChipDate(d, today, t);
 
   return (
     <>

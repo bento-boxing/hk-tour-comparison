@@ -95,11 +95,16 @@ it('routeNames and regionLabel name the places in the visitor\'s language', () =
 });
 
 it.each([
-  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 in the past 7 days'],
-  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 in the past 1 day'],
-  [{ kind: 'same', sinceDate: '2026-11-05' }, '— unchanged in the past 7 days'],
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 since 7 days ago'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 since 1 day ago'],
+  [{ kind: 'same', sinceDate: '2026-11-05' }, '— unchanged since 7 days ago'],
 ])('priceChangeText in English (%j)', (change, text) => {
   expect(priceChangeText(change as PriceChange, '2026-11-12', tEn)?.text).toBe(text);
+});
+
+it('priceChangeText in Simplified Chinese', () => {
+  const change: PriceChange = { kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' };
+  expect(priceChangeText(change, '2026-11-12', makeT('zh-Hans'))?.text).toBe('↓ HK$500　较7天前');
 });
 
 it('departureDateText is null for a string that is not a real date', () => {

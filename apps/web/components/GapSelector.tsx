@@ -90,7 +90,7 @@ export function GapSelector({ gap, onChange, t }: GapSelectorProps) {
       {input('min', t('chain.gapMin'))}
       <span aria-hidden="true">–</span>
       {input('max', t('chain.gapMax'))}
-      <span>{t('chain.days')}</span>
+      <span>{t('chain.days', { max: shown.max })}</span>
     </span>
   );
 }

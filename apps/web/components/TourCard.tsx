@@ -8,6 +8,7 @@ import { formatChipDate, formatLength, formatPrice, formatUpdated } from '../lib
 import { priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
+import { PriceWithFrom } from './PriceWithFrom';
 import styles from './TourCard.module.css';
 
 export interface TourCardProps {
@@ -87,13 +88,13 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
       <div className={styles.meta}>
         <div className={styles.days}>{length}</div>
         <div>
-          <div className={styles.price}>{price}{' '}<small className={styles.from}>{t('card.from')}</small></div>
+          <div className={styles.price}><PriceWithFrom price={price} t={t} fromClassName={styles.from} /></div>
           {change && <div id={changeId} className={`${styles.delta} ${styles[change.tone]}`}>{change.text}</div>}
         </div>
       </div>
       {chips.length > 0 && (
         <div id={datesId} className={styles.dates}>
-          {chips.map(d => <span key={d.date} className={styles.d}>{formatChipDate(d.date, today)}</span>)}
+          {chips.map(d => <span key={d.date} className={styles.d}>{formatChipDate(d.date, today, t)}</span>)}
           {moreDates > 0 && <span className={`${styles.d} ${styles.more}`}>{t('card.moreDates', { n: moreDates })}</span>}
         </div>
       )}

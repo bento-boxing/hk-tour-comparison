@@ -128,5 +128,5 @@ it('reads naturally in English', () => {
   render(<DeparturePicker departures={departures} fallbackPriceHkd={7999} today="2026-11-12" t={tEn} onPick={onPick} onClose={onClose} />);
   expect(screen.getByRole('dialog', { name: 'Choose a departure date' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Fri 18 Dec 2026 HK$7,999' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Sun 20 Dec 2026 HK$7,999 and up' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Sun 20 Dec 2026 from HK$7,999' })).toBeInTheDocument();
 });
