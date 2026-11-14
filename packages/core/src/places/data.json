@@ -1130,7 +1130,7 @@
     { "id": "italy-italy-modena", "regionId": "italy-italy", "nameZh": "蒙特納", "nameEn": "Modena", "aliases": ["摩德納", "摩特納"] },
     { "id": "italy-italy-varese", "regionId": "italy-italy", "nameZh": "瓦雷澤", "nameEn": "Varese", "aliases": [] },
     { "id": "italy-italy-trento", "regionId": "italy-italy", "nameZh": "特倫托", "nameEn": "Trento", "aliases": ["特倫託"] },
-    { "id": "italy-italy-messina", "regionId": "italy-italy", "nameZh": "墨西拿", "nameEn": "Messina", "aliases": ["梅西納"] },
+    { "id": "italy-italy-messina", "regionId": "italy-italy", "nameZh": "墨西拿", "nameEn": "Messina", "aliases": [] },
     { "id": "italy-italy-trapani", "regionId": "italy-italy", "nameZh": "特拉帕尼", "nameEn": "Trapani", "aliases": [] },
     { "id": "italy-italy-marsala", "regionId": "italy-italy", "nameZh": "馬薩拉", "nameEn": "Marsala", "aliases": [] },
     { "id": "italy-italy-agrigento", "regionId": "italy-italy", "nameZh": "阿格真圖", "nameEn": "Agrigento", "aliases": [] },
@@ -1439,6 +1439,7 @@
     { "id": "south-africa-south-africa-cape-town", "regionId": "south-africa-south-africa", "nameZh": "開普敦", "nameEn": "Cape Town", "aliases": [] },
     { "id": "south-africa-south-africa-sun-city", "regionId": "south-africa-south-africa", "nameZh": "太陽城", "nameEn": "Sun City", "aliases": [] },
     { "id": "south-africa-south-africa-polokwane", "regionId": "south-africa-south-africa", "nameZh": "波羅克瓦尼", "nameEn": "Polokwane", "aliases": [] },
+    { "id": "south-africa-south-africa-musina", "regionId": "south-africa-south-africa", "nameZh": "梅西納", "nameEn": "Musina", "aliases": [] },
     { "id": "south-africa-south-africa-louis-trichardt", "regionId": "south-africa-south-africa", "nameZh": "路易斯特里哈特", "nameEn": "Louis Trichardt", "aliases": ["路易斯·特里哈特", "路易斯・特里哈特"] },
 
     { "id": "zimbabwe-zimbabwe-bulawayo", "regionId": "zimbabwe-zimbabwe", "nameZh": "布拉瓦約", "nameEn": "Bulawayo", "aliases": [] },
@@ -1559,7 +1560,6 @@
     { "id": "colombia-colombia-cartagena", "regionId": "colombia-colombia", "nameZh": "卡塔赫納", "nameEn": "Cartagena", "aliases": [] },
     { "id": "colombia-colombia-guatape", "regionId": "colombia-colombia", "nameZh": "瓜塔佩", "nameEn": "Guatapé", "aliases": [] },
     { "id": "colombia-colombia-pasto", "regionId": "colombia-colombia", "nameZh": "帕斯托", "nameEn": "Pasto", "aliases": [] },
-    { "id": "colombia-colombia-santa-marta", "regionId": "colombia-colombia", "nameZh": "聖瑪爾塔", "nameEn": "Santa Marta", "aliases": [] },
 
     { "id": "australia-nsw-sydney", "regionId": "australia-nsw", "nameZh": "悉尼", "nameEn": "Sydney", "aliases": ["雪梨"] },
     { "id": "australia-nsw-port-stephens", "regionId": "australia-nsw", "nameZh": "史提芬斯港", "nameEn": "Port Stephens", "aliases": [] },
@@ -1788,6 +1788,6 @@
     { "id": "namibia-namibia-twyfelfontein", "regionId": "namibia-namibia", "nameZh": "特威飛爾泉", "nameEn": "Twyfelfontein", "aliases": [] },
     { "id": "namibia-namibia-etosha", "regionId": "namibia-namibia", "nameZh": "伊托夏", "nameEn": "Etosha", "aliases": [] }
   ],
-  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓"],
+  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾"],
   "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖"]
 }

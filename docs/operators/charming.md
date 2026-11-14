@@ -167,14 +167,16 @@ All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. 
 
 ## Scraper and fixtures (2026-11-14)
 
-The scraper is `packages/scraper/src/operators/charming/`. Discovery reads the REST list above, 100 posts per page, until a page holds fewer than 100 (or is not fetched, or not a JSON list: WordPress refuses a page past the last); at most 20 pages. Each discovered tour is one request, its page. Everything is read from the HTML as served; the inline `var dates = JSON.parse(…)` is not read (it holds one variant per date only, and the table holds every row). Registered with a provisional first-run floor of 40; not in the nightly matrix until a measured crawl.
+The scraper is `packages/scraper/src/operators/charming/`. Each discovered tour is one request, its page. Everything is read from the HTML as served; the inline `var dates = JSON.parse(…)` is not read (it holds one variant per date only, and the table holds every row). In the nightly matrix since the 2026-11-14 practice crawl, with a first-run floor of 51 (see "Practice crawl").
+
+**Discovery** (changed in the 2026-11-14 review): the REST list is asked for with `&_envelope`, a documented WordPress REST parameter (still a plain GET). Checked on the site with two requests (2026-11-14 02:14 UTC, `.superpowers/raw-pages/charming/ledger-envelope.tsv`): page 1 answered HTTP 200 with `{"body": [100 posts], "status": 200, "headers": {"X-WP-Total": 789, "X-WP-TotalPages": 8, "Link": …, "Allow": "GET"}}`; page 9 answered HTTP 200 with `{"body": {"code": "rest_post_invalid_page_number", …}, "status": 400, …}`. So page 1 gives the page count, and every page up to it must answer with status 200 and a list; otherwise discovery throws, the run fails as `discover-error` and last night's tours stay. A missing or non-whole page count, or one over 20 pages, also throws. Posts whose decoded slug shows they are not group tours are not fetched: `價錢` or `會籍` (spa and wellness packages priced in the slug, a membership), `機票` (air tickets), `<n>回-` (Peace Boat world cruises), and a slug starting with a night count (`9-晚-…《…號》`, `2-3晚…`: cruise-only packages). All 24 such posts were parse failures in the practice crawl.
 
 What the parser reads, and its rules:
 
 - **Title, code, days**: `.tour-title`. The code is after the last `~` or `～` (`～ WVJ3/4` uses the full-width one); the days are the leading `<n>天` (`3/4 天` has a space). With no `<n>天`, the last day label's number (`Day 5/6` gives 6), for a single variant. The title is kept as the page gives it.
-- **Variants**: `GERD/E` is GERD and GERE (each code after a `/` replaces the end of the first; `WVJ3/4` is WVJ3 and WVJ4; a full code after the slash is taken as it is). Day counts pair with the codes in order, or one count is every variant's. The page gives one tour, its **longest variant** (the first on a tie): its code, its days, its own table rows. A row is the variant's when its code (`.reservation-table-code`, e.g. `GERE12E-261219`, `WVJ04O-261101`: letters, then the day count, here with a leading zero) has the variant's letters and day count. The other variants are not listed. If no row is the variant's, the page is a parse failure.
-- **Day headings**: each `.tour-journeys-day-title` whose `h3` starts `Day <n>` (`Day ４` with a full-width digit occurs), paired with the `.tour-journeys-title` of the `.tour-journeys-detail` after it. Entries without a day label are notes and are left out: `集合時間及地點` (gathering time and place, on Canadian local tours) and `旅遊須知` (travel notes). A label ending `- GERD` marks a day of that variant only (`Day 10/11 (點擊展開行程) - GERD`); days tagged with another variant's code are left out. Day 1's flight leg after Hong Kong and the last day's before it are dropped when they name either of two or more airports (`香港 ~ 無錫/南京/上海 ~ 南京`, `… ~ 杭州/上海機場 ~ 香港`), as for Jetour and EGL; every other heading is as the page gives it.
-- **Start and end**: day 1's first place and the last day's last place (bracketed notes removed, at most 12 characters, else none). `原居地` ("home city", on tours joined abroad: `原居地 ~ 溫哥華`, `… ~ 溫哥華 ~ 原居地`) is not a place and is skipped, so those tours start and end at 溫哥華 (kind other, not a stop). Hong Kong tours give `香港`.
+- **Variants**: `GERD/E` is GERD and GERE (each code after a `/` replaces the end of the first; `WVJ3/4` is WVJ3 and WVJ4; a full code after the slash is taken as it is). Day counts pair with the codes in order, or one count is every variant's. The title's code may be followed by a bracketed note with no `~` in it (`~ GHTH 《農曆新年2027》`, `~ PCJSC【…】`, `~ GEFM (增遊…)`). Each table row goes to exactly one variant: the first whose code starts the row's code (`GERE12E-261219` is GERE's), else the first with the row's letters and day count (`WVJ04O-261101` is WVJ4's: letters, then the day count, here with a leading zero). Two variants with the **same letters and the same day count** (`ABC1/2`, rows `ABC05…`) cannot be told apart by that rule, so every such row goes to the first of them, deterministically: the second is not listed and its rows are not merged into another tour. A table with no code column (`GRCSB/A/S`, cabin grades on the same dates; `ZSGN/ZSGB`) gives every row to every variant. The page gives one tour: the **longest variant that has rows** (the first such on a tie; the longest of all when the table has no dated rows), with its code, its days and its own rows. The other variants are not listed. If the table has dated rows but none is any variant's, the page is a parse failure.
+- **Day headings**: each `.tour-journeys-day-title` whose `h3` starts `Day <n>` (`Day ４` with a full-width digit occurs), paired with the `.tour-journeys-title` of the `.tour-journeys-detail` after it. Entries without a day label are notes and are left out: `集合時間及地點` (gathering time and place, on Canadian local tours) and `旅遊須知` (travel notes). A label ending `- GERD` (or `- GERD/E`, two variants) or starting with a code (`GAKVA Day 1`) marks a day of those variants only; a day tagged only with other variants' codes is left out. Notes such as `自費節目一覽表` are left out too. Day 1's flight leg after Hong Kong and the last day's before it are dropped when they name either of two or more airports (`香港 ~ 無錫/南京/上海 ~ 南京`, `… ~ 杭州/上海機場 ~ 香港`), as for Jetour and EGL; every other heading is as the page gives it.
+- **Start and end**: day 1's first place and the last day's last place (bracketed notes removed before splitting at `~`, at most 12 characters, else none). A place naming 香港 or 深圳 always counts. A place abroad counts only when the page says the tour is joined there: `原居地` ("home city") in that day's heading (`原居地 ~ 溫哥華`, `… ~ 溫哥華 ~ 原居地`; `原居地` itself is skipped), or an entry labelled `集合時間及地點` (gathering time and place). Those tours start and end at 溫哥華 (kind other, not a stop). Otherwise none, so a Hong Kong tour whose last heading names only sights abroad (`青島（中山公園…）`) is not given an end abroad.
 - **Dates**: one `.reservation-table .reservation-table-tr` per departure (per variant), `.reservation-table-related_date` as `D/MM/YYYY`. A row whose `.reservation-table-status` has the class `FU` is full and dropped. Other status classes (`GT`, `GP`, `HP`, or one not seen) are kept. Past dates are kept for normaliseTour to drop.
 - **Price**: the row's adult (sharing a room) price, `.reservation-table-td.adt_price .detail-discount-price` (after the early-booking discount; on a date without one it is the only price), else `.detail-original-price`. The tax column is not added. `fromPriceHkd` is null: the page's only "from" figure is in a script (`min_original_price`, before the discount).
 - **URL**: `https://www.charming-online.com/?tour=<slug>`, without a listing's `&tour-destination=` or a fragment.
@@ -219,6 +221,59 @@ The status (`FU`, `HP` …) is a class, which is kept without being listed. `--d
 
 Requests 2–7 looked for a future full date and a non-Hong Kong start: the start was found (2–4), a future `FU` date was not.
 
+## Practice crawl (2026-11-14)
+
+`pnpm scrape --operator charming --dry-run` from 01:11:24 to 02:11:33 UTC: **60 minutes** for 8 list pages and 789 tour pages, well inside the 170-minute job. Log: `.superpowers/raw-pages/charming/dry-run-1.log`. It ran with the parser and places list as committed before the review below.
+
+| | Pages |
+|---|---|
+| Discovered, fetched | 789, 789 (none not fetched; no refusal) |
+| Would be saved | 186 parsed with upcoming dates and a route; **153 tours** after duplicates by code (several posts sell the same code, e.g. `…-gann` and `…-gann-2`) |
+| Skipped no-departures | 490 (old posts, and recent ones whose dates have all passed or are full) |
+| Parse failures | **113 (14.3%)**: 109 `parser returned null`, 4 `no-stops` |
+| Unmatched names | 1008 |
+
+**First-run floor: 51**, a third of the 153.
+
+### The 109 null pages
+
+Grouped by slug, then 10 of them fetched (budget 10; through `createFetcher()`, default options, robots.txt from the saved copy; 02:15:33–02:16:15 UTC; ledger `.superpowers/raw-pages/charming/nulls/ledger-nulls.tsv`; every answer HTTP 200, no refusal):
+
+| Group | Pages | What they are | Now |
+|---|---|---|---|
+| Spa and wellness packages, a membership (`…單人價錢：…`, `臻林-悅康會籍`) | 11 | not group tours | not fetched (discovery) |
+| Cruise-only packages counted in nights (`9-晚-…《…號》`, `2-3晚三亞海上遊…`) | 6 | cruise only | not fetched |
+| Peace Boat world cruises (`122回-100-日-…`) | 5 | cruise only | not fetched |
+| Air tickets (`機票及郵輪套票`, `加拿大航空《溫哥華機票-1晚酒店》`) | 2 | tickets | not fetched |
+| Canadian local day tours (`溫哥華1天遊`, `維多利亞一天遊/威士拿一天遊/溫哥華一天遊 ~ WYJ01/WHR01/WVR01`) | 4 | one-day local tours, bundled; no `<n>天` in the title and no `Day` labels (fetched: the bundle) | still null (not a multi-day group tour) |
+| `北京獨立組團` (a custom group), `自由行10天…` (independent travel) | 2 | not group tours | still null (not fetched; slugs too varied to exclude safely) |
+| `christmas…` reposts (`christmasgehp`: `9天荷蘭、比利時、法國深度精選之旅 ~ GEHP (聖誕節精選)`) | 10 | group tours, a note after the code | parse (fetched: GEHP; its dates were in December 2025, so no-departures) |
+| Coded slugs `f-2x-…` | 30 | group tours | the 8 fetched all parse now (below) |
+| Chinese-title slugs | 39 | group tours, mostly 2024–2025 posts | the 1 fetched parses now (below) |
+
+Causes found in the 9 fetched group-tour pages, all fixed: a bracketed note after the title's code (PCJSC `【南疆旅遊團｜售罄加開・最後一團】`, GHTH `《農曆新年2027》`, GEFM `(增遊…)`, GSAOA/B/O `《2027》`, GEHP `(聖誕節精選)`, PCXIA `(粵語導遊服務) (農曆新年)`): 6; day labels with the variant's code before `Day` (GAKA/GAKVA: `GAKVA Day 1`): 1; several variants with no code column in the table (GRCSB/A/S, ZSGN/ZSGB): 2. After the fixes: GHTH (one date in February 2027) and GSAOA (June 2027) would be saved; PCJSC, GEFM, GAKVA, GRCSB (a `1/01/1970` placeholder date), GEHP, PCXIA and ZSGN are no-departures.
+
+The 4 `no-stops`: two Namibia tours (GANN, GANN-2) now have routes from the places pass; two posts (`f-25-can-014-rwb5`, `…rwb5` with a Chinese slug, and `f-25-china-074-pckkm`; three URLs, two of them counted) have no day entries at all and stay no-stops.
+
+**Estimates after the fixes (not measured; no re-crawl):** 765 pages fetched (789 less the 24 not fetched). Parse failures about 10–20 (the 6 day tours, custom group and independent-travel posts, the no-day-entry posts, and a share of the 69 unfetched group-tour posts with causes not seen in the sample, taken as at most 1 in 10): **about 1–3%**, down from 14.3%. Tours saved about **160–170**: the 153, plus the null pages that now parse with upcoming dates (2 of the 9 fetched group-tour pages; the unfetched ones are mostly older posts), plus GANN.
+
+### Places pass
+
+From the unmatched names of the 186 pages the crawl would have saved (re-run offline with the list as it stood after the EGL review: 1110 distinct), real places were added to `packages/core/src/places/data.json`: **144 cities**, aliases on **36 cities**, and **8 countries**, each with one region: Namibia (`africa`), Greenland and Antarctica (`polar`), Malta and Kosovo (`europe`), Panama, Uruguay and the Falkland Islands (`americas`). Names that are not places (sights, meals, shows, ships, hotels) were left out. Sights such as national parks and lakes were added only where a tour treats them as its stop (塞倫蓋堤, 曼亞拉湖, 伊托夏, 四姑娘山, 巴松措, 羊卓雍措, 瀘沽湖, 千島湖).
+
+Every new name of 2 or 3 characters (115) was swept with the matcher over every heading of every practice-crawl log under `.superpowers/raw-pages/*/` (Charming and EGL; Big Line's log had no headings yet), and each inside-word hit read:
+
+- `雷納` (Reine) sat inside `蓬塔阿雷納斯` (29 pages) and `拉馬卡雷納`: left out. `阿雷納斯` is now an alias of 蓬塔阿雷納斯.
+- `卡利` (Cali) sat inside `斯卡利傑羅城堡` (Verona's castle): left out.
+- `臥龍` (Wolong, Sichuan) sat inside `臥龍湖碼頭` on a Beijing tour: notPlaces `臥龍湖`.
+- `巴塞爾` (Basel) sat inside `巴塞爾頓碼頭` (Busselton, Western Australia): notPlaces `巴塞爾頓`.
+- `千島湖` (Qiandao Lake) sat inside `千島湖遊船` on a Canada tour (the Thousand Islands): collision name, so a lone 千島湖 on a route elsewhere is dropped and reported.
+- Every other hit was the place itself (`特洛依古城`, `以弗所古城`, `福倫丹漁村`, `黑維茲溫泉湖`, `甘泉大峽谷`, `東川紅土地`, …).
+
+Also the guards from the EGL review: notPlaces `雅拉谷`, `圓滿歸`, `崇禮雲頂`, `雲頂夢號`, `雲頂美景`.
+
+Then every route of both logs was compared before and after, and every stop in a country the route did not visit before was read. 312 routes change (299 Charming, 13 EGL). The new countries are right: Antarctica on the South America cruises, Greenland on the Iceland and Arctic cruises, Malta and Valletta on the Mediterranean cruises and Sicily tours, Namibia on the southern Africa tours, Panama City on the Colombia tours, Kosovo (Pristina) on the Balkan tours, Stanley and Montevideo on the Cape Horn cruises. Two of the new names were wrong and were changed: `聖瑪爾塔` is Rio de Janeiro's Santa Marta favela on every Brazil tour (10 pages), not Santa Marta in Colombia, so it was left out; `梅西納` is Musina, the South African border town (`波羅克瓦尼 ~ 梅西納 ~ 貝特布里奇`), so it is a South African city, not an alias of Messina. The comparison also showed four older inside-word matches, now guarded in notPlaces: `吉利馬札羅` (Kilimanjaro read as 利馬, Lima), `卡薩布蘭卡山` (Chile's Casablanca valley read as Casablanca, Morocco, on 19 routes), `里維埃拉` (a Riviera read as 埃拉, Ella in Sri Lanka) and `卡斯特羅馬諾` (Rome's Castel Romano outlet read as 卡斯特羅, Castro in Chile). So 11 notPlaces were added in all. The stops routes lose are only those (卡薩布蘭加 19, 利馬 2, 埃拉 2, 卡斯特羅 1) and `丹巴` once, to `四姑娘山`, a longer name in the same token. One stop abroad remains as written: 伊斯坦堡 on a Colombia tour whose last days fly home through Istanbul. No Jetour, Travel Expert, EGL, Big Line or Charming expected file changed.
+
 ## Not verified
 
 - That the owner meant Charming Holidays 翠明假期 and not the closed `Charming China` / `Charming Tour` (M&F Lucky Holiday).
@@ -227,8 +282,9 @@ Requests 2–7 looked for a future full date and a non-Hong Kong start: the star
 - How many of the 789 posts have future dates (an expired page was seen on 2026-11-14: see "Scraper and fixtures").
 - A full (`FU`) row was seen only on a past date (2026-11-14); whether other status codes exist; what `AVAQTY` means.
 - Past dates are not dropped from the page (seen 2026-11-14 on three pages).
-- Whether every multi-variant page tags its variant-only days (`- GERD`) and codes its rows with letters then the day count: seen on GERD/E and WVJ3/4 only.
-- Cruise pages (`f-26-cruise-…`) and the non-tour posts (spa packages, `機票及郵輪套票`) were not sampled; any without a `~ CODE` title is a parse failure.
+- Whether every multi-variant page tags its variant-only days (`- GERD`, `GAKVA Day 1`) and codes its rows with letters then the day count: seen on GERD/E, WVJ3/4, GSAOA/B/O and GAKA/GAKVA only.
+- The causes of the 69 null group-tour pages not fetched in the review (estimated from the 9 that were).
+- That the slug rules for posts that are not group tours never match a group tour (they matched only the 24 such posts among the 789).
 - Gathering points for coach tours (none sampled); cruise pages (none sampled).
 - The hidden listing value (`6, 03/28/2027, true`) and the per-date code's day-count digits (three tours only).
-- Response times were not measured. The 40-minute estimate counts only the 3 s spacing; a slow server could double it, which would still fit.
+- Run length: measured at 60 minutes for 797 requests in the 2026-11-14 practice crawl (the investigation's estimate of 40 minutes counted only the 3 s spacing).
