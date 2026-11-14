@@ -34,7 +34,8 @@ export interface OperatorScraper {
   /**
    * Extra headers the operator's own site needs, by exact host name (such as Big Line's API key header for
    * `api.biglinehk.com`). The CLI gives them to this operator's fetcher only, and the fetcher sends them
-   * only to that host (never to robots.txt, nor to another host a redirect leads to). Unset: none.
+   * only to that host over `https://` on the default port (never over `http://` or another port, never to
+   * robots.txt, nor to another host a redirect leads to). Unset: none.
    */
   requestHeaders?: RequestHeaders;
   /** Pure function. null when the page is not a tour page or cannot be parsed. */
