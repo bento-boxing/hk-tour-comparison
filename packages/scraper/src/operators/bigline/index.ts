@@ -28,9 +28,8 @@ export const biglineScraper: OperatorScraper = {
   // visitor). Owner approval 2026-11-13: this header, and Content-Type on the POST, to this host only;
   // no device id, cookie, Referer or anything else.
   requestHeaders: { [API_HOST]: { tenantCode: 'DH' } },
-  // First-run floor, PROVISIONAL, cautious: about a sixth of the 586 tour URLs in the 2026-11-12 sitemap.
-  // A third (as for EGL) assumes most tours have dates on sale, but 1 of the 4 tours sampled had none
-  // (22042), and tours with no listed month are skipped as no-departures. No crawl has measured Big Line;
-  // replace this with a third of the tours with dates once the measured crawl has run.
-  minExpectedTours: 100,
+  // First-run floor: a third of the 380 tours the practice crawl of 2026-11-14 normalised (587 tour pages; the run
+  // failed its parse-failure check, so none was saved), rounded down. Big Line is not in the nightly matrix yet:
+  // the crawl took 152 of the job's 170 minutes, and the owner must decide how to fit it (docs/operators/bigline.md).
+  minExpectedTours: 126,
 };
