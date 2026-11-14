@@ -1,0 +1,428 @@
+{
+  "detail": {
+    "code": 1,
+    "data": {
+      "id": 5662,
+      "code": "BG-R-ET02",
+      "name": "全港獨家：佛岡 全新開業 凡花逸境溫泉酒店 融創雙樂園 純玩2天",
+      "is_website_name": 0,
+      "website_name": "",
+      "daycount": 2,
+      "price": 699,
+      "dist_list": "清遠"
+    }
+  },
+  "dates": {
+    "code": 1,
+    "data": {
+      "list": [
+        {
+          "id": 198605,
+          "start_date": "2026-11-14",
+          "return_date": "2026-11-15",
+          "group_enroll_status": 4,
+          "price": 799
+        },
+        {
+          "id": 198616,
+          "start_date": "2026-11-14",
+          "return_date": "2026-11-15",
+          "group_enroll_status": 4,
+          "price": 799
+        },
+        {
+          "id": 198544,
+          "start_date": "2026-11-15",
+          "return_date": "2026-11-16",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198580,
+          "start_date": "2026-11-15",
+          "return_date": "2026-11-16",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198545,
+          "start_date": "2026-11-17",
+          "return_date": "2026-11-18",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198581,
+          "start_date": "2026-11-17",
+          "return_date": "2026-11-18",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198546,
+          "start_date": "2026-11-19",
+          "return_date": "2026-11-20",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198582,
+          "start_date": "2026-11-19",
+          "return_date": "2026-11-20",
+          "group_enroll_status": 4,
+          "price": 699
+        },
+        {
+          "id": 198606,
+          "start_date": "2026-11-21",
+          "return_date": "2026-11-22",
+          "group_enroll_status": 2,
+          "price": 799
+        },
+        {
+          "id": 198617,
+          "start_date": "2026-11-21",
+          "return_date": "2026-11-22",
+          "group_enroll_status": 2,
+          "price": 799
+        },
+        {
+          "id": 198547,
+          "start_date": "2026-11-22",
+          "return_date": "2026-11-23",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198583,
+          "start_date": "2026-11-22",
+          "return_date": "2026-11-23",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198548,
+          "start_date": "2026-11-24",
+          "return_date": "2026-11-25",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198584,
+          "start_date": "2026-11-24",
+          "return_date": "2026-11-25",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198549,
+          "start_date": "2026-11-26",
+          "return_date": "2026-11-27",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198585,
+          "start_date": "2026-11-26",
+          "return_date": "2026-11-27",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198607,
+          "start_date": "2026-11-28",
+          "return_date": "2026-11-29",
+          "group_enroll_status": 1,
+          "price": 799
+        },
+        {
+          "id": 198618,
+          "start_date": "2026-11-28",
+          "return_date": "2026-11-29",
+          "group_enroll_status": 3,
+          "price": 799
+        },
+        {
+          "id": 198550,
+          "start_date": "2026-11-29",
+          "return_date": "2026-11-30",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198586,
+          "start_date": "2026-11-29",
+          "return_date": "2026-11-30",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 207462,
+          "start_date": "2026-11-30",
+          "return_date": "2026-12-01",
+          "group_enroll_status": 1,
+          "price": 699
+        },
+        {
+          "id": 207463,
+          "start_date": "2026-11-30",
+          "return_date": "2026-12-01",
+          "group_enroll_status": 1,
+          "price": 699
+        },
+        {
+          "id": 198551,
+          "start_date": "2026-12-01",
+          "return_date": "2026-12-02",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198587,
+          "start_date": "2026-12-01",
+          "return_date": "2026-12-02",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 194049,
+          "start_date": "2026-12-03",
+          "return_date": "2026-12-04",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 194073,
+          "start_date": "2026-12-03",
+          "return_date": "2026-12-04",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 194089,
+          "start_date": "2026-12-05",
+          "return_date": "2026-12-06",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 194100,
+          "start_date": "2026-12-05",
+          "return_date": "2026-12-06",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198552,
+          "start_date": "2026-12-06",
+          "return_date": "2026-12-07",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198588,
+          "start_date": "2026-12-06",
+          "return_date": "2026-12-07",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198553,
+          "start_date": "2026-12-08",
+          "return_date": "2026-12-09",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198589,
+          "start_date": "2026-12-08",
+          "return_date": "2026-12-09",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 204594,
+          "start_date": "2026-12-09",
+          "return_date": "2026-12-10",
+          "group_enroll_status": 1,
+          "price": 699
+        },
+        {
+          "id": 204595,
+          "start_date": "2026-12-09",
+          "return_date": "2026-12-10",
+          "group_enroll_status": 3,
+          "price": 699
+        },
+        {
+          "id": 198554,
+          "start_date": "2026-12-10",
+          "return_date": "2026-12-11",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198590,
+          "start_date": "2026-12-10",
+          "return_date": "2026-12-11",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198608,
+          "start_date": "2026-12-12",
+          "return_date": "2026-12-13",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198619,
+          "start_date": "2026-12-12",
+          "return_date": "2026-12-13",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198555,
+          "start_date": "2026-12-13",
+          "return_date": "2026-12-14",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198591,
+          "start_date": "2026-12-13",
+          "return_date": "2026-12-14",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198556,
+          "start_date": "2026-12-15",
+          "return_date": "2026-12-16",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198592,
+          "start_date": "2026-12-15",
+          "return_date": "2026-12-16",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198557,
+          "start_date": "2026-12-17",
+          "return_date": "2026-12-18",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198593,
+          "start_date": "2026-12-17",
+          "return_date": "2026-12-18",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198609,
+          "start_date": "2026-12-19",
+          "return_date": "2026-12-20",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198620,
+          "start_date": "2026-12-19",
+          "return_date": "2026-12-20",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198558,
+          "start_date": "2026-12-20",
+          "return_date": "2026-12-21",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198594,
+          "start_date": "2026-12-20",
+          "return_date": "2026-12-21",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198559,
+          "start_date": "2026-12-22",
+          "return_date": "2026-12-23",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198595,
+          "start_date": "2026-12-22",
+          "return_date": "2026-12-23",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198560,
+          "start_date": "2026-12-24",
+          "return_date": "2026-12-25",
+          "group_enroll_status": 4,
+          "price": 799
+        },
+        {
+          "id": 198596,
+          "start_date": "2026-12-24",
+          "return_date": "2026-12-25",
+          "group_enroll_status": 4,
+          "price": 799
+        },
+        {
+          "id": 198610,
+          "start_date": "2026-12-26",
+          "return_date": "2026-12-27",
+          "group_enroll_status": 1,
+          "price": 799
+        },
+        {
+          "id": 198621,
+          "start_date": "2026-12-26",
+          "return_date": "2026-12-27",
+          "group_enroll_status": 1,
+          "price": 799
+        },
+        {
+          "id": 198561,
+          "start_date": "2026-12-27",
+          "return_date": "2026-12-28",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198597,
+          "start_date": "2026-12-27",
+          "return_date": "2026-12-28",
+          "group_enroll_status": 0,
+          "price": 799
+        },
+        {
+          "id": 198562,
+          "start_date": "2026-12-29",
+          "return_date": "2026-12-30",
+          "group_enroll_status": 0,
+          "price": 699
+        },
+        {
+          "id": 198598,
+          "start_date": "2026-12-29",
+          "return_date": "2026-12-30",
+          "group_enroll_status": 0,
+          "price": 699
+        }
+      ]
+    }
+  }
+}

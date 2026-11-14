@@ -1,0 +1,55 @@
+{
+  "code": 1,
+  "data": {
+    "total": 5,
+    "last_page": 1,
+    "page": 1,
+    "rows": [
+      {
+        "id": 6212,
+        "code": "BG-L-SQ02",
+        "name": "季節限定：惠州 打卡淺山會深秋奇景紅楓小徑 享26年全新淺山會溫泉酒店歎【甄選聖撈 自助海鮮百匯】純玩2天",
+        "is_website_name": 0,
+        "website_name": "",
+        "daycount": 2,
+        "price": 599
+      },
+      {
+        "id": 6033,
+        "code": "KL-Y-BL08",
+        "name": "雲南秋色限定 麗江 大理 昆明 瀘沽湖 香港西九龍直達昆明纯玩8天",
+        "is_website_name": 0,
+        "website_name": "",
+        "daycount": 8,
+        "price": 4999
+      },
+      {
+        "id": 6021,
+        "code": "AL-X-GY06",
+        "name": "廣西「11.22南寧·全港獨家定制」【包機場稅】桂南秘境 德天瀑布 長壽之鄉巴馬溫泉 白沙灣獨棟水上木屋+鹽療香港直航純玩6天",
+        "is_website_name": 1,
+        "website_name": "廣西「11.22南寧·全港獨家定制」【包機場稅】桂南秘境 德天瀑布 長壽之鄉巴馬溫泉 白沙灣獨棟水上木屋+鹽療香港直航純玩6天",
+        "daycount": 6,
+        "price": 4299
+      },
+      {
+        "id": 5906,
+        "code": "AA-J-TD05",
+        "name": "【關東巡遊】東京・富士・鎌倉古都(紅葉)溫泉五天團",
+        "is_website_name": 0,
+        "website_name": "",
+        "daycount": 5,
+        "price": 5399
+      },
+      {
+        "id": 5662,
+        "code": "BG-R-ET02",
+        "name": "全港獨家：佛岡 全新開業 凡花逸境溫泉酒店 融創雙樂園 純玩2天",
+        "is_website_name": 0,
+        "website_name": "",
+        "daycount": 2,
+        "price": 699
+      }
+    ]
+  }
+}

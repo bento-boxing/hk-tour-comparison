@@ -1,0 +1,121 @@
+{
+  "sourceUrl": "https://www.yummyholiday.net/#/pages/detail/detail?id=5662",
+  "verifiedByOwner": false,
+  "notes": "Tour 5662 (BG-R-ET02), a 2-day coach tour (vehicle_name 巴士, vehicle_type 1) to Fogang. Detail and dates captured 2026-11-14 13:14-13:15 UTC (21:14 Hong Kong), trimmed by public.ts. Title: name (is_website_name 0). From price: the detail's price 699, as given; the listing and detail also give adult_price 599, not read (docs/operators/yummy.md: price and adult_price differ on 64 tours). Here the 'from' price is above adult_price and no group has an early-booking discount (is_prefer 0), so the investigation's early-booking reading does not explain it; normaliseTour shows the lowest departure price, 699. City list: dist_list is the single name 清遠, with no country first (the investigation saw only 5906's 日本,東京,富士 and wrote 'country first'). The title names 佛岡 (Fogang, a county of Qingyuan), which the list does not: the list names the prefecture city. 佛岡 is not in the places list either. Dates: 58 groups, two per date (the second group's code ends in U, not B as on 5906). The 10 cancelled groups (status 4: 11-14, 11-15, 11-17, 11-19 and 12-24, both groups each) are dropped, so those 5 dates are not departures; the listing captured 07:52 Hong Kong the same day already left all 10 out. 11-14 (the capture day) was the earliest group: no date before the capture day was answered. 11-28 and 12-09 each have one group nearly confirmed (1) and one full (3): kept, at the nearly-confirmed group's price (equal here). No date has all its groups full. Prices: the dates call's price per group (699 or 799). No start point: the API names none (null, read as Hong Kong).",
+  "scraped": {
+    "operatorId": "yummy",
+    "code": "BG-R-ET02",
+    "url": "https://www.yummyholiday.net/#/pages/detail/detail?id=5662",
+    "title": "全港獨家：佛岡 全新開業 凡花逸境溫泉酒店 融創雙樂園 純玩2天",
+    "days": 2,
+    "nights": null,
+    "dayHeadings": [
+      "清遠"
+    ],
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 699,
+    "departures": [
+      {
+        "date": "2026-11-21",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-11-22",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-11-24",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-11-26",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-11-28",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-11-29",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-11-30",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-01",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-05",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-06",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-08",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-09",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-10",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-12",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-13",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-15",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-17",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-19",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": 699
+      },
+      {
+        "date": "2026-12-22",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-26",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": 799
+      },
+      {
+        "date": "2026-12-29",
+        "priceHkd": 699
+      }
+    ]
+  },
+  "stopNames": [
+    "清遠"
+  ],
+  "unmatched": []
+}

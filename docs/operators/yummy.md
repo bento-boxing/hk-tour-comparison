@@ -1,4 +1,4 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-14: owner approved the reduced fields (no day headings, no gathering point; the route taken from the operator's own city list, `dist_list`)
 
 # Yummy Holiday 美味假期 (`yummy`): operator investigation
 
@@ -92,7 +92,7 @@ Observed on tour **5906** (`AA-J-TD05`, `【關東巡遊】東京・富士・鎌
 | Days | listing, detail | `rows[].daycount` (number). For every departure, `return_date − start_date + 1` equals `daycount` (all 5,131 checked) | `5` |
 | Nights | **not given** | No nights field. | – |
 | Day-by-day headings | **not in any text field** | The tour page shows images (`data.descp_images`, `list[].promot_pages`) and a PDF (`list[].promot_files`, the `查看行程單` "view itinerary sheet" button). `data.descp`/`sell_point` is marketing prose (1 of 327 has day markers in it). `data.tips` is travel tips. | – |
-| Cities | detail only | `data.dist_list` (comma list, country first). Not in the listing. | `日本,東京,富士` |
+| Cities | detail only | `data.dist_list` (comma list). Not in the listing. In the investigation only 5906 was read, and its list starts with the country; the fixture capture (see "Scraper and fixtures") found a list with no country (`清遠`) and one starting with a province (`雲南,大理,…`). | `日本,東京,富士` |
 | Start / gathering point | **not in any text field** | Only the transport mode: `rows[].vehicle_name` (`巴士`, `飛機`, `西九`, `高鐵`, `船`); the detail has a numeric `vehicle_type` (`5` for 5906). The gathering place is probably in the itinerary PDF (**not verified**). The terms mention `西九` and Shenzhen/Guangzhou stations for rail tours. | `飛機` |
 | "From" price | listing, detail | `rows[].price` (integer HKD; also `adult_price`, `child_price`, `baby_price`). The tour page shows `price` with `元起` ("from"). `price` equals `adult_price` on 263 of 327 tours; on the other 64 it is higher or lower. | `5399` |
 | Departure dates | listing (all tours, one call) and the dates call | `rows[].group_list[].start_date` / `return_date` (ISO `YYYY-MM-DD`); also `rows[].formed_group_date[]`, `almost_formed_group_date[]`, `unformed_group_date[]`, `full_group_date[]`, `earliest_date`, `latest_date`. Dates call: `list[].start_date`. Several groups can share a date (842 extra groups). | `2026-11-19` |
@@ -124,9 +124,61 @@ The dates call's size grows with the departures (28.5 kB for 31 groups). The lis
 
 ## Fixtures
 
-**None saved.** The raw responses stay under `.superpowers/raw-pages/yummy/` only. If the owner approves, good fixture candidates are 5906 (air, full, cancelled and discounted dates, several groups per date) and a 2-day `BG` coach tour and a `西九` rail tour from the listing. A fixture should keep only the fields under "Where each fact comes from".
+None were saved in the investigation. The scraper's fixtures are under "Scraper and fixtures" below.
 
-## Every URL fetched (12 + 2 page fetches; robots.txt not counted)
+## Owner decision (2026-11-14)
+
+Approved with the reduced fields: no day headings and no gathering point, the route taken from the operator's own city list (`dist_list`). Everything else as recommended above: the three tour endpoints only, plain GETs, no extra headers, the booking counts never kept.
+
+## Scraper and fixtures (2026-11-14)
+
+The scraper is `packages/scraper/src/operators/yummy/`. Registered with a **provisional** first-run floor of 196 (60% of the 327 tours listed on 2026-11-14, rounded down; no crawl has been measured). It is **not in the nightly matrix**: it joins after a measured crawl sets the real floor.
+
+**Requests.** Only three paths on `https://api.yummyholiday.net`, all plain GETs through the run's polite fetcher with no extra headers of any kind: `/bussiness/line/index?limit=500` once a night, then per tour `/bussiness/line/detail?id=<id>` and `/bussiness/group/list?line_id=<id>`. Two requests per tour every night (about 655 a night, some 33 minutes at 3 s each); nothing is cached across nights. Never a staff endpoint, a POST, an image or a PDF. Any answer that is not a success (none, not JSON, a code other than 1) counts toward one count of refusals in a row; at 3 nothing more is requested that night.
+
+**Discovery** reads the listing once. It throws (the run fails as `discover-error` and last night's tours stay) unless the answer has code 1 and a list of rows, `last_page` is 1, the number of rows equals `total`, and every row has a whole-number tour id. Each row gives the tour's page, `https://www.yummyholiday.net/#/pages/detail/detail?id=<id>`: the "view on the operator's site" link and the tour's identity in a run.
+
+**The allow-list** (`public.ts`) keeps only: from the detail, `id`, `code`, `name`, `is_website_name`, `website_name`, `daycount`, `price` and `dist_list`; from each group of the dates answer, `id`, `start_date`, `return_date`, `group_enroll_status` and `price`; from the listing, its `total`, `last_page` and `page` and each row's tour fields (not its `group_list`). Each answer's `code` is kept too. Booking counts, prose, tips and image and PDF paths are never kept.
+
+What the parser reads, and its rules:
+
+- **Code, days**: `code`, `daycount` (a whole number of at least 1).
+- **Title**: `website_name` when `is_website_name` is 1 and it has text, else `name` (as the tour page does).
+- **Route**: `dist_list` split at ASCII and full-width commas, each name trimmed, empty ones dropped, in the operator's order, one name per entry of `dayHeadings`. They go through the shared place matching like any heading: a country name gives no stop. A tour none of whose names is recognised fails as `no-stops`; there is no title fallback.
+- **"From" price**: the detail's `price`, as given (normaliseTour still shows the lowest departure price when there is one, as for every operator).
+- **Departures**: from the dates call. Groups with `group_enroll_status` 4 (cancelled) are dropped. The groups of one date become one departure, at the price of the group the site would show: the best status (2 > 1 > 0 > 3), then the lowest price. A date is full, and left out, only when every group left on it is 3. A group status other than 0 to 4 makes the tour a parse failure. A group without a real date is skipped. Past dates are kept for normaliseTour to drop.
+- **Start and end**: none (`null`, read as Hong Kong, as for any operator that states none). `vehicle_name` is not read.
+- **Nights**: none.
+
+**What the fixture capture verified or contradicted** (4 requests, 2026-11-14 13:14:59–13:15:10 UTC, ledger lines 15–18 of `.superpowers/raw-pages/yummy/ledger.tsv`; the listing and tour 5906 were reused from the investigation, not fetched again):
+
+- **The coach and rail tours answer the dates call the same way as the air tour**: the same `{"code":1,…,"data":{"list":[…],"month_list":[…]}}` and the same group fields. (The coach tour's groups lack `is_discount`, which is not read.)
+- **Past departures**: the earliest group answered was on the capture day itself (5662's 14 November, cancelled); no earlier date was answered for any of the three tours. The listing (07:52 Hong Kong the same day) had already left out every cancelled group of both tours, as it did for 5906.
+- **`dist_list` is not always "country first"**: 5906 `日本,東京,富士` (country first), 5662 `清遠` (no country), 6033 `雲南,大理,瀘沽湖,麗江,昆明` (a province first). The shared matching reads `雲南` as a region, so 6033's route starts with a region stop `雲南` before its four cities.
+- **A second group's code** ends in `U` on 5662 (`BG-R-ET02-261114U`), not only `B`. Group codes are not read.
+- **The "from" price** is below every departure on 6033 (4999 against 6699), which fits the early-booking reading (`prefer_adult` 1700), but above `adult_price` on 5662 (699 against 599, no discount): the early-booking reading does not explain every tour.
+- **Is `dist_list` in visiting order?** The three tours cannot settle it:
+
+| Tour | Places the title names | `dist_list` |
+|---|---|---|
+| 5906 `AA-J-TD05` (air) | 東京, 富士, 鎌倉 | 日本, 東京, 富士 |
+| 5662 `BG-R-ET02` (coach) | 佛岡 | 清遠 |
+| 6033 `KL-Y-BL08` (rail) | 麗江, 大理, 昆明, 瀘沽湖 (and 香港西九龍直達昆明: by train straight to Kunming) | 雲南, 大理, 瀘沽湖, 麗江, 昆明 |
+
+  5906's list leaves out 鎌倉 and 5662's names the prefecture (清遠) for the title's county (佛岡), so the list is not always a full route. 6033's list has the title's four cities in another order, which fits a loop out of Kunming (arrive by train, then Dali, Lugu Lake, Lijiang, back to Kunming) but cannot be checked: the itinerary is only in images and a PDF. The scraper keeps the list's order and makes no claim about it.
+
+Fixtures (`packages/scraper/src/operators/yummy/fixtures/`), each with `<name>.expected.json` (`verifiedByOwner: false`, notes on every judgment call):
+
+| Fixture | Tour | Why |
+|---|---|---|
+| `simple` | 5662 `BG-R-ET02`, 佛岡 2-day coach (`巴士`) | One city, two groups on every date, 10 cancelled groups, dates with a nearly-confirmed and a full group |
+| `multi-city` | 6033 `KL-Y-BL08`, Yunnan 8-day rail (`西九`) | Four cities after a province, cancelled dates, a full and a confirmed group on one date, "from" price below every departure |
+| `edge` | 5906 `AA-J-TD05`, Kanto 5-day air (`飛機`) | A date with every group full, dates with a full and a confirmed group, two all-cancelled dates, a city not in the places list (`富士`) |
+| `listing` | the listing, cut to 5 rows | Discovery: 6212 (the first row), 6033, 6021 (`is_website_name` 1), 5906, 5662; `total` set to 5 to match |
+
+They are the raw answers saved under `.superpowers/raw-pages/yummy/` (outside git) put through `public.ts` and, for the tours, joined as fetchPage joins them (`{"detail": …, "dates": …}`); nothing else was changed, except the listing's rows and `total` as stated. Unmatched city names in the three tours: `富士` (5906) only; 佛岡 is in no list, only the title. No place was added.
+
+## Every URL fetched (investigation: 12 + 2 page fetches; robots.txt not counted)
 
 All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. The ledger (`.superpowers/raw-pages/yummy/ledger.tsv`) also lists each time a saved robots.txt was reused instead of fetched again.
 
@@ -155,14 +207,25 @@ All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. 
 
 **Order of fetches.** The brief's order was sitemaps, terms, listing, tour pages, scripts. The site has no sitemap and renders nothing on the server, so scripts #3–#6 had to come first, to find the API, the terms page and the tour calls. The terms (#7–#8) came before the listing (#9). Only one tour (two calls, #10–#11) could be read, and #12 went on the newest terms image rather than a second tour.
 
-**Not fetched:** any itinerary image or PDF; a second or third tour (a coach or rail tour); the `pages-content-content` and `pages-filter-filter` scripts; `hk.yummyholiday.cn`; any staff endpoint; any POST.
+**Not fetched in the investigation:** any itinerary image or PDF; a second or third tour (a coach or rail tour: fetched later for the fixtures, see "Scraper and fixtures"); the `pages-content-content` and `pages-filter-filter` scripts; `hk.yummyholiday.cn`; any staff endpoint; any POST.
+
+For the fixtures (Task 30, after the owner's approval), 4 more, by a probe script through `createFetcher` with undici's `EnvHttpProxyAgent` installed as `cli.ts` does, which would stop at the first refusal, block or non-200 (none came), plus the fetcher's own read of `api.yummyholiday.net/robots.txt` (not counted; not saved; it allowed all four):
+
+| # | UTC (2026-11-14) | URL | Result |
+|---|---|---|---|
+| 15 | 13:14:59 | https://api.yummyholiday.net/bussiness/line/detail?id=5662 | 200 JSON, 10,189 bytes |
+| 16 | 13:15:03 | https://api.yummyholiday.net/bussiness/group/list?line_id=5662 | 200 JSON, 45,882 bytes (58 groups) |
+| 17 | 13:15:07 | https://api.yummyholiday.net/bussiness/line/detail?id=6033 | 200 JSON, 4,433 bytes |
+| 18 | 13:15:10 | https://api.yummyholiday.net/bussiness/group/list?line_id=6033 | 200 JSON, 8,692 bytes (9 groups) |
 
 ## Not verified
 
 - Whether the itinerary PDFs (`promot_files`) have a text layer with day headings and the gathering point.
-- That the dates call answers the same for coach and rail tours. Only one air tour was read; the listing's fields look the same across all kinds.
+- ~~That the dates call answers the same for coach and rail tours.~~ Verified for one coach and one rail tour by the fixture capture (see "Scraper and fixtures").
 - Why `price` differs from `adult_price` on 64 tours, and whether the "from" price is always the early-booking price.
-- Whether the dates call includes past departures (5906's first was 5 days ahead), and what `enroll_status`, `is_website_show` (0 on every departure) and `expire_date` mean.
+- Whether the dates call includes past departures: in the fixture capture its earliest group was the capture day itself (5662, cancelled), never an earlier date; whether a departed group is ever answered is still not known (the parser keeps any, and normaliseTour drops them). What `enroll_status`, `is_website_show` (0 on every departure) and `expire_date` mean is not known.
+- Whether `dist_list` is in visiting order (see "Scraper and fixtures": the three tours cannot settle it).
+- What the API answers for a tour id it no longer has (none was asked for).
 - Whether the server caps `limit` on the listing.
 - The tour page link form `/#/pages/detail/detail?id=<id>` (inferred from the code and the terms page's own link, not opened).
 - Whether `hk.yummyholiday.cn` is a live second site.

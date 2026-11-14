@@ -1,0 +1,85 @@
+{
+  "detail": {
+    "code": 1,
+    "data": {
+      "id": 6033,
+      "code": "KL-Y-BL08",
+      "name": "雲南秋色限定 麗江 大理 昆明 瀘沽湖 香港西九龍直達昆明纯玩8天",
+      "is_website_name": 0,
+      "website_name": "",
+      "daycount": 8,
+      "price": 4999,
+      "dist_list": "雲南,大理,瀘沽湖,麗江,昆明"
+    }
+  },
+  "dates": {
+    "code": 1,
+    "data": {
+      "list": [
+        {
+          "id": 202721,
+          "start_date": "2026-11-17",
+          "return_date": "2026-11-24",
+          "group_enroll_status": 4,
+          "price": 6699
+        },
+        {
+          "id": 202723,
+          "start_date": "2026-11-21",
+          "return_date": "2026-11-28",
+          "group_enroll_status": 4,
+          "price": 6699
+        },
+        {
+          "id": 202724,
+          "start_date": "2026-11-24",
+          "return_date": "2026-12-01",
+          "group_enroll_status": 3,
+          "price": 6699
+        },
+        {
+          "id": 206961,
+          "start_date": "2026-11-24",
+          "return_date": "2026-12-01",
+          "group_enroll_status": 2,
+          "price": 6699
+        },
+        {
+          "id": 202725,
+          "start_date": "2026-11-27",
+          "return_date": "2026-12-04",
+          "group_enroll_status": 0,
+          "price": 6699
+        },
+        {
+          "id": 202726,
+          "start_date": "2026-12-03",
+          "return_date": "2026-12-10",
+          "group_enroll_status": 1,
+          "price": 6699
+        },
+        {
+          "id": 202727,
+          "start_date": "2026-12-08",
+          "return_date": "2026-12-15",
+          "group_enroll_status": 0,
+          "price": 6699
+        },
+        {
+          "id": 202728,
+          "start_date": "2026-12-11",
+          "return_date": "2026-12-18",
+          "group_enroll_status": 2,
+          "price": 6699
+        },
+        {
+          "id": 202729,
+          "start_date": "2026-12-15",
+          "return_date": "2026-12-22",
+          "group_enroll_status": 0,
+          "price": 6699
+        }
+      ]
+    }
+  }
+}

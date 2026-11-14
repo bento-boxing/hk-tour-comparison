@@ -1,0 +1,57 @@
+{
+  "sourceUrl": "https://www.yummyholiday.net/#/pages/detail/detail?id=6033",
+  "verifiedByOwner": false,
+  "notes": "Tour 6033 (KL-Y-BL08), an 8-day high-speed rail tour (vehicle_name 西九, vehicle_type 3) to Yunnan. Detail and dates captured 2026-11-14 13:15 UTC (21:15 Hong Kong), trimmed by public.ts. The rail dates answer has the same shape and fields as the air tour's (5906) and the coach tour's (5662). Title: name (is_website_name 0). From price: the detail's price 4999, as given, below every departure (6699; adult_price is 6699 too); some groups carry is_prefer 1 with prefer_adult 1700 (others 1000), and 6699 - 1700 = 4999, so it fits the investigation's early-booking reading (not read by the parser); normaliseTour shows the lowest departure price, 6699. City list: dist_list 雲南,大理,瀘沽湖,麗江,昆明. Its first name is a province (雲南), not a country, and the shared place matching reads it as a region stop, so the route starts with 雲南 before its four cities (a judgment left to the owner: the brief passes the list through the normal matching unchanged). Order: the title lists 麗江 大理 昆明 瀘沽湖 and says the train goes direct to 昆明 (香港西九龍直達昆明); the list gives 大理, 瀘沽湖, 麗江, 昆明, the same four cities in another order, which fits a loop from Kunming (arrive Kunming, then Dali, Lugu Lake, Lijiang, back to Kunming) but cannot be checked: the itinerary is only in images and a PDF. Dates: 9 groups; 11-17 and 11-21 are cancelled (4) and dropped, as the listing had already done; 11-24 has a full group (3) and a confirmed one (2), so it is kept at the confirmed group's price. No start point: the API names none (null, read as Hong Kong: the train leaves from West Kowloon).",
+  "scraped": {
+    "operatorId": "yummy",
+    "code": "KL-Y-BL08",
+    "url": "https://www.yummyholiday.net/#/pages/detail/detail?id=6033",
+    "title": "雲南秋色限定 麗江 大理 昆明 瀘沽湖 香港西九龍直達昆明纯玩8天",
+    "days": 8,
+    "nights": null,
+    "dayHeadings": [
+      "雲南",
+      "大理",
+      "瀘沽湖",
+      "麗江",
+      "昆明"
+    ],
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 4999,
+    "departures": [
+      {
+        "date": "2026-11-24",
+        "priceHkd": 6699
+      },
+      {
+        "date": "2026-11-27",
+        "priceHkd": 6699
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": 6699
+      },
+      {
+        "date": "2026-12-08",
+        "priceHkd": 6699
+      },
+      {
+        "date": "2026-12-11",
+        "priceHkd": 6699
+      },
+      {
+        "date": "2026-12-15",
+        "priceHkd": 6699
+      }
+    ]
+  },
+  "stopNames": [
+    "雲南",
+    "大理",
+    "瀘沽湖",
+    "麗江",
+    "昆明"
+  ],
+  "unmatched": []
+}

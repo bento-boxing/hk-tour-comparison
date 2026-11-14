@@ -1,0 +1,12 @@
+{
+  "sourceUrl": "https://api.yummyholiday.net/bussiness/line/index?limit=500",
+  "verifiedByOwner": false,
+  "notes": "The listing captured in the investigation, 2026-11-13 23:52 UTC (07:52 on 14 November, Hong Kong): 327 rows, total 327, last_page 1. Trimmed by public.ts (each row's departures, group_list, and every field but id, code, name, is_website_name, website_name, daycount and price left out), then cut to 5 rows (the three fixture tours 5906, 5662 and 6033; 6212, the listing's first row; 6021, one of the 5 tours with is_website_name 1), kept in the listing's order, and total set to 5 so the trimmed listing passes the count check (judgment call: the real total was 327). The tour pages are the site's hash-route links, which were not opened to check.",
+  "discovered": [
+    "https://www.yummyholiday.net/#/pages/detail/detail?id=6212",
+    "https://www.yummyholiday.net/#/pages/detail/detail?id=6033",
+    "https://www.yummyholiday.net/#/pages/detail/detail?id=6021",
+    "https://www.yummyholiday.net/#/pages/detail/detail?id=5906",
+    "https://www.yummyholiday.net/#/pages/detail/detail?id=5662"
+  ]
+}

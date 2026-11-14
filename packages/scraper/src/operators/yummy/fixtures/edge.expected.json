@@ -1,0 +1,81 @@
+{
+  "sourceUrl": "https://www.yummyholiday.net/#/pages/detail/detail?id=5906",
+  "verifiedByOwner": false,
+  "notes": "Tour 5906 (AA-J-TD05), a 5-day air tour (vehicle_name 飛機) to the Kanto region. Detail and dates captured in the investigation, 2026-11-13 23:56-23:57 UTC (07:56-07:57 on 14 November, Hong Kong), and reused here rather than fetched again; trimmed by public.ts. Title: name (is_website_name 0). From price: the detail's price 5399, as given; it is below every departure (5599 lowest) and looks like the early-booking price (5599 - 200), not verified; normaliseTour shows 5599. City list: dist_list 日本,東京,富士; the country 日本 gives no stop. 富士 is not in the places list (the brief adds places only when a fixture tour needs one; this tour has 東京), so it is reported unmatched. The title names 東京, 富士 and 鎌倉 (Kamakura): the list leaves 鎌倉 out, so it is not a full route; the two names it has are in the title's order. Dates: 31 groups. 11-19 has two full groups (3, 3): the date is full and left out. 11-26, 12-17 and 12-24 each have a full group and a confirmed one (3, 2): kept at the confirmed group's price. 02-04 and 02-18 have two cancelled groups each (4): left out. 12-10, 01-14, 01-28, 02-25 and the March dates have two groups taking bookings at the same price: one departure each. 12-24 is 8499 (Christmas). No start point: the API names none (null, read as Hong Kong). Every date is after the capture day.",
+  "scraped": {
+    "operatorId": "yummy",
+    "code": "AA-J-TD05",
+    "url": "https://www.yummyholiday.net/#/pages/detail/detail?id=5906",
+    "title": "【關東巡遊】東京・富士・鎌倉古都(紅葉)溫泉五天團",
+    "days": 5,
+    "nights": null,
+    "dayHeadings": [
+      "日本",
+      "東京",
+      "富士"
+    ],
+    "startPoint": null,
+    "endPoint": null,
+    "fromPriceHkd": 5399,
+    "departures": [
+      {
+        "date": "2026-11-26",
+        "priceHkd": 5599
+      },
+      {
+        "date": "2026-12-03",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2026-12-10",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2026-12-17",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": 8499
+      },
+      {
+        "date": "2027-01-07",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2027-01-14",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2027-01-21",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2027-01-28",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2027-02-25",
+        "priceHkd": 5699
+      },
+      {
+        "date": "2027-03-04",
+        "priceHkd": 5599
+      },
+      {
+        "date": "2027-03-11",
+        "priceHkd": 5599
+      },
+      {
+        "date": "2027-03-18",
+        "priceHkd": 5599
+      }
+    ]
+  },
+  "stopNames": [
+    "東京"
+  ],
+  "unmatched": [
+    "富士"
+  ]
+}
