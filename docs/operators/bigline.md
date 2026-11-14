@@ -27,8 +27,8 @@ The plan's note that the data is in embedded page state (`__NUXT__`) is no longe
 
 Taken after the practice crawl (see "Practice crawl (2026-11-14) and the places pass"):
 
-1. **Stops from the title when the day lines name none.** Owner: "For Big Line, we can just have the tour title if there are no cities." When a tour's day lines give no stop (after Hong Kong, a Shenzhen start and a stated start or end place are taken off: exactly the tours that were `no-stops`), its stops are read from the title with the day-line rules: the same matcher, the same `notPlaces` and collision names, Hong Kong left out, text in brackets (`【】`, `()`, `（）`, `[]`) dropped as in a day line, the places in the order the title names them. A tour whose day lines name even one place keeps that route, with nothing from the title added. A title that names no place either leaves the tour `no-stops`, as before, and a tour with nothing to book is still `no-departures` first. Words of the title that match nothing are not reported as unmatched names (the day lines' still are). How: Big Line's parser sets the optional `ScrapedTour.fallbackRoute` to the title, and `normaliseTour` reads it only in that case; no other operator sets it, so no other operator changes. A dry run's `page` line now carries `fallbackRoute` (the title) and `routeFromFallback` for each Big Line tour, so the next crawl's log can be checked tour by tour.
-2. **Two months of dates.** Owner: "Cut to 2 months of dates." `MAX_MONTHS_PER_TOUR` is 2: the first two months the tour has on sale, from the current Hong Kong month on (the selection rule is otherwise unchanged). The practice crawl at 3 months took 152 of the job's 170 minutes; 586 tours × (1 detail + 2 months) × 3 s is about 88 minutes plus response time (114 to 128 minutes with the crawl's response times, an estimate). Tours show dates up to the end of next month only, and a tour with nothing bookable in its first two listed months is now skipped as `no-departures`. How many tours that affects is not measured.
+1. **Stops from the title when the day lines name none.** Owner: "For Big Line, we can just have the tour title if there are no cities." When a tour's day lines give no stop (after Hong Kong, a Shenzhen start and a stated start or end place are taken off: exactly the tours that were `no-stops`), its stops are read from the title with the day-line rules: the same matcher, the same `notPlaces` and collision names, Hong Kong left out, text in brackets (`【】`, `()`, `（）`, `[]`) dropped as in a day line, the places in the order the title names them. A tour whose day lines name even one place keeps that route, with nothing from the title added. A title that names no place either leaves the tour `no-stops`, as before, and a tour with nothing to book is still `no-departures` first. Words of the title that match nothing are not reported as unmatched names (the day lines' still are). How: Big Line's parser sets the optional `ScrapedTour.fallbackRoute` to the title, and `normaliseTour` reads it only in that case; no other operator sets it, so no other operator changes. A dry run's `page` line now carries `fallbackRoute` (the title) and `routeFromFallback` for each Big Line tour, so the next crawl's log can be checked tour by tour. Since the measured crawl, three more rules apply to a route read from the title, and the run log lists the title routes that are new or changed: see "Measured crawl (2026-11-14)".
+2. **Two months of dates.** Owner: "Cut to 2 months of dates." `MAX_MONTHS_PER_TOUR` is 2: the first two months the tour has on sale, from the current Hong Kong month on (the selection rule is otherwise unchanged). The practice crawl at 3 months took 152 of the job's 170 minutes; 586 tours × (1 detail + 2 months) × 3 s is about 88 minutes plus response time (114 to 128 minutes with the crawl's response times, an estimate). Tours show the dates of the first two months they list from the current month on, which are not always this month and next: a tour listing December and March shows those two, and nothing later. A tour with nothing bookable in its first two listed months is now skipped as `no-departures`. How many tours that affects is not measured.
 
 ## Owner decision (2026-11-13, standing approval for the scraper)
 
@@ -117,7 +117,7 @@ Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. D
 
 ## Practice crawl (2026-11-14) and the places pass
 
-Both points the crawl left open (how to fit Big Line into the nightly job, and the tours whose day lines name no place) were decided by the owner on 2026-11-14: see "Owner decisions (2026-11-14)" below. Big Line is registered (first-run floor 126, still provisional) but **not in the nightly matrix**: it is added only after a new measured crawl.
+Both points the crawl left open (how to fit Big Line into the nightly job, and the tours whose day lines name no place) were decided by the owner on 2026-11-14: see "Owner decisions (2026-11-14)" below. Big Line was registered (first-run floor 126, provisional) but not in the nightly matrix until a new measured crawl. **Updated 2026-11-14:** that crawl passed, and Big Line is in the nightly matrix with a first-run floor of 169: see "Measured crawl (2026-11-14)".
 
 ### What the crawl measured
 
@@ -133,7 +133,7 @@ One full dry run, `pnpm scrape --operator bigline --dry-run`, 2026-11-14 00:30:4
 | Run checks | failed, `too-many-parse-failures` (limit 20%) |
 | Distinct unmatched names | 2,447 |
 
-The first-run floor is a third of the 380 normalised, rounded down: **126**.
+The first-run floor was a third of the 380 normalised, rounded down: 126 (169 since the measured crawl).
 
 **Requests and duration (estimates).** The fetcher logs no line per request, so the number of POSTs is not in the log; it is inferred. Fixed: 587 detail GETs and about 4 other requests (the bigline.hk sitemap index and child, two robots.txt). Each of the 575 tours with upcoming departures sends 1 to 3 POSTs. At 3 POSTs each the night is about **2,352 requests**, which over 9,109 s is **3.9 s per request** (the 3 s spacing plus about 0.9 s of response, which is plausible); at an average of 2.5 POSTs it would be about 2,060 requests at 4.4 s (a response time of 1.4 s, less likely). So most tours used the full 3 months.
 
@@ -143,7 +143,7 @@ The first-run floor is a third of the 380 normalised, rounded down: **126**.
 | 2 (owner's choice, 2026-11-14) | ≈ 1,700–1,770 | ≈ 114–128 min (not yet measured) |
 | 1 | ≈ 1,170 | ≈ 76–86 min |
 
-The ranges come from the unknown POST count and response time above. Fewer months means fewer departures shown: with 1 month only the current month's dates are offered (none at all late in a month for many tours); with 2, dates up to the end of next month.
+The ranges come from the unknown POST count and response time above. Fewer months means fewer departures shown: with 1, only the first month the tour lists from the current month on (often the current month, with few dates or none left late in it); with 2, the first two months it lists, which are this month and next only when it lists both.
 
 ### The 193 `no-stops` pages
 
@@ -183,7 +183,40 @@ No request was made. The crawl log's `page` lines hold each tour's code, day hea
 - **Two months:** not measurable offline (the log has no months or dates).
 - **No places change** was made, so no other operator's route changed (Charming's 680 and EGL's 542 logged tours re-normalised identically).
 
-**Still open, for a new measured crawl:** what the title fallback rescues (and every title-read stop to be read for names inside longer words, dishes, hotels, brands); the 2 parser failures 19259 and 19261 (the parser now logs why); the 42 empty-heading tours (rescued only if their titles name a place); the 16 cruises and 2 placeholders (likewise); the duration at 2 months; the first-run floor, **still provisional at 126** (a third of the 380 normalised at 3 months, before both decisions); and adding Big Line to the nightly matrix (not done).
+**Still open, for a new measured crawl** (answered in "Measured crawl (2026-11-14)" below): what the title fallback rescues (and every title-read stop to be read for names inside longer words, dishes, hotels, brands); the 2 parser failures 19259 and 19261 (the parser now logs why); the 42 empty-heading tours (rescued only if their titles name a place); the 16 cruises and 2 placeholders (likewise); the duration at 2 months; the first-run floor, **still provisional at 126** (a third of the 380 normalised at 3 months, before both decisions); and adding Big Line to the nightly matrix (not done).
+
+## Measured crawl (2026-11-14)
+
+One full dry run with both owner decisions in place (2 months of dates, stops from the title), `pnpm scrape --operator bigline --dry-run`, 2026-11-14 13:03:17Z to 15:15:01Z: **132 minutes** of the nightly job's 170. Log: `.superpowers/raw-pages/bigline/dry-run-2.log` (git-ignored).
+
+| | |
+|---|---|
+| Tour pages discovered / fetched / not fetched / gone | 587 / 587 / 0 / 0 |
+| Refusals | 0 |
+| Would have been saved | **507** (118 of them with stops from the title) |
+| Skipped, no upcoming departures | 14 |
+| Parse failures | **66 (11.2%)**: 64 `no-stops`, 2 `the detail has no valid tour code` (19259, 19261) |
+| Run checks | ok |
+
+**First-run floor: 169**, a third of the 507, rounded down. Big Line is in the nightly matrix since this crawl.
+
+### Title routes: three rules (owner request 2026-11-14)
+
+All 118 title routes were read. Seven were wrong in ways that repeat: a place named as a likeness (`峇里風情`, `廣東小香格里拉`), a place far beyond a 2- or 3-day coach tour (高山 from `高山賞紅葉`, 臨海 from a hotel's `臨海歐式` "seaside European-style", 茅臺 from the dish `茅台火焰鹽焗海螺`), and Santorini among the stops of two Yunnan tours (a Santorini-themed sight). 高山 is a collision name, but collision names act only on a lone foreign stop amid three or more stops of a day-heading route; in the title it was the only stop, and the `notPlaces` guards cover `高山紅楓` and other `高山…` phrases, not `高山賞`. 21418's 新會 comes from the hotel it stays at (`新會浩楓溫德姆酒店`) and is right.
+
+Instead of more one-off guards, a route read from a title (`fallbackRoute`) now gets three rules after the day-line ones (`extractFallbackStops` in `packages/core/src/stops.ts`), in this order; day-line routes are not changed:
+
+1. **Comparisons are not places.** A place name directly after `小`, `東方` or `版` (opening quote marks between allowed: `廣東版“小馬爾代夫”`), or directly before `風格` or `式`, is passed over, and so is every shorter name inside it (`小香格里拉` is not 里拉). Checked against every Big Line title of the crawl and every Sunflower title, and, for evidence only, every logged day line: `X風情` was left out because it names the place itself on Guangzhou tours (`感受夜廣州風情`), `X風` because of `風景區` (`丹霞山風景區`), and `X版` because the place before 版 is where the tour goes (`陽朔版“千裡江山圖”`, `肇慶版“茶卡鹽湖”`). Names in the places data that begin with a marker (小欖, 小樽) are read whole.
+2. **Too far for the trip.** On a tour of at most 3 days, a stop outside Guangdong, Guangxi, Hunan, Fujian, 華中 (Jiangxi), Macau, Seoul and Busan is dropped. The list (`packages/core/src/places/short-trips.ts`) comes from every tour of 1 to 4 days whose route came from its day lines in the saved crawl logs (Big Line, EGL, Charming, Yummy) and from the Sunflower listing's subareas: 86 two-day and 221 three-day tours, 296 of them in Guangdong. 上海及華東, 雲南 and northern Taiwan also appeared, only through wrong matches (南昆山 read as 昆山, `廣東小烏鎮`, `夜上海風情街`, `廣東版《麗江古城》`, the old street 淡水 in Huizhou), and are left out. At 4 days Japan, Singapore, Vietnam, Taiwan, Hainan and Brunei appear, so the limit is 3 days.
+3. **A lone foreign stop.** When one country holds two or more places and exactly one other country holds one, that one is dropped. Places count once however often the route returns to them; mainland China, Macau and Taiwan count as one country; with several one-place countries (a multi-country title) nothing is dropped.
+
+Each drop is in the dry-run `page` line (`fallbackDropped: [{name, rule}]`, with the tour's `days`), and a good run logs each title route that is new or whose stops changed since the stored ones (`bigline: new title route <code>: <stops>`, `changed title route <code>: <stops> (was <stops>)`), so only those need reading.
+
+**Sweep (offline, the crawl log re-processed):** exactly the 7 wrong routes changed: 峇里島, 臨海, 高山 and 香格里拉 are dropped and those 4 tours become `no-stops`; 茅臺 is dropped from 茅臺 → 中山; 聖托里尼 is dropped from both Yunnan routes. The other 111 title routes were read again: none is wrong (several name fewer places than the title, one place per run of text). No other operator's route changed (EGL, Charming, Yummy logs; Sunflower's 370 listed tours). Big Line after the rules: **503 saved, 68 `no-stops`, 70 parse failures of 587 (11.9%)**.
+
+**Brackets (for information; the owner keeps 【】 ignored in titles).** Of the 68 `no-stops` tours, 41 would get stops if text inside 【】 were read (with the three rules): none clearly wrong (the rules would drop 昆山 from `南昆山` and 波士頓 from `波士頓龍蝦`), one doubtful (順德 from a restaurant name, `【…老字號順德私房菜】`).
+
+**Still failing or not shown:** the 68 `no-stops` tours (after the rules): 62 Guangdong coach tours whose title names no known place outside brackets (or only a dropped one), 3 two-night cruises from Hong Kong, a Nordic tour naming only countries, and two whose title does name a place but not as the rules read it (`香港直航#廣西南寧…`: 香港 is the first city in that run of text, so 南寧 is never read; `海南島#…`: a region name inside a longer run is not matched); 19259 and 19261 (no valid tour code in the detail); dates after a tour's first two listed months; and the run uses 132 of the job's 170 minutes.
 
 ## Discovering tours and nightly cost
 
@@ -191,7 +224,7 @@ No request was made. The crawl log's `page` lines hold each tour's code, day hea
 
 **Requests per tour per night:** 1 detail GET, plus 1 POST for each month in `availableMonths`. Tour 9109 needs 1 + 8 = 9. One sample does not give the average for all tours. Tours that are no longer sold may have no months: they would need just the detail call, or they may be gone from the API.
 
-**Task 17 update.** The sitemap's ids have 4 digits (4 of 586), 5 digits (284) or 6 digits (298); a 6-digit id (624469) answers the same detail request as a 4-digit one. Of the 4 tours sampled, 3 had months listed (9109: 8, 8923: 4, 624469: 4) and 1 had none (22042, a 15-day Nordic tour, `availableMonths: []`, `memberFee: null`). With the owner's 3-month horizon of 2026-11-13 (2 months since 2026-11-14) a tour costs 1 + at most 3 requests: at most 586 × 4 = 2,344 a night, about 1 h 57 min at 3 s each plus response time, inside the 170-minute job. Not measured: the real total, until the measured crawl.
+**Task 17 update.** The sitemap's ids have 4 digits (4 of 586), 5 digits (284) or 6 digits (298); a 6-digit id (624469) answers the same detail request as a 4-digit one. Of the 4 tours sampled, 3 had months listed (9109: 8, 8923: 4, 624469: 4) and 1 had none (22042, a 15-day Nordic tour, `availableMonths: []`, `memberFee: null`). With the owner's 3-month horizon of 2026-11-13 a tour cost 1 + at most 3 requests: at most 586 × 4 = 2,344 a night, about 1 h 57 min at 3 s each plus response time (the practice crawl took 152 minutes). Since 2026-11-14 (2 months) it costs 1 + at most 2: at most 586 × 3 = 1,758 a night, about 88 minutes at 3 s each plus response time; the measured crawl took 132 minutes.
 
 | Assumption | Requests per night | At 3 s each (plus response time) | Fits the 170-minute nightly job? |
 |---|---|---|---|
