@@ -19,8 +19,7 @@ export const eglScraper: OperatorScraper = {
     const page = splitPage(text);
     return page === null ? null : parse(page.html, page.datesJson, url);
   },
-  // First-run floor, PROVISIONAL: about a third of the 573 tour pages in the 2026-11-12 sitemap
-  // (docs/operators/egl.md), assuming most have dates on sale, as all three samples did. No crawl has
-  // measured EGL yet; replace this with a third of the tours with dates once the measured crawl has run.
-  minExpectedTours: 190,
+  // First-run floor: a third of the tours that would have been saved in the 2026-11-13 practice crawl
+  // (495 of 573 pages; docs/operators/egl.md, "Practice crawl").
+  minExpectedTours: 165,
 };
