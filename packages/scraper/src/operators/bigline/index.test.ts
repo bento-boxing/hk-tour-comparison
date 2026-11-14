@@ -47,6 +47,18 @@ describe('a dry run of a page whose day lines name no place', () => {
       result: 'no-stops', fallbackRoute: '溫泉2天', routeFromFallback: false,
     });
   });
+  it('records the day count and each place the title rules dropped, with its rule', () => {
+    expect(describePage(page('高山賞楓 中山1天', '.溫泉~入住酒店'), places, TODAY)).toMatchObject({
+      result: 'ok', route: ['中山 (中國)'], days: 1, routeFromFallback: true,
+      fallbackDropped: [{ name: '高山', rule: 'too-far' }],
+    });
+    expect(describePage(page('中山溫泉2天', '.溫泉~入住酒店'), places, TODAY)).toMatchObject({ fallbackDropped: [] });
+  });
+  it('records the day count and drops of a page left no-stops by the rules', () => {
+    expect(describePage(page('廣東小香格里拉1天', '.溫泉~入住酒店'), places, TODAY)).toMatchObject({
+      result: 'no-stops', days: 1, routeFromFallback: false, fallbackDropped: [{ name: '香格里拉', rule: 'comparison' }],
+    });
+  });
 });
 
 describe('a page the parser rejects', () => {

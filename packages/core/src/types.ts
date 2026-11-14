@@ -18,9 +18,10 @@ export interface ScrapedTour {
   fromPriceHkd: number | null; // operator's displayed "from" price, if any
   departures: ScrapedDeparture[]; // not sold out; may include past dates
   /**
-   * Opt-in, for an operator whose day headings often name no place: text read with the day-heading rules
-   * only when the headings give no stop, its unmatched words not reported. Big Line sets its title (owner
-   * decision 2026-11-14); every other operator leaves it out.
+   * Opt-in, for an operator whose day headings often name no place: text read only when the headings give no stop,
+   * with the day-heading rules and the fallback rules after them (extractFallbackStops: comparisons, too far for the
+   * trip, a lone foreign stop), its unmatched words not reported. Big Line sets its title (owner decision 2026-11-14);
+   * Sunflower its Guangdong title or its area.
    */
   fallbackRoute?: string;
   /**

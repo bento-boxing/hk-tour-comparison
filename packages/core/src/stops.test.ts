@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractStops, places, buildPlacesIndex } from './index';
+import { extractFallbackStops, extractStops, places, buildPlacesIndex } from './index';
 import type { PlacesIndex, StopsResult } from './index';
 
 /** Maps stops to city nameZh, or region nameZh when cityId is null. */
@@ -521,5 +521,107 @@ describe('extractStops with notPlaces', () => {
   it('treats a missing notPlaces list as empty', () => {
     const { notPlaces: _ignored, ...withoutList } = index.data;
     expect(names(extractStops(['松山湖'], buildPlacesIndex(withoutList)), index)).toEqual(['松山']);
+  });
+});
+
+describe('extractFallbackStops (a route read from a title, owner request 2026-11-14)', () => {
+  const read = (text: string, days = 8) => {
+    const r = extractFallbackStops(text, days, places);
+    return { names: r.stops.map(s => (s.cityId !== null ? places.city(s.cityId)!.nameZh : places.region(s.regionId)!.nameZh)), dropped: r.dropped };
+  };
+
+  describe('comparisons are not places', () => {
+    it('小X: a small likeness of a place', () => {
+      expect(read('廣東小香格里拉溫泉')).toEqual({ names: [], dropped: [{ name: '香格里拉', rule: 'comparison' }] });
+    });
+    it('no shorter name inside a passed-over comparison is read either (小香格里拉 is not 里拉)', () => {
+      expect(read('小香格里拉').names).toEqual([]);
+      expect(extractStops(['香格里拉'], places).stops).toHaveLength(1);
+    });
+    it('東方X', () => {
+      expect(read('東方威尼斯水鄉')).toEqual({ names: [], dropped: [{ name: '威尼斯', rule: 'comparison' }] });
+    });
+    it('版X', () => {
+      expect(read('廣東版麗江古城')).toEqual({ names: [], dropped: [{ name: '麗江', rule: 'comparison' }] });
+    });
+    it('a prefix marker sees through opening quote marks (版“X”, 小《X》)', () => {
+      expect(read('廣東版“麗江古城”').names).toEqual([]);
+      expect(read('廣東小《香格里拉》').names).toEqual([]);
+    });
+    it('X版 is read as a place: X is where the tour goes, what follows the likeness (陽朔版“千裡江山圖”)', () => {
+      expect(read('京都版清明上河圖').names).toEqual(['京都']);
+    });
+    it('X風格', () => {
+      expect(read('巴黎風格酒店')).toEqual({ names: [], dropped: [{ name: '巴黎', rule: 'comparison' }] });
+    });
+    it('X式', () => {
+      expect(read('東京式拉麵')).toEqual({ names: [], dropped: [{ name: '東京', rule: 'comparison' }] });
+    });
+    it('the next place in the same words is read instead', () => {
+      expect(read('享受峇里式溫泉中山度假村')).toEqual({ names: ['中山'], dropped: [{ name: '峇里島', rule: 'comparison' }] });
+    });
+    it('only the attached mention is passed over: the same place named on its own is a stop', () => {
+      expect(read('峇里式按摩 峇里島')).toEqual({ names: ['峇里島'], dropped: [] });
+    });
+    it('X風情 is read as a place: it can be the place itself (感受夜廣州風情 on a Guangzhou tour)', () => {
+      expect(read('感受夜京都風情').names).toEqual(['京都']);
+    });
+    it('X風 is read as a place: 風景 is scenery (丹霞山風景區)', () => {
+      expect(read('丹霞山風景區').names).toEqual(['丹霞山']);
+    });
+    it('a listed place whose name begins with a marker is read whole (小欖, 小樽)', () => {
+      expect(read('小欖菊展').names).toEqual(['小欖']);
+      expect(read('小樽運河').names).toEqual(['小樽']);
+    });
+    it('day headings are read as before: the rule is for fallback text only', () => {
+      expect(names(extractStops(['廣東小香格里拉'], places))).toEqual(['香格里拉']);
+    });
+  });
+
+  describe('too far for the trip', () => {
+    it('drops a stop outside the short-trip regions on a tour of at most 3 days', () => {
+      expect(read('高山賞紅葉 中山', 3)).toEqual({ names: ['中山'], dropped: [{ name: '高山', rule: 'too-far' }] });
+      expect(read('高山賞紅葉', 1)).toEqual({ names: [], dropped: [{ name: '高山', rule: 'too-far' }] });
+    });
+    it('keeps it on a tour of 4 days or more', () => {
+      expect(read('高山賞紅葉', 4)).toEqual({ names: ['高山'], dropped: [] });
+    });
+    it('keeps the short-trip regions: Guangdong, Guangxi, Hunan, Fujian, Jiangxi, Macau, Seoul, Busan', () => {
+      for (const place of ['中山', '桂林', '郴州', '廈門', '澳門', '首爾', '釜山']) expect(read(`${place}2天`, 2)).toEqual({ names: [place], dropped: [] });
+      expect(read('江西', 3)).toEqual({ names: ['華中'], dropped: [] }); // a region-only stop
+    });
+  });
+
+  describe('a lone foreign stop', () => {
+    it('drops the one place alone in its country when another country has two or more', () => {
+      expect(read('雲南 麗江 大理 聖托里尼')).toEqual({ names: ['雲南', '麗江', '大理'], dropped: [{ name: '聖托里尼', rule: 'lone-country' }] });
+    });
+    it('keeps one place in each of two countries', () => {
+      expect(read('首爾 東京').names).toEqual(['首爾', '東京']);
+    });
+    it('counts a place once however often the route returns to it', () => {
+      expect(read('杜拜 斯里巴加灣 杜拜').names).toEqual(['杜拜', '斯里巴加灣', '杜拜']);
+    });
+    it('drops none when two or more countries have one place each', () => {
+      expect(read('巴黎 尼斯 羅馬 蘇黎世').names).toEqual(['巴黎', '尼斯', '羅馬', '蘇黎世']);
+    });
+    it('counts mainland China, Macau and Taiwan as one country', () => {
+      expect(read('澳門 珠海 中山').names).toEqual(['澳門', '珠海', '中山']);
+      expect(read('廈門 泉州 台北').names).toEqual(['廈門', '泉州', '台北']);
+    });
+  });
+
+  it('applies the rules in order: comparisons, too far, then a lone foreign stop', () => {
+    // 高山 would also be a lone foreign stop beside two Guangdong places; on 3 days it is too far first.
+    expect(read('珠海 中山 高山', 3).dropped).toEqual([{ name: '高山', rule: 'too-far' }]);
+    expect(read('珠海 中山 高山', 8).dropped).toEqual([{ name: '高山', rule: 'lone-country' }]);
+    // once 香格里拉 is a comparison, 高山 is alone with no country of two places: it stays on a long tour
+    expect(read('小香格里拉 中山 高山', 8)).toEqual({ names: ['中山', '高山'], dropped: [{ name: '香格里拉', rule: 'comparison' }] });
+  });
+
+  it('uses the given exclusions (Hong Kong by default)', () => {
+    expect(read('香港 中山').names).toEqual(['中山']);
+    expect(extractFallbackStops('深圳 中山', 2, places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']).stops.map(s => s.cityId))
+      .toEqual(['china-guangdong-zhongshan']);
   });
 });

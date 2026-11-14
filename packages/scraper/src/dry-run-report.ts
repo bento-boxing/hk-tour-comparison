@@ -1,5 +1,5 @@
 import {
-  normaliseTour, scrapedTourSchema, type IsoDate, type PlacesIndex, type ScrapedTour, type Stop,
+  normaliseTour, scrapedTourSchema, type FallbackDrop, type IsoDate, type PlacesIndex, type ScrapedTour, type Stop,
 } from '@hktours/core';
 import type { OperatorScraper } from './types';
 
@@ -20,6 +20,9 @@ export type PageDescription =
     fallbackRoute?: string;
     /** With fallbackRoute: true when the saved route came from it (the day headings named no stop). */
     routeFromFallback?: boolean;
+    /** With fallbackRoute: the tour's days (the too-far rule depends on them) and each place its rules dropped. */
+    days?: number;
+    fallbackDropped?: FallbackDrop[];
   };
 
 export interface DryRunRecorder {
@@ -89,11 +92,13 @@ export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDat
     endPoint: scraped.endPoint,
   };
   if (scraped.fallbackRoute === undefined) return description;
-  const { fallbackRoute, ...withoutFallback } = scraped;
-  // The fallback route is the only difference, so the tour is saved with it and not without it exactly when
-  // the route came from it.
-  const routeFromFallback = normalised.ok && !normaliseTour(withoutFallback, index, today).ok;
-  return { ...description, fallbackRoute, routeFromFallback };
+  return {
+    ...description,
+    fallbackRoute: scraped.fallbackRoute,
+    routeFromFallback: normalised.ok && normalised.routeFromFallback,
+    days: scraped.days,
+    fallbackDropped: normalised.fallbackDropped ?? [],
+  };
 }
 
 /** Each unmatched name with the number of pages it appeared on, most frequent first. */

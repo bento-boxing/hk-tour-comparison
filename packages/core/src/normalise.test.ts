@@ -199,6 +199,34 @@ describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', 
     const r = normaliseTour({ ...base, ...noPlaces, title: '京都賞楓5天' }, places, today);
     expect(r).toMatchObject({ ok: false, reason: 'no-stops' });
   });
+  it('drops a stated start or end place at its edges, as for headings', () => {
+    // Remove the withoutStatedEnds call on the fallback path and this fails.
+    const r = normaliseTour({ ...base, ...noPlaces, startPoint: '澳門外港碼頭', endPoint: '中山碼頭', fallbackRoute: '澳門 珠海 中山3天' }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhuhai']);
+  });
+  it('says whether the route came from it', () => {
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都5天' }, places, today)).toMatchObject({ ok: true, routeFromFallback: true });
+    expect(normaliseTour({ ...base, fallbackRoute: '京都5天' }, places, today)).toMatchObject({ ok: true, routeFromFallback: false });
+    expect(normaliseTour(base, places, today)).toMatchObject({ ok: true, routeFromFallback: false });
+  });
+  it('is read with the fallback rules, and lists what they dropped', () => {
+    // 小香格里拉 is a comparison; 高山 (Takayama) is too far for 3 days; 中山 stays.
+    const r = normaliseTour({ ...base, ...noPlaces, days: 3, fallbackRoute: '廣東小香格里拉 高山紅葉 中山3天' }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhongshan']);
+    expect(r).toMatchObject({ fallbackDropped: [{ name: '香格里拉', rule: 'comparison' }, { name: '高山', rule: 'too-far' }] });
+  });
+  it('a title whose every place the rules drop leaves the tour no-stops, listing the drops', () => {
+    const r = normaliseTour({ ...base, ...noPlaces, days: 2, fallbackRoute: '東方威尼斯 高山溫泉2天' }, places, today);
+    expect(r).toMatchObject({ ok: false, reason: 'no-stops', fallbackDropped: [{ name: '威尼斯', rule: 'comparison' }, { name: '高山', rule: 'too-far' }] });
+    expect(r.unmatched).toEqual(normaliseTour({ ...base, ...noPlaces }, places, today).unmatched);
+  });
+  it('lists no drops when the rules drop nothing, and never for day headings', () => {
+    expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都5天' }, places, today)).not.toHaveProperty('fallbackDropped');
+    // the same comparison in a day heading is read as before: the rules are for fallback text only
+    const headings = normaliseTour({ ...base, days: 2, dayHeadings: ['廣東小香格里拉'], fallbackRoute: '中山2天' }, places, today);
+    expect(cityIds(headings)).toEqual(['china-yunnan-shangri-la']);
+    expect(headings).not.toHaveProperty('fallbackDropped');
+  });
 });
 
 describe('dropping a region whose city is listed (Yummy Holiday, owner decision 2026-11-14)', () => {

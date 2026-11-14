@@ -1,6 +1,7 @@
 import type { Stop } from './types';
 import { normaliseName } from './places/index';
 import type { City, PlacesIndex, Region } from './places/index';
+import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS } from './places/short-trips';
 
 export interface StopsResult { stops: Stop[]; unmatched: string[] }
 
@@ -60,26 +61,59 @@ function notPlaceSpans(key: string, notPlaces: string[]): Span[] {
   return spans;
 }
 
-/** Where `name` first occurs in `key` outside every span, or -1. */
-function firstOccurrenceOutside(key: string, name: string, spans: Span[]): number {
+/** Whether the occurrence of `name` at `at` in `key` is to be passed over. */
+type Skip = (key: string, at: number, name: string) => boolean;
+
+/**
+ * Where `name` first occurs in `key` outside every span and not passed over, or -1. An occurrence the skip rule
+ * passes over is added to `spans`, so that no shorter name inside it is read either (`小香格里拉` is not 里拉).
+ */
+function firstOccurrenceOutside(key: string, name: string, spans: Span[], skip?: Skip): number {
   for (let at = key.indexOf(name); at !== -1; at = key.indexOf(name, at + 1)) {
-    if (!spans.some(([start, end]) => start <= at && at + name.length <= end)) return at;
+    if (spans.some(([start, end]) => start <= at && at + name.length <= end)) continue;
+    if (skip?.(key, at, name) === true) {
+      spans.push([at, at + name.length]);
+      continue;
+    }
+    return at;
   }
   return -1;
 }
 
 /**
- * Cities whose name is the longest city name contained in the token; ties go to the earliest in the token.
- * A city name lying inside a notPlaces entry in the token does not count.
+ * Comparison markers (fallback text only, owner request 2026-11-14): a place name with one of these directly before
+ * it (`廣東小香格里拉`, `東方威尼斯`, `廣東版《麗江古城》`, opening quote marks between them allowed) or after it
+ * (`巴黎風格`, `東京式`) says what a place is like, not where the tour goes. Checked on 2026-11-14 (task 33) against
+ * every Big Line title of that day's crawl, every title of the Sunflower listing and, for evidence only, every day
+ * heading of the saved crawl logs. Left out because there they removed the place the tour goes to: `X風情`
+ * (`感受夜廣州風情` on Guangzhou tours), `X風` (`丹霞山風景區`) and `X版` (`陽朔版“千裡江山圖”`: X is the real
+ * place, what follows the likeness). No name in the places data is a marker plus another listed name, and a listed
+ * name beginning with a marker (小欖, 小樽) is read whole as the longest name, so the rule never removes one.
  */
-function citiesContainedIn(token: string, index: PlacesIndex, cityNames: string[], notPlaces: string[]): City[] {
+const COMPARISON_PREFIXES = ['小', '東方', '版'];
+const COMPARISON_SUFFIXES = ['風格', '式'];
+/** Opening quote marks that may stand between a prefix marker and the name (`版“茶卡鹽湖”`). */
+const OPENING_QUOTES = /[“‘"'「『《〈]+$/;
+
+/** True when the name at `at` is directly attached to a comparison marker. */
+const isComparison: Skip = (key, at, name) => {
+  const before = key.slice(0, at).replace(OPENING_QUOTES, '');
+  return COMPARISON_PREFIXES.some(marker => before.endsWith(marker))
+    || COMPARISON_SUFFIXES.some(marker => key.startsWith(marker, at + name.length));
+};
+
+/**
+ * Cities whose name is the longest city name contained in the token; ties go to the earliest in the token.
+ * A city name lying inside a notPlaces entry in the token does not count, nor one the skip rule passes over.
+ */
+function citiesContainedIn(token: string, index: PlacesIndex, cityNames: string[], notPlaces: string[], skip?: Skip): City[] {
   const key = normaliseName(token);
   const spans = notPlaceSpans(key, notPlaces);
   let best: string | undefined;
   let bestAt = -1;
   for (const name of cityNames) {
     if (best !== undefined && [...name].length < [...best].length) break;
-    const at = firstOccurrenceOutside(key, name, spans);
+    const at = firstOccurrenceOutside(key, name, spans, skip);
     if (at !== -1 && (best === undefined || at < bestAt)) {
       best = name;
       bestAt = at;
@@ -134,6 +168,11 @@ function loneForeignStopAt(route: Stop[], isCollision: (stop: Stop) => boolean):
   return at === 0 || at === route.length - 1 || !isCollision(route[at]) ? -1 : at;
 }
 
+export interface ExtractOptions {
+  /** Fallback text only: a place name attached to a comparison marker is not a stop (COMPARISON_PREFIXES, …_SUFFIXES). */
+  comparisonsAreNotPlaces?: boolean;
+}
+
 /**
  * The route the day headings name. Transit chunks give no stops; a single foreign outlier (see
  * loneForeignStopAt) is removed and its name reported as unmatched, for review.
@@ -143,7 +182,9 @@ export function extractStops(
   dayHeadings: string[],
   index: PlacesIndex,
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
+  options: ExtractOptions = {},
 ): StopsResult {
+  const skip = options.comparisonsAreNotPlaces === true ? isComparison : undefined;
   const cityNames = containedNameList(index);
   const notPlaces = notPlaceList(index);
   const stops: Stop[] = [];
@@ -168,7 +209,7 @@ export function extractStops(
   for (const heading of dayHeadings) {
     for (const token of tokensOf(heading)) {
       let cities = index.findCity(token);
-      if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames, notPlaces);
+      if (cities.length === 0) cities = citiesContainedIn(token, index, cityNames, notPlaces, skip);
       if (cities.length > 0) {
         stops.push(cityStop(choose(token, cities, city => countryOfRegion(city.regionId))));
         continue;
@@ -196,4 +237,72 @@ export function extractStops(
     route = withoutRepeats(route.filter((_, at) => at !== outlierAt));
   }
   return { stops: route, unmatched: [...new Set(unmatched)] };
+}
+
+/** Why a route read from fallback text left a place out (see extractFallbackStops). */
+export type FallbackRule = 'comparison' | 'too-far' | 'lone-country';
+export interface FallbackDrop { name: string; rule: FallbackRule }
+export interface FallbackStopsResult { stops: Stop[]; dropped: FallbackDrop[] }
+
+const stopKey = (stop: Stop) => stop.cityId ?? `region:${stop.regionId}`;
+
+function placeName(stop: Stop, index: PlacesIndex): string {
+  return stop.cityId !== null ? index.city(stop.cityId)!.nameZh : index.region(stop.regionId)!.nameZh;
+}
+
+/**
+ * The one place alone in its country, when another country holds two or more places; otherwise undefined. Places
+ * are counted once however often the route returns to them (`杜拜 → 斯里巴加灣 → 杜拜` is one place in each). With two
+ * or more countries of one place each (a multi-country title: `巴黎 尼斯 羅馬 蘇黎世`) no one place is alone, and none
+ * goes. Mainland China, Macau and Taiwan (the group 中國內地及港澳台) count as one country here: the places data keeps
+ * them apart for the filters, but a Zhuhai tour crossing to Macau has no foreign stop.
+ */
+function loneStopOf(stops: Stop[], index: PlacesIndex): Stop | undefined {
+  const countryOf = (stop: Stop) => (index.country(stop.countryId)?.group === 'china' ? 'china' : stop.countryId);
+  const placesPerCountry = new Map<string, Set<string>>();
+  for (const stop of stops) placesPerCountry.set(countryOf(stop), (placesPerCountry.get(countryOf(stop)) ?? new Set()).add(stopKey(stop)));
+  const sizes = [...placesPerCountry.values()].map(set => set.size);
+  const alone = [...placesPerCountry].filter(([, set]) => set.size === 1);
+  if (alone.length !== 1 || !sizes.some(size => size >= 2)) return undefined;
+  const [[country]] = alone;
+  return stops.find(stop => countryOf(stop) === country);
+}
+
+/**
+ * The route fallback text names (ScrapedTour.fallbackRoute: a tour title, not a list of places): the day-heading
+ * rules, then three more that day headings never get (owner request 2026-11-14), in this order:
+ * - comparisons are not places, while reading (COMPARISON_PREFIXES, COMPARISON_SUFFIXES: `廣東小香格里拉`);
+ * - too far for the trip: on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside SHORT_TRIP_REGION_IDS goes;
+ * - a lone foreign stop (loneStopOf): the one place alone in its country, on a route with another country of two or
+ *   more places, goes (one place in each of two countries stays).
+ * Every place left out is listed once per rule, by name. Unmatched words are not returned: a title is not a list of
+ * place names.
+ */
+export function extractFallbackStops(
+  text: string,
+  days: number,
+  index: PlacesIndex,
+  excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
+): FallbackStopsResult {
+  const dropped: FallbackDrop[] = [];
+  const noteDrop = (stop: Stop, rule: FallbackRule) => {
+    const name = placeName(stop, index);
+    if (!dropped.some(d => d.name === name && d.rule === rule)) dropped.push({ name, rule });
+  };
+  const keepOnly = (stops: Stop[], keep: (stop: Stop) => boolean, rule: FallbackRule): Stop[] => {
+    for (const stop of stops) if (!keep(stop)) noteDrop(stop, rule);
+    return withoutRepeats(stops.filter(keep));
+  };
+
+  let stops = extractStops([text], index, excludeCityIds, { comparisonsAreNotPlaces: true }).stops;
+  // The comparisons: the places the same text gives when they are read as places, and not otherwise.
+  const kept = new Set(stops.map(stopKey));
+  for (const stop of extractStops([text], index, excludeCityIds).stops) if (!kept.has(stopKey(stop))) noteDrop(stop, 'comparison');
+
+  if (days <= SHORT_TRIP_MAX_DAYS) stops = keepOnly(stops, stop => SHORT_TRIP_REGION_IDS.includes(stop.regionId), 'too-far');
+
+  const lone = loneStopOf(stops, index);
+  if (lone !== undefined) stops = keepOnly(stops, stop => stopKey(stop) !== stopKey(lone), 'lone-country');
+
+  return { stops, dropped };
 }

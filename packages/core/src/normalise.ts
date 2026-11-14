@@ -1,11 +1,15 @@
 import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
 import { normaliseName, type PlacesIndex } from './places/index';
-import { extractStops, withoutRegionsOfListedCities } from './stops';
+import { extractFallbackStops, extractStops, withoutRegionsOfListedCities, type FallbackDrop } from './stops';
 import { normaliseStartPoint } from './start-point';
 
+/**
+ * routeFromFallback: the stops came from ScrapedTour.fallbackRoute. fallbackDropped: present when that text was read
+ * and its rules (extractFallbackStops) left places out, so a crawl log can show them.
+ */
 export type NormaliseResult =
-  | { ok: true; tour: NormalisedTour; unmatched: string[] }
-  | { ok: false; reason: 'no-stops' | 'no-departures' | 'no-price'; unmatched: string[] };
+  | { ok: true; tour: NormalisedTour; unmatched: string[]; routeFromFallback: boolean; fallbackDropped?: FallbackDrop[] }
+  | { ok: false; reason: 'no-stops' | 'no-departures' | 'no-price'; unmatched: string[]; fallbackDropped?: FallbackDrop[] };
 
 const HONG_KONG_CITY_ID = 'hongkong-hongkong-hongkong';
 const SHENZHEN_CITY_ID = 'china-guangdong-shenzhen';
@@ -73,17 +77,23 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   const departures = upcomingDepartures(scraped.departures, today);
   if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched };
 
-  // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop, with the same rules, and
-  // its unmatched words are not reported (a title is not a list of place names).
+  // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop, with the heading rules and the
+  // fallback rules after them (extractFallbackStops), and its unmatched words are not reported (a title is not a list
+  // of place names).
+  let routeFromFallback = false;
+  let drops: { fallbackDropped?: FallbackDrop[] } = {};
   if (stops.length === 0 && scraped.fallbackRoute !== undefined) {
-    stops = withoutStatedEnds(extractStops([scraped.fallbackRoute], index, excluded).stops, start, end, index);
+    const fallback = extractFallbackStops(scraped.fallbackRoute, scraped.days, index, excluded);
+    stops = withoutStatedEnds(fallback.stops, start, end, index);
+    routeFromFallback = stops.length > 0;
+    if (fallback.dropped.length > 0) drops = { fallbackDropped: fallback.dropped };
   }
 
   if (stops.length === 0) {
     const reported = unmatched.length > 0
       ? unmatched
       : scraped.dayHeadings.map(heading => [...heading].slice(0, MAX_UNMATCHED_HEADING_LENGTH).join(''));
-    return { ok: false, reason: 'no-stops', unmatched: reported };
+    return { ok: false, reason: 'no-stops', unmatched: reported, ...drops };
   }
 
   // The lowest departure price, or the operator's "from" price when no departure has one. A departure without a
@@ -93,12 +103,14 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   const fromPriceHkd = departures.some(d => d.priceHkd === null)
     ? lowerPrice(lowestDeparture, scraped.fromPriceHkd)
     : lowestDeparture ?? scraped.fromPriceHkd;
-  if (fromPriceHkd === null) return { ok: false, reason: 'no-price', unmatched };
+  if (fromPriceHkd === null) return { ok: false, reason: 'no-price', unmatched, ...drops };
 
   const { operatorId, code, url, title, days, nights } = scraped;
   return {
     ok: true,
     tour: { operatorId, code, url, title, days, nights, stops, start, end, fromPriceHkd, departures },
     unmatched,
+    routeFromFallback,
+    ...drops,
   };
 }
