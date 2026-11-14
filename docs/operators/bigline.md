@@ -36,8 +36,8 @@ How the scraper keeps to it (Task 17):
 - The header is declared once, as `requestHeaders` on the Big Line scraper (`{ 'api.biglinehk.com': { tenantCode: 'DH' } }`). The CLI makes the run's fetcher with the running operator's headers only, and the fetcher sends them only to a request to exactly `https://api.biglinehk.com` (that host, over `https://`, on the default port): never over `http://` or another port, never on robots.txt, never to `bigline.hk`, never to another host a redirect leads to. A POST is never retried or redirected.
 - "The next 3 months" is read as the first 3 months **listed** in `availableMonths` from the current month on (a gap in the list does not use one up), earliest first. Each month must be `YYYY-MM` and each id digits before it goes into a URL or body.
 - Every answer passes through an allow-list (`public.ts`) before anything else sees it: only the fields under "Where each fact is in the API" are kept, rebuilt key by key, and each day's route line is cut down to its short chunks (see "Day route lines"). So names, notes, suppliers and costs never reach the parser, the logs or the database; a test runs the whole pipeline over answers full of such fields and checks.
-- A JSON `code` other than 200 (inside HTTP 200) fails that tour, logged with the code only (never the API's message). One exception: a detail answering code 500 with the message `404 NOT_FOUND` means the sitemap's tour no longer exists; it is skipped as `gone` (logged like other skips, neither fetched nor a fetch failure, not a refusal).
-- Refusals are counted separately for the detail GET and for the dates POSTs, each count started again only by a success of its own kind (so a good detail cannot hide refused POSTs). A refusal is no answer at all (the fetcher gave up, which includes HTTP 401/403/429; a POST is sent once), a code 401/403/429, or a 200 answer that is not JSON. When either count reaches three in a row, nothing more is sent for the night, like the fetcher's own pushback rule for HTTP 403/429/503.
+- A JSON `code` other than 200 (inside HTTP 200) fails that tour, logged with the code only (never the API's message). One exception: a detail answering code 500 with exactly the message `404 NOT_FOUND` means the sitemap's tour no longer exists; it is skipped as `gone` (logged like other skips, left out of the pages the fetch-failure rate is taken over, not a refusal). After 10 gone answers in a row nothing more is requested (the endpoint may have changed), so the rest of the tours fail as not fetched and the run fails its checks.
+- Refusals are counted separately for the detail GET and for the dates POSTs, each count started again only by a success of its own kind (so a good detail cannot hide refused POSTs). A refusal is no answer at all (the fetcher gave up, which includes HTTP 401/403/429; a POST is sent once), a JSON code 401/403/429/503, a JSON answer with no code, or a 200 answer that is not JSON. When either count reaches three in a row, nothing more is sent for the night, like the fetcher's own pushback rule for HTTP 403/429/503.
 - The months are counted from the run's own date in Hong Kong (the date the run is recorded under), not the wall clock.
 
 ## Owner decision (2026-11-13, the probe)
@@ -104,9 +104,63 @@ Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. D
 
 ### Day route lines
 
-`tripContent` is one line per day written by staff, in several styles: places joined by `~` with a leading `.` (9109), by ` | ` (8923), by `|` after a `D1 ` day marker with a prose second line (22042), or by `--` with a sentence or more of description after each place and `#註：…` notes on later lines (624469). The parser (and the allow-list, which stores the same result) reads: the first line with text; without a leading day marker (`D1：`, `第1天：`, `Day 3 -`: the shared `DAY_MARKER` from `packages/core/src/stops.ts`, stripped first so its colon does not cut the first place); without notes in round brackets (either width, mixed, nested) or `〈…〉`; split at `~ ～ | ｜ →` and runs of two or more hyphens; each chunk cut at its first sentence mark (`，。；！？：;:!?`), leading `.`/`-` and extra spaces removed; then, within each chunk, the pieces the shared rules split a heading at (`CHUNK_SEPARATORS`: `、`, `-`, `—`, `>`, spaces …) that are over 16 characters are left out as descriptions (`MAX_PIECE_CHARS`), the rest of the chunk kept as written. So `東京、橫濱、鎌倉、箱根、富士山五合目` is kept whole, Latin words are counted one by one (`Maya shopping mall瑪雅購物中心`), and `中華文明發源地 素有"奇險天下第一山"之稱【華山】` keeps only `中華文明發源地`. The day heading is the chunks joined with ` → `; a heading can be longer than 80 characters when a day lists many short places. Route extraction then uses the shared rules unchanged.
+`tripContent` is one line per day written by staff, in several styles: places joined by `~` with a leading `.` (9109), by ` | ` (8923), by `|` after a `D1 ` day marker with a prose second line (22042), or by `--` with a sentence or more of description after each place and `#註：…` notes on later lines (624469). The parser (and the allow-list, which stores the same result) reads: the first line with text; without a leading day marker (`D1：`, `第1天：`, `Day 3 -`: the shared `DAY_MARKER` from `packages/core/src/stops.ts`, stripped first so its colon does not cut the first place, and again after the notes are removed, for `(早餐)D2 酒店`); without notes in round brackets (either width, mixed, nested) or `〈…〉`; split at `~ ～ | ｜ →` and runs of two or more hyphens; each chunk cut at its first sentence mark (`，。；！？：;:!?` and the ASCII comma, which in the crawl of 2026-11-14 always separated prose: all 35 chunks with one were sentences), leading `.`/`-` and extra spaces removed; then, within each chunk, the pieces the shared rules split a heading at (`CHUNK_SEPARATORS`: `、`, `-`, `—`, `>`, spaces …) that are over 16 characters are left out as descriptions (`MAX_PIECE_CHARS`), the rest of the chunk kept as written; finally a chunk over 40 characters is left out whole (`MAX_CHUNK_CHARS`: 37 of the crawl's 9,613 chunks, all long lists of sights or descriptions such as `黃帝開太平 問天石 軒轅雲道 - 山上自助午餐 - 始信峰 …`). Re-processing the crawl with the comma and 40-character rules changed 12 routes, mostly dropping false matches (北海 in 北海景區, 桃園, 棉花堡, 巴黎), and lost 北極村 (22006) and 松島 (20005), both inside long lists. So `東京、橫濱、鎌倉、箱根、富士山五合目` is kept whole, Latin words are counted one by one (`Maya shopping mall瑪雅購物中心`), and `中華文明發源地 素有"奇險天下第一山"之稱【華山】` keeps only `中華文明發源地`. The day heading is the chunks joined with ` → `; a heading can be longer than 80 characters when a day lists many short places. A page the parser rejects is logged with a fixed reason (`readTour` in `parse.ts`). Route extraction then uses the shared rules unchanged.
 
 **Do not take** these fields: `tourLeader`, `guideLeader`, `internalSaleRemark`, `internalRemark`, `agencySupplier`, `projectItinerary.projectItineraryList` (supplier names and cost prices), `extraCost`, `salesCommission`, `soldTotal`/`soldCount` beyond the full test, `departureFlightTime`/`returnFlightTime` (staff-typed text), or `reservationPolicies` (long terms text).
+
+## Practice crawl (2026-11-14) and the places pass
+
+**OWNER DECISION NEEDED** (both points below): how to fit Big Line into the nightly job, and what to do about the tours whose day lines name no place. Big Line is registered (first-run floor 126) but **not in the nightly matrix**.
+
+### What the crawl measured
+
+One full dry run, `pnpm scrape --operator bigline --dry-run`, 2026-11-14 00:30:43Z to 03:02:32Z: **152 minutes** (9,109 s), against the nightly job's 170-minute limit. Log: `.superpowers/raw-pages/bigline/dry-run-1.log` (git-ignored).
+
+| | |
+|---|---|
+| Tour pages discovered / fetched / not fetched / gone | 587 / 587 / 0 / 0 |
+| Refusals | 0 (no JSON 401/403/429, no HTTP pushback) |
+| Normalised (would have been saved) | **380** |
+| Skipped, no upcoming departures | 12 |
+| Parse failures | **195 (33.2%)**: 193 `no-stops`, 2 `parser returned null` (19259, 19261) |
+| Run checks | failed, `too-many-parse-failures` (limit 20%) |
+| Distinct unmatched names | 2,447 |
+
+The first-run floor is a third of the 380 normalised, rounded down: **126**.
+
+**Requests and duration (estimates).** The fetcher logs no line per request, so the number of POSTs is not in the log; it is inferred. Fixed: 587 detail GETs and about 4 other requests (the bigline.hk sitemap index and child, two robots.txt). Each of the 575 tours with upcoming departures sends 1 to 3 POSTs. At 3 POSTs each the night is about **2,352 requests**, which over 9,109 s is **3.9 s per request** (the 3 s spacing plus about 0.9 s of response, which is plausible); at an average of 2.5 POSTs it would be about 2,060 requests at 4.4 s (a response time of 1.4 s, less likely). So most tours used the full 3 months.
+
+| Months of dates requested per tour | Requests a night (estimate) | Duration (estimate) |
+|---|---|---|
+| 3 (now) | ≈ 2,350 | 152 min (measured) |
+| 2 | ≈ 1,700–1,770 | ≈ 114–128 min |
+| 1 | ≈ 1,170 | ≈ 76–86 min |
+
+The ranges come from the unknown POST count and response time above. Fewer months means fewer departures shown: with 1 month only the current month's dates are offered (none at all late in a month for many tours); with 2, dates up to the end of next month.
+
+### The 193 `no-stops` pages
+
+Classified from the logged day headings (re-read through the current route rules, which turn 2 of the 12 no-departures pages into no-stops too):
+
+| Class | Pages | What the day lines hold | Rescued by the places pass |
+|---|---|---|---|
+| Guangdong / Greater Bay coach tours (codes `C` + digits, 2 `BT`), mostly from the Shenzhen crossings | 129 | meals, hotels, hot springs, KTV, sights; the town is in the title, or only inside a dish name in 【】, which the shared rules drop | 7 |
+| Empty headings | 42 | every day's route line comes out empty (38) or there are no days (4) | 0 |
+| Cruises (`LD…`, `JPNGL10`) | 16 | every day `停靠港` ("port of call"), or arrival and departure times | 0 |
+| Missing places | 4 | Papua New Guinea (624046), Jordan (624004), Java (20767), Nepal (12187) | 4 |
+| Placeholder | 2 | every day `行程` ("itinerary"): 15495, 12206 | 0 |
+
+**Title-only class (for the owner).** About **140 tours** (122 coach tours still without a stop, 16 cruises, 2 placeholders) name their destination nowhere in the day lines that core reads. Of the 122 coach tours, 52 name a place only inside brackets, nearly always a dish (`【中山石岐黑金乳鴿宴】`, `【台山滋味五味鵝宴】`, `【陽江…】`, `【順德…】`); about 70 name none at all (C25125A: `午餐【五味鵝特色美食宴】 → 圭峰山賞一年一度櫻花美景 → 入住酒店`; C38637: `溫泉 → 入住酒店 → 晚餐【酒店自助晚餐】`). Core's "day headings only" rule is unchanged; reading the destination from the title (or from dish names) is the owner's decision. **Not verified:** the titles are not in the log, so that each title names the destination is assumed from the tour type, not checked.
+
+**Empty-heading class (not verified).** Every route line of 42 tours comes out empty (e.g. 19651 CKMG06TC, 19482 CKMG08L, Yunnan tours). The cause cannot be told without the raw answer: either `tripContent` is blank for those tours, or each day's first line is one unbroken run over 16 characters (no separator), which the rules leave out as a description. One detail request for one of them (with the owner's approval) would settle it.
+
+**Parser failures 19259 and 19261.** No raw answer was kept and the log only says "parser returned null", so the cause is not known. The parser now logs a fixed reason for every page it rejects (`readTour`), so the next crawl will say which check failed.
+
+### Places pass (`packages/core/src/places/data.json`)
+
+New countries: Jordan (middle-east), Papua New Guinea (oceania), Nepal (south-central-asia), Zambia (africa); new region Java (Indonesia). 56 new cities (Jordan 6, Nepal 6, Papua New Guinea 4, Java 3, Zambia 1; Narvik; Europe 9; Kyrgyzstan, Langkawi, Negombo, Waitomo, São Paulo; China 15 and Guangdong towns 6: 小欖, 高明, 橫琴, 四會, 新豐, 陸豐), aliases added to 35 existing entries for spellings the crawl uses (奥斯陸-style variants, 那維克, 索蘇斯 for Sossusvlei, 汶莱, 清莱, 芭提雅 …). Every new name was swept with the matcher over every logged heading (Big Line, Charming, EGL) and every unmatched name (all operators, Jetour and Travel Expert included), before and after, and each changed item was read. 25 notPlaces and 2 collision names were added from the sweep and its review: 聖保羅 as a collision name plus 聖保羅大教堂/教堂/醫院/舊城 (St Paul's in Melbourne and Malacca, Sant Pau, Saint-Paul-de-Vence), 加勒菲斯 (Galle Face, Colombo), 孟菲斯, 臥龍潭/灣/峽谷/書院/崗/寺, 普洱茶, 新北海賓館, 高山 as a collision name plus ten 高山… phrases, and 埃沃內斯機場 (Evenes as a flight leg; as a stop it stays). No Jetour, Travel Expert, EGL, Charming or Big Line expected value changed.
+
+**After the pass (estimate, offline).** Re-processing the logged headings through the current rules and places list: **391 tours saved, 184 parse failures of 587 (31.3%)**, 12 skipped. Still above the 20% limit and the 10% target: the remaining failures are the classes above (heading content), not missing places.
 
 ## Discovering tours and nightly cost
 
@@ -120,7 +174,7 @@ Detail: `GET /bigline/global/product/tour/frontend/detail?id=<id>` → `data`. D
 |---|---|---|---|
 | Sitemap fetch only (index + 1 child) | 2 on `bigline.hk` | – | – |
 | 586 tours × 9 (every tour like 9109) | 5,274 | 4 h 24 min | **no** |
-| 586 tours × 4 (detail + the next 3 months only) | 2,344 | 1 h 57 min | yes, but tightly |
+| 586 tours × 4 (detail + the next 3 months only) | 2,344 | 1 h 57 min at 3 s each; **measured 2026-11-14: 152 min** with response times (see "Practice crawl") | only just (152 of 170 minutes): owner decision |
 | 586 tours × 2 (detail + the current month only) | 1,172 | 59 min | yes |
 | all 691 sitemap URLs × 9, if non-tour pages were also counted | 6,219 | 5 h 11 min | no (only the 586 tour URLs are needed) |
 
