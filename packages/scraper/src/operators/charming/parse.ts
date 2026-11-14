@@ -205,37 +205,70 @@ function tableRows($: CheerioAPI): Row[] {
   return rows;
 }
 
+/** True when the row's code is the variant's code followed by a digit (`GERE12E-…` for GERE, not `GVRBX10A-…` for GVRB). */
+function startsWithCode(departureCode: string, variant: Variant): boolean {
+  const code = departureCode.toUpperCase();
+  const own = variant.code.toUpperCase();
+  return code.startsWith(own) && /\d/.test(code.charAt(own.length));
+}
+
 /**
- * Each row given to exactly one variant: the first whose code starts the row's (`GERE12E-…` is GERE's), else the
+ * Each row given to exactly one variant: the one whose code, followed by a digit, starts the row's (`GERE12E-…` is
+ * GERE's; with GVRB/GVRBX, `GVRBX10A-…` is GVRBX's and `GVRB08A-…` GVRB's; the longest such code wins), else the
  * first with the row's letters and day count (`WVJ04O-…` is WVJ4's). Variants that share both (`ABC1/2`, same
  * days, rows `ABC05…`) cannot be told apart: every such row goes to the first, deterministically. A row that is
- * no variant's is left out. Without a code column (`GRCSB/A/S`: cabin grades sold on the same dates), every row
- * is every variant's, so all go to each.
+ * no variant's is left out. Without a code column, every row is every variant's, but only when all variants have
+ * the same day count (`GRCSB/A/S`: cabin grades sold on the same dates); with different day counts (GAKA/GAKVA,
+ * 11 and 14 days) the rows cannot be told apart, and null is returned.
  */
-function rowsByVariant(list: Variant[], rows: Row[]): Map<Variant, Row[]> {
+function rowsByVariant(list: Variant[], rows: Row[]): Map<Variant, Row[]> | null {
   const byVariant = new Map<Variant, Row[]>(list.map(variant => [variant, []]));
   const coded = list.length > 1 && rows.some(row => row.code !== '');
+  if (!coded && rows.length > 0 && new Set(list.map(variant => variant.days)).size > 1) return null;
   for (const row of rows) {
     if (!coded) {
       for (const variant of list) byVariant.get(variant)!.push(row);
       continue;
     }
-    const owner = list.find(variant => row.code.toUpperCase().startsWith(variant.code.toUpperCase()))
-      ?? list.find(variant => sameLettersAndDays(row.code, variant));
+    const byCode = list.filter(variant => startsWithCode(row.code, variant))
+      .reduce<Variant | undefined>((best, variant) => (best === undefined || variant.code.length > best.code.length ? variant : best), undefined);
+    const owner = byCode ?? list.find(variant => sameLettersAndDays(row.code, variant));
     if (owner !== undefined) byVariant.get(owner)!.push(row);
   }
   return byVariant;
 }
 
+/** The lowest known price of the variant's departures after `today` (all of them without one); null when none. */
+function lowestPrice(rows: Row[], today: IsoDate | undefined): number | null {
+  const prices = rows.flatMap(row => (row.departure !== null && row.departure.priceHkd !== null
+    && (today === undefined || row.date > today) ? [row.departure.priceHkd] : []));
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
+/**
+ * The variant the page gives: the longest that has rows (the longest of all when none has); among those as long,
+ * the one whose lowest upcoming price is cheapest (the card shows a "from" price; GSAOA/B/O are cabin grades
+ * of one 19-day cruise), then the first, so the choice is the same each night.
+ */
+function chosenVariant(list: Variant[], byVariant: Map<Variant, Row[]>, today: IsoDate | undefined): Variant {
+  const withRows = list.filter(v => byVariant.get(v)!.length > 0);
+  const pool = withRows.length > 0 ? withRows : list;
+  const most = longest(pool).days;
+  const tied = pool.filter(v => v.days === most);
+  const price = (v: Variant) => lowestPrice(byVariant.get(v)!, today) ?? Number.POSITIVE_INFINITY;
+  return tied.reduce((best, v) => (price(v) < price(best) ? v : best));
+}
+
 /**
  * One Charming Holidays `?tour=<slug>` page as a ScrapedTour; null when it has no title code, its codes and day
- * counts do not pair up, or its table's dated rows are no variant's. A page selling two or more variants
- * (`GERD/E`, 11 or 12 days) gives its longest variant that has rows in the table (the first on a tie): its code,
- * its day count, its own dates, and the day headings without the days tagged only with other variants' codes.
+ * counts do not pair up, its table's dated rows are no variant's, or the rows cannot be given to variants of
+ * different lengths. A page selling two or more variants (`GERD/E`, 11 or 12 days) gives one (chosenVariant): its
+ * code, its day count, its own dates, and the day headings without the days tagged only with other variants' codes.
  * An old post still lists its old dates (a 2023 post: one date, full): normaliseTour skips it as no-departures.
- * `_today` is accepted for the shared parser signature; every date in the table carries its year.
+ * `today` (Hong Kong) is used only to compare variants of the same length by their lowest upcoming price;
+ * without it every date counts. Every date in the table carries its year.
  */
-export function parse(html: string, url: string, _today?: IsoDate): ScrapedTour | null {
+export function parse(html: string, url: string, today?: IsoDate): ScrapedTour | null {
   const $ = load(html);
   const title = clean($(TITLE).first().text());
   const itinerary = days($);
@@ -243,10 +276,10 @@ export function parse(html: string, url: string, _today?: IsoDate): ScrapedTour 
   if (list === null) return null;
   const rows = tableRows($);
   const byVariant = rowsByVariant(list, rows);
-  const withRows = list.filter(v => byVariant.get(v)!.length > 0);
+  if (byVariant === null) return null;
   // Dated rows, none of them any variant's: the codes are not read as expected.
-  if (rows.length > 0 && withRows.length === 0) return null;
-  const variant = longest(withRows.length > 0 ? withRows : list);
+  if (rows.length > 0 && list.every(v => byVariant.get(v)!.length === 0)) return null;
+  const variant = chosenVariant(list, byVariant, today);
   const dates = byVariant.get(variant)!.flatMap(row => (row.departure === null ? [] : [row.departure]));
 
   // A day tagged only with other variants' codes is theirs (GERD's flight home, on a page that sells GERE too).
