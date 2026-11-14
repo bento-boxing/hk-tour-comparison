@@ -161,6 +161,13 @@ describe('on the seed table', () => {
     expect(r.tours.map(t => [t.key, t.windowPriceHkd])).toEqual([['texpert:SEL5', 5699]]);
   });
 
+  it('price filters count a departure without a price at the tour from-price', async () => {
+    // texpert:SEL5's only departure on 12-25 has no price; its stored from-price is 5699.
+    expect(await keys({ dateFrom: '2026-12-25', dateTo: '2026-12-25', priceMin: 5699, priceMax: 5699 })).toEqual(['texpert:SEL5']);
+    expect(await keys({ dateFrom: '2026-12-25', dateTo: '2026-12-25', priceMax: 5698 })).toEqual([]);
+    expect(await keys({ dateFrom: '2026-12-25', dateTo: '2026-12-25', priceMin: 5700 })).toEqual([]);
+  });
+
   it('length, price and operator filters', async () => {
     expect(await keys({ daysMin: 5, daysMax: 5 })).toEqual(['texpert:SEL5', 'egl:KIX5']);
     expect(await keys({ daysMin: 6 })).toEqual(['jetour:TYO-KIX', 'jetour:HKD7']);

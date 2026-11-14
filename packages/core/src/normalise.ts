@@ -86,8 +86,13 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
     return { ok: false, reason: 'no-stops', unmatched: reported };
   }
 
-  const fromPriceHkd = departures.reduce<number | null>((low, d) => lowerPrice(low, d.priceHkd), null)
-    ?? scraped.fromPriceHkd;
+  // The lowest departure price, or the operator's "from" price when no departure has one. A departure without a
+  // price of its own is shown, filtered and chained at this stored price (marked 起), so while any has none the
+  // operator's "from" price counts too: such a date is never shown above the price the operator states.
+  const lowestDeparture = departures.reduce<number | null>((low, d) => lowerPrice(low, d.priceHkd), null);
+  const fromPriceHkd = departures.some(d => d.priceHkd === null)
+    ? lowerPrice(lowestDeparture, scraped.fromPriceHkd)
+    : lowestDeparture ?? scraped.fromPriceHkd;
   if (fromPriceHkd === null) return { ok: false, reason: 'no-price', unmatched };
 
   const { operatorId, code, url, title, days, nights } = scraped;

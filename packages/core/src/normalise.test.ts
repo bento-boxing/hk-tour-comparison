@@ -29,6 +29,27 @@ it('uses the scraped from-price when no departure has a price', () => {
   const r = normaliseTour({ ...base, fromPriceHkd: 6000, departures: [{ date: '2026-12-18', priceHkd: null }] }, places, today);
   expect(r.ok && r.tour.fromPriceHkd).toBe(6000);
 });
+describe('when some upcoming departures have no price of their own', () => {
+  // They are shown, filtered and chained at the stored from-price (search.ts EFFECTIVE_PRICE): the operator's own
+  // "from" price counts toward it, so a date without a price is never shown above the price the operator states.
+  const mixed = [{ date: '2026-12-18', priceHkd: 7999 }, { date: '2027-01-10', priceHkd: null }];
+  it('the from-price is the scraped one when it is lower than every priced departure', () => {
+    const r = normaliseTour({ ...base, fromPriceHkd: 6999, departures: mixed }, places, today);
+    expect(r.ok && r.tour.fromPriceHkd).toBe(6999);
+  });
+  it('the from-price is the lowest priced departure when that is lower', () => {
+    const r = normaliseTour({ ...base, fromPriceHkd: 8999, departures: mixed }, places, today);
+    expect(r.ok && r.tour.fromPriceHkd).toBe(7999);
+  });
+  it('without a scraped from-price, it is the lowest priced departure', () => {
+    const r = normaliseTour({ ...base, fromPriceHkd: null, departures: mixed }, places, today);
+    expect(r.ok && r.tour.fromPriceHkd).toBe(7999);
+  });
+  it('a past departure without a price does not count', () => {
+    const r = normaliseTour({ ...base, fromPriceHkd: 3999, departures: [{ date: '2026-12-18', priceHkd: 7999 }, { date: '2026-11-01', priceHkd: null }] }, places, today);
+    expect(r.ok && r.tour.fromPriceHkd).toBe(7999);
+  });
+});
 it('de-duplicates dates keeping the lowest price', () => {
   const r = normaliseTour({ ...base, departures: [{ date: '2026-12-18', priceHkd: 9000 }, { date: '2026-12-18', priceHkd: 8000 }] }, places, today);
   expect(r.ok && r.tour.departures).toEqual([{ date: '2026-12-18', priceHkd: 8000 }]);
