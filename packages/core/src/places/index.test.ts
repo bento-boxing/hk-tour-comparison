@@ -30,6 +30,70 @@ function consistencyProblems(data: PlacesData): string[] {
   return problems;
 }
 
+describe('Simplified spellings in operator text (task 34)', () => {
+  it('the shared index finds a city or region by the Simplified form of its name or alias', () => {
+    expect(places.findCity('清远').map(c => c.id)).toEqual(['china-guangdong-qingyuan']);
+    expect(places.findCity('揭阳').map(c => c.id)).toEqual(['china-guangdong-jieyang']);
+    expect(places.findRegion('陕西').map(r => r.id)).toEqual(['china-northwest']);
+    expect(places.findRegion('云南').map(r => r.id)).toEqual(['china-yunnan']);
+  });
+  it('reads Simplified names in day headings and inside longer words, as the Traditional ones', () => {
+    expect(extractStops(['云南', '大理', '清远连州'], places).stops.map(s => s.cityId ?? s.regionId))
+      .toEqual(['china-yunnan', 'china-yunnan-dali', 'china-guangdong-qingyuan']);
+  });
+  it('a Simplified form that is another place\'s Traditional name is not added (the Traditional name wins)', () => {
+    const index = buildPlacesIndex({
+      countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }],
+      regions: [{ id: 'a-r', countryId: 'a', nameZh: '甲區', nameEn: 'R', aliases: [] }],
+      cities: [
+        { id: 'a-r-one', regionId: 'a-r', nameZh: '後山', nameEn: 'One', aliases: [] },
+        { id: 'a-r-two', regionId: 'a-r', nameZh: '后山', nameEn: 'Two', aliases: [] },
+      ],
+    }, { simplifiedNames: { 後山: '后山', 后山: '后山', 甲區: '甲区' } });
+    expect(index.findCity('后山').map(c => c.id)).toEqual(['a-r-two']);
+    expect(index.findRegion('甲区').map(r => r.id)).toEqual(['a-r']);
+  });
+  it('an index built without Simplified names matches only the names in its data', () => {
+    const index = buildPlacesIndex(rawData as PlacesData);
+    expect(index.findCity('清远')).toEqual([]);
+    expect(index.findCity('清遠').map(c => c.id)).toEqual(['china-guangdong-qingyuan']);
+  });
+  it('countries are matched by their data names only', () => {
+    expect(places.findCountry('韩国')).toEqual([]);
+  });
+});
+
+describe('places added for Yummy and Sunflower (task 34)', () => {
+  const route = (headings: string[]) => extractStops(headings, places).stops.map(s => s.cityId ?? `region:${s.regionId}`);
+  it('reads the new towns, scenic areas and regions where they are', () => {
+    expect(route(['長江三峽'])).toEqual(['china-sichuan-three-gorges']);
+    expect(route(['井岡山'])).toEqual(['china-central-jinggangshan']); // not Okayama (岡山) inside it
+    expect(route(['西江'])).toEqual(['china-guizhou-xijiang']);
+    expect(route(['小七孔', '中國天眼'])).toEqual(['china-guizhou-libo', 'china-guizhou-pingtang']);
+    expect(route(['普者黑', '響沙灣', '海花島'])).toEqual(['china-yunnan-qiubei', 'china-inner-mongolia-ordos', 'china-hainan-danzhou']);
+    expect(route(['山西', '浙江', '遼寧', '中原古都'])).toEqual(['region:china-beijing', 'region:china-shanghai', 'region:china-northeast', 'region:china-central']);
+    expect(route(['華川', '全州', '楊平', '內藏山', '昆池岩', '永宗島'])).toEqual([
+      'korea-gangwon-hwacheon', 'korea-jeolla-jeonju', 'korea-seoul-yangpyeong', 'korea-jeolla-naejangsan', 'korea-seoul-gonjiam', 'korea-seoul-incheon',
+    ]);
+    expect(route(['富士', '潮汕', '佛岡'])).toEqual(['japan-chubu-mount-fuji', 'china-guangdong-chaoshan', 'china-guangdong-fogang']);
+  });
+  it('Mongolia is a country of its own with a group, and 內蒙古 stays Inner Mongolia', () => {
+    expect(places.country('mongolia')?.group).toBe('south-central-asia');
+    expect(route(['烏蘭巴托', '貝加爾湖'])).toEqual(['mongolia-mongolia-ulaanbaatar', 'russia-russia-lake-baikal']);
+    expect(route(['蒙古'])).toEqual(['region:mongolia-mongolia']);
+    expect(route(['內蒙古'])).toEqual(['region:china-inner-mongolia']);
+  });
+  it('does not read the new names inside the longer words found in the crawl logs', () => {
+    expect(route(['橫欄西江花海'])).toEqual([]);           // Zhongshan's flower park, not Xijiang
+    expect(route(['恩平韓屋村'])).toEqual([]);             // Seoul's Eunpyeong, not Enping
+    expect(route(['LALAPORT富士見'])).toEqual([]);          // Fujimi, Saitama
+    expect(route(['阿格拉比特儲水池'])).toEqual([]);       // the Aghlabid basins of Kairouan, not Agra
+    expect(route(['泰山島熱帶果園'])).toEqual([]);          // in the Mekong delta, not Mount Tai
+    expect(route(['巴馬臣芝士工房'])).toEqual([]);          // Parmesan, not Bama
+    expect(route(['潮汕特產手信', '潮汕牛肉火鍋', '潮汕站'])).toEqual([]);
+  });
+});
+
 describe('places', () => {
   it('finds a city by name', () => {
     expect(places.findCity('大阪').map(c => c.id)).toEqual(['japan-kansai-osaka']);
@@ -81,8 +145,9 @@ describe('places', () => {
       .toContain('bad slug A');
   });
   it('every notPlaces entry contains a city name and is not itself a city', () => {
-    // An entry may be a country or region name (羅馬尼亞 contains 羅馬), never a city's own name.
-    const cityNames = places.data.cities.flatMap(c => [c.nameZh, ...c.aliases]).map(normaliseName);
+    // An entry may be a country or region name (羅馬尼亞 contains 羅馬), never a city's own name. A city name here is
+    // any the scraper matches, Simplified forms included (阿格拉比 contains 阿格拉, the mainland name of 亞格拉).
+    const cityNames = places.data.cities.flatMap(c => places.matchNames(c)).map(normaliseName);
     const notPlaces = places.data.notPlaces ?? [];
     expect(notPlaces).toContain('松山湖');
     for (const entry of notPlaces) {

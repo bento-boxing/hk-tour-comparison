@@ -33,11 +33,11 @@ function tokensOf(heading: string): string[] {
     .filter(token => token !== '');
 }
 
-/** Every normalised city name and alias of at least 2 characters, longest first. */
+/** Every normalised name a city is matched by (PlacesIndex.matchNames) of at least 2 characters, longest first. */
 function containedNameList(index: PlacesIndex): string[] {
   const names = new Set<string>();
   for (const city of index.data.cities) {
-    for (const name of [city.nameZh, ...city.aliases]) {
+    for (const name of index.matchNames(city)) {
       const key = normaliseName(name);
       if ([...key].length >= 2) names.add(key);
     }

@@ -15,6 +15,11 @@ it('has a Simplified name for every country, region and city name and alias (rer
   expect(missing).toEqual([]);
 });
 
+it('has no entry for a name the places data no longer has (the file is regenerated whole, never edited by hand)', () => {
+  const names = new Set([...data.countries, ...data.regions, ...data.cities].flatMap(p => [p.nameZh, ...p.aliases]));
+  expect(Object.keys(map).filter(name => !names.has(name))).toEqual([]);
+});
+
 it('converts characters, and uses the mainland name where it differs in more than characters', () => {
   expect(zhHansName('韓國')).toBe('韩国');
   expect(zhHansName('關西')).toBe('关西');

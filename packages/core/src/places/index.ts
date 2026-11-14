@@ -1,4 +1,5 @@
 import rawData from './data.json';
+import zhHansNames from './names.zh-Hans.json';
 
 /**
  * The parts of the world the country lists are arranged under, in display order, with their public labels.
@@ -37,6 +38,11 @@ export interface PlacesData {
 
 export interface PlacesIndex {
   data: PlacesData;
+  /**
+   * Every name the scraper matches a city or region by: its nameZh and aliases and, for an index built with
+   * simplifiedNames, their Simplified forms (see buildPlacesIndex).
+   */
+  matchNames(place: City | Region): string[];
   /** Every country under its group: groups in display order, countries in data order, no empty group. */
   countryGroups: CountryGroup[];
   country(id: string): Country | undefined;
@@ -72,11 +78,11 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
   return groups;
 }
 
-/** Maps every normalised nameZh and alias to the entries carrying it, each entry at most once per name. */
-function byName<T extends Named>(items: T[]): Map<string, T[]> {
+/** Maps every normalised name of each item (nameZh and aliases by default) to the entries carrying it, each entry at most once per name. */
+function byName<T extends Named>(items: T[], namesOf: (item: T) => string[] = item => [item.nameZh, ...item.aliases]): Map<string, T[]> {
   const names = new Map<string, T[]>();
   for (const item of items) {
-    for (const name of [item.nameZh, ...item.aliases]) {
+    for (const name of namesOf(item)) {
       const key = normaliseName(name);
       if (key === '') continue;
       const matches = names.get(key);
@@ -99,19 +105,38 @@ export function groupCountries(countries: Country[]): CountryGroup[] {
   });
 }
 
-export function buildPlacesIndex(data: PlacesData): PlacesIndex {
+export interface PlacesIndexOptions {
+  /**
+   * Traditional name → Simplified form (names.zh-Hans.json). Each city's and region's names are then also matched in
+   * their Simplified form (`清远`, `陕西`, `云南` in Yummy's tags), unless that form is itself a Traditional name of a
+   * city or region in the data (the Traditional name wins). Countries are matched by their data names only.
+   */
+  simplifiedNames?: Readonly<Record<string, string>>;
+}
+
+export function buildPlacesIndex(data: PlacesData, options: PlacesIndexOptions = {}): PlacesIndex {
+  const simplified = options.simplifiedNames ?? {};
+  const dataNames = new Set([...data.regions, ...data.cities].flatMap(p => [p.nameZh, ...p.aliases]).map(normaliseName));
+  const matchNames = (place: Named): string[] => {
+    const names = [place.nameZh, ...place.aliases];
+    const extra = names
+      .map(name => (Object.hasOwn(simplified, name) ? simplified[name] : ''))
+      .filter(form => form !== '' && !dataNames.has(normaliseName(form)));
+    return [...new Set([...names, ...extra])];
+  };
   const countries = byId(data.countries);
   const regions = byId(data.regions);
   const cities = byId(data.cities);
   const regionsByCountry = groupBy(data.regions, r => r.countryId);
   const citiesByRegion = groupBy(data.cities, c => c.regionId);
   const countryNames = byName(data.countries);
-  const regionNames = byName(data.regions);
-  const cityNames = byName(data.cities);
+  const regionNames = byName(data.regions, matchNames);
+  const cityNames = byName(data.cities, matchNames);
   const find = <T>(names: Map<string, T[]>, name: string): T[] => [...(names.get(normaliseName(name)) ?? [])];
 
   return {
     data,
+    matchNames,
     countryGroups: groupCountries(data.countries),
     country: id => countries.get(id),
     region: id => regions.get(id),
@@ -124,4 +149,5 @@ export function buildPlacesIndex(data: PlacesData): PlacesIndex {
   };
 }
 
-export const places: PlacesIndex = buildPlacesIndex(rawData as PlacesData);
+/** The shared index: the places data, also matched in Simplified spelling (names.zh-Hans.json, task 34). */
+export const places: PlacesIndex = buildPlacesIndex(rawData as PlacesData, { simplifiedNames: zhHansNames });
