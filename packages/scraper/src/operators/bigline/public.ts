@@ -7,6 +7,8 @@
  * sees it, and the committed fixtures are made with it.
  */
 
+import { CHUNK_SEPARATORS, DAY_MARKER } from '@hktours/core';
+
 type JsonObject = Record<string, unknown>;
 type Plain = string | number | boolean | null;
 
@@ -27,30 +29,43 @@ const ROUTE_SEPARATOR = /[~～|｜→]|-{2,}/;
 const SENTENCE_MARK = /[，。；！？：;:!?]/;
 /** Leading marks before a chunk's text (`.香港機場集合`, `-酒店`). */
 const LEADING_MARKS = /^[\s.\-·•]+/;
+/** The separators the shared rules split a heading at (`、`, `-`, `—`, `>`, spaces …), kept when splitting. */
+const PIECE_SEPARATORS = new RegExp(`(${CHUNK_SEPARATORS.source})`);
 /**
- * The longest chunk kept: a place or attraction name (`泰北傳統少數民族-長頸族村` is 13). A longer one is
- * a description (`「伊利健康谷」探訪全自動智慧奶業生產線`) and is left out whole, not cut.
+ * The longest piece kept, a piece being what the shared rules split a heading at: a place or attraction
+ * name (`泰北傳統少數民族` is 8), or one word of a Latin name (`Maya shopping mall瑪雅購物中心` is three
+ * pieces). A longer one is a description (`「伊利健康谷」探訪全自動智慧奶業生產線`) and is left out whole.
  */
-export const MAX_CHUNK_CHARS = 16;
+export const MAX_PIECE_CHARS = 16;
+
+/** The chunk without its pieces over MAX_PIECE_CHARS, each kept piece after the separator that preceded it. */
+function withoutLongPieces(chunk: string): string {
+  const parts = chunk.split(PIECE_SEPARATORS); // piece, separator, piece, separator, …, piece
+  let kept = '';
+  for (let i = 0; i < parts.length; i += 2) {
+    const piece = parts[i];
+    if (piece === '' || [...piece].length > MAX_PIECE_CHARS) continue;
+    kept += (kept === '' ? '' : parts[i - 1]) + piece;
+  }
+  return kept;
+}
 
 /**
  * The places of one day's route line (`tripContent`), in order: its first line with text only (later lines
- * are notes such as `#註：…`), without bracketed notes, split at the route separators, each chunk cut at
- * its first sentence mark, spaces collapsed, and empty chunks and chunks over MAX_CHUNK_CHARS dropped. Reading the
- * chunks again, joined with ` | `, gives the same chunks, so a trimmed fixture parses as the answer did.
+ * are notes such as `#註：…`), without a leading day marker (`D1：`, `第1天：`, the shared DAY_MARKER) and
+ * bracketed notes, split at the route separators; each chunk cut at its first sentence mark, spaces
+ * collapsed, and its pieces over MAX_PIECE_CHARS left out; empty chunks dropped. Reading the chunks again,
+ * joined with ` | `, gives the same chunks, so a trimmed fixture parses as the answer did.
  */
 export function routeChunks(tripContent: unknown): string[] {
   if (typeof tripContent !== 'string') return [];
-  let line = tripContent.split(/\r?\n/).find(text => text.trim() !== '') ?? '';
+  let line = (tripContent.split(/\r?\n/).find(text => text.trim() !== '') ?? '').replace(DAY_MARKER, '');
   for (let previous = ''; previous !== line;) {
     previous = line;
     line = line.replace(NOTE, '');
   }
   return line.split(ROUTE_SEPARATOR)
-    .map(chunk => {
-      const lead = chunk.split(SENTENCE_MARK)[0].replace(LEADING_MARKS, '').replace(/\s+/g, ' ').trim();
-      return [...lead].length <= MAX_CHUNK_CHARS ? lead : '';
-    })
+    .map(chunk => withoutLongPieces(chunk.split(SENTENCE_MARK)[0].replace(LEADING_MARKS, '').replace(/\s+/g, ' ').trim()))
     .filter(chunk => chunk !== '');
 }
 

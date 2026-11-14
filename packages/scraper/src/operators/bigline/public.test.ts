@@ -69,12 +69,23 @@ describe('routeChunks', () => {
     ['only the first line: later lines are notes', '西安~華山\n#註：以上行程以現場為準', ['西安', '華山']],
     ['the first line that has text', '\n \n西安~華山\n註', ['西安', '華山']],
     ['without chunks over 16 characters: descriptions, not names', '「成吉思汗陵」探尋蒙古帝王創立者的英雄地~泰北傳統少數民族-長頸族村~西安', ['泰北傳統少數民族-長頸族村', '西安']],
-    ['with spaces collapsed and empty chunks dropped', '  D1   香港機場集合 || ~ - 哥本哈根 ', ['D1 香港機場集合', '哥本哈根']],
+    ['with spaces collapsed and empty chunks dropped', '  香港機場集合   酒店 || ~ - 哥本哈根 ', ['香港機場集合 酒店', '哥本哈根']],
+    ['without a leading day marker, so its colon does not cut the first place (D1：)', 'D1：香港~西安', ['香港', '西安']],
+    ['without a leading day marker (第1天：)', '第1天：東京~大阪', ['東京', '大阪']],
+    ['without a leading day marker (D12 with spaces, Day 3 -)', '  D12  哈士奇犬場|斯德哥爾摩', ['哈士奇犬場', '斯德哥爾摩']],
+    ['without a day marker only at the start of the line', '香港~D2 酒店', ['香港', 'D2 酒店']],
+    ['keeping a chunk of short places listed with 、 whole, however long', '東京、橫濱、鎌倉、箱根、富士山五合目~大阪', ['東京、橫濱、鎌倉、箱根、富士山五合目', '大阪']],
+    ['without the long pieces of a chunk (the cap applies to the pieces the shared rules split at)', '中華文明發源地 素有"奇險天下第一山"之稱【華山】~西安', ['中華文明發源地', '西安']],
+    ['without a long piece in the middle, keeping the separator before the next', '清邁、泰國重要的茶葉生產基地和旅遊聖地之一-清萊', ['清邁-清萊']],
+    ['counting Latin words one by one', 'Maya shopping mall瑪雅購物中心~The One Nimman 文青商圈', ['Maya shopping mall瑪雅購物中心', 'The One Nimman 文青商圈']],
   ])('are %s', (_name, text, expected) => {
     expect(routeChunks(text)).toEqual(expected);
   });
   it('give the same chunks when read again from their own output', () => {
-    for (const text of ['A(x~y)~B〈z〉|C，prose~(open|close)~)(', '酒店 --「大召寺」（包門票），感受--「敕勒川草原」']) {
+    for (const text of [
+      'A(x~y)~B〈z〉|C，prose~(open|close)~)(', '酒店 --「大召寺」（包門票），感受--「敕勒川草原」',
+      'D1：清邁、泰國重要的茶葉生產基地和旅遊聖地之一-清萊 長長長長長長長長長長長長長長長長長 ~東京、橫濱', '、A、~-B-',
+    ]) {
       const once = routeChunks(text);
       expect(routeChunks(once.join(' | '))).toEqual(once);
     }
