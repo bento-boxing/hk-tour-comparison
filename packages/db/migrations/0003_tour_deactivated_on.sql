@@ -1,3 +1,6 @@
+-- Fail fast if another session holds a lock on tours, so the migrate job fails and retries next night instead of queueing the site's reads behind it.
+set local lock_timeout = '5s';
+
 -- Data retention, owner decision 2026-11-13: a tour inactive for more than 30 days is deleted, with its stops,
 -- departures and price snapshots (packages/db/src/save-run.ts). This column is the night it went inactive: the
 -- nightly save sets it to the run's Hong Kong date when it marks a tour inactive and clears it when the tour
