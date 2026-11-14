@@ -22,6 +22,11 @@ it.each([
   ['script injection', 'egl:<script>@2026-12-18'],
   ['garbage', '%%%'],
 ])('drops an invalid leg (%s)', (_n, legs) => { expect(decodeChain({ legs }).legs).toEqual([]); });
+it('accepts a leg of every operator, Charming Holidays included', () => {
+  expect(decodeChain({ legs: 'charming:GERE@2026-12-19,bigline:T1@2027-01-02' }).legs).toEqual([
+    { tourKey: 'charming:GERE', departure: '2026-12-19' }, { tourKey: 'bigline:T1', departure: '2027-01-02' },
+  ]);
+});
 it('keeps legs before the first invalid one and drops the rest', () => {
   expect(decodeChain({ legs: 'egl:A@2026-12-18,bad,jetour:B@2026-12-30' }).legs)
     .toEqual([{ tourKey: 'egl:A', departure: '2026-12-18' }]);

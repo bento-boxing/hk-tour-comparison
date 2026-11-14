@@ -320,12 +320,13 @@ describe('on the seed table', () => {
     expect(c.count()).toBe(0);
   });
 
-  it('getOperators returns four operators with names, colours and freshness', async () => {
+  it('getOperators returns five operators with names, colours and freshness', async () => {
     expect(await getOperators(db)).toEqual([
       { id: 'egl', nameZh: '東瀛遊', nameEn: 'EGL Tours', color: '#d62839', lastGoodRunAt: EGL_SECOND_RUN_FINISHED },
       { id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06', lastGoodRunAt: RUN_FINISHED },
       { id: 'texpert', nameZh: '專業旅運', nameEn: 'Travel Expert', color: '#7d3cc8', lastGoodRunAt: RUN_FINISHED },
       { id: 'bigline', nameZh: '大航假期', nameEn: 'Big Line Holiday', color: '#2a9d4b', lastGoodRunAt: RUN_FINISHED },
+      { id: 'charming', nameZh: '翠明假期', nameEn: 'Charming Holidays', color: '#b5179e', lastGoodRunAt: null },
     ]);
   });
 });
@@ -426,7 +427,7 @@ describe('before any run', () => {
     try {
       const ops = await getOperators(db);
       expect(ops.map(o => [o.id, o.lastGoodRunAt])).toEqual([
-        ['egl', null], ['jetour', null], ['texpert', null], ['bigline', null],
+        ['egl', null], ['jetour', null], ['texpert', null], ['bigline', null], ['charming', null],
       ]);
       expect(await getOperators(db, { onlyWithGoodRun: true })).toEqual([]);
     } finally {
@@ -455,8 +456,8 @@ describe('operators with a good run', () => {
 
   it('without the option, every operator is still listed', async () => {
     expect((await getOperators(db)).map(o => [o.id, o.lastGoodRunAt])).toEqual([
-      ['egl', null], ['jetour', RUN_FINISHED], ['texpert', RUN_FINISHED], ['bigline', null],
+      ['egl', null], ['jetour', RUN_FINISHED], ['texpert', RUN_FINISHED], ['bigline', null], ['charming', null],
     ]);
-    expect((await getOperators(db, { onlyWithGoodRun: false })).map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+    expect((await getOperators(db, { onlyWithGoodRun: false })).map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming']);
   });
 });

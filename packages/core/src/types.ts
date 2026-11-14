@@ -1,4 +1,4 @@
-export const OPERATOR_IDS = ['egl', 'jetour', 'texpert', 'bigline'] as const;
+export const OPERATOR_IDS = ['egl', 'jetour', 'texpert', 'bigline', 'charming'] as const;
 export type OperatorId = (typeof OPERATOR_IDS)[number];
 export type IsoDate = string; // 'YYYY-MM-DD'
 
