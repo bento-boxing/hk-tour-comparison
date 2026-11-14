@@ -8,6 +8,7 @@ import { formatChipDate, formatPrice } from '../lib/format';
 import {
   buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, SORT_KEYS, type SearchState,
 } from '../lib/search-params';
+import { operatorName, placeName } from '../lib/place-names';
 import { destinationLabel } from './DestinationSearch';
 import { FilterPopover } from './FilterPopover';
 import styles from './FilterBar.module.css';
@@ -89,7 +90,10 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
     update({ destination: undefined });
   };
 
-  const operatorName = (id: OperatorId) => operators.find(o => o.id === id)?.nameZh ?? id;
+  const operatorNameOf = (id: OperatorId) => {
+    const op = operators.find(o => o.id === id);
+    return op ? operatorName(op, t.locale) : id;
+  };
   const selectedOperators = f.operators ?? [];
   const toggleOperator = (id: OperatorId) => {
     const next = new Set(selectedOperators);
@@ -100,7 +104,10 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
   const excluded = f.excludeCountryIds ?? [];
   const toggleExcluded = (id: string) =>
     update({ excludeCountryIds: excluded.includes(id) ? excluded.filter(c => c !== id) : [...excluded, id] });
-  const countryName = (id: string) => places.country(id)?.nameZh ?? id;
+  const countryName = (id: string) => {
+    const country = places.country(id);
+    return country ? placeName(country, t.locale) : id;
+  };
 
   const days = daysText(f.daysMin, f.daysMax, t);
   const price = priceText(f, t);
@@ -114,10 +121,10 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
           type="button"
           className={styles.f}
           data-on="true"
-          aria-label={t('filter.clearDestination', { dest: destinationLabel(f.destination, places) })}
+          aria-label={t('filter.clearDestination', { dest: destinationLabel(f.destination, places, t) })}
           onClick={clearDestination}
         >
-          {destinationLabel(f.destination, places)} ✕
+          {destinationLabel(f.destination, places, t)} ✕
         </button>
       )}
 
@@ -174,7 +181,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
 
       <FilterPopover
         {...popover('operators')}
-        label={pillLabel('filter.operators', selectedOperators.length > 0 ? selectedOperators.map(operatorName).join(separator) : null)}
+        label={pillLabel('filter.operators', selectedOperators.length > 0 ? selectedOperators.map(operatorNameOf).join(separator) : null)}
         title={t('filter.operators')}
         on={selectedOperators.length > 0}
       >
@@ -189,7 +196,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
                     className={styles.dot}
                     style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--charcoal)' } as CSSProperties}
                   />
-                  {op.nameZh}
+                  {operatorName(op, t.locale)}
                 </label>
               </li>
             ))}
@@ -214,7 +221,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
                   <li key={c.id}>
                     <label className={styles.check}>
                       <input type="checkbox" checked={excluded.includes(c.id)} onChange={() => toggleExcluded(c.id)} />
-                      {c.nameZh}
+                      {placeName(c, t.locale)}
                     </label>
                   </li>
                 ))}

@@ -1,10 +1,10 @@
 import { it, expect } from 'vitest';
 import { places, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
 import { departureDateText, priceChangeText, regionLabel, routeNames, startNote } from './card-text';
-import { translate, type T } from './i18n';
+import { makeT } from './i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
-const tEn: T = (key, vars) => translate('en', key, vars);
+const tZh = makeT('zh-Hant');
+const tEn = makeT('en');
 
 const city = (regionId: string, cityId: string | null): Stop => ({ countryId: regionId.split('-')[0], regionId, cityId });
 const kansaiStops: Stop[] = [
@@ -82,6 +82,24 @@ it('departureDateText gives the date with its weekday, computed in UTC', () => {
   expect(departureDateText('2026-12-20', tZh)).toBe('2026年12月20日（日）');
   expect(departureDateText('2027-01-02', tZh)).toBe('2027年1月2日（六）');
   expect(departureDateText('2026-12-18', tEn)).toBe('Fri 18 Dec 2026');
+  expect(departureDateText('2026-12-18', makeT('zh-Hans'))).toBe('2026年12月18日（周五）');
+});
+
+it('routeNames and regionLabel name the places in the visitor\'s language', () => {
+  expect(routeNames(kansaiStops, places, 'en')).toEqual(['Osaka', 'Kyoto', 'Nara', 'Kobe']);
+  expect(routeNames([seoulStop, city('japan-hokkaido', null)], places, 'zh-Hans')).toEqual(['首尔', '北海道']);
+  expect(regionLabel([...kansaiStops, tokyoStop], places, tEn)).toBe('Japan · Kansai +1');
+  expect(regionLabel([seoulStop], places, makeT('zh-Hans'))).toBe('韩国 · 首尔及京畿');
+  // A region named like its country is still named once.
+  expect(regionLabel([city('france-france', 'france-france-paris')], places, tEn)).toBe('France');
+});
+
+it.each([
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 in the past 7 days'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 in the past 1 day'],
+  [{ kind: 'same', sinceDate: '2026-11-05' }, '— unchanged in the past 7 days'],
+])('priceChangeText in English (%j)', (change, text) => {
+  expect(priceChangeText(change as PriceChange, '2026-11-12', tEn)?.text).toBe(text);
 });
 
 it('departureDateText is null for a string that is not a real date', () => {

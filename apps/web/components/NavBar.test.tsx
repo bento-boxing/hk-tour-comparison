@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { NavBar } from './NavBar';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
+const tZh = makeT('zh-Hant');
 const css = () => readFileSync(join(__dirname, 'NavBar.module.css'), 'utf8').replace(/\s+/g, ' ');
 
 it('shows the site name and both links', () => {
@@ -44,4 +44,20 @@ it('draws the mark in the on-charcoal colouring from the theme, sized to the nam
   expect(css()).toMatch(/\.mark \{[^}]*height: 1\.3em/);
   expect(css()).toMatch(/\.mark \{[^}]*flex: none/); // never squeezed at narrow widths
   expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+});
+
+it('ends with the language switch, labelled in the current language', () => {
+  render(<NavBar current="search" t={makeT('en')} />);
+  const nav = screen.getByRole('navigation');
+  const group = screen.getByRole('group', { name: 'Language' });
+  expect(nav).toContainElement(group);
+  const links = screen.getAllByRole('link');
+  expect(links.map(l => l.textContent)).toEqual(['Find tours', 'Plan a trip']);
+  expect(links[1].compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByText('跟邊團')).toBeInTheDocument(); // the brand stays 跟邊團 in English
+});
+
+it('wraps rather than scrolling sideways if a very narrow screen cannot fit the switch on the line', () => {
+  expect(css()).toMatch(/\.inner \{[^}]*flex-wrap: wrap/);
 });

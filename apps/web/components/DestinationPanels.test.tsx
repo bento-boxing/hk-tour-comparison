@@ -6,9 +6,9 @@ import userEvent from '@testing-library/user-event';
 import { places, suggestRegions, ALL_REGIONS_LABEL, COUNTRY_GROUPS, type Destination } from '@hktours/core';
 import { DestinationPanels } from './DestinationPanels';
 import { destinationLabel } from './DestinationSearch';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
+const tZh = makeT('zh-Hant');
 const kansai: Destination = { countryId: 'japan', regionId: 'japan-kansai' };
 
 let onSelect: ReturnType<typeof vi.fn<(dest: Destination) => void>>;
@@ -72,7 +72,7 @@ it('a single-region country selects the whole country straight away, as the sear
   await user.click(screen.getByRole('button', { name: '新加坡' }));
   const whole: Destination = { countryId: 'singapore', regionId: null };
   expect(onSelect).toHaveBeenCalledWith(whole);
-  expect(destinationLabel(whole, places)).toBe(`新加坡 → ${ALL_REGIONS_LABEL}`);
+  expect(destinationLabel(whole, places, tZh)).toBe(`新加坡 → ${ALL_REGIONS_LABEL}`);
   expect(suggestRegions('新加坡', places).map(s => s.destination)).toEqual([whole]);
   expect(screen.queryByRole('button', { name: '全部地區' })).not.toBeInTheDocument();
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -279,5 +279,23 @@ describe('the panel never reaches past the viewport sideways', () => {
       const pageCss = readFileSync(join(__dirname, page), 'utf8').replace(/\s+/g, ' ');
       expect(pageCss, page).toMatch(/\.searchRow \{[^}]*position: relative;/);
     }
+  });
+});
+
+describe('in the visitor\'s language', () => {
+  it.each([
+    ['zh-Hans', '按国家选择', '日本及韩国', '韩国', '新西兰', '全部地区', '关西'],
+    ['en', 'Browse by country', 'Japan and Korea', 'South Korea', 'New Zealand', 'All regions', 'Kansai'],
+  ] as const)('%s: the button, the group headings, the countries and the regions', async (locale, toggle, group, korea, nz, all, kansaiName) => {
+    render(<DestinationPanels places={places} t={makeT(locale)} value={null} onSelect={onSelect} />);
+    await user.click(screen.getByRole('button', { name: toggle }));
+    const northeast = screen.getByRole('group', { name: group });
+    expect(within(northeast).getByRole('button', { name: korea })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: nz })).toBeInTheDocument();
+    expect(screen.queryByText('韓國')).toBeNull();
+    await user.click(within(northeast).getAllByRole('button')[0]); // 日本 / Japan
+    expect(screen.getByRole('button', { name: all })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: kansaiName }));
+    expect(onSelect).toHaveBeenCalledWith(kansai);
   });
 });

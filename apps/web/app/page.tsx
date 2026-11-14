@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
-import { getT } from '../lib/i18n';
+import { getT } from '../lib/i18n-server';
 import { requestDb } from '../lib/db';
 import { loadSearchPage, type SearchPageData } from '../lib/search-page-data';
 import { DestinationPanelsConnected, DestinationSearchConnected } from '../components/DestinationConnected';
@@ -17,7 +17,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
  * The root layout supplies the nav bar and footer. Rendered per request (requestDb), so it shows the latest scrape.
  */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const t = getT();
+  const t = await getT();
   const raw = await searchParams;
   const today = todayInHongKong();
 

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { T } from '../lib/i18n';
+import { LanguageSwitch } from './LanguageSwitch';
 import { Mark } from './Mark';
 import styles from './NavBar.module.css';
 
@@ -10,7 +11,10 @@ const links: { page: NavPage; href: string; label: 'nav.search' | 'nav.chain' }[
   { page: 'chain', href: '/chain', label: 'nav.chain' },
 ];
 
-/** The site's top bar (mockup `.bar`). `current` is the page whose link is highlighted, if any. */
+/**
+ * The site's top bar (mockup `.bar`): mark and name, the two page links, and the language switch at the right.
+ * `current` is the page whose link is highlighted, if any.
+ */
 export function NavBar({ current, t }: { current?: NavPage; t: T }) {
   return (
     <nav className={styles.bar}>
@@ -26,6 +30,7 @@ export function NavBar({ current, t }: { current?: NavPage; t: T }) {
             {t(label)}
           </Link>
         ))}
+        <LanguageSwitch t={t} />
       </div>
     </nav>
   );

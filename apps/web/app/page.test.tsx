@@ -7,13 +7,17 @@ import styles from './page.module.css';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { I18nProvider } from '../lib/i18n-client';
+import type { Locale } from '../lib/i18n';
 import type { SearchPageData } from '../lib/search-page-data';
 
 const mocks = vi.hoisted(() => ({
+  locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
   loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string) => Promise<SearchPageData>>(),
 }));
 vi.mock('../lib/db', () => ({ requestDb: mocks.requestDb }));
+// The language cookie: none, so Traditional Chinese, unless a test sets it.
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'locale' && mocks.locale.value ? { name, value: mocks.locale.value } : undefined) }) }));
 vi.mock('../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
@@ -46,9 +50,11 @@ const data: SearchPageData = {
   filterOperators: [{ id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06', lastGoodRunAt: '2026-11-11T19:10:00Z' }],
 };
 
-async function renderPage(params: Record<string, string | string[] | undefined>) {
+/** The layout gives the client components the same locale as the cookie the server page reads. */
+async function renderPage(params: Record<string, string | string[] | undefined>, locale: Locale = 'zh-Hant') {
+  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
   const element = await SearchPage({ searchParams: Promise.resolve(params) });
-  return render(<I18nProvider locale="zh-Hant">{element}</I18nProvider>);
+  return render(<I18nProvider locale={locale}>{element}</I18nProvider>);
 }
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -86,6 +92,29 @@ it('loads the page from the address and lays it out top to bottom', async () => 
   expect(next).toHaveAttribute('href', '/?dest=japan-kansai&sort=days&page=2');
   expect(container.textContent).not.toContain(ERROR);
   expect(consoleError).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['en', 'Japan → Kansai', 'Clear destination: Japan → Kansai', '30 tours', 'Next', '東瀛遊 (EGL Tours)', 'Osaka'],
+  ['zh-Hans', '日本 → 关西', '清除目的地：日本 → 关西', '共 30 个旅行团', '下一页', '東瀛遊', '大阪'],
+] as const)('in %s, the server text, the client text and the place names all follow the language cookie', async (locale, dest, destPill, count, next, operator, city) => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(data);
+  const { container } = await renderPage({ dest: 'japan-kansai', sort: 'days' }, locale);
+  expect(screen.getByRole('combobox')).toHaveValue(dest);
+  expect(screen.getByRole('button', { name: destPill })).toBeInTheDocument();
+  expect(screen.getByText(count)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: next })).toHaveAttribute('href', '/?dest=japan-kansai&sort=days&page=2'); // the Pager: server text
+  const card = screen.getByRole('article');
+  expect(within(card).getByText(operator)).toBeInTheDocument();
+  expect(within(card).getByRole('heading')).toHaveTextContent(city);
+  expect(container.textContent).not.toMatch(/關西|個旅行團/);
+});
+
+it('the server text is in English when the cookie says so (the error message)', async () => {
+  mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set'));
+  await renderPage({}, 'en');
+  expect(screen.getByRole('alert')).toHaveTextContent("Tours can't be loaded right now. Please try again later.");
 });
 
 it('shows the error message, and logs the cause, when DATABASE_URL is missing', async () => {

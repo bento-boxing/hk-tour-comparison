@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { groupCountries, type Destination, type PlacesIndex } from '@hktours/core';
 import type { T } from '../lib/i18n';
+import { placeName } from '../lib/place-names';
 import styles from './DestinationPanels.module.css';
 
 export interface DestinationPanelsProps {
@@ -40,7 +41,7 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
   // Step two: 全部地區 first, then the country's regions.
   const regionChoices: { key: string; label: string; dest: Destination }[] = country === undefined ? [] : [
     { key: '', label: t('dest.allRegions'), dest: { countryId: country.id, regionId: null } },
-    ...places.regionsOf(country.id).map(r => ({ key: r.id, label: r.nameZh, dest: { countryId: country.id, regionId: r.id } })),
+    ...places.regionsOf(country.id).map(r => ({ key: r.id, label: placeName(r, t.locale), dest: { countryId: country.id, regionId: r.id } })),
   ];
 
   const close = () => {
@@ -97,7 +98,7 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
                     return (
                       <li key={c.id}>
                         <button type="button" data-country={c.id} className={chip(current)} aria-current={isCurrent(current)} onClick={() => chooseCountry(c.id)}>
-                          {c.nameZh}
+                          {placeName(c, t.locale)}
                         </button>
                       </li>
                     );
@@ -109,7 +110,7 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
             <>
               <div className={styles.head}>
                 <button type="button" className={styles.back} onClick={back}>{t('dest.back')}</button>
-                <span className={styles.country}>{country.nameZh}</span>
+                <span className={styles.country}>{placeName(country, t.locale)}</span>
               </div>
               <ul className={styles.list}>
                 {regionChoices.map(({ key, label, dest }, i) => {

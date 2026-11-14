@@ -6,8 +6,12 @@
   --hit: #e6f1f6; --price-down: #1f7a4d; --price-up: #a8432a;
   --op-egl: #d62839; --op-jetour: #ee7b06; --op-texpert: #7d3cc8; --op-bigline: #2a9d4b;
   --op-charming: #b5179e; --op-yummy: #7a6a00; --op-sunflower: #3949ab;
+  /* --notice-maroon: the owner's colour for the language notice (components/LanguageNotice) only. */
+  --notice-maroon: #800000;
   --radius-card: 10px; --radius-pill: 999px;
   --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
+/* Simplified Chinese pages use Simplified glyph forms when the visitor has such a font. */
+:root:lang(zh-Hans) { --font: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
 body { background: var(--snow); color: var(--charcoal); font-family: var(--font); margin: 0; }
 *, *::before, *::after { box-sizing: border-box; }

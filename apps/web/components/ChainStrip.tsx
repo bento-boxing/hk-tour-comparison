@@ -6,6 +6,7 @@ import type { OperatorInfo } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
 import { chainTotals, type ResolvedLeg } from '../lib/chain';
 import { routeNames } from '../lib/card-text';
+import { operatorName } from '../lib/place-names';
 import { formatChipDate, formatPrice } from '../lib/format';
 import { GapSelector } from './GapSelector';
 import styles from './ChainStrip.module.css';
@@ -41,7 +42,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
         const operator = byId.get(leg.tour.operatorId);
         const color = operator && SAFE_COLOR.test(operator.color) ? operator.color : 'var(--charcoal)';
         const facts = [
-          operator?.nameZh ?? leg.tour.operatorId,
+          operator ? operatorName(operator, t.locale) : leg.tour.operatorId,
           `${date(leg.departure)} – ${date(leg.endDate)}`,
           `${formatPrice(leg.priceHkd)}${leg.priceIsExact ? '' : from}`,
         ].join(' · ');
@@ -54,7 +55,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
               </div>
             )}
             <div className={styles.leg} data-leg="" style={{ '--c': color } as CSSProperties}>
-              <span className={styles.route}>{routeNames(leg.tour.stops, places).join(' → ')}</span>
+              <span className={styles.route}>{routeNames(leg.tour.stops, places, t.locale).join(' → ')}</span>
               <small className={styles.facts}>{facts}</small>
             </div>
           </Fragment>

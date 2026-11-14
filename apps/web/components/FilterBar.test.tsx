@@ -5,11 +5,11 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db/read';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 import type { SearchState } from '../lib/search-params';
 import { FilterBar, type FilterBarProps } from './FilterBar';
 
-const t: T = (key, vars) => translate('zh-Hant', key, vars);
+const t = makeT('zh-Hant');
 
 const operators: OperatorInfo[] = [
   { id: 'egl', nameZh: '東瀛遊', nameEn: 'EGL Tours', color: '#d62839', lastGoodRunAt: null },
@@ -329,4 +329,22 @@ it('the date pill shows the year of a date outside the current Hong Kong year', 
   unmount();
   renderBar({ filters: { dateFrom: '2027-02-01' }, sort: 'price', page: 1 }, { today: '2026-11-12' });
   expect(pill('出發日期：2027/2/1 –')).toBeInTheDocument();
+});
+
+it.each([
+  ['en', 'Exclude: Japan', 'Japan and Korea', 'South Korea', 'Operators: 東瀛遊 (EGL Tours)', '東瀛遊 (EGL Tours)', 'Clear destination: Japan → Kansai'],
+  ['zh-Hans', '排除：日本', '日本及韩国', '韩国', '旅行社：東瀛遊', '東瀛遊', '清除目的地：日本 → 关西'],
+] as const)('%s: pills, countries and operators in the visitor\'s language', async (locale, excludePill, group, korea, opsPill, opName, destPill) => {
+  render(
+    <FilterBar
+      state={{ filters: { excludeCountryIds: ['japan'], operators: ['egl'], destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'price', page: 1 }}
+      operators={operators} places={places} t={makeT(locale)} onChange={onChange} today="2026-11-12" show={{ dates: false, exclude: true }}
+    />,
+  );
+  expect(pill(destPill)).toBeInTheDocument();
+  await user.click(pill(opsPill));
+  expect(screen.getByRole('checkbox', { name: opName })).toBeChecked();
+  await user.click(pill(excludePill));
+  const northeast = screen.getByRole('group', { name: group });
+  expect(within(northeast).getByRole('checkbox', { name: korea })).not.toBeChecked();
 });

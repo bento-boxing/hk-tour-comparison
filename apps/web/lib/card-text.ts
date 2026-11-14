@@ -1,29 +1,36 @@
 import { daysBetween, isIsoDate, tourRegions, type IsoDate, type PlacesIndex, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
-import { formatPrice } from './format';
-import { makeT, type DictKey, type T } from './i18n';
+import { formatPrice, monthName } from './format';
+import { DEFAULT_LOCALE, makeT, type DictKey, type Locale, type T } from './i18n';
+import { placeName } from './place-names';
 
 // The text pieces of a tour card. Pure: no React, no clock, no local-timezone Date arithmetic.
 
-/** One name per stop: the city's nameZh, or the region's when the stop has no city. Unknown ids fall back to the region, then the id. */
-export function routeNames(stops: Stop[], places: PlacesIndex): string[] {
+/**
+ * One name per stop, in the visitor's language: the city's, or the region's when the stop has no city.
+ * Unknown ids fall back to the region, then the id.
+ */
+export function routeNames(stops: Stop[], places: PlacesIndex, locale: Locale = DEFAULT_LOCALE): string[] {
   return stops.map(s => {
-    const city = s.cityId === null ? undefined : places.city(s.cityId);
-    return city?.nameZh ?? places.region(s.regionId)?.nameZh ?? s.regionId;
+    const place = (s.cityId === null ? undefined : places.city(s.cityId)) ?? places.region(s.regionId);
+    return place ? placeName(place, locale) : s.regionId;
   });
 }
 
 /**
  * The first `country · region` of the route, e.g. '日本 · 關西', and '日本 · 關西 +2' when two more
  * regions follow; just '法國' when the region's name is the country's. Empty for a tour without stops.
- * `t` defaults to the public zh-Hant text.
+ * Names are in `t`'s language; `t` defaults to the zh-Hant text.
  */
-export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT('zh-Hant')): string {
+export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT(DEFAULT_LOCALE)): string {
   const [first, ...rest] = tourRegions(stops);
   if (!first) return '';
-  const country = places.country(first.countryId)?.nameZh ?? first.countryId;
-  const region = first.regionId === null ? null : places.region(first.regionId)?.nameZh ?? first.regionId;
+  const country = places.country(first.countryId);
+  const region = first.regionId === null ? undefined : places.region(first.regionId);
+  const countryText = country ? placeName(country, t.locale) : first.countryId;
+  const regionText = first.regionId === null ? null : region ? placeName(region, t.locale) : first.regionId;
   // A region named like its country (法國 · 法國) is not named twice.
-  const label = region === null || region === country ? country : `${country} · ${region}`;
+  const sameName = region !== undefined && country !== undefined ? region.nameZh === country.nameZh : regionText === countryText;
+  const label = regionText === null || sameName ? countryText : `${countryText} · ${regionText}`;
   return rest.length === 0 ? label : `${label} ${t('card.moreRegions', { n: rest.length })}`;
 }
 
@@ -61,15 +68,10 @@ const WEEKDAY_KEYS = [
   'date.weekday.4', 'date.weekday.5', 'date.weekday.6',
 ] as const satisfies readonly DictKey[];
 
-const MONTH_KEYS = [
-  'date.month.1', 'date.month.2', 'date.month.3', 'date.month.4', 'date.month.5', 'date.month.6',
-  'date.month.7', 'date.month.8', 'date.month.9', 'date.month.10', 'date.month.11', 'date.month.12',
-] as const satisfies readonly DictKey[];
-
 /** '2026年12月18日（五）' (en: 'Fri 18 Dec 2026'). The weekday comes from the date read as UTC. Null for a bad date. */
 export function departureDateText(date: IsoDate, t: T): string | null {
   if (!isIsoDate(date)) return null;
   const [year, month, day] = date.split('-').map(Number);
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  return t('date.long', { year, month, day, weekday: t(WEEKDAY_KEYS[weekday]), monthName: t(MONTH_KEYS[month - 1]) });
+  return t('date.long', { year, month, day, weekday: t(WEEKDAY_KEYS[weekday]), monthName: monthName(month, t) });
 }

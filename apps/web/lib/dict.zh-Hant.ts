@@ -1,13 +1,16 @@
-// The source of truth for every UI string. dict.en.ts must have exactly the same keys.
+// The source of truth for every UI string. dict.zh-Hans.ts and dict.en.ts must have exactly the same keys,
+// each with the same {placeholders} (pinned by a test).
 const zh = {
   'site.name': '跟邊團',
+  'lang.label': '語言', // the language switch's accessible name
+  'notice.cantonese': '旅行團一般以粵語進行，詳情請向旅行社查詢。', // shown only in the other languages
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
   'length.daysNights': '{days}日{nights}夜',
   'length.days': '{days}日',
   'updated.today': '更新：今日 {time}',
-  'updated.on': '更新：{month}月{day}日 {time}',
+  'updated.on': '更新：{monthName}{day}日 {time}', // {monthName} is a date.month.* text: '11月'
   'dest.placeholder': '輸入國家、地區或城市',
   'dest.none': '沒有相符地區',
   'dest.includes': '包括 {cities}',
@@ -39,7 +42,7 @@ const zh = {
   'card.linkLabel': '{operator}：{route}，{length}，{price}起', // the card link's accessible name
   'picker.title': '選擇出發日期',
   'picker.close': '關閉',
-  'date.long': '{year}年{month}月{day}日（{weekday}）', // {monthName} is also available
+  'date.long': '{year}年{monthName}{day}日（{weekday}）', // {monthName} is a date.month.* text: '12月'
   'date.weekday.0': '日',
   'date.weekday.1': '一',
   'date.weekday.2': '二',

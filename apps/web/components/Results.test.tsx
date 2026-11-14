@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 import { I18nProvider } from '../lib/i18n-client';
 import { Results, type ResultsProps } from './Results';
 import { ResultsConnected } from './ResultsConnected';
@@ -11,7 +11,7 @@ import { ResultsConnected } from './ResultsConnected';
 const push = vi.fn<(href: string) => void>();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
-const t: T = (key, vars) => translate('zh-Hant', key, vars);
+const t = makeT('zh-Hant');
 const today = '2026-11-12';
 
 const operators: OperatorInfo[] = [

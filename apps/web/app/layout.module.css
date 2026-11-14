@@ -1,5 +1,11 @@
 .content { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
 
+/*
+ * With the fixed language notice: anything the browser scrolls into view (focus, a #fragment) stops below
+ * it. 5rem covers the notice at up to three lines; the notice's own spacer handles where the page starts.
+ */
+.withNotice { scroll-padding-top: 5rem; }
+
 @media (max-width: 639px) {
   .content { padding: 0 16px; }
 }

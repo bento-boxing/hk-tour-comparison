@@ -3,9 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IsoDate, ScrapedDeparture } from '@hktours/core';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
+const tZh = makeT('zh-Hant');
 
 const departures: ScrapedDeparture[] = [
   { date: '2026-12-18', priceHkd: 7999 },
@@ -123,10 +123,10 @@ it('leaves out dates before today', () => {
   expect(screen.getAllByRole('listitem')).toHaveLength(3);
 });
 
-it('reads sensibly in developer English', () => {
-  const tEn: T = (key, vars) => translate('en', key, vars);
+it('reads naturally in English', () => {
+  const tEn = makeT('en');
   render(<DeparturePicker departures={departures} fallbackPriceHkd={7999} today="2026-11-12" t={tEn} onPick={onPick} onClose={onClose} />);
   expect(screen.getByRole('dialog', { name: 'Choose a departure date' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Fri 18 Dec 2026 HK$7,999' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Sun 20 Dec 2026 HK$7,999 from' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Sun 20 Dec 2026 HK$7,999 and up' })).toBeInTheDocument();
 });

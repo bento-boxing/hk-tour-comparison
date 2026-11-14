@@ -5,11 +5,11 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places, type ChainState, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 import { resolveChain, type ResolvedLeg } from '../lib/chain';
 import { ChainStrip, type ChainStripProps } from './ChainStrip';
 
-const t: T = (key, vars) => translate('zh-Hant', key, vars);
+const t = makeT('zh-Hant');
 const today = '2026-11-12';
 
 const kansai = (city: string): Stop => ({ countryId: 'japan', regionId: 'japan-kansai', cityId: `japan-kansai-${city}` });
@@ -165,4 +165,13 @@ it('follows the mockup: panel strip, dashed khaki connector, dashed placeholder,
   expect(rules).toMatch(/\.gapbox \{[^}]*border: 2px solid var\(--cerulean\)/);
   expect(rules).toMatch(/\.leg\.next \{[^}]*border: 2px dashed var\(--khaki\)/);
   expect(rules).toMatch(/\.totalPrice \{[^}]*font-size: 20px[^}]*color: var\(--cerulean\)/);
+});
+
+it('names the route and the operator in the visitor\'s language', () => {
+  renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('en') });
+  const [first, second] = legBoxes();
+  expect(first).toHaveTextContent('Osaka → Kyoto → Nara → Kobe');
+  expect(first).toHaveTextContent('東瀛遊 (EGL Tours)');
+  expect(second).toHaveTextContent('Seoul');
+  expect(second).toHaveTextContent('專業旅運 (Travel Expert)');
 });

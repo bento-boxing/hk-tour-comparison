@@ -1,11 +1,11 @@
 import { it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PAGE_SIZE } from '@hktours/db/read';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 import type { SearchState } from '../lib/search-params';
 import { Pager } from './Pager';
 
-const t: T = (key, vars) => translate('zh-Hant', key, vars);
+const t = makeT('zh-Hant');
 const state = (page: number): SearchState => ({ filters: { daysMin: 4 }, sort: 'days', page });
 const total = PAGE_SIZE * 2 + 1; // three pages
 

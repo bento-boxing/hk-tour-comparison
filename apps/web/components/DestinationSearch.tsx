@@ -1,8 +1,9 @@
 'use client';
 
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { suggestRegions, ALL_REGIONS_LABEL, type Destination, type PlacesIndex, type Suggestion } from '@hktours/core';
+import { suggestRegions, type Destination, type PlacesIndex, type Suggestion } from '@hktours/core';
 import type { T } from '../lib/i18n';
+import { placeName } from '../lib/place-names';
 import styles from './DestinationSearch.module.css';
 
 export interface DestinationSearchProps {
@@ -11,21 +12,27 @@ export interface DestinationSearchProps {
   onSelect: (dest: Destination | null) => void;
 }
 
-/** '日本 → 關西', or '日本 → 全部地區' when regionId is null. Same wording as the suggestion labels. */
-export function destinationLabel(dest: Destination, places: PlacesIndex): string {
-  const country = places.country(dest.countryId)?.nameZh ?? dest.countryId;
-  const region = dest.regionId === null ? ALL_REGIONS_LABEL : places.region(dest.regionId)?.nameZh ?? dest.regionId;
-  return `${country} → ${region}`;
+/**
+ * '日本 → 關西', or '日本 → 全部地區' when regionId is null, in `t`'s language ('Japan → Kansai'). Every
+ * suggestion row and the chosen destination are labelled this way.
+ */
+export function destinationLabel(dest: Destination, places: PlacesIndex, t: T): string {
+  const country = places.country(dest.countryId);
+  const region = dest.regionId === null ? undefined : places.region(dest.regionId);
+  const countryText = country ? placeName(country, t.locale) : dest.countryId;
+  const regionText = dest.regionId === null ? t('dest.allRegions') : region ? placeName(region, t.locale) : dest.regionId;
+  return `${countryText} → ${regionText}`;
 }
 
 const HINT_CITY_COUNT = 4;
 
-/** The first four cities of the suggested region, the matched city first. None for a whole country. */
-function hintCities(s: Suggestion, places: PlacesIndex): string[] {
+/** The first four cities of the suggested region, the matched city first, in `t`'s language. None for a whole country. */
+function hintCities(s: Suggestion, places: PlacesIndex, t: T): string[] {
   if (s.destination.regionId === null) return [];
-  const names = places.citiesOf(s.destination.regionId).map(c => c.nameZh);
-  const ordered = s.via === null ? names : [s.via, ...names.filter(n => n !== s.via)];
-  return ordered.slice(0, HINT_CITY_COUNT);
+  const cities = places.citiesOf(s.destination.regionId);
+  // `via` is the matched city's Traditional name.
+  const ordered = s.via === null ? cities : [...cities.filter(c => c.nameZh === s.via), ...cities.filter(c => c.nameZh !== s.via)];
+  return ordered.slice(0, HINT_CITY_COUNT).map(c => placeName(c, t.locale));
 }
 
 const keyOf = (dest: Destination | null) => (dest ? `${dest.countryId}:${dest.regionId ?? ''}` : '');
@@ -40,15 +47,16 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
   const optionId = (i: number) => `${id}-option-${i}`;
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [text, setText] = useState(() => (value ? destinationLabel(value, places) : ''));
+  const [text, setText] = useState(() => (value ? destinationLabel(value, places, t) : ''));
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1); // highlighted option; -1 for none
 
-  // A new value from outside (panels, filter bar, address) replaces the text.
-  const [shownKey, setShownKey] = useState(keyOf(value));
-  if (shownKey !== keyOf(value)) {
-    setShownKey(keyOf(value));
-    setText(value ? destinationLabel(value, places) : '');
+  // A new value from outside (panels, filter bar, address), or a new language, replaces the text.
+  const shown = `${t.locale}|${keyOf(value)}`;
+  const [shownKey, setShownKey] = useState(shown);
+  if (shownKey !== shown) {
+    setShownKey(shown);
+    setText(value ? destinationLabel(value, places, t) : '');
     setOpen(false);
     setActive(-1);
   }
@@ -64,7 +72,7 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
 
   const choose = (s: Suggestion) => {
     onSelect(s.destination);
-    setText(s.label);
+    setText(destinationLabel(s.destination, places, t));
     close();
   };
 
@@ -127,7 +135,7 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
       {listOpen && (
         <ul id={listboxId} role="listbox" aria-label={t('dest.placeholder')} className={styles.sugg}>
           {suggestions.map((s, i) => {
-            const cities = hintCities(s, places);
+            const cities = hintCities(s, places, t);
             return (
               <li
                 key={keyOf(s.destination)}
@@ -140,7 +148,7 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
                 onMouseMove={() => setActive(i)}
                 onClick={() => choose(s)}
               >
-                <span className={styles.label}>{s.label}</span>
+                <span className={styles.label}>{destinationLabel(s.destination, places, t)}</span>
                 {cities.length > 0 && (
                   <>{' '}<small className={styles.hint}>{t('dest.includes', { cities: cities.join(t('dest.listSeparator')) })}</small></>
                 )}

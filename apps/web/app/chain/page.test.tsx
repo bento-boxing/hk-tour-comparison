@@ -11,6 +11,7 @@ import { resolveChain } from '../../lib/chain';
 import type { ChainPageData } from '../../lib/chain-page-data';
 
 const mocks = vi.hoisted(() => ({
+  locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
   loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string) => Promise<ChainPageData>>(),
   push: vi.fn<(href: string, opts?: { scroll?: boolean }) => void>(),
@@ -18,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   query: { value: '' },
 }));
 vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
+// The language cookie: none, so Traditional Chinese, unless a test sets it.
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'locale' && mocks.locale.value ? { name, value: mocks.locale.value } : undefined) }) }));
 vi.mock('../../lib/chain-page-data', () => ({ loadChainPage: mocks.loadChainPage }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow

@@ -43,3 +43,9 @@ it('muted text meets WCAG AA (4.5:1) on white and on the highlighted row', () =>
   expect(contrast(token('text-muted'), '#ffffff')).toBeGreaterThanOrEqual(4.5);
   expect(contrast(token('text-muted'), token('hit'))).toBeGreaterThanOrEqual(4.5);
 });
+
+it('the language notice (snow text on the owner\'s #800000) meets WCAG AA (4.5:1)', () => {
+  expect(token('notice-maroon')).toBe('#800000');
+  expect(contrast(token('snow'), token('notice-maroon'))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(token('snow'), token('notice-maroon'))).toBeCloseTo(10.75, 1);
+});

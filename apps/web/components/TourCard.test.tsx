@@ -6,9 +6,9 @@ import userEvent from '@testing-library/user-event';
 import { places, type Stop } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db';
 import { TourCard, MAX_DATE_CHIPS, type TourCardProps } from './TourCard';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
+const tZh = makeT('zh-Hant');
 
 const kansai = (cityId: string): Stop => ({ countryId: 'japan', regionId: 'japan-kansai', cityId });
 const tour: TourCardData = {
@@ -83,9 +83,9 @@ it('gives the link a short accessible name instead of the whole card text', () =
 });
 
 it('joins the route in the link name with the dictionary separator', () => {
-  const tEn: T = (key, vars) => translate('en', key, vars);
+  const tEn = makeT('en');
   render(<TourCard {...props} t={tEn} />);
-  expect(screen.getByRole('link')).toHaveAccessibleName('東瀛遊: 大阪, 京都, 奈良, 神戶, 5D4N, from HK$7,999');
+  expect(screen.getByRole('link')).toHaveAccessibleName('東瀛遊 (EGL Tours): Osaka, Kyoto, Nara, Kobe, 5 days, 4 nights, from HK$7,999');
 });
 
 it('describes the link with the price change and the dates', () => {

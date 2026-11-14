@@ -3,9 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places, buildPlacesIndex, suggestRegions, type Destination } from '@hktours/core';
 import { DestinationSearch, destinationLabel } from './DestinationSearch';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 
-const tZh: T = (key, vars) => translate('zh-Hant', key, vars);
+const tZh = makeT('zh-Hant');
 const kansai: Destination = { countryId: 'japan', regionId: 'japan-kansai' };
 
 let onSelect: ReturnType<typeof vi.fn<(dest: Destination | null) => void>>;
@@ -59,10 +59,10 @@ it('the hint lists four cities of the region with the matched city first', async
 });
 
 it('the hint separator comes from the dictionary', async () => {
-  const tEn: T = (key, vars) => translate('en', key, vars);
+  const tEn = makeT('en');
   render(<DestinationSearch places={tiny} t={tEn} value={null} onSelect={onSelect} />);
   await user.type(screen.getByRole('combobox'), '甲區');
-  expect(screen.getAllByRole('option')[0]).toHaveTextContent('甲國 → 甲區 Includes 一城, 二城, 三城, 四城');
+  expect(screen.getAllByRole('option')[0]).toHaveTextContent('A → 甲區 Includes 一城, 二城, 三城, 四城'); // no English region or city names: Chinese
 });
 
 it('a city in a single-region country suggests the whole country once', async () => {
@@ -253,7 +253,50 @@ it('pointing at a row highlights it instead of leaving two rows lit', async () =
   expect(onSelect).toHaveBeenCalledWith(suggestRegions('日本', places)[2].destination);
 });
 
-it('destinationLabel names the country and region', () => {
-  expect(destinationLabel(kansai, places)).toBe('日本 → 關西');
-  expect(destinationLabel({ countryId: 'japan', regionId: null }, places)).toBe('日本 → 全部地區');
+it('destinationLabel names the country and region in the visitor\'s language', () => {
+  expect(destinationLabel(kansai, places, tZh)).toBe('日本 → 關西');
+  expect(destinationLabel({ countryId: 'japan', regionId: null }, places, tZh)).toBe('日本 → 全部地區');
+  expect(destinationLabel(kansai, places, makeT('zh-Hans'))).toBe('日本 → 关西');
+  expect(destinationLabel({ countryId: 'korea', regionId: null }, places, makeT('zh-Hans'))).toBe('韩国 → 全部地区');
+  expect(destinationLabel(kansai, places, makeT('en'))).toBe('Japan → Kansai');
+  expect(destinationLabel({ countryId: 'japan', regionId: null }, places, makeT('en'))).toBe('Japan → All regions');
+});
+
+it.each([
+  // [language, typed, first suggestion's label and hint]
+  ['zh-Hant', '東京', '日本 → 關東 包括 東京'],
+  ['zh-Hant', '东京', '日本 → 關東 包括 東京'],
+  ['zh-Hant', 'Tokyo', '日本 → 關東 包括 東京'],
+  ['zh-Hans', '东京', '日本 → 关东 包括 东京'],
+  ['zh-Hans', '東京', '日本 → 关东 包括 东京'],
+  ['zh-Hans', 'Tokyo', '日本 → 关东 包括 东京'],
+  ['en', 'Tokyo', 'Japan → Kanto Includes Tokyo'],
+  ['en', '東京', 'Japan → Kanto Includes Tokyo'],
+  ['en', '东京', 'Japan → Kanto Includes Tokyo'],
+] as const)('%s: typing %s finds Tokyo, labelled in that language', async (locale, typed, label) => {
+  render(<DestinationSearch places={places} t={makeT(locale)} value={null} onSelect={onSelect} />);
+  await user.type(screen.getByRole('combobox'), typed);
+  const first = screen.getAllByRole('option')[0];
+  expect(first.textContent).toMatch(new RegExp(`^${label}`));
+  await user.click(first);
+  expect(onSelect).toHaveBeenCalledWith({ countryId: 'japan', regionId: 'japan-kanto' });
+  expect(screen.getByRole('combobox')).toHaveValue(label.split(/ 包括| Includes/)[0]);
+});
+
+it.each([
+  ['zh-Hans', '韩国', '韩国 → 全部地区'],
+  ['zh-Hans', '韓國', '韩国 → 全部地区'],
+  ['en', 'south korea', 'South Korea → All regions'],
+  ['en', '韓國', 'South Korea → All regions'],
+] as const)('%s: the country search: typing %s offers %s', async (locale, typed, label) => {
+  render(<DestinationSearch places={places} t={makeT(locale)} value={null} onSelect={onSelect} />);
+  await user.type(screen.getByRole('combobox'), typed);
+  expect(screen.getAllByRole('option').map(o => o.textContent)).toContain(label);
+});
+
+it('a new language relabels the chosen destination in the box', () => {
+  const { rerender } = render(<DestinationSearch places={places} t={tZh} value={kansai} onSelect={onSelect} />);
+  expect(screen.getByRole('combobox')).toHaveValue('日本 → 關西');
+  rerender(<DestinationSearch places={places} t={makeT('en')} value={kansai} onSelect={onSelect} />);
+  expect(screen.getByRole('combobox')).toHaveValue('Japan → Kansai');
 });

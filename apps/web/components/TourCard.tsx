@@ -6,6 +6,7 @@ import type { OperatorInfo, TourCardData } from '@hktours/db';
 import type { T } from '../lib/i18n';
 import { formatChipDate, formatLength, formatPrice, formatUpdated } from '../lib/format';
 import { priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
+import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import styles from './TourCard.module.css';
 
@@ -43,7 +44,8 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const changeId = `${id}-change`;
   const datesId = `${id}-dates`;
 
-  const route = routeNames(tour.stops, places);
+  const route = routeNames(tour.stops, places, t.locale);
+  const operatorText = operatorName(operator, t.locale);
   const region = regionLabel(tour.stops, places, t);
   const length = formatLength(tour.days, tour.nights, t);
   const price = formatPrice(tour.windowPriceHkd);
@@ -70,7 +72,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const body = (
     <>
       <div className={styles.top}>
-        <span className={styles.op}>{operator.nameZh}</span>
+        <span className={styles.op}>{operatorText}</span>
         {region && <span className={styles.reg}>{region}</span>}
       </div>
       <h3 className={styles.route}>
@@ -102,7 +104,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
             {updated && <span>{updated}</span>}
           </span>
         )}
-        {linkable && <span className={styles.go}>{t('card.goTo', { operator: operator.nameZh })}</span>}
+        {linkable && <span className={styles.go}>{t('card.goTo', { operator: operatorText })}</span>}
       </div>
     </>
   );
@@ -115,7 +117,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
           href={tour.url}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={t('card.linkLabel', { operator: operator.nameZh, route: route.join(t('dest.listSeparator')), length, price })}
+          aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
           aria-describedby={describedBy || undefined}
         >
           {body}

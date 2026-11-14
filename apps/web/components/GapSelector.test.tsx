@@ -4,10 +4,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MAX_GAP_DAYS } from '@hktours/core';
-import { translate, type T } from '../lib/i18n';
+import { makeT } from '../lib/i18n';
 import { GapSelector } from './GapSelector';
 
-const t: T = (key, vars) => translate('zh-Hant', key, vars);
+const t = makeT('zh-Hant');
 
 let onChange: ReturnType<typeof vi.fn<(gap: { min: number; max: number }) => void>>;
 let user: ReturnType<typeof userEvent.setup>;
