@@ -4,7 +4,7 @@ export interface RunCheckInput {
   parseFailures: number;            // parser null, schema failure, or normaliseTour 'no-stops' / 'no-price'
   previousGoodCount: number | null; // from previousGoodTourCount
   minExpectedTours?: number | null; // the scraper's floor for runs with no previous good count
-  pagesDiscovered: number;          // distinct tour page URLs the scraper found tonight
+  pagesDiscovered: number;          // distinct tour page URLs the scraper found tonight, less those fetchPage reported gone
   pagesNotFetched: number;          // of those, pages the fetcher could not get (fetchText, or the scraper's fetchPage, gave null or threw); a page fetchPage reports gone is neither
 }
 
