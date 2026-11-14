@@ -294,6 +294,13 @@ describe('allow-list mode', () => {
       + '2:I["",""]\n');
   });
 
+  it('removes dropped elements with everything inside them, in this mode and the other', () => {
+    const html = '<div><h1 class="title">5天 大阪</h1><footer><a href="http://wa.me/+85200000000">WhatsApp</a></footer>'
+      + '<a class="btn" href="https://example.test/?page_id=1&amp;tcode=X">預訂</a></div>';
+    expect(trimFixture(html, { ...allow(['h1.title']), drop: ['a'] })).toBe('<div><h1 class="title">5天 大阪</h1><footer></footer></div>');
+    expect(trimFixture(html, { drop: ['footer', '.btn'] })).toBe('<div><h1 class="title">5天 大阪</h1></div>');
+  });
+
   it('never writes a closing script tag inside kept flight data', () => {
     const payload = '7:["$","p",null,{"code":"</script><b>"}]\n';
     const out = trimFixture(`<html><body>${push(payload)}</body></html>`, allow([], ['code']));

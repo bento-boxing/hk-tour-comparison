@@ -57,6 +57,11 @@ export interface TrimOptions {
    * structure, numbers and booleans stay, so the parser's selectors and paths still resolve.
    */
   allow?: AllowList;
+  /**
+   * CSS selectors of elements removed with everything inside them, in either mode: for markup the parser never
+   * reads but that carries links or contact details out of the page, such as a footer's WhatsApp link.
+   */
+  drop?: string[];
 }
 
 /** Text kept by `TrimOptions.keepSelectors`: the elements, and every text they hold. */
@@ -71,6 +76,7 @@ export function trimFixture(html: string, opts: TrimOptions = {}): string {
   const $ = load(html, null, isDocument);
 
   $(REMOVED_ELEMENTS).remove();
+  if (opts.drop !== undefined && opts.drop.length > 0) $(opts.drop.join(', ')).remove();
   if (opts.allow) {
     trimToAllowList($, opts.allow);
     return isDocument ? $.html() : $.root().html() ?? '';

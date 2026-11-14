@@ -19,6 +19,9 @@
  *     --allow-key-in <selector> <key>  the same, but only in the JSON of elements matching the selector
  *   Each is repeatable. Each operator's lists are in docs/operators/<id>.md.
  *
+ *   --drop <selector> (repeatable, in either mode) removes matching elements with everything inside them,
+ *     for markup the parser never reads that carries links out of the page (a footer's WhatsApp link).
+ *
  * Relative paths are taken from the directory the command was run in. An existing output
  * file is never overwritten. Each run creates its own fetcher, so back-to-back live runs are
  * not spaced: leave at least 3 seconds between runs against the same site.
@@ -35,6 +38,7 @@ const USAGE = [
   `--keep (repeatable): text inside matching elements is cut only above ${KEEP_TEXT_LIMIT} characters.`,
   'Allow-list mode, instead of --keep: --allow <selector>, --allow-max <n> <selector>, --allow-key <key>,',
   '--allow-key-in <selector> <key> (each repeatable);',
+  '--drop <selector> (repeatable, either mode) removes matching elements and everything inside them;',
   `only text in allowed elements (cut above ${KEEP_TEXT_LIMIT}, or n, characters) and JSON strings under allowed keys is kept.`,
   'Each run creates its own fetcher, so back-to-back live runs are not spaced;',
   'leave at least 3 seconds between runs against the same site.',
@@ -55,12 +59,14 @@ function optionValue(argv: string[], at: number): string {
 /** Splits the trim options (`--keep`, `--allow`, `--allow-max`, `--allow-key`, `--allow-key-in`) from the other arguments. */
 function parseArgs(argv: string[]): { trim: TrimOptions; args: string[] } {
   const keepSelectors: string[] = [];
+  const drop: string[] = [];
   const allow: Required<AllowList> = { selectors: [], jsonKeys: [], scopedJsonKeys: [] };
   const args: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--') continue;
     if (arg === '--keep') keepSelectors.push(optionValue(argv, ++i));
+    else if (arg === '--drop') drop.push(optionValue(argv, ++i));
     else if (arg === '--allow') allow.selectors.push(optionValue(argv, ++i));
     else if (arg === '--allow-key') allow.jsonKeys.push(optionValue(argv, ++i));
     else if (arg === '--allow-key-in') {
@@ -75,7 +81,7 @@ function parseArgs(argv: string[]): { trim: TrimOptions; args: string[] } {
   }
   const allowListGiven = allow.selectors.length > 0 || allow.jsonKeys.length > 0 || allow.scopedJsonKeys.length > 0;
   if (allowListGiven && keepSelectors.length > 0) fail(USAGE);
-  return { trim: allowListGiven ? { allow } : { keepSelectors }, args };
+  return { trim: { ...(allowListGiven ? { allow } : { keepSelectors }), drop }, args };
 }
 
 async function main(): Promise<void> {

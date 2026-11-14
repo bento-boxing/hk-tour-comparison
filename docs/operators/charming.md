@@ -199,10 +199,11 @@ They were trimmed in allow-list mode from the saved pages (`f07-china-pccgg.raw`
 pnpm --filter @hktours/scraper fixture \
   --allow .tour-title --allow .tour-journeys-day-title --allow .tour-journeys-title \
   --allow .reservation-table-related_date --allow .reservation-table-code --allow .reservation-table-td.adt_price \
+  --drop a --drop form --drop .social-container \
   --from <saved page> <output>.html
 ```
 
-The status (`FU`, `HP` …) is a class, which is kept without being listed. Every committed fixture was checked: the only text left is the title, the day labels and headings, the dates, row codes and adult prices; no attribute holds Chinese text; no email address. The footer's company WhatsApp link (`wa.me/+852…`, the company's public number) stays, as Jetour's company phone number does in its fixtures.
+The status (`FU`, `HP` …) is a class, which is kept without being listed. `--drop` (added to the trim tool for Charming, 2026-11-14 review) removes elements with everything inside them: every link (`a`: the menu, the footer's WhatsApp and social links, the booking links `?page_id=48197&tcode=…`), every form (search, newsletter) and the share widget (`.social-container`), none of which the parser reads. Every committed fixture was checked: the only text left is the title, the day labels and headings, the dates, row codes and adult prices; no attribute holds Chinese text; no link, form, email address or phone number is left. The one script left is Yoast's JSON-LD with every string emptied.
 
 **Requests for the fixtures** (budget 8; **7 used**). Each through `createFetcher()` with default options (one fetcher per run, so 3 s apart within a run), undici's `EnvHttpProxyAgent` installed as `cli.ts` does, GET, no extra headers; robots.txt was served from the copy saved in the investigation (2026-11-13 23:08 UTC), not requested again. Logged to `.superpowers/raw-pages/charming/ledger-fixtures.tsv`. Every answer was HTTP 200 with the full page; no refusal, block or challenge.
 
