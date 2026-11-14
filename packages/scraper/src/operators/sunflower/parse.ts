@@ -1,5 +1,8 @@
 import { load } from 'cheerio';
-import { isIsoDate, parsePriceHkd, type IsoDate, type ScrapedDeparture, type ScrapedTour } from '@hktours/core';
+import {
+  extractStops, isIsoDate, normaliseStartPoint, parsePriceHkd, places,
+  type IsoDate, type ScrapedDeparture, type ScrapedTour,
+} from '@hktours/core';
 import { bookingUrl, codeOf } from './discover';
 import { splitPage } from './fetch-page';
 import { CALENDAR, DAYS, MONTH, PRICE } from './public';
@@ -42,6 +45,30 @@ function clean(text: string): string {
 function titleText(html: string): string {
   const $ = load(html.replace(/<br\s*\/?>/gi, ' '), null, false);
   return clean($.root().text());
+}
+
+/**
+ * Brackets and marks around a title's parts (`【3天金秋韶關賞銀杏紅葉純玩美食團】`, `《…》`, `▪`): spaces in the route
+ * line. The shared rules drop a bracketed note with its text, and a Sunflower title keeps most of its places inside
+ * brackets.
+ */
+const TITLE_MARKS = /[【】《》「」『』〔〕\[\]()（）<>＜＞“”"‘’!！?？:：;；+＋*＊▪•●★☆♥❤&＆]/g;
+
+/** The title as a route line for the shared rules. */
+function routeLine(title: string): string {
+  return title.replace(TITLE_MARKS, ' ').replace(/\s+/g, ' ').trim();
+}
+
+const HONG_KONG_CITY_ID = 'hongkong-hongkong-hongkong';
+const SHENZHEN_CITY_ID = 'china-guangdong-shenzhen';
+
+/**
+ * True when the route line names a stop by the shared rules, leaving out Hong Kong, and Shenzhen for a tour that
+ * gathers at the Shenzhen border, as normaliseTour does.
+ */
+function namesStop(line: string, gathering: string | null): boolean {
+  const excluded = normaliseStartPoint(gathering, places).kind === 'sz' ? [HONG_KONG_CITY_ID, SHENZHEN_CITY_ID] : [HONG_KONG_CITY_ID];
+  return extractStops([line], places, excluded).stops.length > 0;
 }
 
 /** A listing price, given as a number (`2699`) or text (`2,699`): whole HKD, or null under 100 or absent. */
@@ -120,19 +147,30 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     .map(([date, priceHkd]) => ({ date, priceHkd }))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-  const gathering = entry.region === GUANGDONG_SHORT_TRIPS ? GATHERING[code.slice(-2)] ?? null : null;
+  const guangdong = entry.region === GUANGDONG_SHORT_TRIPS;
+  const gathering = guangdong ? GATHERING[code.slice(-2)] ?? null : null;
+  const title = titleText(entry.Title);
+  const subarea = clean(entry.subarea).split(SUBAREA_SEPARATOR).map(name => name.trim()).filter(name => name !== '');
   const area = clean(entry.area);
+  // No day headings (the itinerary is a PDF robots.txt disallows). The region is a sales grouping, never read.
+  // - Every tour: the subarea's names stand in for the headings; the area is read only when they give no stop.
+  // - Guangdong short trips (owner decision 2026-11-14): their subarea is the same `廣州、中山、深圳` whatever the tour
+  //   visits, so the title comes first. When it names a stop it is the tour's fallbackRoute with no headings, so the
+  //   shared rules read it and its other words are never reported as unmatched place names (a title is not a list
+  //   of places); when it names none, the subarea and the area are read as for any tour.
+  const titleRoute = guangdong ? routeLine(title) : '';
+  const route = titleRoute !== '' && namesStop(titleRoute, gathering)
+    ? { line: [], fallback: titleRoute }
+    : { line: subarea, fallback: area };
   return {
     operatorId: 'sunflower',
     code,
     url: bookingUrl(code),
-    title: titleText(entry.Title),
+    title,
     days: Number(days[1]),
     nights: null,
-    // No day headings (the itinerary is a PDF robots.txt disallows): the subarea's names stand in for them, read by
-    // the shared rules; the area is read only when they give no stop. The region is a sales grouping, never read.
-    dayHeadings: clean(entry.subarea).split(SUBAREA_SEPARATOR).map(name => name.trim()).filter(name => name !== ''),
-    ...(area === '' ? {} : { fallbackRoute: area }),
+    dayHeadings: route.line,
+    ...(route.fallback === '' ? {} : { fallbackRoute: route.fallback }),
     // A province listed beside its own cities (`廣西、桂林`, `雲南、昆明、…`) is a tag, not a stop.
     dropRegionWithListedCity: true,
     startPoint: gathering,

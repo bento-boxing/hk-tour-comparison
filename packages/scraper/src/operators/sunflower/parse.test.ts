@@ -188,6 +188,52 @@ describe('the route', () => {
   });
 });
 
+describe('the route of a Guangdong short trip (owner decision 2026-11-14)', () => {
+  const at = (code: string) => `https://www.sunflower.com.hk/OnlineBooking/?TourCode=${code}`;
+  const guangdong = (code: string, overrides: Record<string, unknown>) => {
+    const tour = readTour(joinPage({
+      today: TODAY,
+      entry: publicEntry(row({ region: '中國短線', area: '廣東省', subarea: '廣州、中山、深圳', ...overrides }, code)),
+      page: publicBookingPage(page({ code })),
+    }), at(code));
+    if ('why' in tour) throw new Error(tour.why);
+    return { tour, r: normaliseTour(tour, places, TODAY) };
+  };
+
+  it('is read from the title, inside its brackets, before the subarea, and its other words are not reported', () => {
+    const { tour, r } = guangdong('CFAG03MK', { Title: '【3天金秋韶關賞銀杏紅葉純玩美食團】 旺角集散' });
+    expect(tour.dayHeadings).toEqual([]);
+    expect(tour.fallbackRoute).toBe('3天金秋韶關賞銀杏紅葉純玩美食團 旺角集散');
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['韶關']);
+    expect(r.unmatched).toEqual([]);
+  });
+
+  it('keeps every place the title names in separate words', () => {
+    const { r } = guangdong('CFXF03SP', { Title: '【3天 直航船 珠海 中山 江門 聖誕美食團】【赤坎古鎮賞非遺鐵火秀】' });
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['珠海', '中山', '江門']);
+  });
+
+  it('falls back to the subarea, then the area, when the title names no place', () => {
+    const subarea = guangdong('CFPS02MK', { Title: '追蹤香港小姐拍攝地從化增城溫泉2天純玩團 旺角集散' });
+    expect(subarea.tour.dayHeadings).toEqual(['廣州', '中山', '深圳']);
+    expect(subarea.tour.fallbackRoute).toBe('廣東省');
+    expect(subarea.r.ok && stopNames(subarea.r.tour.stops)).toEqual(['廣州', '中山', '深圳']);
+    const area = guangdong('CFPS02MK', { Title: '溫泉2天純玩團', subarea: '', area: '澳門' });
+    expect(area.r.ok && stopNames(area.r.tour.stops)).toEqual(['澳門']);
+  });
+
+  it('does not count Shenzhen in the title of a tour gathering at the Shenzhen border', () => {
+    const { tour, r } = guangdong('CFQQ02LW', { Title: '2天深圳純玩團 關口集散' });
+    expect(tour.dayHeadings).toEqual(['廣州', '中山', '深圳']);
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['廣州', '中山']);
+  });
+
+  it('is not used for any other region', () => {
+    const tour = tourOf(row({ region: '日韓', Title: '首爾5天', subarea: '釜山', area: '韓國' }));
+    expect([tour.dayHeadings, tour.fallbackRoute]).toEqual([['釜山'], '韓國']);
+  });
+});
+
 describe('the gathering point', () => {
   const pointOf = (code: string, region = '中國短線') => {
     const tour = tourOf(row({ region }, code), page({ code }), TODAY);
