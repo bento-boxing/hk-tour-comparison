@@ -139,14 +139,16 @@ it('a single-region country gives one country-wide row, never a region row as we
   expect(labels('france')).toEqual(['法國 → 全部地區']);
 });
 it('single-region countries reached by prefix or contains matches also give the country-wide row, keeping via', () => {
-  const l = suggestRegions('巴', places);
+  // Only the single-region countries' rows: a multi-region country's region (西藏, via 巴松措) may come first.
+  const l = suggestRegions('巴', places).filter(s => places.regionsOf(s.destination.countryId).length === 1);
   expect(l.slice(0, 2)).toEqual([
     { destination: { countryId: 'france', regionId: null }, label: '法國 → 全部地區', via: '巴黎' },
     { destination: { countryId: 'germany', regionId: null }, label: '德國 → 全部地區', via: '巴登巴登' },
   ]);
   expect(l.every(s => s.destination.regionId === null)).toBe(true);
-  // 雲南 (via 瑞麗) and 忠清道 (via 瑞山) are regions of multi-region countries, so they stay region rows.
-  expect(labels('瑞')).toEqual(['韓國 → 忠清道', '中國 → 雲南', '瑞士 → 全部地區', '瑞典 → 全部地區']);
+  // 雲南 (via 瑞麗) and 忠清道 (via 瑞山) are regions of multi-region countries, so they stay region rows;
+  // 摩洛哥 comes via 瑞薩尼 (Rissani).
+  expect(labels('瑞')).toEqual(['韓國 → 忠清道', '中國 → 雲南', '摩洛哥 → 全部地區', '瑞士 → 全部地區', '瑞典 → 全部地區']);
 });
 it('same-named cities in two single-region countries give one row per country', () => {
   expect(suggestRegions('聖城', buildPlacesIndex(oneRegionEach))).toEqual([
