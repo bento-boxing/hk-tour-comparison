@@ -1,0 +1,43 @@
+{
+  "name": "hk-tour-comparison",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": {
+    // Node 20 with pnpm at the version package.json pins.
+    "ghcr.io/devcontainers/features/node:1": { "version": "20", "pnpmVersion": "10.34.9" },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  // From the host filesystem, only this folder and the mounts below are visible inside the container.
+  "mounts": [
+    // Claude login and session history, kept in a Docker volume so you only log in once
+    "source=hk-tour-comparison-claude,target=/home/vscode/.claude,type=volume",
+    // This config folder, read-only, so nothing inside the container can change how the container is built.
+    // Edit these files from a local (non-container) VS Code window.
+    "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.devcontainer,type=bind,readonly"
+  ],
+  // No root inside the running container, and a memory cap so a runaway process can't stall the host.
+  // If the container fails to start, remove "--cap-drop=ALL" first.
+  "runArgs": ["--cap-drop=ALL", "--security-opt=no-new-privileges", "--memory=8g"],
+  // Install dependencies built for the container, replacing any copied from the host.
+  "postCreateCommand": "pnpm install --frozen-lockfile",
+  "remoteEnv": {
+    // Fine-grained GitHub token for this repository only, taken from the host's environment (never a file
+    // in the project). Export HK_TOUR_COMPARISON_GH_TOKEN on the host (e.g. in ~/.bashrc) and start VS Code
+    // from a terminal, so the variable is in its environment.
+    "GH_TOKEN": "${localEnv:HK_TOUR_COMPARISON_GH_TOKEN}",
+    "NEXT_TELEMETRY_DISABLED": "1",
+    // Firefox's own process sandbox cannot start in a container with all capabilities dropped; the
+    // container is the boundary here. Only used for headless screenshots of the local site.
+    "MOZ_DISABLE_CONTENT_SANDBOX": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"],
+      // Owner's choice (2026-11-15): inside this container Claude Code starts with no approval prompts.
+      // The container is the boundary. Remove these two lines to go back to being asked.
+      "settings": {
+        "claudeCode.allowDangerouslySkipPermissions": true,
+        "claudeCode.initialPermissionMode": "bypassPermissions"
+      }
+    }
+  }
+}
