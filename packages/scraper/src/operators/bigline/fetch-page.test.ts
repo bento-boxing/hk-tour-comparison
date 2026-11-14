@@ -173,9 +173,39 @@ describe('fetchPage', () => {
     for (let i = 0; i < 4; i++) expect(await run(gone.fetcher, PAGE)).toEqual({ skip: 'gone' });
     expect(gone.asked.map(a => a.method)).toEqual(['GET', 'GET', 'GET', 'GET']);
   });
-  it('only that exact not-found answer is gone; another code 500 fails the tour', async () => {
-    await expect(fetchPage()(fakeFetcher({ code: 500, msg: 'NOT_FOUND_ELSEWHERE' }).fetcher, PAGE)).rejects.toThrow(/code 500/);
-    await expect(fetchPage()(fakeFetcher({ code: 404, msg: '404 NOT_FOUND' }).fetcher, PAGE)).rejects.toThrow(/code 404/);
+  it.each([
+    ['another message', { code: 500, msg: 'NOT_FOUND_ELSEWHERE' }, /code 500/],
+    ['a message that only contains it', { code: 500, msg: 'upstream 404 NOT_FOUND: x' }, /code 500/],
+    ['the message with another code', { code: 404, msg: '404 NOT_FOUND' }, /code 404/],
+  ])('only that exact not-found answer is gone; %s fails the tour', async (_name, answer, message) => {
+    await expect(fetchPage()(fakeFetcher(answer).fetcher, PAGE)).rejects.toThrow(message);
+  });
+  it('after 10 gone answers in a row sends nothing more: the endpoint may have changed', async () => {
+    const run = fetchPage();
+    const gone = fakeFetcher({ code: 500, msg: '404 NOT_FOUND' });
+    for (let i = 0; i < 10; i++) expect(await run(gone.fetcher, PAGE)).toEqual({ skip: 'gone' });
+    const fine = fakeFetcher(rawDetail({ availableMonths: [] }));
+    await expect(run(fine.fetcher, PAGE)).rejects.toThrow(/10 tours in a row/);
+    expect(gone.asked).toHaveLength(10);
+    expect(fine.asked).toEqual([]);
+  });
+  it('a found tour between gone answers starts that count again', async () => {
+    const run = fetchPage();
+    const gone = fakeFetcher({ code: 500, msg: '404 NOT_FOUND' });
+    const fine = fakeFetcher(rawDetail({ availableMonths: [] }));
+    for (let i = 0; i < 9; i++) await run(gone.fetcher, PAGE);
+    expect(await run(fine.fetcher, PAGE)).not.toBeNull();
+    for (let i = 0; i < 9; i++) expect(await run(gone.fetcher, PAGE)).toEqual({ skip: 'gone' });
+  });
+  it.each([
+    ['code 503', { code: 503, msg: 'busy' }],
+    ['a JSON answer with no code', { msg: 'x' }],
+  ])('counts %s toward the refusal stop', async (_name, answer) => {
+    const run = fetchPage();
+    const refusing = fakeFetcher(answer);
+    for (let i = 0; i < 3; i++) await run(refusing.fetcher, PAGE).catch(() => null);
+    await expect(run(refusing.fetcher, PAGE)).rejects.toThrow(/refused 3 tour detail requests in a row/);
+    expect(refusing.asked).toHaveLength(3);
   });
   it('counts a page that is not JSON as a refusal (a block page)', async () => {
     const run = fetchPage();

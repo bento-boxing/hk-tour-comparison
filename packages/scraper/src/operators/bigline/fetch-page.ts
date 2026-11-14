@@ -13,11 +13,12 @@ export const MAX_MONTHS_PER_TOUR = 3;
 
 const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
 /**
- * JSON `code`s (inside an HTTP 200) that mean the API will not serve us. They, a 200 answer that is not
- * JSON (a block page) and no answer at all count toward MAX_CONSECUTIVE_PUSHBACK. Any other code other
+ * JSON `code`s (inside an HTTP 200) that mean the API will not serve us or asks us to slow down. They,
+ * a JSON answer with no code, a 200 answer that is not JSON (a block page) and no answer at all count
+ * toward MAX_CONSECUTIVE_PUSHBACK. Any other code other
  * than 200 fails only that tour (`500 "404 NOT_FOUND"` on a detail: the tour is gone, a skip).
  */
-const REFUSAL_CODES = [401, 403, 429];
+const REFUSAL_CODES = [401, 403, 429, 503];
 const OK = 200;
 
 /** What `parse` reads for one tour: the public facts of the detail and of each month requested. */
@@ -78,9 +79,17 @@ function read(text: string):
   if (!isObject(json)) return { refused: true, why: 'the answer is not a JSON object' };
   const code = typeof json.code === 'number' && Number.isInteger(json.code) ? json.code : null;
   if (code === OK) return { json };
-  if (code === GONE_CODE && typeof json.msg === 'string' && json.msg.includes(GONE_MESSAGE)) return { gone: true };
-  return { refused: code !== null && REFUSAL_CODES.includes(code), why: `the API answered code ${code ?? 'none'}` };
+  if (code === GONE_CODE && json.msg === GONE_MESSAGE) return { gone: true };
+  return { refused: code === null || REFUSAL_CODES.includes(code), why: `the API answered code ${code ?? 'none'}` };
 }
+
+/**
+ * After this many gone answers in a row, nothing more is requested and every later tour fails as not fetched
+ * (so the run fails its fetch-failure check). The crawl of 2026-11-14 met no gone tour in 587, so ten in a row
+ * almost certainly means the endpoint was renamed or answers not-found for everything, and stopping saves
+ * hundreds of wasted requests; ten is still enough for a run of tours genuinely removed together.
+ */
+export const MAX_GONE_IN_A_ROW = 10;
 
 /** One kind of request's refusals in a row: only a success of the same kind starts the count again. */
 interface RefusalCount { what: string; inARow: number }
@@ -92,7 +101,8 @@ interface RefusalCount { what: string; inARow: number }
  * - null, a page not fetched, when a request gets no answer (the fetcher gave up, or a POST failed: it is
  *   sent once); it throws (also counted as not fetched, with the reason in the run's log) when the API
  *   answers with an error code or a page that is not JSON.
- * - `{ skip: 'gone' }` when the detail answers code 500 `404 NOT_FOUND`: the tour no longer exists.
+ * - `{ skip: 'gone' }` when the detail answers code 500 with exactly `404 NOT_FOUND`: the tour no longer
+ *   exists. After MAX_GONE_IN_A_ROW of those in a row, nothing more is requested.
  * - Refusals are counted separately for the detail and for the dates, each started again only by a success
  *   of its own kind, so a good detail cannot hide refused dates. A refusal is no answer, a code 401/403/429,
  *   or a page that is not JSON. When either count reaches MAX_CONSECUTIVE_PUSHBACK, nothing more is sent for
@@ -101,6 +111,7 @@ interface RefusalCount { what: string; inARow: number }
 export function createFetchPage(): (fetcher: Fetcher, url: string, today: IsoDate) => Promise<string | PageSkip | null> {
   const detailRefusals: RefusalCount = { what: 'tour detail', inARow: 0 };
   const datesRefusals: RefusalCount = { what: 'dates', inARow: 0 };
+  let goneInARow = 0;
 
   /**
    * The answer's JSON (code 200), 'gone', or null for no answer (counted as a refusal); throws for an error
@@ -115,6 +126,7 @@ export function createFetchPage(): (fetcher: Fetcher, url: string, today: IsoDat
     const result = read(text);
     if ('json' in result) {
       count.inARow = 0;
+      if (count === detailRefusals) goneInARow = 0;
       return result.json;
     }
     if ('gone' in result) return 'gone';
@@ -128,12 +140,18 @@ export function createFetchPage(): (fetcher: Fetcher, url: string, today: IsoDat
         throw new Error(`not requested: the Big Line API refused ${MAX_CONSECUTIVE_PUSHBACK} ${count.what} requests in a row`);
       }
     }
+    if (goneInARow >= MAX_GONE_IN_A_ROW) {
+      throw new Error(`not requested: ${MAX_GONE_IN_A_ROW} tours in a row answered not found; the API may have changed`);
+    }
     const id = tourIdOf(url);
     if (id === null) throw new Error('not a Big Line tour page');
 
     const detailJson = await answer(fetcher.fetchText(detailUrl(id)), detailRefusals, 'tour detail');
     if (detailJson === null) return null;
-    if (detailJson === 'gone') return { skip: 'gone' };
+    if (detailJson === 'gone') {
+      goneInARow++;
+      return { skip: 'gone' };
+    }
     const detail = publicDetail(detailJson);
     const months: TourResponses['months'] = [];
     for (const yearMonth of monthsToRequest(detail.data?.availableMonths, today)) {

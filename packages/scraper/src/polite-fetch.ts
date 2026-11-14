@@ -169,7 +169,6 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
-  /** By lower-cased host name. */
   /** By origin. */
   const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([key, headers]) => [headersOrigin(key), headers]));
 

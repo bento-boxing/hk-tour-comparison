@@ -201,6 +201,19 @@ describe('a scraper that fetches each page itself (fetchPage)', () => {
     const outcome = await runOperator(fakeScraper(pages, gone), deps(fakeFetcher(pages)));
     expect(outcome).toMatchObject({ ok: true, toursSaved: 7 });
   });
+
+  it('gone pages are left out of the pages the fetch-failure rate is taken over', async () => {
+    // 2 not fetched of 10 discovered is 20% (allowed); of the 5 that are not gone it is 40% (too many).
+    const pages = site(goodTours(10));
+    const goneUrls = ['T1', 'T2', 'T3', 'T4', 'T5'].map(pageUrl);
+    const unreachable = ['T6', 'T7'].map(pageUrl);
+    const gone: Partial<OperatorScraper> = {
+      fetchPage: async (fetcher, url) =>
+        (goneUrls.includes(url) ? { skip: 'gone' } : unreachable.includes(url) ? null : fetcher.fetchText(url)),
+    };
+    const outcome = await runOperator(fakeScraper(pages, gone), deps(fakeFetcher(pages)));
+    expect(outcome).toMatchObject({ ok: false, reasons: ['too-many-fetch-failures'] });
+  });
 });
 
 it('a fetcher that throws, against its contract, counts as a page not fetched for a scraper without fetchPage', async () => {

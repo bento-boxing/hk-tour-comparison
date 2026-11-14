@@ -84,6 +84,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   const unmatched = new Map<string, string>();     // name → last tour code seen with it
   let pagesFetched = 0;
   let pagesNotFetched = 0; // not parse failures, but counted toward checkRun's fetch-failure rate
+  let pagesGone = 0;       // the operator says the tour no longer exists: left out of that rate altogether
   let parseFailures = 0;
   const keepUnmatched = (names: string[], tourCode: string) => {
     for (const name of names) unmatched.set(name, tourCode);
@@ -104,6 +105,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     }
     if (page !== null && typeof page === 'object') {
       log(`${operatorId}: skipped ${url}: ${page.skip}`); // the tour is gone: neither fetched nor a fetch failure
+      pagesGone++;
       continue;
     }
     const html = page;
@@ -145,7 +147,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     parseFailures,
     previousGoodCount: await previousGoodTourCount(db, operatorId),
     minExpectedTours: scraper.minExpectedTours ?? null,
-    pagesDiscovered: urls.length,
+    pagesDiscovered: urls.length - pagesGone, // a gone page would otherwise dilute the fetch-failure rate
     pagesNotFetched,
   });
   const stats: RunStats = { startedAt, finishedAt: now(), pagesFetched, parseFailures };
