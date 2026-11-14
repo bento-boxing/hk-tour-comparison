@@ -190,7 +190,13 @@ function sameLettersAndDays(departureCode: string, variant: Variant): boolean {
   return match !== null && letters !== undefined && sameCode(match[1], letters) && Number(match[2]) === variant.days;
 }
 
-interface Row { date: IsoDate; code: string; departure: ScrapedDeparture | null }
+interface Row {
+  date: IsoDate; code: string;
+  /** The adult price, full or not (for choosing between variants). */
+  price: number | null;
+  /** null when full. */
+  departure: ScrapedDeparture | null;
+}
 
 /** Every dated row of the table: its code (or ''), and its departure, null when full. */
 function tableRows($: CheerioAPI): Row[] {
@@ -200,7 +206,8 @@ function tableRows($: CheerioAPI): Row[] {
     const date = tableDate(clean(row.find(ROW_DATE).first().text()));
     if (date === null) continue;
     const full = row.find('.reservation-table-status').toArray().some(status => $(status).hasClass(FULL));
-    rows.push({ date, code: clean(row.find(ROW_CODE).first().text()), departure: full ? null : { date, priceHkd: adultPrice(row) } });
+    const price = adultPrice(row);
+    rows.push({ date, code: clean(row.find(ROW_CODE).first().text()), price, departure: full ? null : { date, priceHkd: price } });
   }
   return rows;
 }
@@ -219,12 +226,12 @@ function startsWithCode(departureCode: string, variant: Variant): boolean {
  * days, rows `ABC05…`) cannot be told apart: every such row goes to the first, deterministically. A row that is
  * no variant's is left out. Without a code column, every row is every variant's, but only when all variants have
  * the same day count (`GRCSB/A/S`: cabin grades sold on the same dates); with different day counts (GAKA/GAKVA,
- * 11 and 14 days) the rows cannot be told apart, and null is returned.
+ * 11 and 14 days) the rows cannot be told apart: 'ambiguous'.
  */
-function rowsByVariant(list: Variant[], rows: Row[]): Map<Variant, Row[]> | null {
+function rowsByVariant(list: Variant[], rows: Row[]): Map<Variant, Row[]> | 'ambiguous' {
   const byVariant = new Map<Variant, Row[]>(list.map(variant => [variant, []]));
   const coded = list.length > 1 && rows.some(row => row.code !== '');
-  if (!coded && rows.length > 0 && new Set(list.map(variant => variant.days)).size > 1) return null;
+  if (!coded && rows.length > 0 && new Set(list.map(variant => variant.days)).size > 1) return 'ambiguous';
   for (const row of rows) {
     if (!coded) {
       for (const variant of list) byVariant.get(variant)!.push(row);
@@ -238,24 +245,29 @@ function rowsByVariant(list: Variant[], rows: Row[]): Map<Variant, Row[]> | null
   return byVariant;
 }
 
-/** The lowest known price of the variant's departures after `today` (all of them without one); null when none. */
-function lowestPrice(rows: Row[], today: IsoDate | undefined): number | null {
-  const prices = rows.flatMap(row => (row.departure !== null && row.departure.priceHkd !== null
-    && (today === undefined || row.date > today) ? [row.departure.priceHkd] : []));
-  return prices.length > 0 ? Math.min(...prices) : null;
+/** The lowest price over all the rows, past and full included; Infinity when none has one. */
+function lowestPrice(rows: Row[]): number {
+  return Math.min(...rows.map(row => row.price ?? Number.POSITIVE_INFINITY));
 }
 
+/** The rows' dates, sorted, as one string. */
+const dateSet = (rows: Row[]) => [...new Set(rows.map(row => row.date))].sort().join(',');
+
 /**
- * The variant the page gives: the longest that has rows (the longest of all when none has); among those as long,
- * the one whose lowest upcoming price is cheapest (the card shows a "from" price; GSAOA/B/O are cabin grades
- * of one 19-day cruise), then the first, so the choice is the same each night.
+ * The variant the page gives: the longest that has rows (the longest of all when none has). Among those as long,
+ * the choice must stay the same from night to night, since the code is the tour's identity: when they all have
+ * rows on exactly the same dates (GSAOA/B/O, cabin grades of one 19-day cruise), the one with the lowest price
+ * over all its rows, past and full included (the card shows a "from" price), the first on a tie; otherwise the
+ * first. A date passing does not change it; a row added or removed for one grade only, or a new price that
+ * reorders the grades, would.
  */
-function chosenVariant(list: Variant[], byVariant: Map<Variant, Row[]>, today: IsoDate | undefined): Variant {
+function chosenVariant(list: Variant[], byVariant: Map<Variant, Row[]>): Variant {
   const withRows = list.filter(v => byVariant.get(v)!.length > 0);
   const pool = withRows.length > 0 ? withRows : list;
   const most = longest(pool).days;
   const tied = pool.filter(v => v.days === most);
-  const price = (v: Variant) => lowestPrice(byVariant.get(v)!, today) ?? Number.POSITIVE_INFINITY;
+  if (new Set(tied.map(v => dateSet(byVariant.get(v)!))).size > 1) return tied[0];
+  const price = (v: Variant) => lowestPrice(byVariant.get(v)!);
   return tied.reduce((best, v) => (price(v) < price(best) ? v : best));
 }
 
@@ -265,8 +277,8 @@ function chosenVariant(list: Variant[], byVariant: Map<Variant, Row[]>, today: I
  * different lengths. A page selling two or more variants (`GERD/E`, 11 or 12 days) gives one (chosenVariant): its
  * code, its day count, its own dates, and the day headings without the days tagged only with other variants' codes.
  * An old post still lists its old dates (a 2023 post: one date, full): normaliseTour skips it as no-departures.
- * `today` (Hong Kong) is used only to compare variants of the same length by their lowest upcoming price;
- * without it every date counts. Every date in the table carries its year.
+ * `today` (Hong Kong) is used only to tell whether rows that cannot be given to variants of different lengths
+ * include one that could be booked; without it every date counts. Every date in the table carries its year.
  */
 export function parse(html: string, url: string, today?: IsoDate): ScrapedTour | null {
   const $ = load(html);
@@ -275,12 +287,21 @@ export function parse(html: string, url: string, today?: IsoDate): ScrapedTour |
   const list = variants(title, itinerary.at(-1)?.last ?? null);
   if (list === null) return null;
   const rows = tableRows($);
-  const byVariant = rowsByVariant(list, rows);
-  if (byVariant === null) return null;
-  // Dated rows, none of them any variant's: the codes are not read as expected.
-  if (rows.length > 0 && list.every(v => byVariant.get(v)!.length === 0)) return null;
-  const variant = chosenVariant(list, byVariant, today);
-  const dates = byVariant.get(variant)!.flatMap(row => (row.departure === null ? [] : [row.departure]));
+  const assigned = rowsByVariant(list, rows);
+  let variant: Variant;
+  let dates: ScrapedDeparture[];
+  if (assigned === 'ambiguous') {
+    // Rows that cannot be given to variants of different lengths: a failure only if one could be booked. Past
+    // or full rows (GAKA/GAKVA's one full date) give the longest variant with no departures (no-departures).
+    if (rows.some(row => row.departure !== null && (today === undefined || row.date > today))) return null;
+    variant = longest(list);
+    dates = [];
+  } else {
+    // Dated rows, none of them any variant's: the codes are not read as expected.
+    if (rows.length > 0 && list.every(v => assigned.get(v)!.length === 0)) return null;
+    variant = chosenVariant(list, assigned);
+    dates = assigned.get(variant)!.flatMap(row => (row.departure === null ? [] : [row.departure]));
+  }
 
   // A day tagged only with other variants' codes is theirs (GERD's flight home, on a page that sells GERE too).
   const isOurs = (day: Day) => !day.tags.some(tag => list.some(v => sameCode(v.code, tag)))
