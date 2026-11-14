@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { T } from '../lib/i18n';
+import { Mark } from './Mark';
 import styles from './NavBar.module.css';
 
 export type NavPage = 'search' | 'chain';
@@ -14,7 +15,7 @@ export function NavBar({ current, t }: { current?: NavPage; t: T }) {
   return (
     <nav className={styles.bar}>
       <div className={styles.inner}>
-        <b className={styles.name}>{t('site.name')}</b>
+        <b className={styles.name}><Mark className={styles.mark} />{t('site.name')}</b>
         {links.map(({ page, href, label }) => (
           <Link
             key={page}
