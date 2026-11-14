@@ -29,6 +29,11 @@ it('the Charming Holidays tag (white text on its colour, as in the operators tab
   expect(contrast('#ffffff', token('op-charming'))).toBeGreaterThanOrEqual(4.5);
 });
 
+it('the Yummy Holiday tag (white text on its colour, as in the operators table) meets WCAG AA (4.5:1)', () => {
+  expect(token('op-yummy')).toBe('#7a6a00');
+  expect(contrast('#ffffff', token('op-yummy'))).toBeGreaterThanOrEqual(4.5);
+});
+
 it('muted text meets WCAG AA (4.5:1) on white and on the highlighted row', () => {
   expect(contrast(token('text-muted'), '#ffffff')).toBeGreaterThanOrEqual(4.5);
   expect(contrast(token('text-muted'), token('hit'))).toBeGreaterThanOrEqual(4.5);
