@@ -8,6 +8,7 @@
   },
   "scripts": {
     "fixture": "node --import tsx scripts/save-fixture.ts",
+    "replay": "node --import tsx scripts/replay-logs.ts",
     "scrape": "node --import tsx src/cli.ts"
   },
   "dependencies": {

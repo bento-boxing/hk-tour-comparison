@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc -b && pnpm --filter @hktours/web typecheck",
     "scrape": "pnpm --filter @hktours/scraper scrape",
+    "replay": "pnpm --filter @hktours/scraper replay",
     "db:migrate": "pnpm --filter @hktours/db migrate"
   },
   "devDependencies": {
