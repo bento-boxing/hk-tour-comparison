@@ -24,6 +24,11 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+it('the Charming Holidays tag (white text on its colour, as in the operators table) meets WCAG AA (4.5:1)', () => {
+  expect(token('op-charming')).toBe('#b5179e');
+  expect(contrast('#ffffff', token('op-charming'))).toBeGreaterThanOrEqual(4.5);
+});
+
 it('muted text meets WCAG AA (4.5:1) on white and on the highlighted row', () => {
   expect(contrast(token('text-muted'), '#ffffff')).toBeGreaterThanOrEqual(4.5);
   expect(contrast(token('text-muted'), token('hit'))).toBeGreaterThanOrEqual(4.5);

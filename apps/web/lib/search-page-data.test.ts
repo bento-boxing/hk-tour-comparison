@@ -52,8 +52,8 @@ it('an empty address lists every tour by price, with the operators', async () =>
   expect(data.state).toEqual({ filters: {}, sort: 'price', page: 1 });
   expect(keys(data)).toEqual(['bigline:SEL5', 'texpert:LAST4', 'egl:KIX5', 'jetour:MID6']);
   expect(data.total).toBe(4);
-  expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
-  expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // all four have run here
+  expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming']);
+  expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // the four that have run here
 });
 
 it('the nonsense address page=-1&sort=x&dest=<b> gives the default list', async () => {
@@ -113,7 +113,7 @@ describe('the operator filter', () => {
   it('offers only operators that have had a good run; every operator stays available for lookups', async () => {
     const data = await loadSearchPage(launch, {}, today);
     expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert']);
-    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']);
+    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming']);
   });
 
   it('an operator the address selects stays offered, so the selection can be seen and undone', async () => {

@@ -24,10 +24,10 @@ async function countFor(table: string, tourId: string): Promise<number> {
   return row.n;
 }
 
-it('seeds four operators with their colours', async () => {
+it('seeds five operators with their colours', async () => {
   const rows = await db.query<{ id: string; color: string }>('select id, color from operators order by id');
   expect(rows).toEqual([
-    { id: 'bigline', color: '#2a9d4b' }, { id: 'egl', color: '#d62839' },
+    { id: 'bigline', color: '#2a9d4b' }, { id: 'charming', color: '#b5179e' }, { id: 'egl', color: '#d62839' },
     { id: 'jetour', color: '#ee7b06' }, { id: 'texpert', color: '#7d3cc8' },
   ]);
 });
@@ -36,7 +36,7 @@ it('migrate is idempotent', async () => { expect(await migrate(db)).toEqual([]);
 
 it('records each applied migration once', async () => {
   const rows = await db.query<{ name: string }>('select name from schema_migrations order by name');
-  expect(rows).toEqual([{ name: '0001_init.sql' }]);
+  expect(rows).toEqual([{ name: '0001_init.sql' }, { name: '0002_charming_operator.sql' }]);
 });
 
 it('rejects a duplicate (operator, code)', async () => {
