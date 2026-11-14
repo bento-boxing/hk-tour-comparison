@@ -326,6 +326,35 @@ describe('withdrawn tours', () => {
     expect(await tourId('jetour', 'A')).toBe(a);
   });
 
+  it('a tour listed again by the first good run after 40 nights of failures is kept: reactivated before the delete', async () => {
+    const a = await tourId('jetour', 'A');
+    for (let i = 1; i <= 40; i++) {
+      await recordFailedRun(db, { operatorId: 'jetour', runDate: night(i), stats, reasons: ['no-tours'] });
+    }
+
+    await saveOperatorRun(db, run(night(41), [tour('A'), tour('B')]));
+
+    expect(await tourId('jetour', 'A')).toBe(a);
+    expect(await deactivatedOn('A')).toBeNull();
+    expect((await tours()).find(t => t.code === 'A')).toMatchObject({ active: true, first_seen: FIRST, last_seen: night(41) });
+    expect(await rowsOf(a!)).toMatchObject({ tour_stops: 2, departures: 1 });
+  });
+
+  it('a save that fails after the delete rolls the deletion back', async () => {
+    const a = (await tourId('jetour', 'A'))!;
+    const before = await rowsOf(a);
+
+    // The unmatched-names insert comes after the delete; a null name breaks its not-null constraint.
+    await expect(saveOperatorRun(db, {
+      ...run(night(31), [tour('B')]), unmatched: [{ name: null as unknown as string, tourCode: 'B' }],
+    })).rejects.toThrow(/null value/);
+
+    expect(await tourId('jetour', 'A')).toBe(a);
+    expect(await deactivatedOn('A')).toBe(WITHDRAWN);
+    expect(await rowsOf(a)).toEqual(before);
+    expect(await count('unmatched_places')).toBe(0);
+  });
+
   it("another operator's withdrawn tours are untouched by this operator's save", async () => {
     await saveOperatorRun(db, { ...run(FIRST, [tour('X'), tour('Y')]), operatorId: 'egl' });
     await saveOperatorRun(db, { ...run(WITHDRAWN, [tour('Y')]), operatorId: 'egl' });
