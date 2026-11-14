@@ -1,8 +1,13 @@
-import { it, expect, beforeEach, afterEach } from 'vitest';
-import { addDays, type IsoDate, type NormalisedTour } from '@hktours/core';
+import { it, expect, beforeEach, afterEach, describe } from 'vitest';
+import { addDays, type IsoDate, type NormalisedTour, type OperatorId } from '@hktours/core';
 import type { Db } from './db';
 import { createTestDb } from './test-db';
-import { saveOperatorRun, recordFailedRun, previousGoodTourCount, type GoodRun, type RunStats } from './save-run';
+import {
+  saveOperatorRun, recordFailedRun, previousGoodTourCount, pruneRunLog,
+  RUN_LOG_KEEP_DAYS, WITHDRAWN_TOUR_KEEP_DAYS,
+  type GoodRun, type RunStats,
+} from './save-run';
+import { getToursByKeys, searchTours } from './search';
 
 let db: Db;
 beforeEach(async () => { db = await createTestDb(); });
@@ -236,4 +241,181 @@ it('rolls back everything if one tour fails to save', async () => {
   expect(await count('price_snapshots')).toBe(0);
   expect(await count('scrape_runs')).toBe(0);
   expect(await lastGoodRunMs('jetour')).toBeNull();
+});
+
+describe('withdrawn tours', () => {
+  // A and B on the first night; from the second night on only B, so A is withdrawn on WITHDRAWN.
+  const FIRST = '2026-10-01';
+  const WITHDRAWN = '2026-10-02';
+  const night = (days: number) => addDays(WITHDRAWN, days);
+  const onlyB = (runDate: IsoDate) => saveOperatorRun(db, run(runDate, [tour('B')]));
+
+  async function tourId(operatorId: OperatorId, code: string): Promise<string | null> {
+    const [row] = await db.query<{ id: string }>(
+      'select id::text from tours where operator_id = $1 and code = $2', [operatorId, code],
+    );
+    return row?.id ?? null;
+  }
+
+  async function rowsOf(tourIdValue: string): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {};
+    for (const table of ['tour_stops', 'departures', 'price_snapshots']) {
+      const [row] = await db.query<{ n: number }>(
+        `select count(*)::int as n from ${table} where tour_id = $1`, [tourIdValue],
+      );
+      counts[table] = row.n;
+    }
+    return counts;
+  }
+
+  async function deactivatedOn(code: string): Promise<string | null> {
+    const [row] = await db.query<{ d: string | null }>(
+      `select deactivated_on::text as d from tours where operator_id = 'jetour' and code = $1`, [code],
+    );
+    return row.d;
+  }
+
+  beforeEach(async () => {
+    await saveOperatorRun(db, run(FIRST, [tour('A'), tour('B')]));
+    await onlyB(WITHDRAWN);
+  });
+
+  it('keeps 30 days and the constant says so', () => {
+    expect(WITHDRAWN_TOUR_KEEP_DAYS).toBe(30);
+  });
+
+  it('starts the clock the night a tour goes missing, and does not restart it on later nights', async () => {
+    expect(await deactivatedOn('A')).toBe(WITHDRAWN);
+    expect(await deactivatedOn('B')).toBeNull();
+    await onlyB(night(5));
+    expect(await deactivatedOn('A')).toBe(WITHDRAWN);
+  });
+
+  it('deletes a tour inactive for 31 days, with its stops, departures and snapshots', async () => {
+    const a = (await tourId('jetour', 'A'))!;
+    expect(await rowsOf(a)).toEqual({ tour_stops: 2, departures: 1, price_snapshots: 1 });
+
+    await onlyB(night(31));
+
+    expect(await tourId('jetour', 'A')).toBeNull();
+    expect(await rowsOf(a)).toEqual({ tour_stops: 0, departures: 0, price_snapshots: 0 });
+    expect(await activeByKey()).toEqual({ 'jetour:B': true });
+    expect((await getToursByKeys(db, ['jetour:A', 'jetour:B'], night(31))).has('jetour:A')).toBe(false);
+  });
+
+  it('keeps a tour inactive for 29 or 30 days', async () => {
+    await onlyB(night(29));
+    expect(await activeByKey()).toEqual({ 'jetour:A': false, 'jetour:B': true });
+    await onlyB(night(30));
+    expect(await activeByKey()).toEqual({ 'jetour:A': false, 'jetour:B': true });
+    const a = (await tourId('jetour', 'A'))!;
+    expect(await rowsOf(a)).toMatchObject({ tour_stops: 2, departures: 1 });
+  });
+
+  it('a tour that returns has its clock cleared and keeps its row; going missing again starts a new clock', async () => {
+    const a = await tourId('jetour', 'A');
+    await saveOperatorRun(db, run(night(20), [tour('A'), tour('B')]));
+    expect(await deactivatedOn('A')).toBeNull();
+    expect(await tourId('jetour', 'A')).toBe(a);
+    expect((await tours()).find(t => t.code === 'A')).toMatchObject({ active: true, first_seen: FIRST });
+
+    await onlyB(night(21));
+    expect(await deactivatedOn('A')).toBe(night(21));
+    // 40 days after the first withdrawal but 19 after the second: kept.
+    await onlyB(night(40));
+    expect(await tourId('jetour', 'A')).toBe(a);
+  });
+
+  it("another operator's withdrawn tours are untouched by this operator's save", async () => {
+    await saveOperatorRun(db, { ...run(FIRST, [tour('X'), tour('Y')]), operatorId: 'egl' });
+    await saveOperatorRun(db, { ...run(WITHDRAWN, [tour('Y')]), operatorId: 'egl' });
+
+    await onlyB(night(45));
+
+    expect(await activeByKey()).toEqual({ 'egl:X': false, 'egl:Y': true, 'jetour:B': true });
+    const x = (await tourId('egl', 'X'))!;
+    expect(await rowsOf(x)).toMatchObject({ tour_stops: 2, departures: 1 });
+  });
+
+  it('a failed run deletes nothing, however long a tour has been inactive', async () => {
+    const runsBefore = await count('scrape_runs');
+    const a = (await tourId('jetour', 'A'))!;
+    const before = await rowsOf(a);
+
+    await recordFailedRun(db, {
+      operatorId: 'jetour', runDate: night(200), stats, reasons: ['tour-count-dropped'],
+    });
+
+    expect(await activeByKey()).toEqual({ 'jetour:A': false, 'jetour:B': true });
+    expect(await rowsOf(a)).toEqual(before);
+    expect(await count('scrape_runs')).toBe(runsBefore + 1);
+  });
+
+  it('search is unaffected: neither the kept inactive tour nor the deleted one is listed', async () => {
+    const search = () => searchTours(db, { filters: {}, sort: 'price', page: 1, today: WITHDRAWN });
+    const keys = async () => (await search()).tours.map(t => t.key);
+    expect(await keys()).toEqual(['jetour:B']);
+    await onlyB(night(31));
+    expect(await keys()).toEqual(['jetour:B']);
+  });
+});
+
+describe('run log', () => {
+  const failed = (operatorId: OperatorId, runDate: IsoDate) =>
+    recordFailedRun(db, { operatorId, runDate, stats, reasons: ['no-tours'] });
+  const runs = (operatorId: OperatorId) => db.query<{ run_date: string; ok: boolean }>(
+    `select run_date::text, ok from scrape_runs where operator_id = $1 order by run_date, id`, [operatorId],
+  );
+
+  it('keeps 90 days and the constant says so', () => {
+    expect(RUN_LOG_KEEP_DAYS).toBe(90);
+  });
+
+  it("a good save deletes this operator's runs more than 90 days old and keeps the rest", async () => {
+    await saveOperatorRun(db, run('2026-06-01', [tour('A')]));
+    await failed('jetour', '2026-06-02');
+    await failed('jetour', '2026-06-03'); // exactly 90 days before 2026-09-01: kept
+    await failed('egl', '2026-06-01');    // another operator's: untouched
+
+    await saveOperatorRun(db, run('2026-09-01', [tour('A')]));
+
+    expect(await runs('jetour')).toEqual([
+      { run_date: '2026-06-03', ok: false },
+      { run_date: '2026-09-01', ok: true },
+    ]);
+    expect(await runs('egl')).toEqual([{ run_date: '2026-06-01', ok: false }]);
+  });
+
+  it('a failed run trims nothing, so an operator with no good run for over 90 days keeps its last good run', async () => {
+    await saveOperatorRun(db, run('2026-06-01', [tour('A'), tour('B')]));
+    await failed('jetour', '2026-06-02');
+    for (let i = 0; i < 4; i++) await failed('jetour', addDays('2026-09-01', i));
+    // Other operators' good saves leave it alone too.
+    await saveOperatorRun(db, { ...run('2026-09-05', [tour('X')]), operatorId: 'egl' });
+
+    expect((await runs('jetour')).length).toBe(6);
+    expect(await previousGoodTourCount(db, 'jetour')).toBe(2);
+  });
+
+  it("pruneRunLog never deletes the operator's latest good run, whatever its age", async () => {
+    await saveOperatorRun(db, run('2026-05-01', [tour('A')]));
+    await saveOperatorRun(db, run('2026-06-01', [tour('A'), tour('B')]));
+    await failed('jetour', '2026-06-02');
+    await failed('jetour', '2026-09-20');
+
+    await db.transaction(tx => pruneRunLog(tx, 'jetour', '2026-09-30'));
+
+    expect(await runs('jetour')).toEqual([
+      { run_date: '2026-06-01', ok: true },
+      { run_date: '2026-09-20', ok: false },
+    ]);
+    expect(await previousGoodTourCount(db, 'jetour')).toBe(2);
+  });
+
+  it('pruneRunLog with no good run at all deletes only old rows', async () => {
+    await failed('jetour', '2026-06-01');
+    await failed('jetour', '2026-09-20');
+    await db.transaction(tx => pruneRunLog(tx, 'jetour', '2026-09-30'));
+    expect(await runs('jetour')).toEqual([{ run_date: '2026-09-20', ok: false }]);
+  });
 });

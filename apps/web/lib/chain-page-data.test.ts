@@ -220,6 +220,32 @@ describe('a leg whose tour has since been deactivated', () => {
   });
 });
 
+describe('a leg whose tour has since been deleted (inactive for more than 30 days)', () => {
+  let deleted: Db;
+  beforeAll(async () => {
+    deleted = await createTestDb();
+    await save(deleted, 'egl', [KIX5]);
+    await save(deleted, 'texpert', [SEL5]);
+    await save(deleted, 'jetour', [FAR]);
+    const OTHER = tour('texpert', 'OTHER', [SEOUL], 3, [{ date: '2027-01-10', priceHkd: 3000 }]);
+    const later = (runDate: string) =>
+      saveOperatorRun(deleted, { operatorId: 'texpert', runDate, tours: [OTHER], unmatched: [], stats });
+    await later('2026-11-13'); // SEL5 goes inactive
+    await later('2026-12-14'); // 31 days later it is deleted
+    const [{ n }] = await deleted.query<{ n: number }>(`select count(*)::int as n from tours where code = 'SEL5'`);
+    expect(n).toBe(0);
+  });
+  afterAll(async () => { await deleted.close(); });
+
+  it('is dropped with everything after it, exactly as an inactive one is', async () => {
+    const data = await loadChainPage(deleted, query('legs=egl:KIX5@2026-12-18,texpert:SEL5@2026-12-24,jetour:FAR4@2026-12-30&gap=1-3'), today);
+    expect(legKeys(data)).toEqual(['egl:KIX5@2026-12-18']);
+    expect(data.droppedCount).toBe(2);
+    expect(data.address.chain.legs).toEqual([{ tourKey: 'egl:KIX5', departure: '2026-12-18' }]);
+    expect(data.departWindow).toEqual({ from: '2026-12-24', to: '2026-12-26' });
+  });
+});
+
 describe('the operator filter', () => {
   // Only Jetour and Travel Expert have ever had a good run, as at launch.
   let launch: Db;

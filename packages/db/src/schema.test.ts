@@ -1,5 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { it, expect, beforeEach, afterEach } from 'vitest';
-import { migrate, type Db } from './index';
+import { PGlite } from '@electric-sql/pglite';
+import { addDays, type IsoDate } from '@hktours/core';
+import { transactionDb } from './db';
+import { migrate, saveOperatorRun, type Db } from './index';
 import { createTestDb } from './test-db';
 
 let db: Db;
@@ -36,7 +40,90 @@ it('migrate is idempotent', async () => { expect(await migrate(db)).toEqual([]);
 
 it('records each applied migration once', async () => {
   const rows = await db.query<{ name: string }>('select name from schema_migrations order by name');
-  expect(rows).toEqual([{ name: '0001_init.sql' }, { name: '0002_charming_operator.sql' }]);
+  expect(rows).toEqual([
+    { name: '0001_init.sql' }, { name: '0002_charming_operator.sql' }, { name: '0003_tour_deactivated_on.sql' },
+  ]);
+});
+
+it('a tour is inactive exactly when it has a deactivated_on date', async () => {
+  const tourId = await insertTour();
+  await expect(db.query('update tours set active = false where id = $1', [tourId])).rejects.toThrow(/check constraint/);
+  await expect(db.query(`update tours set deactivated_on = '2026-11-13' where id = $1`, [tourId]))
+    .rejects.toThrow(/check constraint/);
+  await db.query(`update tours set active = false, deactivated_on = '2026-11-13' where id = $1`, [tourId]);
+  await db.query('update tours set active = true, deactivated_on = null where id = $1', [tourId]);
+});
+
+/** A database as the live one stood before 0003: migrations 0001 and 0002 applied, and data in it. */
+async function databaseBefore0003(): Promise<Db> {
+  const pglite = await PGlite.create();
+  const old: Db = {
+    query: async <T>(sql: string, params?: unknown[]) => (await pglite.query<T>(sql, params)).rows,
+    transaction: fn => pglite.transaction(tx => fn(transactionDb({
+      query: async (sql, params) => (await tx.query(sql, params)).rows,
+      exec: async sql => { await tx.exec(sql); },
+    }))),
+    exec: async sql => { await pglite.exec(sql); },
+    close: () => pglite.close(),
+  };
+  await old.exec('create table if not exists schema_migrations (name text primary key, applied_at timestamptz)');
+  for (const name of ['0001_init.sql', '0002_charming_operator.sql']) {
+    await old.exec(await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8'));
+    await old.query('insert into schema_migrations (name, applied_at) values ($1, now())', [name]);
+  }
+  for (const [code, active] of [['ON1', true], ['OFF1', false]] as const) {
+    const [{ id }] = await old.query<{ id: string }>(
+      `insert into tours (operator_id, code, url, title, days, from_price_hkd, start_kind, end_kind, active, first_seen, last_seen)
+       values ('jetour', $1, 'https://www.jetour.com.hk/x', '大阪5天', 5, 6999, 'hk', 'hk', $2, '2026-11-01', '2026-11-05')
+       returning id::text`,
+      [code, active],
+    );
+    await old.query(`insert into tour_stops values ($1, 0, 'japan', 'japan-kansai', null)`, [id]);
+    await old.query(`insert into departures values ($1, '2026-12-18', 6999)`, [id]);
+    await old.query(`insert into price_snapshots values ($1, '2026-11-05', 6999)`, [id]);
+  }
+  await old.query(
+    `insert into scrape_runs (operator_id, run_date, started_at, finished_at, pages_fetched, tours_saved, parse_failures, ok)
+     values ('jetour', '2026-11-06', now(), now(), 2, 1, 0, true)`,
+  );
+  return old;
+}
+
+it('migration 0003 applies on top of 0001 and 0002 with data, starting the clock of inactive tours at migration time', async () => {
+  const old = await databaseBefore0003();
+  try {
+    expect(await migrate(old)).toEqual(['0003_tour_deactivated_on.sql']);
+
+    // The Hong Kong date when the migration ran, read from the database rather than the test's clock.
+    const [{ migrated }] = await old.query<{ migrated: IsoDate }>(
+      `select (applied_at at time zone 'Asia/Hong_Kong')::date::text as migrated
+       from schema_migrations where name = '0003_tour_deactivated_on.sql'`,
+    );
+    expect(await old.query('select code, active, deactivated_on::text from tours order by code')).toEqual([
+      { code: 'OFF1', active: false, deactivated_on: migrated },
+      { code: 'ON1', active: true, deactivated_on: null },
+    ]);
+    for (const table of ['tour_stops', 'departures', 'price_snapshots', 'scrape_runs']) {
+      const [row] = await old.query<{ n: number }>(`select count(*)::int as n from ${table}`);
+      expect(row.n, table).toBe(table === 'scrape_runs' ? 1 : 2);
+    }
+
+    // The inherited clock counts like any other: kept after 30 days, deleted after 31.
+    const stats = { startedAt: new Date(0), finishedAt: new Date(0), pagesFetched: 1, parseFailures: 0 };
+    const tour = {
+      operatorId: 'jetour' as const, code: 'ON1', url: 'https://www.jetour.com.hk/x', title: '大阪5天', days: 5, nights: 4,
+      stops: [{ countryId: 'japan', regionId: 'japan-kansai', cityId: null }],
+      start: { kind: 'hk' as const, label: null }, end: { kind: 'hk' as const, label: null },
+      fromPriceHkd: 6999, departures: [{ date: addDays(migrated, 60), priceHkd: 6999 }],
+    };
+    const save = (runDate: IsoDate) => saveOperatorRun(old, { operatorId: 'jetour', runDate, tours: [tour], unmatched: [], stats });
+    await save(addDays(migrated, 30));
+    expect((await old.query('select code from tours order by code')).map(r => r.code)).toEqual(['OFF1', 'ON1']);
+    await save(addDays(migrated, 31));
+    expect((await old.query('select code from tours order by code')).map(r => r.code)).toEqual(['ON1']);
+  } finally {
+    await old.close();
+  }
 });
 
 it('rejects a duplicate (operator, code)', async () => {
