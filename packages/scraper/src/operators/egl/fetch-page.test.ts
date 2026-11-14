@@ -64,8 +64,8 @@ it('the scraper parses a joined page, and returns null for anything else', () =>
   expect(eglScraper.parse(joinPage(html, null), PAGE_URL)).toBeNull();
 });
 
-it('the scraper fetches through fetchPage and has a provisional first-run floor', () => {
+it('the scraper fetches through fetchPage and has a first-run floor of a third of the measured tours', () => {
   expect(eglScraper.id).toBe('egl');
   expect(eglScraper.fetchPage).toBe(fetchPage);
-  expect(eglScraper.minExpectedTours).toBe(190);
+  expect(eglScraper.minExpectedTours).toBe(165);
 });
