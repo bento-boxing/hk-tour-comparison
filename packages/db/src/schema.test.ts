@@ -28,11 +28,12 @@ async function countFor(table: string, tourId: string): Promise<number> {
   return row.n;
 }
 
-it('seeds six operators with their colours', async () => {
+it('seeds seven operators with their colours', async () => {
   const rows = await db.query<{ id: string; color: string }>('select id, color from operators order by id');
   expect(rows).toEqual([
     { id: 'bigline', color: '#2a9d4b' }, { id: 'charming', color: '#b5179e' }, { id: 'egl', color: '#d62839' },
-    { id: 'jetour', color: '#ee7b06' }, { id: 'texpert', color: '#7d3cc8' }, { id: 'yummy', color: '#7a6a00' },
+    { id: 'jetour', color: '#ee7b06' }, { id: 'sunflower', color: '#3949ab' }, { id: 'texpert', color: '#7d3cc8' },
+    { id: 'yummy', color: '#7a6a00' },
   ]);
 });
 
@@ -42,7 +43,7 @@ it('records each applied migration once', async () => {
   const rows = await db.query<{ name: string }>('select name from schema_migrations order by name');
   expect(rows).toEqual([
     { name: '0001_init.sql' }, { name: '0002_charming_operator.sql' }, { name: '0003_tour_deactivated_on.sql' },
-    { name: '0004_yummy_operator.sql' },
+    { name: '0004_yummy_operator.sql' }, { name: '0005_sunflower_operator.sql' },
   ]);
 });
 
@@ -93,7 +94,7 @@ async function databaseBefore0003(): Promise<Db> {
 it('migration 0003 applies on top of 0001 and 0002 with data, starting the clock of inactive tours at migration time', async () => {
   const old = await databaseBefore0003();
   try {
-    expect(await migrate(old)).toEqual(['0003_tour_deactivated_on.sql', '0004_yummy_operator.sql']);
+    expect(await migrate(old)).toEqual(['0003_tour_deactivated_on.sql', '0004_yummy_operator.sql', '0005_sunflower_operator.sql']);
 
     // The Hong Kong date when the migration ran, read from the database rather than the test's clock.
     const [{ migrated }] = await old.query<{ migrated: IsoDate }>(

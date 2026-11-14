@@ -25,6 +25,9 @@ it.each([
 it('accepts a leg of Yummy Holiday, whose codes have hyphens', () => {
   expect(decodeChain({ legs: 'yummy:AA-J-TD05@2026-12-10' }).legs).toEqual([{ tourKey: 'yummy:AA-J-TD05', departure: '2026-12-10' }]);
 });
+it('accepts a leg of Sunflower Travel', () => {
+  expect(decodeChain({ legs: 'sunflower:KKFE05WR@2026-12-02' }).legs).toEqual([{ tourKey: 'sunflower:KKFE05WR', departure: '2026-12-02' }]);
+});
 it('accepts a leg of every operator, Charming Holidays included', () => {
   expect(decodeChain({ legs: 'charming:GERE@2026-12-19,bigline:T1@2027-01-02' }).legs).toEqual([
     { tourKey: 'charming:GERE', departure: '2026-12-19' }, { tourKey: 'bigline:T1', departure: '2027-01-02' },

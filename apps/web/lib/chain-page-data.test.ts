@@ -58,7 +58,7 @@ it('an empty address has no legs and no list, with the operators', async () => {
   const data = await loadChainPage(db, {}, today);
   expect(data).toMatchObject({ legs: [], droppedCount: 0, departWindow: null, next: null, full: false });
   expect(data.address).toEqual({ chain: { legs: [], gap: { min: 1, max: 3 } }, search: { filters: {}, sort: 'price', page: 1 } });
-  expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy']);
+  expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower']);
   expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // the four that have run here
 });
 
@@ -260,7 +260,7 @@ describe('the operator filter', () => {
     const data = await loadChainPage(launch, query('legs=jetour:OSA6@2026-12-20&gap=1-3'), today);
     expect(legKeys(data)).toEqual(['jetour:OSA6@2026-12-20']);
     expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert']);
-    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy']);
+    expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower']);
   });
 
   it('an operator the address selects stays offered, so the selection can be seen and undone', async () => {
