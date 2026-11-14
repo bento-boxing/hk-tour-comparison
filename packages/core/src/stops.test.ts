@@ -369,6 +369,40 @@ describe('extractStops on crawled headings', () => {
   ])('reads the EGL headings %j', (headings, expectedNames) => {
     expect(names(extractStops(headings, places))).toEqual(expectedNames);
   });
+
+  // Review of the EGL places pass: short new names found inside unrelated words (Jetour, Charming, Big Line headings).
+  it.each([
+    [['墨爾本 ~ 雅拉河谷 ~ 酒莊'], ['墨爾本']],                               // the Yarra Valley, not Yala (Sri Lanka)
+    [['阿魯沙 ~ 萬雅拉湖國家公園'], ['阿魯沙']],                               // Lake Manyara
+    [['麗江 ~ 玉龍雪山 ~ 雅拉雪山'], ['麗江']],
+    [['首爾 ~ 樂天水族館'], ['首爾']],                                         // Lotte aquarium, not Tianshui
+    [['騰衝 ~ 熱海景區'], ['騰衝']],                                           // the Rehai hot springs, not Atami
+    [['騰衝熱海 ~ 和順'], ['騰衝', '和順']],                                  // equal lengths: the earlier name, 騰衝, wins
+    [['成都 ~ 黃龍溪古鎮'], ['成都']],                                         // a water town near Chengdu, not Huanglong
+    [['杭州 ~ 黃龍洞'], ['杭州']],
+    [['寧波 ~ 天童寺'], ['寧波']],                                             // a Ningbo temple, not Tendo
+    [['坎昆 ~ 加勒比海'], ['坎昆']],                                           // the Caribbean, not Galle
+    [['新山口站 ~ 秋芳洞'], []],                                               // Shin-Yamaguchi, not Johor Bahru
+    [['泉州 ~ 安平橋'], ['泉州']],                                             // a bridge in Jinjiang, not Anping (Tainan)
+    [['香港 ~ 北角館'], []],                                                   // not Kakunodate
+    [['中山 ~ 沙溪堡'], ['中山']],                                             // not Shaxi (Yunnan)
+    [['卡加利 ~ 基隆那 ~ 甘露市'], ['卡加利', '基隆那', '甘露市']],             // Kelowna, not Keelung
+  ])('does not read a new short name inside %j', (headings, expectedNames) => {
+    expect(names(extractStops(headings, places))).toEqual(expectedNames);
+  });
+
+  it('reports 多哈 (Doha) as unmatched: every EGL mention is a flight connection, so Qatar is not in the list', () => {
+    const r = extractStops(['香港 ~ 多哈 ~ 里斯本'], places);
+    expect(names(r)).toEqual(['里斯本']);
+    expect(r.unmatched).toEqual(['多哈']);
+  });
+
+  it('reads 安順 with no country context as Anshun, Guizhou, and as Teluk Intan on a Malaysia route', () => {
+    expect(ids(extractStops(['安順'], places))).toEqual(['china-guizhou-anshun']);
+    expect(ids(extractStops(['貴陽 ~ 安順 ~ 黃果樹'], places))).toEqual(['china-guizhou-guiyang', 'china-guizhou-anshun', 'china-guizhou-huangguoshu']);
+    expect(ids(extractStops(['吉隆坡 ~ 安順 ~ 怡保'], places)))
+      .toEqual(['malaysia-peninsular-kuala-lumpur', 'malaysia-peninsular-teluk-intan', 'malaysia-peninsular-ipoh']);
+  });
 });
 
 describe('extractStops with notPlaces', () => {

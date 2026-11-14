@@ -7,7 +7,7 @@
     "The `Day 10/11 … - GERD` entry (`巴黎 ~ 自由活動 ~ 香港`, GERD's flight home) is tagged with the other variant's code and left out; 11 headings remain for 12 days because `Day 11/12` covers the night flight.",
     "`羅馬(鬥獸場 ~ 許願池)` has a `~` inside its brackets; the heading is kept as the page gives it.",
     "startPoint and endPoint are `香港` (day 1's first place, the last day's last place): Hong Kong.",
-    "Stops are as they come out with places/data.json as it stood on 2026-11-14: `博訥/迪戎` gives 波本 (Beaune, by its alias 博訥) only, because `迪戎` (Dijon; the list has 第戎) is missing; `梵蒂崗` (the list has 梵蒂岡), `貝林佐納` (Bellinzona) and `英高柏` (Engelberg) are real places missing from the list, so the route lacks them. 溫莎 comes from `自費：溫莎古堡半日遊`, an optional excursion, by core's contained-name rule."
+    "Stops are as they come out with places/data.json after the EGL review round (2026-11-14), which added the aliases 迪戎 (Dijon) and 梵蒂崗 (Vatican) and the cities 貝林佐納 (Bellinzona) and 英高柏 (Engelberg): they are now on the route and no longer unmatched. `博訥/迪戎` gives both alternatives, 波本 (Beaune, by its alias 博訥) and 狄莊 (Dijon), as the shared rule does for any `/`, and the two days that name it give them twice; 梵蒂岡 sits between two visits to 羅馬. 溫莎 comes from `自費：溫莎古堡半日遊`, an optional excursion, by core's contained-name rule."
   ],
   "scraped": {
     "operatorId": "charming",
@@ -41,6 +41,6 @@
       { "date": "2027-03-13", "priceHkd": 45498 }
     ]
   },
-  "stopNames": ["羅馬", "佛羅倫斯", "比薩", "威尼斯", "維羅納", "米蘭", "盧加諾", "琉森", "波本", "巴黎", "倫敦", "溫莎"],
-  "unmatched": ["梵蒂崗", "聖母百花大教堂", "領主廣場", "貝林佐納", "格朗德大城堡", "自由購物", "英高柏", "乘360", "迪戎", "塞納河船河", "法式海鮮大餐", "蒙馬特", "莎瑪麗丹百貨公司", "LV咖啡廳", "悠閒購物"]
+  "stopNames": ["羅馬", "梵蒂岡", "羅馬", "佛羅倫斯", "比薩", "威尼斯", "維羅納", "米蘭", "盧加諾", "貝林佐納", "琉森", "英高柏", "波本", "狄莊", "波本", "狄莊", "巴黎", "倫敦", "溫莎"],
+  "unmatched": ["聖母百花大教堂", "領主廣場", "格朗德大城堡", "自由購物", "乘360", "塞納河船河", "法式海鮮大餐", "蒙馬特", "莎瑪麗丹百貨公司", "LV咖啡廳", "悠閒購物"]
 }

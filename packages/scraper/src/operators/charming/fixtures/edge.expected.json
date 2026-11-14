@@ -7,7 +7,7 @@
     "This is the only FU row seen: the status class `reservation-table-status FU`, the date cell's status empty and the booking cell's saying `額滿`.",
     "No early-booking discount on this page: the adult price is only in .detail-discount-price (9998). The tax (633) is shown separately and not added.",
     "The last label is `Day 5/6` (a night flight): five headings for six days; the days come from the title's `6天`.",
-    "normalised is no-departures, so stopNames is extractStops over the day headings (Hong Kong excluded), not normaliseTour's route: 杜拜 only. `阿布達比` (Abu Dhabi; the list has 阿布扎比) is missing from places/data.json as it stood on 2026-11-14.",
+    "normalised is no-departures, so stopNames is extractStops over the day headings (Hong Kong excluded), not normaliseTour's route: 杜拜, 阿布扎比, 杜拜. `阿布達比` (Abu Dhabi) was added as an alias of 阿布扎比 in the EGL review round (2026-11-14); it also gives `阿布達比大清真寺`, so neither is reported unmatched any more. Before, the route was 杜拜 only.",
     "Unmatched names are normaliseTour's, which it reports even for a tour it skips."
   ],
   "scraped": {
@@ -30,6 +30,6 @@
     "departures": []
   },
   "normalised": "no-departures",
-  "stopNames": ["杜拜"],
-  "unmatched": ["阿布達比", "阿布達比大清真寺", "遠眺拍照", "單軌觀光火車", "黃金街", "香料市場", "皮革中心", "水上的士", "下午自費參加", "哈利法塔"]
+  "stopNames": ["杜拜", "阿布扎比", "杜拜"],
+  "unmatched": ["遠眺拍照", "單軌觀光火車", "黃金街", "香料市場", "皮革中心", "水上的士", "下午自費參加", "哈利法塔"]
 }

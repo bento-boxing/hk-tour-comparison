@@ -209,7 +209,8 @@ describe('day headings and start and end points', () => {
     expect([t.startPoint, t.endPoint]).toEqual(['溫哥華', '溫哥華']);
     const r = normaliseTour(t, places, CAPTURED);
     expect(r.ok && [r.tour.start, r.tour.end]).toEqual([{ kind: 'other', label: '溫哥華' }, { kind: 'other', label: '溫哥華' }]);
-    expect(r.ok && stopNames(r.tour.stops)).toEqual(['班夫', '卡加利']);
+    // 三文灣 (Salmon Arm) is in the places list since the EGL review round; 灰熊鎮 is not.
+    expect(r.ok && stopNames(r.tour.stops)).toEqual(['三文灣', '班夫', '卡加利']);
   });
   it('a stated start abroad without `原居地` is its first place too', () => {
     expect(tour([['Day 1', '溫哥華 ~ 基隆那'], ['Day 2', '甘露市 ~ 溫哥華']]).startPoint).toBe('溫哥華');
