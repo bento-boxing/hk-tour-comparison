@@ -1,4 +1,4 @@
-OWNER DECISION PENDING
+APPROVED 2026-11-14: controller applying the owner's stated rule (no prohibiting clause; robots.txt allows the pages used)
 
 # Charming Holidays 翠明假期 (`charming`): operator investigation
 
@@ -30,7 +30,7 @@ OWNER DECISION PENDING
 
 Things to settle when the scraper is built, none of them a blocker:
 
-1. Many of the 789 posts are old (published 2023–2025) and probably have no future dates. Their pages were not sampled, so what an expired tour page looks like (empty `dates`, a 404, or old dates) is **not known**. They would be skipped as no-departures.
+1. Many of the 789 posts are old (published 2023–2025) and probably have no future dates. **Settled 2026-11-14** (see "Scraper and fixtures"): an old post's page is still served, HTTP 200, with its old dates in the table; they are skipped as no-departures.
 2. Tours with two variants on one page (e.g. `GERD/E`, 11 or 12 days) need the table, not the JSON (see "Two variants on one page").
 3. The REST response carries `x-robots-tag: noindex`. That asks search engines not to index the JSON. It does not forbid fetching it, and robots.txt allows it. If the owner prefers HTML only, the 108 destination listing pages linked from the menu can be used for discovery instead (more requests, and each tour appears on several listings).
 
@@ -130,7 +130,7 @@ Each `.tour-list-item` has `.detail-title` (title with code), `.detail-sub-title
 
 ## Fixtures
 
-**None saved**; this is research only. The raw pages stay under `.superpowers/raw-pages/charming/`. Good fixture candidates: `06-tour-ghtg.raw` (simple), `08-tour-pccgf.raw` (many dates, three statuses), `09-tour-gerd-gere.raw` (two variants). A full (`FU`) date has not been seen and would be worth one.
+None were saved in the investigation. The scraper's fixtures are under "Scraper and fixtures" below.
 
 ## Discovering tours and nightly cost
 
@@ -165,14 +165,69 @@ All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. 
 
 **Not fetched:** `/?page_id=2101` (disallowed); any other sitemap URL; the booking page `/?page_id=48197&tcode=…`; `/?page_id=26` (contact), `/?page_id=2663`, `/?page_id=25836`; the tour brochure PDFs; REST pages 2–7; `charmingholidays.net`; a cruise or Guangdong coach tour page.
 
+## Scraper and fixtures (2026-11-14)
+
+The scraper is `packages/scraper/src/operators/charming/`. Discovery reads the REST list above, 100 posts per page, until a page holds fewer than 100 (or is not fetched, or not a JSON list: WordPress refuses a page past the last); at most 20 pages. Each discovered tour is one request, its page. Everything is read from the HTML as served; the inline `var dates = JSON.parse(…)` is not read (it holds one variant per date only, and the table holds every row). Registered with a provisional first-run floor of 40; not in the nightly matrix until a measured crawl.
+
+What the parser reads, and its rules:
+
+- **Title, code, days**: `.tour-title`. The code is after the last `~` or `～` (`～ WVJ3/4` uses the full-width one); the days are the leading `<n>天` (`3/4 天` has a space). With no `<n>天`, the last day label's number (`Day 5/6` gives 6), for a single variant. The title is kept as the page gives it.
+- **Variants**: `GERD/E` is GERD and GERE (each code after a `/` replaces the end of the first; `WVJ3/4` is WVJ3 and WVJ4; a full code after the slash is taken as it is). Day counts pair with the codes in order, or one count is every variant's. The page gives one tour, its **longest variant** (the first on a tie): its code, its days, its own table rows. A row is the variant's when its code (`.reservation-table-code`, e.g. `GERE12E-261219`, `WVJ04O-261101`: letters, then the day count, here with a leading zero) has the variant's letters and day count. The other variants are not listed. If no row is the variant's, the page is a parse failure.
+- **Day headings**: each `.tour-journeys-day-title` whose `h3` starts `Day <n>` (`Day ４` with a full-width digit occurs), paired with the `.tour-journeys-title` of the `.tour-journeys-detail` after it. Entries without a day label are notes and are left out: `集合時間及地點` (gathering time and place, on Canadian local tours) and `旅遊須知` (travel notes). A label ending `- GERD` marks a day of that variant only (`Day 10/11 (點擊展開行程) - GERD`); days tagged with another variant's code are left out. Day 1's flight leg after Hong Kong and the last day's before it are dropped when they name either of two or more airports (`香港 ~ 無錫/南京/上海 ~ 南京`, `… ~ 杭州/上海機場 ~ 香港`), as for Jetour and EGL; every other heading is as the page gives it.
+- **Start and end**: day 1's first place and the last day's last place (bracketed notes removed, at most 12 characters, else none). `原居地` ("home city", on tours joined abroad: `原居地 ~ 溫哥華`, `… ~ 溫哥華 ~ 原居地`) is not a place and is skipped, so those tours start and end at 溫哥華 (kind other, not a stop). Hong Kong tours give `香港`.
+- **Dates**: one `.reservation-table .reservation-table-tr` per departure (per variant), `.reservation-table-related_date` as `D/MM/YYYY`. A row whose `.reservation-table-status` has the class `FU` is full and dropped. Other status classes (`GT`, `GP`, `HP`, or one not seen) are kept. Past dates are kept for normaliseTour to drop.
+- **Price**: the row's adult (sharing a room) price, `.reservation-table-td.adt_price .detail-discount-price` (after the early-booking discount; on a date without one it is the only price), else `.detail-original-price`. The tax column is not added. `fromPriceHkd` is null: the page's only "from" figure is in a script (`min_original_price`, before the discount).
+- **URL**: `https://www.charming-online.com/?tour=<slug>`, without a listing's `&tour-destination=` or a fragment.
+
+**What an expired tour page looks like** (fixture request 1, a post the REST list gives as modified 2023-11-29): HTTP 200, the full page, with its old date still in the table (`30/11/2023`), here also marked full. Not empty, not a 404. So old posts are fetched every night and skipped as no-departures. Recently departed dates also stay on current pages (PCMHP listed only `6/11/2026` on 14 November).
+
+**How a full date looks** (the same page; the only `FU` seen): the date cell's status is `<div class="reservation-table-status FU"></div>` (empty), and the booking cell holds `<div class="reservation-table-status FU">額滿</div>` in place of the `詳情/預定` link. Prices are still shown.
+
+Fixtures (`packages/scraper/src/operators/charming/fixtures/`), each with `<name>.expected.json` (`verifiedByOwner: false`, notes on every judgment call):
+
+| Fixture | Tour | Why |
+|---|---|---|
+| `simple` | PCCGG, 8天 華東【乾隆遊江南】 (`?tour=8天-華東【乾隆遊江南】江南尋夢之旅-pccgg`, percent-encoded) | One variant, 12 dates, flight legs `無錫/南京/上海` and `杭州/上海機場`, a `Day ４` label |
+| `multi-city` | GERD/E, 11/12天【經典歐洲】 (`?tour=f-25-eur-010-gerd_gere`) | Two variants on one page, five countries, day labels tagged `- GERD` / `- GERE` |
+| `edge` | GDXD, 6天杜拜悠閒之旅 (`?tour=6天杜拜悠閒之旅-gdxd`, percent-encoded) | A 2023 post: its only date past and full (`FU`), no discount, a tax shown, `Day 5/6` |
+
+A non-Hong Kong start (RWC5, RWB4, WVJ3/4: Canadian local tours) is covered by tests built on the same markup, not by a fixture: three fixtures were asked for, and the expired and full page was the oddest.
+
+They were trimmed in allow-list mode from the saved pages (`f07-china-pccgg.raw`, `09-tour-gerd-gere.raw`, `f01-old-2023-gdxd.raw` under `.superpowers/raw-pages/charming/`, outside git), keeping only the text `parse.ts` reads; scripts (including `var dates`), images and all other text are removed. To regenerate:
+
+```sh
+pnpm --filter @hktours/scraper fixture \
+  --allow .tour-title --allow .tour-journeys-day-title --allow .tour-journeys-title \
+  --allow .reservation-table-related_date --allow .reservation-table-code --allow .reservation-table-td.adt_price \
+  --from <saved page> <output>.html
+```
+
+The status (`FU`, `HP` …) is a class, which is kept without being listed. Every committed fixture was checked: the only text left is the title, the day labels and headings, the dates, row codes and adult prices; no attribute holds Chinese text; no email address. The footer's company WhatsApp link (`wa.me/+852…`, the company's public number) stays, as Jetour's company phone number does in its fixtures.
+
+**Requests for the fixtures** (budget 8; **7 used**). Each through `createFetcher()` with default options (one fetcher per run, so 3 s apart within a run), undici's `EnvHttpProxyAgent` installed as `cli.ts` does, GET, no extra headers; robots.txt was served from the copy saved in the investigation (2026-11-13 23:08 UTC), not requested again. Logged to `.superpowers/raw-pages/charming/ledger-fixtures.tsv`. Every answer was HTTP 200 with the full page; no refusal, block or challenge.
+
+| # | UTC (2026-11-14) | URL (`https://www.charming-online.com/?tour=…`) | Result |
+|---|---|---|---|
+| 1 | 00:27:14 | `6天杜拜悠閒之旅-gdxd` (percent-encoded; REST post 24615, modified 2023-11-29) | 200, 130,991 bytes. Expired: one date, 30/11/2023, `FU`. The `edge` fixture |
+| 2 | 00:29:05 | `f-26-can-014-rwb4` | 200, 126,067 bytes. Canada 4天, starts 溫哥華, one date 19/12/2026, a `集合時間及地點` entry |
+| 3 | 00:29:11 | `f-26-can-016-wvj3-4` | 200, 134,002 bytes. `WVJ3/4`, two variants (`WVJ03O`, `WVJ04O`), `原居地`, `～`; its only date 1/11/2026, past |
+| 4 | 00:39:13 | `f-26-can-013-rwc5` | 200, 131,535 bytes. Canada 5天, `原居地 ~ 溫哥華` … `溫哥華 ~ 原居地`, one date 18/12/2026 |
+| 5 | 00:39:19 | `8天-呼倫貝爾．漠河．滿洲里．北極村邂逅極光-pcmhp` (percent-encoded) | 200, 157,180 bytes. Its only date 6/11/2026, past (`GT`) |
+| 6 | 00:41:14 | `f-26-china-083-pcqda` | 200, 155,044 bytes. Two dates in April 2027, `GT` |
+| 7 | 00:41:19 | `8天-華東【乾隆遊江南】江南尋夢之旅-pccgg` (percent-encoded) | 200, 182,564 bytes. 12 dates, all `HP`. The `simple` fixture |
+
+Requests 2–7 looked for a future full date and a non-Hong Kong start: the start was found (2–4), a future `FU` date was not.
+
 ## Not verified
 
 - That the owner meant Charming Holidays 翠明假期 and not the closed `Charming China` / `Charming Tour` (M&F Lucky Holiday).
 - That licence 350759 is current today (seen on the site footer and in TIC lists from 2022–2024, not on the Travel Industry Authority's register).
 - Whether a website terms of use or privacy policy exists anywhere not linked from the pages fetched.
-- What an expired tour page looks like, and how many of the 789 posts have future dates.
-- How a full (`FU`) date appears in the table; whether other status codes exist; what `AVAQTY` means.
-- Whether past dates are dropped from the page.
+- How many of the 789 posts have future dates (an expired page was seen on 2026-11-14: see "Scraper and fixtures").
+- A full (`FU`) row was seen only on a past date (2026-11-14); whether other status codes exist; what `AVAQTY` means.
+- Past dates are not dropped from the page (seen 2026-11-14 on three pages).
+- Whether every multi-variant page tags its variant-only days (`- GERD`) and codes its rows with letters then the day count: seen on GERD/E and WVJ3/4 only.
+- Cruise pages (`f-26-cruise-…`) and the non-tour posts (spa packages, `機票及郵輪套票`) were not sampled; any without a `~ CODE` title is a parse failure.
 - Gathering points for coach tours (none sampled); cruise pages (none sampled).
 - The hidden listing value (`6, 03/28/2027, true`) and the per-date code's day-count digits (three tours only).
 - Response times were not measured. The 40-minute estimate counts only the 3 s spacing; a slow server could double it, which would still fit.
