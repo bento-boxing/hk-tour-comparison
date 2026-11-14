@@ -55,18 +55,18 @@ function isFullOrClosed(row: JsonObject): boolean {
 }
 
 /**
- * Every bookable departure of the months' answers, in the order given, with its member price; null when an
- * answer carries an error code, has no list, or lists a departure that is not this tour's. Past dates are
- * kept: normaliseTour drops them.
+ * Every bookable departure of the months' answers, in the order given, with its member price; or why there
+ * are none to read (an answer carries an error code or has no list, or lists a departure that is not this
+ * tour's). Past dates are kept: normaliseTour drops them.
  */
-function readDepartures(months: { dates: unknown }[], id: string): ScrapedDeparture[] | null {
+function readDepartures(months: { dates: unknown }[], id: string): ScrapedDeparture[] | string {
   const departures: ScrapedDeparture[] = [];
   for (const { dates } of months) {
     const answer = objectAt(dates);
     const list = objectAt(answer.data).list;
-    if (answer.code !== OK || !Array.isArray(list)) return null;
+    if (answer.code !== OK || !Array.isArray(list)) return 'a dates answer has an error code or no list';
     for (const row of list.map(objectAt)) {
-      if (!sameId(row.productId, id)) return null;
+      if (!sameId(row.productId, id)) return 'a dates answer lists a departure of another tour';
       const date = row.scheduleDate;
       if (typeof date !== 'string' || !isIsoDate(date) || isFullOrClosed(row)) continue;
       departures.push({ date, priceHkd: price(row.memberFee) });
@@ -93,28 +93,28 @@ function gatheringPlace(signUp: JsonObject): string | null {
 }
 
 /**
- * One Big Line tour (fetchPage's text for `https://bigline.hk/tour-group/<id>`) as a ScrapedTour; null when
- * the text is not that, the detail is not this tour's or has no valid tour code or day count, its prices
- * are not in HKD, or a month's answer is unusable. `_today` is accepted for the shared parser signature;
- * every date carries its year.
+ * One Big Line tour (fetchPage's text for `https://bigline.hk/tour-group/<id>`) as a ScrapedTour, or why it is
+ * not one. The reasons are fixed texts, never anything from the answer, so they can be logged.
  */
-export function parse(text: string, url: string, _today?: IsoDate): ScrapedTour | null {
+export function readTour(text: string, url: string): ScrapedTour | { why: string } {
   const id = tourIdOf(url);
+  if (id === null) return { why: 'not a Big Line tour page' };
   const tour = splitTour(text);
-  if (id === null || tour === null) return null;
+  if (tour === null) return { why: 'not the joined detail and dates text' };
   const detail = objectAt(tour.detail);
   const data = objectAt(detail.data);
-  if (detail.code !== OK || !sameId(data.id, id)) return null;
+  if (detail.code !== OK) return { why: 'the detail answered a code other than 200' };
+  if (!sameId(data.id, id)) return { why: 'the detail is for another tour' };
 
   const basic = objectAt(data.basic);
   const code = clean(basic.tourNo);
-  if (!TOUR_CODE_PATTERN.test(code)) return null;
+  if (!TOUR_CODE_PATTERN.test(code)) return { why: 'the detail has no valid tour code' };
   const days = basic.tourDays;
-  if (!isCount(days) || days < 1) return null;
+  if (!isCount(days) || days < 1) return { why: 'the detail has no day count of at least 1' };
   const signUp = objectAt(data.signUp);
-  if (signUp.settlementCurrencyCode !== CURRENCY) return null;
+  if (signUp.settlementCurrencyCode !== CURRENCY) return { why: 'the prices are not in HKD' };
   const departures = readDepartures(tour.months, id);
-  if (departures === null) return null;
+  if (typeof departures === 'string') return { why: departures };
 
   return {
     operatorId: 'bigline',
@@ -129,4 +129,13 @@ export function parse(text: string, url: string, _today?: IsoDate): ScrapedTour 
     fromPriceHkd: price(data.memberFee),
     departures,
   };
+}
+
+/**
+ * One Big Line tour as a ScrapedTour; null when it is not one (see readTour for the reasons). `_today` is
+ * accepted for the shared parser signature; every date carries its year.
+ */
+export function parse(text: string, url: string, _today?: IsoDate): ScrapedTour | null {
+  const tour = readTour(text, url);
+  return 'why' in tour ? null : tour;
 }
