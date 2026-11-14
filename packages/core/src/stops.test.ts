@@ -453,6 +453,23 @@ describe('extractStops on crawled headings', () => {
     expect(r.unmatched).toContain('聖保羅');
   });
 
+  // The final review of the Charming round: guards for names read inside longer words, and Charming's Jordan spellings.
+  it.each([
+    [['新加坡 ~ 馬哈馬里安曼印度廟'], ['新加坡']],                              // a Hindu temple, not Amman
+    [['曼谷 ~ 參觀眾多佛像'], ['曼谷']],                                       // "many Buddhas", not Dover
+    [['北京 ~ 利瑪竇墓'], ['北京']],                                           // Matteo Ricci's tomb, not Lima
+    [['安曼 ~ 馬賽克之城 ~ 佩特拉'], ['安曼', '佩特拉']],                         // "the city of mosaics", not Marseille
+    [['安曼 ~ 美底巴「馬賽克之城」 ~ 佩特拉'], ['安曼', '馬達巴', '佩特拉']],       // Madaba, as Charming spells it
+    [['亞卡巴 ~ 哲拉希'], ['亞喀巴', '傑拉什']],                                // Aqaba and Jerash, Charming's spellings
+    [['都柏林 ~ 恩尼斯科西'], ['都柏林']],                                      // Enniscorthy, not Nice
+    [['倫敦 ~ 米爾頓凱恩斯'], ['倫敦']],                                        // Milton Keynes, not Cairns
+    [['伊爾庫茨克 ~ 尤里加加林大街'], ['伊爾庫茨克']],                          // Yuri Gagarin Street, not Riga
+    [['那維克 ~ 比約克利登 ~ 羅凡尼米'], ['納爾維克', '羅凡尼米']],                  // Björkliden, not York
+    [['吉隆坡 ~ 香格里拉下午茶'], ['吉隆坡']],                                  // afternoon tea at the hotel, not Shangri-La
+  ])('final review: reads %j as %j', (headings, expectedNames) => {
+    expect(names(extractStops(headings, places))).toEqual(expectedNames);
+  });
+
   it('drops 千島湖 on a Canada route as a lone foreign stop (the Thousand Islands), and reports it', () => {
     const r = extractStops(['多倫多 ~ 千島湖遊船 ~ 渥太華 ~ 滿地可 ~ 魁北克'], places);
     expect(names(r)).toEqual(['多倫多', '渥太華', '滿地可', '魁北克']);
