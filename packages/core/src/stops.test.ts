@@ -135,8 +135,8 @@ describe('extractStops drops transit', () => {
     ['香港西九龍站(乘高鐵)中轉深圳北/廣州南> 泉州> 洛伽寺', ['泉州'], ['洛伽寺']],
     // Travel Expert TXXF04R, day 4: 廈門 before the 中轉 chunk is kept
     ['廈門> 七彩環島路> 外觀廈門標誌性建築【雙子塔】> 廈門(乘高鐵) 中轉深圳北/廣州南 > 香港西九龍站', ['廈門'], ['七彩環島路']],
-    // Travel Expert TGGK06R: 經廣州南中轉 is a chunk of its own
-    ['深圳福田口岸集合 > (乘地鐵) 深圳北站 > (乘動車) 經廣州南中轉 > (乘動車) 廣西「百色」', ['深圳'], ['廣西「百色」']],
+    // Travel Expert TGGK06R: 經廣州南中轉 is a chunk of its own (百色 is in the places list since the Big Line pass)
+    ['深圳福田口岸集合 > (乘地鐵) 深圳北站 > (乘動車) 經廣州南中轉 > (乘動車) 廣西「百色」', ['深圳', '百色'], []],
     ['大阪 → 轉乘新幹線 → 京都', ['大阪', '京都'], []],
     ['大阪 → 過境東京 → 京都', ['大阪', '京都'], []],
   ])('extractStops([%j])', (heading, expectedNames, expectedUnmatched) => {

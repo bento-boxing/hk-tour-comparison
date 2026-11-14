@@ -60,7 +60,7 @@
     { "id": "saudi-arabia", "nameZh": "沙特阿拉伯", "nameEn": "Saudi Arabia", "aliases": ["沙地阿拉伯"], "group": "middle-east" },
     { "id": "egypt", "nameZh": "埃及", "nameEn": "Egypt", "aliases": [], "group": "africa" },
     { "id": "morocco", "nameZh": "摩洛哥", "nameEn": "Morocco", "aliases": [], "group": "africa" },
-    { "id": "tunisia", "nameZh": "突尼斯", "nameEn": "Tunisia", "aliases": [], "group": "africa" },
+    { "id": "tunisia", "nameZh": "突尼斯", "nameEn": "Tunisia", "aliases": ["突尼西亞"], "group": "africa" },
     { "id": "south-africa", "nameZh": "南非", "nameEn": "South Africa", "aliases": [], "group": "africa" },
     { "id": "zimbabwe", "nameZh": "津巴布韋", "nameEn": "Zimbabwe", "aliases": [], "group": "africa" },
     { "id": "kenya", "nameZh": "肯尼亞", "nameEn": "Kenya", "aliases": [], "group": "africa" },
@@ -81,7 +81,7 @@
     { "id": "tanzania", "nameZh": "坦桑尼亞", "nameEn": "Tanzania", "aliases": [], "group": "africa" },
     { "id": "faroe-islands", "nameZh": "法羅群島", "nameEn": "Faroe Islands", "aliases": [], "group": "europe" },
     { "id": "indonesia", "nameZh": "印度尼西亞", "nameEn": "Indonesia", "aliases": ["印尼"], "group": "southeast-asia" },
-    { "id": "brunei", "nameZh": "汶萊", "nameEn": "Brunei", "aliases": ["文萊"], "group": "southeast-asia" },
+    { "id": "brunei", "nameZh": "汶萊", "nameEn": "Brunei", "aliases": ["文萊", "汶莱"], "group": "southeast-asia" },
     { "id": "sri-lanka", "nameZh": "斯里蘭卡", "nameEn": "Sri Lanka", "aliases": [], "group": "south-central-asia" },
     { "id": "india", "nameZh": "印度", "nameEn": "India", "aliases": [], "group": "south-central-asia" },
     { "id": "kyrgyzstan", "nameZh": "吉爾吉斯", "nameEn": "Kyrgyzstan", "aliases": ["吉爾吉斯斯坦", "吉爾吉斯坦"], "group": "south-central-asia" },
@@ -92,7 +92,12 @@
     { "id": "kosovo", "nameZh": "科索沃", "nameEn": "Kosovo", "aliases": [], "group": "europe" },
     { "id": "panama", "nameZh": "巴拿馬", "nameEn": "Panama", "aliases": [], "group": "americas" },
     { "id": "uruguay", "nameZh": "烏拉圭", "nameEn": "Uruguay", "aliases": [], "group": "americas" },
-    { "id": "falkland-islands", "nameZh": "福克蘭群島", "nameEn": "Falkland Islands", "aliases": ["福克蘭"], "group": "americas" }
+    { "id": "falkland-islands", "nameZh": "福克蘭群島", "nameEn": "Falkland Islands", "aliases": ["福克蘭"], "group": "americas" },
+
+    { "id": "jordan", "nameZh": "約旦", "nameEn": "Jordan", "aliases": [], "group": "middle-east" },
+    { "id": "papua-new-guinea", "nameZh": "巴布亞新畿內亞", "nameEn": "Papua New Guinea", "aliases": ["巴布亞新幾內亞"], "group": "oceania" },
+    { "id": "nepal", "nameZh": "尼泊爾", "nameEn": "Nepal", "aliases": [], "group": "south-central-asia" },
+    { "id": "zambia", "nameZh": "贊比亞", "nameEn": "Zambia", "aliases": ["尚比亞"], "group": "africa" }
   ],
   "regions": [
     { "id": "japan-hokkaido", "countryId": "japan", "nameZh": "北海道", "nameEn": "Hokkaido", "aliases": [] },
@@ -103,7 +108,7 @@
     { "id": "japan-chugoku", "countryId": "japan", "nameZh": "中國地方", "nameEn": "Chugoku", "aliases": [] },
     { "id": "japan-shikoku", "countryId": "japan", "nameZh": "四國", "nameEn": "Shikoku", "aliases": [] },
     { "id": "japan-kyushu", "countryId": "japan", "nameZh": "九州", "nameEn": "Kyushu", "aliases": [] },
-    { "id": "japan-okinawa", "countryId": "japan", "nameZh": "沖繩", "nameEn": "Okinawa", "aliases": ["沖縄"] },
+    { "id": "japan-okinawa", "countryId": "japan", "nameZh": "沖繩", "nameEn": "Okinawa", "aliases": ["沖縄", "冲繩"] },
 
     { "id": "korea-seoul", "countryId": "korea", "nameZh": "首爾及京畿", "nameEn": "Seoul & Gyeonggi", "aliases": ["京畿", "京畿道"] },
     { "id": "korea-gangwon", "countryId": "korea", "nameZh": "江原道", "nameEn": "Gangwon", "aliases": ["江原"] },
@@ -305,7 +310,7 @@
 
     { "id": "indonesia-bali", "countryId": "indonesia", "nameZh": "峇里島", "nameEn": "Bali", "aliases": ["巴厘島", "巴里島"] },
 
-    { "id": "brunei-brunei", "countryId": "brunei", "nameZh": "汶萊", "nameEn": "Brunei", "aliases": ["文萊"] },
+    { "id": "brunei-brunei", "countryId": "brunei", "nameZh": "汶萊", "nameEn": "Brunei", "aliases": ["文萊", "汶莱"] },
 
     { "id": "sri-lanka-sri-lanka", "countryId": "sri-lanka", "nameZh": "斯里蘭卡", "nameEn": "Sri Lanka", "aliases": [] },
 
@@ -319,7 +324,13 @@
     { "id": "kosovo-kosovo", "countryId": "kosovo", "nameZh": "科索沃", "nameEn": "Kosovo", "aliases": [] },
     { "id": "panama-panama", "countryId": "panama", "nameZh": "巴拿馬", "nameEn": "Panama", "aliases": [] },
     { "id": "uruguay-uruguay", "countryId": "uruguay", "nameZh": "烏拉圭", "nameEn": "Uruguay", "aliases": [] },
-    { "id": "falkland-islands-falkland-islands", "countryId": "falkland-islands", "nameZh": "福克蘭群島", "nameEn": "Falkland Islands", "aliases": [] }
+    { "id": "falkland-islands-falkland-islands", "countryId": "falkland-islands", "nameZh": "福克蘭群島", "nameEn": "Falkland Islands", "aliases": [] },
+
+    { "id": "jordan-jordan", "countryId": "jordan", "nameZh": "約旦", "nameEn": "Jordan", "aliases": [] },
+    { "id": "papua-new-guinea-papua-new-guinea", "countryId": "papua-new-guinea", "nameZh": "巴布亞新畿內亞", "nameEn": "Papua New Guinea", "aliases": ["巴布亞新幾內亞"] },
+    { "id": "nepal-nepal", "countryId": "nepal", "nameZh": "尼泊爾", "nameEn": "Nepal", "aliases": [] },
+    { "id": "zambia-zambia", "countryId": "zambia", "nameZh": "贊比亞", "nameEn": "Zambia", "aliases": ["尚比亞"] },
+    { "id": "indonesia-java", "countryId": "indonesia", "nameZh": "爪哇", "nameEn": "Java", "aliases": [] }
   ],
   "cities": [
     { "id": "japan-hokkaido-sapporo", "regionId": "japan-hokkaido", "nameZh": "札幌", "nameEn": "Sapporo", "aliases": [] },
@@ -424,7 +435,7 @@
     { "id": "japan-kyushu-aso", "regionId": "japan-kyushu", "nameZh": "阿蘇", "nameEn": "Aso", "aliases": [] },
 
     { "id": "japan-okinawa-naha", "regionId": "japan-okinawa", "nameZh": "那霸", "nameEn": "Naha", "aliases": ["那覇"] },
-    { "id": "japan-okinawa-okinawa-island", "regionId": "japan-okinawa", "nameZh": "沖繩", "nameEn": "Okinawa Island", "aliases": ["沖縄", "沖繩本島", "沖縄本島"] },
+    { "id": "japan-okinawa-okinawa-island", "regionId": "japan-okinawa", "nameZh": "沖繩", "nameEn": "Okinawa Island", "aliases": ["沖縄", "沖繩本島", "沖縄本島", "冲繩"] },
 
     { "id": "korea-seoul-seoul", "regionId": "korea-seoul", "nameZh": "首爾", "nameEn": "Seoul", "aliases": ["漢城"] },
     { "id": "korea-seoul-nami-island", "regionId": "korea-seoul", "nameZh": "南怡島", "nameEn": "Nami Island", "aliases": [] },
@@ -495,7 +506,7 @@
     { "id": "taiwan-east-taitung", "regionId": "taiwan-east", "nameZh": "台東", "nameEn": "Taitung", "aliases": [] },
 
     { "id": "thailand-bangkok-bangkok", "regionId": "thailand-bangkok", "nameZh": "曼谷", "nameEn": "Bangkok", "aliases": [] },
-    { "id": "thailand-bangkok-pattaya", "regionId": "thailand-bangkok", "nameZh": "芭堤雅", "nameEn": "Pattaya", "aliases": ["芭達雅"] },
+    { "id": "thailand-bangkok-pattaya", "regionId": "thailand-bangkok", "nameZh": "芭堤雅", "nameEn": "Pattaya", "aliases": ["芭達雅", "芭提雅"] },
     { "id": "thailand-bangkok-hua-hin", "regionId": "thailand-bangkok", "nameZh": "華欣", "nameEn": "Hua Hin", "aliases": [] },
     { "id": "thailand-bangkok-ayutthaya", "regionId": "thailand-bangkok", "nameZh": "大城府", "nameEn": "Ayutthaya", "aliases": [] },
     { "id": "thailand-bangkok-chanthaburi", "regionId": "thailand-bangkok", "nameZh": "尖竹汶", "nameEn": "Chanthaburi", "aliases": [] },
@@ -503,7 +514,7 @@
     { "id": "thailand-bangkok-khao-yai", "regionId": "thailand-bangkok", "nameZh": "考艾", "nameEn": "Khao Yai", "aliases": [] },
 
     { "id": "thailand-north-chiang-mai", "regionId": "thailand-north", "nameZh": "清邁", "nameEn": "Chiang Mai", "aliases": [] },
-    { "id": "thailand-north-chiang-rai", "regionId": "thailand-north", "nameZh": "清萊", "nameEn": "Chiang Rai", "aliases": [] },
+    { "id": "thailand-north-chiang-rai", "regionId": "thailand-north", "nameZh": "清萊", "nameEn": "Chiang Rai", "aliases": ["清莱"] },
     { "id": "thailand-north-mae-sai", "regionId": "thailand-north", "nameZh": "美塞", "nameEn": "Mae Sai", "aliases": [] },
 
     { "id": "thailand-south-phuket", "regionId": "thailand-south", "nameZh": "布吉", "nameEn": "Phuket", "aliases": ["普吉", "布吉島", "普吉島"] },
@@ -519,7 +530,7 @@
     { "id": "china-guangdong-dongguan", "regionId": "china-guangdong", "nameZh": "東莞", "nameEn": "Dongguan", "aliases": [] },
     { "id": "china-guangdong-foshan", "regionId": "china-guangdong", "nameZh": "佛山", "nameEn": "Foshan", "aliases": [] },
     { "id": "china-guangdong-shunde", "regionId": "china-guangdong", "nameZh": "順德", "nameEn": "Shunde", "aliases": [] },
-    { "id": "china-guangdong-zhaoqing", "regionId": "china-guangdong", "nameZh": "肇慶", "nameEn": "Zhaoqing", "aliases": [] },
+    { "id": "china-guangdong-zhaoqing", "regionId": "china-guangdong", "nameZh": "肇慶", "nameEn": "Zhaoqing", "aliases": ["端州"] },
     { "id": "china-guangdong-zhongshan", "regionId": "china-guangdong", "nameZh": "中山", "nameEn": "Zhongshan", "aliases": [] },
     { "id": "china-guangdong-sanshui", "regionId": "china-guangdong", "nameZh": "三水", "nameEn": "Sanshui", "aliases": [] },
     { "id": "china-guangdong-huadu", "regionId": "china-guangdong", "nameZh": "花都", "nameEn": "Huadu", "aliases": [] },
@@ -872,7 +883,7 @@
     { "id": "netherlands-netherlands-hoorn", "regionId": "netherlands-netherlands", "nameZh": "荷恩", "nameEn": "Hoorn", "aliases": [] },
     { "id": "netherlands-netherlands-kinderdijk", "regionId": "netherlands-netherlands", "nameZh": "小孩堤防", "nameEn": "Kinderdijk", "aliases": ["小孩堤壩"] },
 
-    { "id": "belgium-belgium-brussels", "regionId": "belgium-belgium", "nameZh": "布魯塞爾", "nameEn": "Brussels", "aliases": [] },
+    { "id": "belgium-belgium-brussels", "regionId": "belgium-belgium", "nameZh": "布魯塞爾", "nameEn": "Brussels", "aliases": ["布鲁塞爾"] },
     { "id": "belgium-belgium-bruges", "regionId": "belgium-belgium", "nameZh": "布魯日", "nameEn": "Bruges", "aliases": [] },
     { "id": "belgium-belgium-ghent", "regionId": "belgium-belgium", "nameZh": "根特", "nameEn": "Ghent", "aliases": [] },
     { "id": "belgium-belgium-antwerp", "regionId": "belgium-belgium", "nameZh": "安特衛普", "nameEn": "Antwerp", "aliases": [] },
@@ -932,7 +943,7 @@
     { "id": "switzerland-switzerland-interlaken", "regionId": "switzerland-switzerland", "nameZh": "茵特拉肯", "nameEn": "Interlaken", "aliases": ["因特拉肯", "英特勒根", "茵特拉根"] },
     { "id": "switzerland-switzerland-grindelwald", "regionId": "switzerland-switzerland", "nameZh": "格林德瓦", "nameEn": "Grindelwald", "aliases": [] },
     { "id": "switzerland-switzerland-zermatt", "regionId": "switzerland-switzerland", "nameZh": "策馬特", "nameEn": "Zermatt", "aliases": ["采爾馬特", "釆爾瑪特"] },
-    { "id": "switzerland-switzerland-geneva", "regionId": "switzerland-switzerland", "nameZh": "日內瓦", "nameEn": "Geneva", "aliases": [] },
+    { "id": "switzerland-switzerland-geneva", "regionId": "switzerland-switzerland", "nameZh": "日內瓦", "nameEn": "Geneva", "aliases": ["日内瓦"] },
     { "id": "switzerland-switzerland-lausanne", "regionId": "switzerland-switzerland", "nameZh": "洛桑", "nameEn": "Lausanne", "aliases": [] },
     { "id": "switzerland-switzerland-montreux", "regionId": "switzerland-switzerland", "nameZh": "蒙特勒", "nameEn": "Montreux", "aliases": ["蒙特魯"] },
     { "id": "switzerland-switzerland-lugano", "regionId": "switzerland-switzerland", "nameZh": "盧加諾", "nameEn": "Lugano", "aliases": [] },
@@ -943,9 +954,9 @@
     { "id": "switzerland-switzerland-stein-am-rhein", "regionId": "switzerland-switzerland", "nameZh": "施泰因", "nameEn": "Stein am Rhein", "aliases": ["萊茵河畔施泰因", "史泰恩"] },
     { "id": "switzerland-switzerland-brig", "regionId": "switzerland-switzerland", "nameZh": "布里格", "nameEn": "Brig", "aliases": [] },
     { "id": "switzerland-switzerland-brienz", "regionId": "switzerland-switzerland", "nameZh": "布里恩茨", "nameEn": "Brienz", "aliases": [] },
-    { "id": "switzerland-switzerland-leukerbad", "regionId": "switzerland-switzerland", "nameZh": "盧加柏", "nameEn": "Leukerbad", "aliases": [] },
+    { "id": "switzerland-switzerland-leukerbad", "regionId": "switzerland-switzerland", "nameZh": "盧加柏", "nameEn": "Leukerbad", "aliases": ["洛伊克巴德"] },
     { "id": "switzerland-switzerland-stoos", "regionId": "switzerland-switzerland", "nameZh": "施圖斯", "nameEn": "Stoos", "aliases": [] },
-    { "id": "switzerland-switzerland-st-moritz", "regionId": "switzerland-switzerland", "nameZh": "聖莫里茲", "nameEn": "St. Moritz", "aliases": ["聖莫理茲", "聖莫利茲"] },
+    { "id": "switzerland-switzerland-st-moritz", "regionId": "switzerland-switzerland", "nameZh": "聖莫里茲", "nameEn": "St. Moritz", "aliases": ["聖莫理茲", "聖莫利茲", "聖莫里兹"] },
     { "id": "switzerland-switzerland-pontresina", "regionId": "switzerland-switzerland", "nameZh": "蓬特雷西納", "nameEn": "Pontresina", "aliases": ["波特雷斯那"] },
     { "id": "switzerland-switzerland-kandersteg", "regionId": "switzerland-switzerland", "nameZh": "坎德施泰格", "nameEn": "Kandersteg", "aliases": [] },
     { "id": "switzerland-switzerland-lauterbrunnen", "regionId": "switzerland-switzerland", "nameZh": "勞特布魯嫩", "nameEn": "Lauterbrunnen", "aliases": [] },
@@ -1006,7 +1017,7 @@
 
     { "id": "croatia-croatia-zagreb", "regionId": "croatia-croatia", "nameZh": "札格勒布", "nameEn": "Zagreb", "aliases": ["薩格勒布", "扎格勒布"] },
     { "id": "croatia-croatia-dubrovnik", "regionId": "croatia-croatia", "nameZh": "杜邦力夫", "nameEn": "Dubrovnik", "aliases": ["杜布羅夫尼克", "杜邦力"] },
-    { "id": "croatia-croatia-split", "regionId": "croatia-croatia", "nameZh": "斯普利特", "nameEn": "Split", "aliases": ["史普列特", "司碧"] },
+    { "id": "croatia-croatia-split", "regionId": "croatia-croatia", "nameZh": "斯普利特", "nameEn": "Split", "aliases": ["史普列特", "司碧", "斯普里特"] },
     { "id": "croatia-croatia-ston", "regionId": "croatia-croatia", "nameZh": "史東", "nameEn": "Ston", "aliases": [] },
     { "id": "croatia-croatia-zadar", "regionId": "croatia-croatia", "nameZh": "札達爾", "nameEn": "Zadar", "aliases": [] },
     { "id": "croatia-croatia-sibenik", "regionId": "croatia-croatia", "nameZh": "希貝尼克", "nameEn": "Šibenik", "aliases": ["史賓尼克"] },
@@ -1030,7 +1041,7 @@
 
     { "id": "serbia-serbia-belgrade", "regionId": "serbia-serbia", "nameZh": "貝爾格萊德", "nameEn": "Belgrade", "aliases": ["貝爾格勒"] },
     { "id": "serbia-serbia-novi-sad", "regionId": "serbia-serbia", "nameZh": "諾維薩德", "nameEn": "Novi Sad", "aliases": ["諾域錫"] },
-    { "id": "serbia-serbia-zlatibor", "regionId": "serbia-serbia", "nameZh": "茲拉蒂博爾", "nameEn": "Zlatibor", "aliases": [] },
+    { "id": "serbia-serbia-zlatibor", "regionId": "serbia-serbia", "nameZh": "茲拉蒂博爾", "nameEn": "Zlatibor", "aliases": ["兹拉蒂博爾"] },
     { "id": "serbia-serbia-nis", "regionId": "serbia-serbia", "nameZh": "尼什", "nameEn": "Niš", "aliases": [] },
 
     { "id": "bulgaria-bulgaria-sofia", "regionId": "bulgaria-bulgaria", "nameZh": "索菲亞", "nameEn": "Sofia", "aliases": ["索非亞"] },
@@ -1055,7 +1066,7 @@
     { "id": "romania-romania-rasnov", "regionId": "romania-romania", "nameZh": "勒什諾夫", "nameEn": "Râșnov", "aliases": [] },
 
     { "id": "north-macedonia-north-macedonia-skopje", "regionId": "north-macedonia-north-macedonia", "nameZh": "斯科普里", "nameEn": "Skopje", "aliases": ["斯哥比亞"] },
-    { "id": "north-macedonia-north-macedonia-ohrid", "regionId": "north-macedonia-north-macedonia", "nameZh": "奧赫里德", "nameEn": "Ohrid", "aliases": ["奧赫裡德"] },
+    { "id": "north-macedonia-north-macedonia-ohrid", "regionId": "north-macedonia-north-macedonia", "nameZh": "奧赫里德", "nameEn": "Ohrid", "aliases": ["奧赫裡德", "奥赫里德"] },
 
     { "id": "albania-albania-tirana", "regionId": "albania-albania", "nameZh": "地拉那", "nameEn": "Tirana", "aliases": [] },
     { "id": "albania-albania-berat", "regionId": "albania-albania", "nameZh": "培拉特", "nameEn": "Berat", "aliases": [] },
@@ -1262,7 +1273,7 @@
 
     { "id": "norway-norway-oslo", "regionId": "norway-norway", "nameZh": "奧斯陸", "nameEn": "Oslo", "aliases": ["奥斯陸"] },
     { "id": "norway-norway-bergen", "regionId": "norway-norway", "nameZh": "卑爾根", "nameEn": "Bergen", "aliases": [] },
-    { "id": "norway-norway-kirkenes", "regionId": "norway-norway", "nameZh": "基凱尼斯", "nameEn": "Kirkenes", "aliases": ["希爾克內斯"] },
+    { "id": "norway-norway-kirkenes", "regionId": "norway-norway", "nameZh": "基凱尼斯", "nameEn": "Kirkenes", "aliases": ["希爾克內斯", "希爾克内斯"] },
     { "id": "norway-norway-tromso", "regionId": "norway-norway", "nameZh": "特羅姆瑟", "nameEn": "Tromsø", "aliases": [] },
     { "id": "norway-norway-alta", "regionId": "norway-norway", "nameZh": "阿爾塔", "nameEn": "Alta", "aliases": [] },
     { "id": "norway-norway-honningsvag", "regionId": "norway-norway", "nameZh": "洪寧斯沃格", "nameEn": "Honningsvåg", "aliases": [] },
@@ -1316,7 +1327,7 @@
 
     { "id": "russia-russia-moscow", "regionId": "russia-russia", "nameZh": "莫斯科", "nameEn": "Moscow", "aliases": [] },
     { "id": "russia-russia-st-petersburg", "regionId": "russia-russia", "nameZh": "聖彼得堡", "nameEn": "Saint Petersburg", "aliases": [] },
-    { "id": "russia-russia-murmansk", "regionId": "russia-russia", "nameZh": "摩爾曼斯克", "nameEn": "Murmansk", "aliases": [] },
+    { "id": "russia-russia-murmansk", "regionId": "russia-russia", "nameZh": "摩爾曼斯克", "nameEn": "Murmansk", "aliases": ["莫曼斯克"] },
     { "id": "russia-russia-vladivostok", "regionId": "russia-russia", "nameZh": "海參崴", "nameEn": "Vladivostok", "aliases": [] },
     { "id": "russia-russia-teriberka", "regionId": "russia-russia", "nameZh": "捷里別爾卡", "nameEn": "Teriberka", "aliases": [] },
 
@@ -1335,7 +1346,7 @@
     { "id": "turkey-turkey-bursa", "regionId": "turkey-turkey", "nameZh": "布爾薩", "nameEn": "Bursa", "aliases": [] },
     { "id": "turkey-turkey-isparta", "regionId": "turkey-turkey", "nameZh": "伊斯帕爾塔", "nameEn": "Isparta", "aliases": [] },
     { "id": "turkey-turkey-gallipoli", "regionId": "turkey-turkey", "nameZh": "加利波利", "nameEn": "Gallipoli", "aliases": [] },
-    { "id": "turkey-turkey-izmit", "regionId": "turkey-turkey", "nameZh": "伊茲密特", "nameEn": "Izmit", "aliases": [] },
+    { "id": "turkey-turkey-izmit", "regionId": "turkey-turkey", "nameZh": "伊茲密特", "nameEn": "Izmit", "aliases": ["伊兹密特"] },
     { "id": "turkey-turkey-bolu", "regionId": "turkey-turkey", "nameZh": "博盧", "nameEn": "Bolu", "aliases": [] },
     { "id": "turkey-turkey-alacati", "regionId": "turkey-turkey", "nameZh": "阿拉恰特", "nameEn": "Alaçatı", "aliases": [] },
     { "id": "turkey-turkey-kayseri", "regionId": "turkey-turkey", "nameZh": "凱色利", "nameEn": "Kayseri", "aliases": ["開塞利"] },
@@ -1387,7 +1398,7 @@
 
     { "id": "egypt-egypt-cairo", "regionId": "egypt-egypt", "nameZh": "開羅", "nameEn": "Cairo", "aliases": [] },
     { "id": "egypt-egypt-giza", "regionId": "egypt-egypt", "nameZh": "吉薩", "nameEn": "Giza", "aliases": [] },
-    { "id": "egypt-egypt-aswan", "regionId": "egypt-egypt", "nameZh": "亞斯旺", "nameEn": "Aswan", "aliases": [] },
+    { "id": "egypt-egypt-aswan", "regionId": "egypt-egypt", "nameZh": "亞斯旺", "nameEn": "Aswan", "aliases": ["阿斯旺"] },
     { "id": "egypt-egypt-luxor", "regionId": "egypt-egypt", "nameZh": "樂蜀", "nameEn": "Luxor", "aliases": ["盧克索"] },
     { "id": "egypt-egypt-edfu", "regionId": "egypt-egypt", "nameZh": "艾德夫", "nameEn": "Edfu", "aliases": ["艾芙"] },
     { "id": "egypt-egypt-kom-ombo", "regionId": "egypt-egypt", "nameZh": "高寶安", "nameEn": "Kom Ombo", "aliases": ["高安堡"] },
@@ -1401,8 +1412,8 @@
     { "id": "morocco-morocco-casablanca", "regionId": "morocco-morocco", "nameZh": "卡薩布蘭加", "nameEn": "Casablanca", "aliases": ["卡薩布蘭卡"] },
     { "id": "morocco-morocco-marrakesh", "regionId": "morocco-morocco", "nameZh": "馬拉喀什", "nameEn": "Marrakesh", "aliases": [] },
     { "id": "morocco-morocco-rabat", "regionId": "morocco-morocco", "nameZh": "拉巴特", "nameEn": "Rabat", "aliases": [] },
-    { "id": "morocco-morocco-fes", "regionId": "morocco-morocco", "nameZh": "費斯", "nameEn": "Fes", "aliases": ["非斯"] },
-    { "id": "morocco-morocco-chefchaouen", "regionId": "morocco-morocco", "nameZh": "舍夫沙萬", "nameEn": "Chefchaouen", "aliases": [] },
+    { "id": "morocco-morocco-fes", "regionId": "morocco-morocco", "nameZh": "費斯", "nameEn": "Fes", "aliases": ["非斯", "菲斯"] },
+    { "id": "morocco-morocco-chefchaouen", "regionId": "morocco-morocco", "nameZh": "舍夫沙萬", "nameEn": "Chefchaouen", "aliases": ["舎夫沙萬"] },
     { "id": "morocco-morocco-ouarzazate", "regionId": "morocco-morocco", "nameZh": "歐薩薩", "nameEn": "Ouarzazate", "aliases": [] },
     { "id": "morocco-morocco-tinghir", "regionId": "morocco-morocco", "nameZh": "天吉爾", "nameEn": "Tinghir", "aliases": [] },
     { "id": "morocco-morocco-erfoud", "regionId": "morocco-morocco", "nameZh": "艾佛德", "nameEn": "Erfoud", "aliases": [] },
@@ -1447,7 +1458,7 @@
     { "id": "zimbabwe-zimbabwe-hwange", "regionId": "zimbabwe-zimbabwe", "nameZh": "萬基", "nameEn": "Hwange", "aliases": [] },
     { "id": "zimbabwe-zimbabwe-beitbridge", "regionId": "zimbabwe-zimbabwe", "nameZh": "拜特布里奇", "nameEn": "Beitbridge", "aliases": ["貝特布里奇"] },
 
-    { "id": "kenya-kenya-nairobi", "regionId": "kenya-kenya", "nameZh": "奈羅比", "nameEn": "Nairobi", "aliases": ["內羅畢"] },
+    { "id": "kenya-kenya-nairobi", "regionId": "kenya-kenya", "nameZh": "奈羅比", "nameEn": "Nairobi", "aliases": ["內羅畢", "奈洛比"] },
     { "id": "kenya-kenya-nakuru", "regionId": "kenya-kenya", "nameZh": "納庫魯", "nameEn": "Nakuru", "aliases": [] },
     { "id": "kenya-kenya-masai-mara", "regionId": "kenya-kenya", "nameZh": "馬賽馬拉", "nameEn": "Masai Mara", "aliases": ["瑪莎瑪拉"] },
     { "id": "kenya-kenya-naivasha", "regionId": "kenya-kenya", "nameZh": "納瓦沙", "nameEn": "Naivasha", "aliases": ["奈瓦沙"] },
@@ -1495,7 +1506,7 @@
     { "id": "mexico-mexico-tulum", "regionId": "mexico-mexico", "nameZh": "圖倫", "nameEn": "Tulum", "aliases": [] },
     { "id": "mexico-mexico-oaxaca", "regionId": "mexico-mexico", "nameZh": "瓦哈卡", "nameEn": "Oaxaca", "aliases": [] },
     { "id": "mexico-mexico-puebla", "regionId": "mexico-mexico", "nameZh": "普埃布拉", "nameEn": "Puebla", "aliases": [] },
-    { "id": "mexico-mexico-guanajuato", "regionId": "mexico-mexico", "nameZh": "瓜納華托", "nameEn": "Guanajuato", "aliases": [] },
+    { "id": "mexico-mexico-guanajuato", "regionId": "mexico-mexico", "nameZh": "瓜納華托", "nameEn": "Guanajuato", "aliases": ["瓜納華託"] },
     { "id": "mexico-mexico-cholula", "regionId": "mexico-mexico", "nameZh": "喬魯拉", "nameEn": "Cholula", "aliases": [] },
 
     { "id": "cuba-cuba-havana", "regionId": "cuba-cuba", "nameZh": "夏灣拿", "nameEn": "Havana", "aliases": ["哈瓦那"] },
@@ -1542,7 +1553,7 @@
 
     { "id": "brazil-brazil-rio-de-janeiro", "regionId": "brazil-brazil", "nameZh": "里約熱內盧", "nameEn": "Rio de Janeiro", "aliases": [] },
     { "id": "brazil-brazil-brasilia", "regionId": "brazil-brazil", "nameZh": "巴西利亞", "nameEn": "Brasília", "aliases": [] },
-    { "id": "brazil-brazil-manaus", "regionId": "brazil-brazil", "nameZh": "瑪瑙斯", "nameEn": "Manaus", "aliases": [] },
+    { "id": "brazil-brazil-manaus", "regionId": "brazil-brazil", "nameZh": "瑪瑙斯", "nameEn": "Manaus", "aliases": ["馬瑙斯"] },
 
     { "id": "ecuador-ecuador-quito", "regionId": "ecuador-ecuador", "nameZh": "基多", "nameEn": "Quito", "aliases": [] },
     { "id": "ecuador-ecuador-guayaquil", "regionId": "ecuador-ecuador", "nameZh": "瓜亞基爾", "nameEn": "Guayaquil", "aliases": [] },
@@ -1592,7 +1603,7 @@
     { "id": "australia-south-australia-kangaroo-island", "regionId": "australia-south-australia", "nameZh": "袋鼠島", "nameEn": "Kangaroo Island", "aliases": [] },
 
     { "id": "australia-tasmania-hobart", "regionId": "australia-tasmania", "nameZh": "荷伯特", "nameEn": "Hobart", "aliases": [] },
-    { "id": "australia-tasmania-launceston", "regionId": "australia-tasmania", "nameZh": "朗賽斯頓", "nameEn": "Launceston", "aliases": ["朗塞斯頓"] },
+    { "id": "australia-tasmania-launceston", "regionId": "australia-tasmania", "nameZh": "朗賽斯頓", "nameEn": "Launceston", "aliases": ["朗塞斯頓", "朗塞斯顿"] },
     { "id": "australia-tasmania-bicheno", "regionId": "australia-tasmania", "nameZh": "比奇諾", "nameEn": "Bicheno", "aliases": [] },
     { "id": "australia-tasmania-st-helens", "regionId": "australia-tasmania", "nameZh": "聖海倫斯", "nameEn": "St Helens", "aliases": [] },
     { "id": "australia-tasmania-bruny-island", "regionId": "australia-tasmania", "nameZh": "布魯尼島", "nameEn": "Bruny Island", "aliases": [] },
@@ -1601,8 +1612,8 @@
     { "id": "australia-northern-territory-darwin", "regionId": "australia-northern-territory", "nameZh": "達爾文", "nameEn": "Darwin", "aliases": [] },
     { "id": "australia-northern-territory-alice-springs", "regionId": "australia-northern-territory", "nameZh": "愛麗斯泉", "nameEn": "Alice Springs", "aliases": [] },
 
-    { "id": "new-zealand-north-auckland", "regionId": "new-zealand-north", "nameZh": "奧克蘭", "nameEn": "Auckland", "aliases": [] },
-    { "id": "new-zealand-north-rotorua", "regionId": "new-zealand-north", "nameZh": "羅托魯亞", "nameEn": "Rotorua", "aliases": [] },
+    { "id": "new-zealand-north-auckland", "regionId": "new-zealand-north", "nameZh": "奧克蘭", "nameEn": "Auckland", "aliases": ["奥克蘭"] },
+    { "id": "new-zealand-north-rotorua", "regionId": "new-zealand-north", "nameZh": "羅托魯亞", "nameEn": "Rotorua", "aliases": ["羅托魯瓦"] },
     { "id": "new-zealand-north-taupo", "regionId": "new-zealand-north", "nameZh": "陶波", "nameEn": "Taupō", "aliases": [] },
     { "id": "new-zealand-north-wellington", "regionId": "new-zealand-north", "nameZh": "威靈頓", "nameEn": "Wellington", "aliases": [] },
     { "id": "new-zealand-north-matamata", "regionId": "new-zealand-north", "nameZh": "瑪塔瑪塔", "nameEn": "Matamata", "aliases": [] },
@@ -1669,7 +1680,7 @@
     { "id": "china-northwest-huangling", "regionId": "china-northwest", "nameZh": "黃陵", "nameEn": "Huangling", "aliases": ["黄陵"] },
     { "id": "china-northwest-ganquan", "regionId": "china-northwest", "nameZh": "甘泉", "nameEn": "Ganquan", "aliases": [] },
 
-    { "id": "china-central-wuhan", "regionId": "china-central", "nameZh": "武漢", "nameEn": "Wuhan", "aliases": [] },
+    { "id": "china-central-wuhan", "regionId": "china-central", "nameZh": "武漢", "nameEn": "Wuhan", "aliases": ["漢口"] },
     { "id": "china-central-yichang", "regionId": "china-central", "nameZh": "宜昌", "nameEn": "Yichang", "aliases": [] },
     { "id": "china-central-enshi", "regionId": "china-central", "nameZh": "恩施", "nameEn": "Enshi", "aliases": [] },
     { "id": "china-central-wudangshan", "regionId": "china-central", "nameZh": "武當山", "nameEn": "Wudang Mountains", "aliases": [] },
@@ -1752,7 +1763,7 @@
     { "id": "sri-lanka-sri-lanka-sigiriya", "regionId": "sri-lanka-sri-lanka", "nameZh": "錫吉里耶", "nameEn": "Sigiriya", "aliases": [] },
     { "id": "sri-lanka-sri-lanka-kandy", "regionId": "sri-lanka-sri-lanka", "nameZh": "康提", "nameEn": "Kandy", "aliases": ["康堤"] },
     { "id": "sri-lanka-sri-lanka-polonnaruwa", "regionId": "sri-lanka-sri-lanka", "nameZh": "波隆納魯瓦", "nameEn": "Polonnaruwa", "aliases": [] },
-    { "id": "sri-lanka-sri-lanka-nuwara-eliya", "regionId": "sri-lanka-sri-lanka", "nameZh": "努瓦拉埃利亞", "nameEn": "Nuwara Eliya", "aliases": [] },
+    { "id": "sri-lanka-sri-lanka-nuwara-eliya", "regionId": "sri-lanka-sri-lanka", "nameZh": "努瓦拉埃利亞", "nameEn": "Nuwara Eliya", "aliases": ["努沃勒埃利亞"] },
     { "id": "sri-lanka-sri-lanka-ella", "regionId": "sri-lanka-sri-lanka", "nameZh": "埃拉", "nameEn": "Ella", "aliases": [] },
     { "id": "sri-lanka-sri-lanka-yala", "regionId": "sri-lanka-sri-lanka", "nameZh": "雅拉", "nameEn": "Yala", "aliases": [] },
     { "id": "sri-lanka-sri-lanka-galle", "regionId": "sri-lanka-sri-lanka", "nameZh": "加勒", "nameEn": "Galle", "aliases": [] },
@@ -1764,7 +1775,7 @@
     { "id": "india-india-fatehpur-sikri", "regionId": "india-india", "nameZh": "法泰赫普爾西克里", "nameEn": "Fatehpur Sikri", "aliases": [] },
     { "id": "india-india-srinagar", "regionId": "india-india", "nameZh": "斯里納迦爾", "nameEn": "Srinagar", "aliases": [] },
 
-    { "id": "kyrgyzstan-kyrgyzstan-bishkek", "regionId": "kyrgyzstan-kyrgyzstan", "nameZh": "比什凱克", "nameEn": "Bishkek", "aliases": [] },
+    { "id": "kyrgyzstan-kyrgyzstan-bishkek", "regionId": "kyrgyzstan-kyrgyzstan", "nameZh": "比什凱克", "nameEn": "Bishkek", "aliases": ["比斯凱克"] },
     { "id": "kyrgyzstan-kyrgyzstan-karakol", "regionId": "kyrgyzstan-kyrgyzstan", "nameZh": "卡拉科爾", "nameEn": "Karakol", "aliases": [] },
     { "id": "kyrgyzstan-kyrgyzstan-issyk-kul", "regionId": "kyrgyzstan-kyrgyzstan", "nameZh": "伊塞克湖", "nameEn": "Issyk-Kul", "aliases": [] },
 
@@ -1786,8 +1797,64 @@
     { "id": "namibia-namibia-walvis-bay", "regionId": "namibia-namibia", "nameZh": "鯨港灣", "nameEn": "Walvis Bay", "aliases": [] },
     { "id": "namibia-namibia-spitzkoppe", "regionId": "namibia-namibia", "nameZh": "史匹茲柯普", "nameEn": "Spitzkoppe", "aliases": [] },
     { "id": "namibia-namibia-twyfelfontein", "regionId": "namibia-namibia", "nameZh": "特威飛爾泉", "nameEn": "Twyfelfontein", "aliases": [] },
-    { "id": "namibia-namibia-etosha", "regionId": "namibia-namibia", "nameZh": "伊托夏", "nameEn": "Etosha", "aliases": [] }
+    { "id": "namibia-namibia-etosha", "regionId": "namibia-namibia", "nameZh": "伊托夏", "nameEn": "Etosha", "aliases": [] },
+
+    { "id": "jordan-jordan-amman", "regionId": "jordan-jordan", "nameZh": "安曼", "nameEn": "Amman", "aliases": [] },
+    { "id": "jordan-jordan-madaba", "regionId": "jordan-jordan", "nameZh": "馬達巴", "nameEn": "Madaba", "aliases": ["瑪達巴"] },
+    { "id": "jordan-jordan-petra", "regionId": "jordan-jordan", "nameZh": "佩特拉", "nameEn": "Petra", "aliases": ["伯特拉"] },
+    { "id": "jordan-jordan-wadi-rum", "regionId": "jordan-jordan", "nameZh": "瓦迪倫", "nameEn": "Wadi Rum", "aliases": ["瓦地倫"] },
+    { "id": "jordan-jordan-aqaba", "regionId": "jordan-jordan", "nameZh": "亞喀巴", "nameEn": "Aqaba", "aliases": [] },
+    { "id": "jordan-jordan-jerash", "regionId": "jordan-jordan", "nameZh": "傑拉什", "nameEn": "Jerash", "aliases": ["傑拉希"] },
+    { "id": "papua-new-guinea-papua-new-guinea-port-moresby", "regionId": "papua-new-guinea-papua-new-guinea", "nameZh": "莫爾斯比港", "nameEn": "Port Moresby", "aliases": ["莫爾茲比港", "莫爾茲比"] },
+    { "id": "papua-new-guinea-papua-new-guinea-goroka", "regionId": "papua-new-guinea-papua-new-guinea", "nameZh": "戈羅卡", "nameEn": "Goroka", "aliases": ["果洛卡"] },
+    { "id": "papua-new-guinea-papua-new-guinea-mount-hagen", "regionId": "papua-new-guinea-papua-new-guinea", "nameZh": "芒特哈根", "nameEn": "Mount Hagen", "aliases": ["哈根山"] },
+    { "id": "papua-new-guinea-papua-new-guinea-rabaul", "regionId": "papua-new-guinea-papua-new-guinea", "nameZh": "拉包爾", "nameEn": "Rabaul", "aliases": [] },
+    { "id": "nepal-nepal-kathmandu", "regionId": "nepal-nepal", "nameZh": "加德滿都", "nameEn": "Kathmandu", "aliases": [] },
+    { "id": "nepal-nepal-pokhara", "regionId": "nepal-nepal", "nameZh": "博卡拉", "nameEn": "Pokhara", "aliases": [] },
+    { "id": "nepal-nepal-chitwan", "regionId": "nepal-nepal", "nameZh": "奇特旺", "nameEn": "Chitwan", "aliases": [] },
+    { "id": "nepal-nepal-nagarkot", "regionId": "nepal-nepal", "nameZh": "納加闊特", "nameEn": "Nagarkot", "aliases": [] },
+    { "id": "nepal-nepal-bandipur", "regionId": "nepal-nepal", "nameZh": "班迪普爾", "nameEn": "Bandipur", "aliases": [] },
+    { "id": "nepal-nepal-bhaktapur", "regionId": "nepal-nepal", "nameZh": "巴克塔普爾", "nameEn": "Bhaktapur", "aliases": ["巴德崗"] },
+    { "id": "indonesia-java-jakarta", "regionId": "indonesia-java", "nameZh": "雅加達", "nameEn": "Jakarta", "aliases": [] },
+    { "id": "indonesia-java-yogyakarta", "regionId": "indonesia-java", "nameZh": "日惹", "nameEn": "Yogyakarta", "aliases": [] },
+    { "id": "indonesia-java-surabaya", "regionId": "indonesia-java", "nameZh": "泗水", "nameEn": "Surabaya", "aliases": [] },
+    { "id": "zambia-zambia-livingstone", "regionId": "zambia-zambia", "nameZh": "利溫斯頓", "nameEn": "Livingstone", "aliases": ["李文斯頓"] },
+    { "id": "poland-poland-gdansk", "regionId": "poland-poland", "nameZh": "格但斯克", "nameEn": "Gdańsk", "aliases": [] },
+    { "id": "poland-poland-torun", "regionId": "poland-poland", "nameZh": "托倫", "nameEn": "Toruń", "aliases": [] },
+    { "id": "poland-poland-poznan", "regionId": "poland-poland", "nameZh": "波茲南", "nameEn": "Poznań", "aliases": ["波兹南"] },
+    { "id": "romania-romania-turda", "regionId": "romania-romania", "nameZh": "圖爾達", "nameEn": "Turda", "aliases": [] },
+    { "id": "bosnia-bosnia-trebinje", "regionId": "bosnia-bosnia", "nameZh": "特雷比涅", "nameEn": "Trebinje", "aliases": [] },
+    { "id": "russia-russia-irkutsk", "regionId": "russia-russia", "nameZh": "伊爾庫茨克", "nameEn": "Irkutsk", "aliases": [] },
+    { "id": "norway-norway-longyearbyen", "regionId": "norway-norway", "nameZh": "朗伊爾城", "nameEn": "Longyearbyen", "aliases": [] },
+    { "id": "uk-uk-cardiff", "regionId": "uk-uk", "nameZh": "卡迪夫", "nameEn": "Cardiff", "aliases": [] },
+    { "id": "ireland-ireland-waterford", "regionId": "ireland-ireland", "nameZh": "沃特福德", "nameEn": "Waterford", "aliases": [] },
+    { "id": "kyrgyzstan-kyrgyzstan-tokmok", "regionId": "kyrgyzstan-kyrgyzstan", "nameZh": "托克馬克", "nameEn": "Tokmok", "aliases": [] },
+    { "id": "malaysia-peninsular-langkawi", "regionId": "malaysia-peninsular", "nameZh": "蘭卡威", "nameEn": "Langkawi", "aliases": ["浮羅交怡"] },
+    { "id": "sri-lanka-sri-lanka-negombo", "regionId": "sri-lanka-sri-lanka", "nameZh": "尼甘布", "nameEn": "Negombo", "aliases": [] },
+    { "id": "new-zealand-north-waitomo", "regionId": "new-zealand-north", "nameZh": "懷托摩", "nameEn": "Waitomo", "aliases": ["懐托摩"] },
+    { "id": "brazil-brazil-sao-paulo", "regionId": "brazil-brazil", "nameZh": "聖保羅", "nameEn": "São Paulo", "aliases": [] },
+    { "id": "china-shanghai-nantong", "regionId": "china-shanghai", "nameZh": "南通", "nameEn": "Nantong", "aliases": [] },
+    { "id": "china-shanghai-hefei", "regionId": "china-shanghai", "nameZh": "合肥", "nameEn": "Hefei", "aliases": [] },
+    { "id": "china-beijing-yuncheng", "regionId": "china-beijing", "nameZh": "運城", "nameEn": "Yuncheng", "aliases": [] },
+    { "id": "china-beijing-fenyang", "regionId": "china-beijing", "nameZh": "汾陽", "nameEn": "Fenyang", "aliases": [] },
+    { "id": "china-beijing-xinzhou", "regionId": "china-beijing", "nameZh": "忻州", "nameEn": "Xinzhou", "aliases": [] },
+    { "id": "china-sichuan-yaan", "regionId": "china-sichuan", "nameZh": "雅安", "nameEn": "Ya'an", "aliases": [] },
+    { "id": "china-sichuan-luding", "regionId": "china-sichuan", "nameZh": "瀘定", "nameEn": "Luding", "aliases": [] },
+    { "id": "china-sichuan-seda", "regionId": "china-sichuan", "nameZh": "色達", "nameEn": "Sêrtar", "aliases": [] },
+    { "id": "china-sichuan-bamei", "regionId": "china-sichuan", "nameZh": "八美", "nameEn": "Bamei", "aliases": [] },
+    { "id": "china-tibet-damxung", "regionId": "china-tibet", "nameZh": "當雄", "nameEn": "Damxung", "aliases": [] },
+    { "id": "china-hunan-jishou", "regionId": "china-hunan", "nameZh": "吉首", "nameEn": "Jishou", "aliases": [] },
+    { "id": "china-central-xuanen", "regionId": "china-central", "nameZh": "宣恩", "nameEn": "Xuan'en", "aliases": [] },
+    { "id": "china-guangxi-baise", "regionId": "china-guangxi", "nameZh": "百色", "nameEn": "Baise", "aliases": [] },
+    { "id": "china-guizhou-zhijin", "regionId": "china-guizhou", "nameZh": "織金", "nameEn": "Zhijin", "aliases": [] },
+    { "id": "china-guizhou-zhenning", "regionId": "china-guizhou", "nameZh": "鎮寧", "nameEn": "Zhenning", "aliases": [] },
+    { "id": "china-guangdong-xiaolan", "regionId": "china-guangdong", "nameZh": "小欖", "nameEn": "Xiaolan", "aliases": [] },
+    { "id": "china-guangdong-gaoming", "regionId": "china-guangdong", "nameZh": "高明", "nameEn": "Gaoming", "aliases": [] },
+    { "id": "china-guangdong-hengqin", "regionId": "china-guangdong", "nameZh": "橫琴", "nameEn": "Hengqin", "aliases": [] },
+    { "id": "china-guangdong-sihui", "regionId": "china-guangdong", "nameZh": "四會", "nameEn": "Sihui", "aliases": [] },
+    { "id": "china-guangdong-xinfeng", "regionId": "china-guangdong", "nameZh": "新豐", "nameEn": "Xinfeng", "aliases": [] },
+    { "id": "china-guangdong-lufeng", "regionId": "china-guangdong", "nameZh": "陸豐", "nameEn": "Lufeng", "aliases": [] }
   ],
-  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾"],
-  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖"]
+  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾", "聖保羅大教堂", "聖保羅教堂", "聖保羅醫院", "聖保羅舊城", "加勒菲斯", "孟菲斯"],
+  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖", "聖保羅"]
 }
