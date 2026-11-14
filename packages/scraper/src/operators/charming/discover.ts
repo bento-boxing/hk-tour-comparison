@@ -19,7 +19,13 @@ const PAGE_ID = /(?:^\?|&)page_id=/;
  * (`122回-100-日-…`); and cruise-only packages counted in nights (`9-晚-希臘精選之旅《海洋奧德賽號》`, `2-3晚三亞海上遊…`).
  * They are not fetched.
  */
-const NOT_A_GROUP_TOUR = /價錢|會籍|機票|^\d+回-|^\d+(?:-\d+)?-?晚/;
+const NOT_A_GROUP_TOUR: { rule: string; pattern: RegExp }[] = [
+  { rule: 'priced in the slug', pattern: /價錢/ },
+  { rule: 'membership', pattern: /會籍/ },
+  { rule: 'air ticket', pattern: /機票/ },
+  { rule: 'Peace Boat cruise', pattern: /^\d+回-/ },
+  { rule: 'cruise counted in nights', pattern: /^\d+(?:-\d+)?-?晚/ },
+];
 
 /**
  * One page of the site's WordPress REST list of tour posts (newest first), with only the fields asked for.
@@ -29,17 +35,22 @@ export function listUrl(page: number): string {
   return `${ORIGIN}/index.php?rest_route=/wp/v2/tour&per_page=${PER_PAGE}&_fields=id,slug,link,modified&_envelope&page=${page}`;
 }
 
-/** True for a post whose slug says it is not a group tour (see NOT_A_GROUP_TOUR). */
-export function isNotAGroupTour(url: string): boolean {
+/** The NOT_A_GROUP_TOUR rule the post's decoded slug matches, or null. */
+export function exclusionRule(url: string): string | null {
   const slug = TOUR_QUERY.exec(url.slice(url.indexOf('?')))?.[1];
-  if (slug === undefined) return false;
+  if (slug === undefined) return null;
   let decoded: string;
   try {
     decoded = decodeURIComponent(slug);
   } catch {
-    return false;
+    return null;
   }
-  return NOT_A_GROUP_TOUR.test(decoded);
+  return NOT_A_GROUP_TOUR.find(({ pattern }) => pattern.test(decoded))?.rule ?? null;
+}
+
+/** True for a post whose slug says it is not a group tour (see NOT_A_GROUP_TOUR). */
+export function isNotAGroupTour(url: string): boolean {
+  return exclusionRule(url) !== null;
 }
 
 /** The page's URL as `https://www.charming-online.com/?tour=<slug>`, or null if it is not a tour page. */
@@ -60,7 +71,7 @@ export function isTourUrl(url: string): boolean {
   return tourPageUrl(url) !== null;
 }
 
-interface ListPage { posts: unknown[]; totalPages: unknown }
+interface ListPage { posts: unknown[]; totalPages: unknown; total: unknown }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -85,14 +96,23 @@ async function readPage(fetcher: Fetcher, page: number): Promise<ListPage> {
     throw new Error(`charming: REST list page ${page} is not a list of posts (status ${status})`);
   }
   const headers = isObject(envelope.headers) ? envelope.headers : {};
-  const name = Object.keys(headers).find(key => key.toLowerCase() === 'x-wp-totalpages');
-  return { posts: envelope.body, totalPages: name === undefined ? undefined : headers[name] };
+  const header = (wanted: string) => {
+    const name = Object.keys(headers).find(key => key.toLowerCase() === wanted);
+    return name === undefined ? undefined : headers[name];
+  };
+  return { posts: envelope.body, totalPages: header('x-wp-totalpages'), total: header('x-wp-total') };
 }
 
-/** The list's page count from page 1's `X-WP-TotalPages` (a number, or digits); throws unless 1..MAX_LIST_PAGES. */
+/** A header's whole number (a number, or digits), or null. */
+function wholeNumber(value: unknown): number | null {
+  const n = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+/** The list's page count from page 1's `X-WP-TotalPages`; throws unless 1..MAX_LIST_PAGES. */
 function pageCount(value: unknown): number {
-  const count = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
+  const count = wholeNumber(value);
+  if (count === null || count < 1) {
     throw new Error(`charming: REST list gives no page count (X-WP-TotalPages ${JSON.stringify(value)})`);
   }
   if (count > MAX_LIST_PAGES) {
@@ -103,21 +123,35 @@ function pageCount(value: unknown): number {
 
 /**
  * Every tour page the REST list links, each once, newest post first, except posts that are not group tours
- * (NOT_A_GROUP_TOUR). Page 1 gives the page count; every page up to it must answer, or discovery throws (the
- * run then fails as `discover-error` and last night's tours stay). Many posts are old tours with no dates left;
- * their pages are still fetched, and skipped as no-departures.
+ * (NOT_A_GROUP_TOUR; each logged as excluded, so a tour wrongly left out leaves a trace). Page 1 gives the page
+ * count and the post count (`X-WP-Total`); every page up to the page count must answer, and the posts linking a
+ * tour page (counted before any is excluded) must number exactly the post count, or discovery throws (the run
+ * then fails as `discover-error` and last night's tours stay): a short page, or a post without a tour link, is
+ * caught. A post published or removed while the list is read also fails that night's run. Many posts are old
+ * tours with no dates left; their pages are still fetched, and skipped as no-departures.
  */
-export async function discover(fetcher: Fetcher): Promise<string[]> {
+export async function discover(fetcher: Fetcher, log: (line: string) => void = line => console.log(line)): Promise<string[]> {
   const first = await readPage(fetcher, 1);
-  const total = pageCount(first.totalPages);
+  const pageTotal = pageCount(first.totalPages);
+  const postTotal = wholeNumber(first.total);
+  if (postTotal === null) throw new Error(`charming: REST list gives no post count (X-WP-Total ${JSON.stringify(first.total)})`);
   const pages = [first];
-  for (let page = 2; page <= total; page++) pages.push(await readPage(fetcher, page));
+  for (let page = 2; page <= pageTotal; page++) pages.push(await readPage(fetcher, page));
 
-  const tours = new Set<string>();
+  const linked: string[] = [];
   for (const post of pages.flatMap(page => page.posts)) {
     const link = isObject(post) ? post.link : undefined;
     const tour = typeof link === 'string' ? tourPageUrl(link) : null;
-    if (tour !== null && !isNotAGroupTour(tour)) tours.add(tour);
+    if (tour !== null) linked.push(tour);
+  }
+  if (linked.length !== postTotal) {
+    throw new Error(`charming: REST list links ${linked.length} tour pages, but says it holds ${postTotal} posts`);
+  }
+  const tours = new Set<string>();
+  for (const tour of linked) {
+    const rule = exclusionRule(tour);
+    if (rule === null) tours.add(tour);
+    else log(`charming: excluded ${tour}: not a group tour (${rule})`);
   }
   return [...tours];
 }

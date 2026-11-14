@@ -40,8 +40,8 @@ const posts = (start: number, n: number, extra: unknown[] = []) => [
   ...extra,
 ];
 /** A list page as the site answers it with `_envelope` (shape seen 2026-11-14, e01-envelope-p1.raw). */
-const envelope = (body: unknown, totalPages: unknown = 3, status = 200) => JSON.stringify({
-  body, status, headers: { 'X-WP-Total': 289, 'X-WP-TotalPages': totalPages, Link: '<…>; rel="next"', Allow: 'GET' },
+const envelope = (body: unknown, { pages = 3 as unknown, total = 289 as unknown, status = 200 } = {}) => JSON.stringify({
+  body, status, headers: { 'X-WP-Total': total, 'X-WP-TotalPages': pages, Link: '<…>; rel="next"', Allow: 'GET' },
 });
 
 /** A fetcher answering the list pages given (by page number), null for any other URL; records every URL asked. */
@@ -59,7 +59,7 @@ function listFetcher(pages: Record<number, string | null>): { fetcher: Fetcher; 
 
 it('discover reads every page up to the page count page 1 gives, keeping each tour link once, in order', async () => {
   const { fetcher, asked } = listFetcher({
-    1: envelope(posts(0, 100)),
+    1: envelope(posts(0, 100), { total: 290 }),
     2: envelope(posts(100, 100, [{ id: 1, slug: 't5', link: 'https://www.charming-online.com/?tour=t5' }])),
     3: envelope(posts(200, 89)),
     4: envelope(posts(300, 5)), // past the count: never asked for
@@ -71,27 +71,33 @@ it('discover reads every page up to the page count page 1 gives, keeping each to
   expect(asked).toEqual([listUrl(1), listUrl(2), listUrl(3)]);
 });
 
-it('discover reads the page count given as digits, in any header case', async () => {
-  const body = JSON.stringify({ body: posts(0, 2), status: 200, headers: { 'x-wp-totalpages': '1' } });
+it('discover reads the page and post counts given as digits, in any header case', async () => {
+  const body = JSON.stringify({ body: posts(0, 2), status: 200, headers: { 'x-wp-totalpages': '1', 'x-wp-total': '2' } });
   expect(await discover(listFetcher({ 1: body }).fetcher)).toHaveLength(2);
 });
 
-it('discover keeps only links to tour pages on the site', async () => {
+it('discover gives each tour link as the tour page itself', async () => {
   const { fetcher } = listFetcher({
     1: envelope([
       { id: 1, link: 'https://www.charming-online.com/?tour=f-26-mono-008-ghtg' },
-      { id: 2, link: 'https://www.charming-online.com/?page_id=31' },
-      { id: 3, link: 'https://elsewhere.example.test/?tour=x' },
-      { id: 4, link: 42 },
-      { id: 5 },
-      'junk',
       { id: 6, link: 'https://www.charming-online.com/?tour=f-25-eur-010-gerd_gere&tour-destination=europe' },
-    ], 1),
+    ], { pages: 1, total: 2 }),
   });
   expect(await discover(fetcher)).toEqual([
     'https://www.charming-online.com/?tour=f-26-mono-008-ghtg',
     'https://www.charming-online.com/?tour=f-25-eur-010-gerd_gere',
   ]);
+});
+
+it.each([
+  ['a page link', { id: 2, link: 'https://www.charming-online.com/?page_id=31' }],
+  ['an off-site link', { id: 3, link: 'https://elsewhere.example.test/?tour=x' }],
+  ['a link that is not text', { id: 4, link: 42 }],
+  ['no link', { id: 5 }],
+  ['not a post', 'junk'],
+])('discover throws when a post has %s: the posts linking a tour page fall short of X-WP-Total', async (_, post) => {
+  const { fetcher } = listFetcher({ 1: envelope([{ id: 1, link: 'https://www.charming-online.com/?tour=a' }, post], { pages: 1, total: 2 }) });
+  await expect(discover(fetcher)).rejects.toThrow(/links 1 tour pages, but says it holds 2 posts/);
 });
 
 // Real slugs from the 2026-11-14 practice crawl (docs/operators/charming.md, "The 109 null pages").
@@ -115,11 +121,18 @@ it.each([
   expect(isNotAGroupTour(link(slug))).toBe(expected);
 });
 
-it('discover leaves out the posts that are not group tours', async () => {
+it('discover leaves out the posts that are not group tours, counted in X-WP-Total, logging each with its rule', async () => {
+  const spa = link('中醫入門套餐-單人價錢：5100-雙人價錢：8100');
+  const cruise = link('9-晚-希臘精選之旅《海洋奧德賽號》');
   const { fetcher } = listFetcher({ 1: envelope([
-    { id: 1, link: link('f-26-mono-008-ghtg') }, { id: 2, link: link('中醫入門套餐-單人價錢：5100-雙人價錢：8100') },
-  ], 1) });
-  expect(await discover(fetcher)).toEqual([link('f-26-mono-008-ghtg')]);
+    { id: 1, link: link('f-26-mono-008-ghtg') }, { id: 2, link: spa }, { id: 3, link: cruise },
+  ], { pages: 1, total: 3 }) });
+  const logs: string[] = [];
+  expect(await discover(fetcher, line => logs.push(line))).toEqual([link('f-26-mono-008-ghtg')]);
+  expect(logs).toEqual([
+    `charming: excluded ${spa}: not a group tour (priced in the slug)`,
+    `charming: excluded ${cruise}: not a group tour (cruise counted in nights)`,
+  ]);
 });
 
 describe('discover throws rather than return part of the list', () => {
@@ -127,14 +140,18 @@ describe('discover throws rather than return part of the list', () => {
     ['a page is not fetched', { 1: envelope(posts(0, 100)), 2: null, 3: envelope(posts(200, 89)) }, /page 2 was not fetched/],
     ['a page is not JSON', { 1: envelope(posts(0, 100)), 2: '<html>busy</html>', 3: envelope(posts(200, 89)) }, /page 2 is not JSON/],
     ['a page answers an error', {
-      1: envelope(posts(0, 100)), 2: envelope({ code: 'rest_post_invalid_page_number', data: { status: 400 } }, 3, 400),
+      1: envelope(posts(0, 100)), 2: envelope({ code: 'rest_post_invalid_page_number', data: { status: 400 } }, { status: 400 }),
     }, /page 2 is not a list of posts \(status 400\)/],
     ['a page is not an envelope (the parameter ignored)', { 1: JSON.stringify(posts(0, 100)) }, /page 1 is not a list of posts/],
     ['page 1 is not fetched', {}, /page 1 was not fetched/],
     ['page 1 gives no page count', { 1: JSON.stringify({ body: posts(0, 3), status: 200, headers: {} }) }, /no page count/],
-    ['page 1 gives a page count of 0', { 1: envelope([], 0) }, /no page count/],
-    ['page 1 gives a page count that is not a whole number', { 1: envelope(posts(0, 3), '2.5') }, /no page count/],
-    [`the list has more than ${MAX_LIST_PAGES} pages`, { 1: envelope(posts(0, 100), MAX_LIST_PAGES + 1) }, /21 pages, more than the 20/],
+    ['page 1 gives a page count of 0', { 1: envelope([], { pages: 0 }) }, /no page count/],
+    ['page 1 gives a page count that is not a whole number', { 1: envelope(posts(0, 3), { pages: '2.5' }) }, /no page count/],
+    [`the list has more than ${MAX_LIST_PAGES} pages`, { 1: envelope(posts(0, 100), { pages: MAX_LIST_PAGES + 1 }) }, /21 pages, more than the 20/],
+    ['page 1 gives no post count', { 1: envelope(posts(0, 3), { pages: 1, total: null }) }, /no post count/],
+    ['a page answers 200 with fewer posts than the count', {
+      1: envelope(posts(0, 100)), 2: envelope(posts(100, 100)), 3: envelope(posts(200, 50)),
+    }, /links 250 tour pages, but says it holds 289 posts/],
   ] as [string, Record<number, string | null>, RegExp][])('when %s', async (_, pages, message) => {
     await expect(discover(listFetcher(pages).fetcher)).rejects.toThrow(message);
   });
