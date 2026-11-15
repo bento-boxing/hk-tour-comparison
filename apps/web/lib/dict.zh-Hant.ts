@@ -37,6 +37,8 @@ const zh = {
   'card.same': '— 與{days}日前相同',
   'card.moreDates': '+{n} 個出發日',
   'card.dates': '出發日期', // the accessible name of a card's row of dates (each shows its price on hover or focus)
+  'card.openedEarlier': '已瀏覽', // on a card whose operator page the visitor opened earlier in this tab
+  'card.openedLatest': '最近瀏覽', // … on the one opened most recently
   'card.goTo': '前往{operator}網站 ↗',
   'card.add': '加入行程 ＋',
   'card.startsAt': '{place}出發',

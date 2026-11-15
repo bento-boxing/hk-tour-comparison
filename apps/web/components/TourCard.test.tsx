@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent, getDefaultNormalizer } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, render, screen, within, fireEvent, getDefaultNormalizer } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
 import userEvent from '@testing-library/user-event';
 import { places, type Stop } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db';
 import { TourCard, MAX_DATE_CHIPS, shiftIntoView, type TourCardProps } from './TourCard';
 import { makeT } from '../lib/i18n';
+import { OPENED_KEY, resetOpenedCache } from '../lib/opened-tours';
 
 const tZh = makeT('zh-Hant');
 
@@ -40,7 +43,8 @@ const cardLink = () => screen.getByRole('link', { name: /^東瀛遊/ });
 const priceDiv = { selector: 'div' };
 
 let user: ReturnType<typeof userEvent.setup>;
-beforeEach(() => { user = userEvent.setup(); });
+beforeEach(() => { user = userEvent.setup(); window.sessionStorage.clear(); resetOpenedCache(); });
+afterEach(() => { vi.restoreAllMocks(); });
 
 it('shows the facts from the mockup', () => {
   render(<TourCard {...props} />);
@@ -172,6 +176,138 @@ describe('each departure date shows its own price', () => {
     expect(css).toMatch(/\.dates \{[^}]*position: relative[^}]*pointer-events: none/);
     expect(css).toMatch(/\.d \{[^}]*pointer-events: auto/);
     expect(css).toMatch(/\.link:focus-visible::after \{[^}]*outline: 2px solid var\(--cerulean\)/);
+  });
+});
+
+describe('cards opened this session are marked', () => {
+  const article = () => screen.getAllByRole('article')[0];
+  const other: TourCardData = { ...tour, key: 'jetour:OSA6', url: 'https://www.jetour.com.hk/OSA6' };
+  const jetour: OperatorInfo = { ...operator, id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06' };
+  const two = () => render(<><TourCard {...props} onAdd={vi.fn()} /><TourCard {...props} tour={other} operator={jetour} /></>);
+  const cards = () => screen.getAllByRole('article');
+
+  it('an unopened card has no mark and no cue', () => {
+    render(<TourCard {...props} />);
+    expect(article()).not.toHaveAttribute('data-opened');
+    expect(screen.queryByText(/瀏覽/)).toBeNull();
+  });
+
+  it('opening the operator\'s page from the card link marks the card as the most recent, with a text cue in its description', async () => {
+    render(<TourCard {...props} />);
+    await user.click(cardLink());
+    expect(article()).toHaveAttribute('data-opened', 'latest');
+    expect(screen.getByText('最近瀏覽')).toBeInTheDocument();
+    expect(cardLink()).toHaveAccessibleDescription(/最近瀏覽/);
+    expect(JSON.parse(window.sessionStorage.getItem(OPENED_KEY)!)).toEqual(['egl:KIX5']);
+  });
+
+  it('opening it from a date counts too', async () => {
+    render(<TourCard {...props} />);
+    await user.click(screen.getByRole('link', { name: '12/20 HK$8,299' }));
+    expect(article()).toHaveAttribute('data-opened', 'latest');
+  });
+
+  it('a middle click (open in a background tab) counts', () => {
+    render(<TourCard {...props} />);
+    fireEvent(cardLink(), new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+    expect(article()).toHaveAttribute('data-opened', 'latest');
+  });
+
+  it('a right click (auxclick with button 2, the context menu) does not count', () => {
+    render(<TourCard {...props} />);
+    fireEvent(cardLink(), new MouseEvent('auxclick', { bubbles: true, button: 2 }));
+    expect(article()).not.toHaveAttribute('data-opened');
+  });
+
+  it('Enter on the focused card link counts', async () => {
+    render(<TourCard {...props} />);
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(article()).toHaveAttribute('data-opened', 'latest');
+  });
+
+  it('the click itself is left alone: not prevented, so the browser opens the page in a new tab as before', () => {
+    render(<TourCard {...props} />);
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    const prevent = vi.spyOn(click, 'preventDefault');
+    const stop = vi.spyOn(click, 'stopPropagation');
+    act(() => { cardLink().dispatchEvent(click); });
+    expect(prevent).not.toHaveBeenCalled();
+    expect(stop).not.toHaveBeenCalled();
+    expect(click.defaultPrevented).toBe(false);
+    expect(article()).toHaveAttribute('data-opened', 'latest');
+    expect(cardLink()).toHaveAttribute('target', '_blank');
+  });
+
+  it('adding the tour to a trip (加入行程 and the picker) does not count', async () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
+    expect(article()).not.toHaveAttribute('data-opened');
+  });
+
+  it('exactly one card is the most recent: opening another makes the first "opened earlier"', async () => {
+    two();
+    await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
+    await user.click(screen.getByRole('link', { name: /^捷旅/ }));
+    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
+    expect(within(cards()[0]).getByText('已瀏覽')).toBeInTheDocument();
+    expect(within(cards()[1]).getByText('最近瀏覽')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
+    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['latest', 'earlier']);
+  });
+
+  it('the marks survive a re-render from scratch (another page, a language or theme change, a reload)', async () => {
+    const { unmount } = two();
+    await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
+    await user.click(screen.getByRole('link', { name: /^捷旅/ }));
+    unmount();
+    resetOpenedCache(); // as after a reload: read again from sessionStorage
+    render(<><TourCard {...props} t={makeT('en')} /><TourCard {...props} tour={other} operator={jetour} t={makeT('en')} /></>);
+    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
+    expect(screen.getByText('Visited')).toBeInTheDocument();
+    expect(screen.getByText('Last visited')).toBeInTheDocument();
+  });
+
+  it('in Simplified Chinese', async () => {
+    render(<TourCard {...props} t={makeT('zh-Hans')} />);
+    await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
+    expect(screen.getByText('最近浏览')).toBeInTheDocument();
+  });
+
+  it('with storage blocked: the click still opens the page and nothing is marked, as before', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    render(<TourCard {...props} />);
+    await user.click(cardLink());
+    expect(article()).not.toHaveAttribute('data-opened');
+    expect(screen.queryByText(/瀏覽/)).toBeNull();
+    expect(cardLink()).toHaveAttribute('href', tour.url);
+  });
+
+  it('the server renders no mark (it cannot know); marks appear after hydration without a mismatch warning', async () => {
+    window.sessionStorage.setItem(OPENED_KEY, JSON.stringify(['egl:KIX5']));
+    const html = renderToString(<TourCard {...props} />);
+    expect(html).not.toContain('data-opened');
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.append(container);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => { root = hydrateRoot(container, <TourCard {...props} />); });
+    expect(errors).not.toHaveBeenCalled();
+    expect(container.querySelector('article')).toHaveAttribute('data-opened', 'latest');
+    act(() => root!.unmount());
+    container.remove();
+  });
+
+  it('the CSS: two tints from the theme, a ring for the most recent; the cue sits on the border, out of the layout, and lets presses through', () => {
+    const css = cardCss();
+    expect(css).toMatch(/\.card\[data-opened\] \{ background: var\(--opened-bg\); \}/);
+    expect(css).toMatch(/\.card\[data-opened='latest'\] \{[^}]*background: var\(--latest-bg\)[^}]*box-shadow: 0 0 0 2px var\(--latest-accent\)/);
+    expect(css).toMatch(/\.cue \{[^}]*position: absolute[^}]*pointer-events: none/);
+    expect(css).toMatch(/\.cue \{[^}]*background: var\(--ash\)[^}]*color: var\(--charcoal\)/);
+    expect(css).toMatch(/\.card\[data-opened='latest'\] \.cue \{[^}]*background: var\(--latest-accent\)[^}]*color: var\(--on-latest-accent\)/);
   });
 });
 

@@ -39,6 +39,8 @@ const en = {
   'card.same': '— unchanged since {days} [days:day|days] ago',
   'card.moreDates': '+{n} more [n:date|dates]',
   'card.dates': 'Departure dates',
+  'card.openedEarlier': 'Visited',
+  'card.openedLatest': 'Last visited',
   'card.goTo': 'Go to {operator} ↗',
   'card.add': '+ Add to trip',
   'card.startsAt': 'Starts in {place}',

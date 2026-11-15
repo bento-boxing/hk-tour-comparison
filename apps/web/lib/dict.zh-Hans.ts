@@ -39,6 +39,8 @@ const zhHans = {
   'card.same': '— 与{days}天前相同',
   'card.moreDates': '+{n} 个出发日期',
   'card.dates': '出发日期',
+  'card.openedEarlier': '已浏览',
+  'card.openedLatest': '最近浏览',
   'card.goTo': '前往{operator}网站 ↗',
   'card.add': '加入行程 ＋',
   'card.startsAt': '{place}出发',

@@ -37,6 +37,7 @@ const token = (name: string) => hex(light, name);
 /** Colour tokens that are the same in both themes on purpose (each says why in theme.css). */
 const SAME_IN_BOTH = [
   'notice-maroon', 'notice-text', 'bar-text', 'bar-accent', 'on-operator-light', 'on-operator-dark', 'op-fallback',
+  'on-latest-accent',
   'op-egl', 'op-jetour', 'op-texpert', 'op-bigline', 'op-charming', 'op-yummy', 'op-sunflower',
 ];
 
@@ -133,6 +134,19 @@ const PAIRS: { what: string; fg: string; bg: string; min: number; opacity?: numb
   { what: 'nav bar: site name, current link', fg: 'bar-text', bg: 'bar-bg', min: 4.5 },
   { what: 'nav bar: other links and language buttons at 75%', fg: 'bar-text', bg: 'bar-bg', min: 4.5, opacity: 0.75 },
   { what: 'language notice', fg: 'notice-text', bg: 'notice-maroon', min: 4.5 },
+  // Cards opened this session (TourCard): every text a card shows, on both tints, and the two cues.
+  ...(['opened-bg', 'latest-bg'] as const).flatMap(bg => [
+    { what: `card text on ${bg}`, fg: 'charcoal', bg, min: 4.5 },
+    { what: `muted text on ${bg}`, fg: 'text-muted', bg, min: 4.5 },
+    { what: `faint text on ${bg}`, fg: 'text-faint', bg, min: 4.5 },
+    { what: `accent text on ${bg}`, fg: 'cerulean', bg, min: 4.5 },
+    { what: `price down on ${bg}`, fg: 'price-down', bg, min: 4.5 },
+    { what: `price up on ${bg}`, fg: 'price-up', bg, min: 4.5 },
+    { what: `route arrow on ${bg}`, fg: 'line-control', bg, min: 3 },
+    { what: `add button outline on ${bg}`, fg: 'cerulean', bg, min: 3 },
+  ]),
+  { what: 'cue on an earlier-opened card (已瀏覽)', fg: 'charcoal', bg: 'ash', min: 4.5 },
+  { what: 'cue on the most recent card (最近瀏覽)', fg: 'on-latest-accent', bg: 'latest-accent', min: 4.5 },
   { what: 'control outlines (pills, fields, pager) on the page', fg: 'line-control', bg: 'snow', min: 3 },
   { what: 'control outlines in popovers', fg: 'line-control', bg: 'surface', min: 3 },
   { what: 'route arrow on cards', fg: 'line-control', bg: 'surface', min: 3 },

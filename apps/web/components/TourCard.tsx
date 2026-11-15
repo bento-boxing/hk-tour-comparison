@@ -1,12 +1,16 @@
 'use client';
 
-import { Fragment, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
+import {
+  Fragment, useId, useRef, useState, useSyncExternalStore,
+  type CSSProperties, type KeyboardEvent, type MouseEvent, type SyntheticEvent,
+} from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db';
 import type { T } from '../lib/i18n';
 import { operatorTextTone } from '../lib/contrast';
 import { formatChipDate, formatLength, formatPrice, formatUpdated } from '../lib/format';
 import { departurePrice, priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
+import { getNoOpenedTours, getOpenedTours, recordOpened, subscribeOpened } from '../lib/opened-tours';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { PriceWithFrom } from './PriceWithFrom';
@@ -60,8 +64,13 @@ function placeTip(event: SyntheticEvent<HTMLElement>) {
  * date is a link to the same page of its own, which shows that date's price above it on hover and on keyboard
  * focus; the dates are one tab stop, moved through with the arrow keys. A plain block instead of links when the
  * address is not https. The operator colour comes from `operator.color` through the `--c` custom property; the
- * tag's text is light or dark, whichever reads better on it. The link's name is short; the start/end note and
- * the price change are attached to it as its description.
+ * tag's text is light or dark, whichever reads better on it. The link's name is short; the start/end note,
+ * the price change and the opened mark are attached to it as its description.
+ *
+ * Opening the operator's page from the card (a click, a middle click or Enter on any of its links; not 加入行程)
+ * records the tour for this tab (lib/opened-tours). Cards opened earlier are tinted, the most recent one more
+ * strongly, each with a small text cue. The click is only observed, never prevented or delayed. The marks are
+ * read in the browser after hydration (the server renders none), and appear without moving anything.
  */
 export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: TourCardProps) {
   const [picking, setPicking] = useState(false);
@@ -71,6 +80,9 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const id = useId();
   const noteId = `${id}-note`;
   const changeId = `${id}-change`;
+  const openedId = `${id}-opened`;
+  const opened = useSyncExternalStore(subscribeOpened, getOpenedTours, getNoOpenedTours);
+  const openedState = opened.at(-1) === tour.key ? 'latest' : opened.includes(tour.key) ? 'earlier' : undefined;
 
   const route = routeNames(tour.stops, places, t.locale);
   const operatorText = operatorName(operator, t.locale);
@@ -87,7 +99,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const safeColor = SAFE_COLOR.test(operator.color);
   const color = safeColor ? operator.color : FALLBACK_COLOR;
   const tagDark = safeColor && operatorTextTone(operator.color) === 'dark';
-  const describedBy = [note && noteId, change && changeId].filter(Boolean).join(' ');
+  const describedBy = [note && noteId, change && changeId, openedState && openedId].filter(Boolean).join(' ');
   const active = Math.min(activeDate, Math.max(chips.length - 1, 0));
 
   // After a press outside, focus stays where the visitor pressed; every other close returns it to the button.
@@ -112,6 +124,12 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   };
 
   const linkProps = { href: tour.url, target: '_blank', rel: 'noopener noreferrer' };
+
+  // Any link in the card opens the operator's page: a primary click (also Enter, which clicks) or a middle click.
+  const noteOpened = (e: MouseEvent) => {
+    if (e.button > 1 || !(e.target instanceof Element) || !e.target.closest('a[href]')) return;
+    recordOpened(tour.key);
+  };
 
   const head = (
     <>
@@ -139,7 +157,13 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   );
 
   return (
-    <article className={styles.card} style={{ '--c': color } as CSSProperties}>
+    <article
+      className={styles.card}
+      style={{ '--c': color } as CSSProperties}
+      data-opened={openedState}
+      onClick={noteOpened}
+      onAuxClick={noteOpened}
+    >
       {linkable ? (
         <a
           className={`${styles.body} ${styles.link}`}
@@ -151,6 +175,11 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
         </a>
       ) : (
         <div className={styles.body}>{head}</div>
+      )}
+      {openedState && (
+        <span id={openedId} className={styles.cue}>
+          {t(openedState === 'latest' ? 'card.openedLatest' : 'card.openedEarlier')}
+        </span>
       )}
       {chips.length > 0 && (
         <div role="group" aria-label={t('card.dates')} className={styles.dates} onKeyDown={moveDate}>

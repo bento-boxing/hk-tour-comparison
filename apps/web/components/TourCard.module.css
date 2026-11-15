@@ -5,6 +5,20 @@
   padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
 }
 
+/*
+ * Opened in this tab (set after hydration from lib/opened-tours): earlier ones a quiet grey, the most recent a
+ * khaki wash with a khaki ring. Neither changes the card's size (box-shadow, not a border).
+ */
+.card[data-opened] { background: var(--opened-bg); }
+.card[data-opened='latest'] { background: var(--latest-bg); box-shadow: 0 0 0 2px var(--latest-accent); }
+/* The text cue (已瀏覽 / 最近瀏覽): on the top border at the right, out of the layout; presses go through to the card. */
+.cue {
+  position: absolute; top: -9px; right: 14px; pointer-events: none;
+  padding: 0 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; line-height: 17px; white-space: nowrap;
+  background: var(--ash); color: var(--charcoal);
+}
+.card[data-opened='latest'] .cue { background: var(--latest-accent); color: var(--on-latest-accent); }
+
 /* The top of the card (the link, or a plain block for a non-https address); the mockup's rows with the card's own 9px gap. */
 .body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .link { color: inherit; text-decoration: none; border-radius: 6px; }
