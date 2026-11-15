@@ -19,7 +19,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
  * The chaining page: the chosen legs with their gaps and total, the gap selector, and the tours from any
  * operator that can follow, all read from the address (`legs`, `gap` and the search filters except dates).
  * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
- * are reused for an hour (cachedReads), so they may be about an hour old, or older (see cached-reads.ts).
+ * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  */
 export default async function ChainPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const t = await getT();

@@ -7,7 +7,8 @@ import { createTestDb } from '@hktours/db/test';
 import type { SortKey } from '@hktours/db/read';
 import type { Locale } from './i18n';
 import {
-  createReads, nextCache, READ_CACHE_SECONDS, READ_CACHE_TAG, usesDestinationOrder, type CacheFn, type SearchQuery,
+  ageLimited, buildId, createReads, nextCache, nextStore, READ_CACHE_SECONDS, READ_CACHE_TAG, usesDestinationOrder,
+  type CacheFn, type SearchQuery,
 } from './cached-reads';
 
 const { unstableCache } = vi.hoisted(() => ({ unstableCache: vi.fn() }));
@@ -59,13 +60,15 @@ function brokenDb(error: Error): Db & { queries: number } {
 }
 
 const keyOf = (store: ReturnType<typeof jsonStore>) => store.keys.at(-1)!;
+/** A build id for the tests that check a key's exact text. */
+const BUILD = 'abc123';
 const base: SearchQuery = { filters: {}, sort: 'price', page: 1, today };
 
 describe('the key is built only from validated values, in a canonical form', () => {
   const keyFor = async (query: SearchQuery, locale: Locale = 'zh-Hant') => {
     const store = jsonStore();
     // Only the key matters here: the read itself fails, and failures are not stored (see below).
-    await createReads(() => [], store.cache).searchTours(brokenDb(new Error('down')), query, locale).catch(() => {});
+    await createReads(() => [], store.cache, BUILD).searchTours(brokenDb(new Error('down')), query, locale).catch(() => {});
     return keyOf(store);
   };
 
@@ -106,7 +109,7 @@ describe('the key is built only from validated values, in a canonical form', () 
 
   it('example keys, as stored', async () => {
     expect(await keyFor({ ...base, filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' }, operators: ['jetour', 'egl'] } }))
-      .toBe('{"read":"searchTours","today":"2026-11-12","sort":"price","page":1,"locale":null,"filters":{'
+      .toBe('{"build":"abc123","read":"searchTours","today":"2026-11-12","sort":"price","page":1,"locale":null,"filters":{'
         + '"destination":{"countryId":"japan","regionId":"japan-kansai"},"excludeCountryIds":null,"dateFrom":null,"dateTo":null,'
         + '"travelFrom":null,"travelTo":null,"daysMin":null,"daysMax":null,"priceMin":null,"priceMax":null,"operators":["egl","jetour"]}}');
   });
@@ -227,7 +230,7 @@ describe('with the in-process database', () => {
   it('getToursByKeys: a stored entry gives back the same Map, in the order the caller asked', async () => {
     const store = jsonStore();
     const counter = counting(db);
-    const reads = createReads(() => [], store.cache);
+    const reads = createReads(() => [], store.cache, BUILD);
     const wanted = ['texpert:SEL5', 'egl:KIX5', 'egl:GONE', 'texpert:SEL5'];
     const raw = await (await import('@hktours/db/read')).getToursByKeys(db, wanted, today);
 
@@ -242,7 +245,7 @@ describe('with the in-process database', () => {
     expect([...first.entries()]).toStrictEqual([...raw.entries()]);
     expect([...second.keys()]).toEqual(['egl:KIX5', 'texpert:SEL5']);
     expect(second.get('texpert:SEL5')).toStrictEqual(raw.get('texpert:SEL5'));
-    expect(JSON.parse(store.keys[0])).toEqual({ read: 'getToursByKeys', today, keys: ['egl:GONE', 'egl:KIX5', 'texpert:SEL5'] });
+    expect(JSON.parse(store.keys[0])).toEqual({ build: BUILD, read: 'getToursByKeys', today, keys: ['egl:GONE', 'egl:KIX5', 'texpert:SEL5'] });
   });
 
   it('getToursByKeys with no keys asks neither the store nor the database', async () => {
@@ -256,14 +259,14 @@ describe('with the in-process database', () => {
 
   it('getOperators: one key per option, without today', async () => {
     const store = jsonStore();
-    const reads = createReads(() => [], store.cache);
+    const reads = createReads(() => [], store.cache, BUILD);
     await reads.getOperators(db);
     await reads.getOperators(db, {});
     await reads.getOperators(db, { onlyWithGoodRun: false });
     await reads.getOperators(db, { onlyWithGoodRun: true });
     expect(store.keys.map(k => JSON.parse(k))).toEqual([
-      { read: 'getOperators', onlyWithGoodRun: false }, { read: 'getOperators', onlyWithGoodRun: false },
-      { read: 'getOperators', onlyWithGoodRun: false }, { read: 'getOperators', onlyWithGoodRun: true },
+      { build: BUILD, read: 'getOperators', onlyWithGoodRun: false }, { build: BUILD, read: 'getOperators', onlyWithGoodRun: false },
+      { build: BUILD, read: 'getOperators', onlyWithGoodRun: false }, { build: BUILD, read: 'getOperators', onlyWithGoodRun: true },
     ]);
   });
 
@@ -337,17 +340,154 @@ describe('errors are never stored', () => {
   });
 });
 
+describe('the build is in every key, so different builds never share an entry', () => {
+  it('the build id is the deployment\'s commit when Vercel gives one, else "local"', () => {
+    expect(buildId({ VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' })).toBe('0a0a93a1b2c3');
+    expect(buildId({})).toBe('local');
+    expect(buildId({ VERCEL_GIT_COMMIT_SHA: '' })).toBe('local');
+  });
+
+  it('all three reads put it in their key, and two builds give different keys for the same question', async () => {
+    const keysFor = async (build: string) => {
+      const store = jsonStore();
+      const reads = createReads(() => [], store.cache, build);
+      const db = brokenDb(new Error('down'));
+      await reads.searchTours(db, base, 'en').catch(() => {});
+      await reads.getOperators(db).catch(() => {});
+      await reads.getToursByKeys(db, ['egl:KIX5'], today).catch(() => {});
+      return store.keys;
+    };
+    const one = await keysFor('build-one');
+    const two = await keysFor('build-two');
+    expect(one.map(k => JSON.parse(k).build)).toEqual(['build-one', 'build-one', 'build-one']);
+    expect(two.map(k => JSON.parse(k).build)).toEqual(['build-two', 'build-two', 'build-two']);
+    one.forEach((key, i) => expect(key).not.toBe(two[i]));
+    // Apart from the build, the keys are the same question.
+    expect(one.map(k => ({ ...JSON.parse(k), build: null }))).toEqual(two.map(k => ({ ...JSON.parse(k), build: null })));
+  });
+});
+
+describe('no result older than the hour is ever shown', () => {
+  const HOUR_MS = READ_CACHE_SECONDS * 1000;
+  /** A clock the test moves by hand. */
+  const clock = () => { const c = { t: Date.UTC(2026, 10, 12, 4, 0, 0), now: () => c.t }; return c; };
+  /** A load that counts its calls and returns a new value each time. */
+  const counted = () => { const l = { calls: 0, load: async () => `result ${++l.calls}` }; return l; };
+
+  it('stores the value with the time it was read, as JSON-safe text', async () => {
+    const store = jsonStore();
+    const c = clock();
+    await ageLimited(store.cache, c.now)('k', async () => ({ tours: [], total: 0 }));
+    expect(JSON.parse(store.entries.get('k')!)).toEqual({ at: c.t, value: { tours: [], total: 0 } });
+  });
+
+  it('an entry younger than the hour is served, with no read', async () => {
+    const store = jsonStore();
+    const c = clock();
+    const l = counted();
+    const cache = ageLimited(store.cache, c.now);
+    expect(await cache('k', l.load)).toBe('result 1');
+    c.t += HOUR_MS - 1;
+    expect(await cache('k', l.load)).toBe('result 1');
+    expect(l.calls).toBe(1);
+  });
+
+  it.each([['exactly at the hour', 0], ['just over it', 1], ['a day over it', 86_400_000]])(
+    'an entry %s is not served: the read runs and its result is shown', async (_label, over) => {
+      const store = jsonStore();
+      const c = clock();
+      const l = counted();
+      const cache = ageLimited(store.cache, c.now);
+      await cache('k', l.load);
+      c.t += HOUR_MS + over;
+      expect(await cache('k', l.load)).toBe('result 2');
+      expect(l.calls).toBe(2);
+    },
+  );
+
+  it('an over-age entry with a failing read gives the error, never the old result', async () => {
+    const store = jsonStore();
+    const c = clock();
+    const cache = ageLimited(store.cache, c.now);
+    await cache('k', async () => 'old result');
+    c.t += HOUR_MS;
+    const error = new Error('connection refused');
+    await expect(cache('k', async () => { throw error; })).rejects.toBe(error);
+  });
+
+  it('an entry without a readable time (not written by this code) counts as over the hour', async () => {
+    const store = jsonStore();
+    const c = clock();
+    store.entries.set('k', JSON.stringify('bare value'));
+    store.entries.set('j', JSON.stringify({ at: 'yesterday', value: 'odd value' }));
+    const cache = ageLimited(store.cache, c.now);
+    expect(await cache('k', async () => 'read now')).toBe('read now');
+    expect(await cache('j', async () => 'read now')).toBe('read now');
+  });
+
+  it('getOperators obeys the same limit, and a failure past the hour reaches the caller', async () => {
+    const store = jsonStore();
+    const c = clock();
+    const rows = [{ id: 'egl', name_zh: '甲', name_en: 'A', color: '#000000', last_good_run_at: null }];
+    let down = false;
+    let queries = 0;
+    const db = { query: async () => { queries++; if (down) throw new Error('down'); return rows; } } as unknown as Db;
+    const reads = createReads(() => [], ageLimited(store.cache, c.now), BUILD);
+
+    expect((await reads.getOperators(db)).map(o => o.nameEn)).toEqual(['A']);
+    c.t += HOUR_MS - 1;
+    rows[0].name_en = 'B'; // the database changed; the hour is not up yet
+    expect((await reads.getOperators(db)).map(o => o.nameEn)).toEqual(['A']);
+    expect(queries).toBe(1);
+    c.t += 1;
+    expect((await reads.getOperators(db)).map(o => o.nameEn)).toEqual(['B']);
+    expect(queries).toBe(2);
+    down = true;
+    await expect(reads.getOperators(db)).rejects.toThrow('down');
+  });
+
+  it('getToursByKeys still gives back a Map from a stored, time-stamped entry', async () => {
+    const store = jsonStore();
+    const c = clock();
+    // One tour row, every column set (invented); no stops, departures or snapshots.
+    const row = {
+      id: '1', key: 'egl:KIX5', operator_id: 'egl', url: 'https://example.test/egl/KIX5', title: 'KIX5 團', days: 5, nights: 4,
+      start_kind: 'hk', start_label: null, end_kind: 'hk', end_label: null,
+      from_price: 7999, window_price: 7999, fallback_price: 7999, last_updated: '2026-11-11T19:10:00.000Z',
+    };
+    let queries = 0;
+    const reads = createReads(() => [], ageLimited(store.cache, c.now), BUILD);
+    const db = {
+      query: async (sql: string) => { queries++; return sql.includes('from matched m') ? [row] : []; },
+    } as unknown as Db;
+    const first = await reads.getToursByKeys(db, ['egl:KIX5'], today);
+    const second = await reads.getToursByKeys(db, ['egl:KIX5'], today);
+    expect(second).toBeInstanceOf(Map);
+    expect([...second.entries()]).toStrictEqual([...first.entries()]);
+    expect(queries).toBe(4); // the first call's four queries; the second was served
+  });
+});
+
 describe('the real cache function', () => {
   it('hands Next.js the key as the only key part, a fixed hour and the tag, and calls the result with no arguments', async () => {
     const cached = vi.fn(async () => 'value');
     unstableCache.mockReturnValue(cached);
     const load = async () => 'value';
 
-    expect(await nextCache('{"read":"getOperators","onlyWithGoodRun":false}', load)).toBe('value');
+    expect(await nextStore('{"read":"getOperators","onlyWithGoodRun":false}', load)).toBe('value');
     expect(unstableCache).toHaveBeenCalledWith(load, ['{"read":"getOperators","onlyWithGoodRun":false}'], {
       revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG],
     });
     expect(cached).toHaveBeenCalledWith();
     expect(READ_CACHE_SECONDS).toBe(3600);
+  });
+
+  it('the pages\' cache is that store with the age limit: a stored entry over the hour is not used', async () => {
+    const load = vi.fn(async () => 'read now');
+    unstableCache.mockReturnValue(async () => ({ at: Date.now() - 2 * READ_CACHE_SECONDS * 1000, value: 'two hours old' }));
+    expect(await nextCache('k', load)).toBe('read now');
+    unstableCache.mockReturnValue(async () => ({ at: Date.now() - 1000, value: 'a second old' }));
+    expect(await nextCache('k', load)).toBe('a second old');
+    expect(load).toHaveBeenCalledTimes(1);
   });
 });

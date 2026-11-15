@@ -15,7 +15,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 /**
  * The search page: destination picker, filter bar, count, cards and paging, all read from the address.
  * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
- * are reused for an hour (cachedReads), so they may be about an hour old, or older (see cached-reads.ts).
+ * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const t = await getT();

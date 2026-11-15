@@ -21,7 +21,7 @@ export function getDb(): Db {
 /**
  * The database handle for a page or route. Awaits `connection()` first, which tells Next.js to render
  * the caller per request (never at build time or from a static page cache). The pages' reads reuse their
- * results for an hour (cached-reads.ts), so a page may show results about an hour old, or older.
+ * results (cached-reads.ts): a result shown is at most an hour old.
  * Every page that queries the database gets its handle from here.
  */
 export async function requestDb(): Promise<Db> {
