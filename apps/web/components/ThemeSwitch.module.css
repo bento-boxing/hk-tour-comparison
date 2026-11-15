@@ -13,7 +13,7 @@
 .toDark { display: var(--when-light); }
 .toLight { display: var(--when-dark); }
 
-/* Phones: narrower (still 44px tall), so the bar fits on one line at 375px in Chinese. */
+/* Phones: narrower (26 × 44px), so the bar fits on one line at 375px in every language. */
 @media (max-width: 639px) {
-  .option { min-width: 28px; }
+  .option { min-width: 26px; }
 }

@@ -60,4 +60,6 @@ it('CSS: each button shows only in the theme it leaves (theme tokens), 44px for 
   expect(css()).toMatch(/\.option \{[^}]*min-height: 44px[^}]*min-width: 44px/);
   expect(css()).toMatch(/\.option:focus-visible \{[^}]*outline: 2px solid var\(--bar-accent\)/);
   expect(css()).toMatch(/\.option \{[^}]*color: var\(--bar-text\)/);
+  // Phones: 26 × 44px (above the 24px minimum touch target).
+  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.option \{ min-width: 26px; \}/);
 });
