@@ -66,6 +66,5 @@ To run the website locally, create `apps/web/.env.local` (git-ignored) with a li
 - `packages/scraper`: the polite fetcher, one scraper per operator, the `pnpm scrape` command.
 - `apps/web`: the Next.js website (`/` search, `/chain` chaining), in Traditional Chinese by default; the switch in the nav bar offers Simplified Chinese and English (texts in `lib/dict.*.ts`), remembers the choice in a one-year `locale` cookie, and in those two languages a notice at the top says tours are normally conducted in Cantonese.
 - `.github/workflows/`: `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).
-- `docs/launch-checklist.md`: the steps to put the site online.
 
 This has not been reviewed by a lawyer.
