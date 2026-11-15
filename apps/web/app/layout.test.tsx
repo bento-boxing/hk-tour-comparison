@@ -6,13 +6,19 @@ import { useT } from '../lib/i18n-client';
 import RootLayout, { generateMetadata } from './layout';
 import styles from './layout.module.css';
 
-const cookie = vi.hoisted(() => ({ value: undefined as string | undefined }));
+const cookie = vi.hoisted(() => ({ value: undefined as string | undefined, theme: undefined as string | undefined }));
 vi.mock('next/headers', () => ({
-  cookies: async () => ({ get: (name: string) => (name === 'locale' && cookie.value !== undefined ? { name, value: cookie.value } : undefined) }),
+  cookies: async () => ({
+    get: (name: string) => {
+      const value = name === 'locale' ? cookie.value : name === 'theme' ? cookie.theme : undefined;
+      return value === undefined ? undefined : { name, value };
+    },
+  }),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }));
+vi.mock('../lib/theme-action', () => ({ setTheme: vi.fn() }));
 
-beforeEach(() => { cookie.value = undefined; });
+beforeEach(() => { cookie.value = undefined; cookie.theme = undefined; });
 
 /** A client component inside the layout: it sees the provider's locale. */
 function ClientText() {
@@ -66,4 +72,26 @@ it.each([
   expect(html).toMatch(new RegExp(`^<html lang="[^"]+" class="${styles.withNotice}"`));
   const css = readFileSync(join(__dirname, 'layout.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.withNotice \{ scroll-padding-top: 5rem; \}/);
+});
+
+it.each([
+  ['dark', ' data-theme="dark"'],
+  ['light', ' data-theme="light"'],
+])('theme cookie %j: the server renders <html%s>, so the first paint is in the chosen theme', async (value, attr) => {
+  cookie.theme = value;
+  const html = await renderLayout();
+  expect(html).toMatch(new RegExp(`^<html lang="zh-Hant-HK"${attr}>`));
+});
+
+it.each([undefined, '', 'system', 'Dark'])('theme cookie %j: no data-theme, so the visitor\'s system setting decides (CSS media query)', async value => {
+  cookie.theme = value;
+  const html = await renderLayout();
+  expect(html).toMatch(/^<html lang="zh-Hant-HK">/);
+  expect(html).not.toContain('data-theme');
+});
+
+it('the nav bar has the theme switch beside the language switch', async () => {
+  const html = await renderLayout();
+  expect(html).toContain('切換至深色模式');
+  expect(html).toContain('切換至淺色模式');
 });

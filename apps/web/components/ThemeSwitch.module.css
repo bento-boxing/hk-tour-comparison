@@ -1,0 +1,19 @@
+/* The theme switch, at the right end of the nav bar after the language switch (on the dark bar). 44px for touch. */
+.form { margin: 0; display: flex; }
+
+.option {
+  min-height: 44px; min-width: 44px; padding: 0; border: 0; background: none;
+  align-items: center; justify-content: center;
+  color: var(--bar-text); opacity: 0.75; cursor: pointer;
+}
+.option:hover { opacity: 1; }
+.option:focus-visible { outline: 2px solid var(--bar-accent); outline-offset: -4px; opacity: 1; }
+
+/* Only the button for the other theme shows (theme.css swaps the two display values in the dark theme). */
+.toDark { display: var(--when-light); }
+.toLight { display: var(--when-dark); }
+
+/* Phones: narrower (still 44px tall), so the bar fits on one line at 375px in Chinese. */
+@media (max-width: 639px) {
+  .option { min-width: 28px; }
+}

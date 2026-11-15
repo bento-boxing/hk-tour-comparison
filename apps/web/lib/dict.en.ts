@@ -5,6 +5,8 @@ import type { DictKey } from './i18n';
 const en = {
   'site.name': '跟邊團', // the brand: the same in every language
   'lang.label': 'Language',
+  'theme.toDark': 'Switch to dark theme',
+  'theme.toLight': 'Switch to light theme',
   'notice.cantonese': 'Tours are normally conducted in Cantonese. Check with the operator.',
   'nav.search': 'Find tours',
   'nav.chain': 'Plan a trip',
@@ -36,6 +38,7 @@ const en = {
   'card.higher': '↑ {amount} since {days} [days:day|days] ago',
   'card.same': '— unchanged since {days} [days:day|days] ago',
   'card.moreDates': '+{n} more [n:date|dates]',
+  'card.dates': 'Departure dates',
   'card.goTo': 'Go to {operator} ↗',
   'card.add': '+ Add to trip',
   'card.startsAt': 'Starts in {place}',

@@ -69,6 +69,8 @@ it('uses only the theme\'s colours', () => {
 // app/apple-icon.png is icon.svg without the corner radius (iOS rounds it), rasterised with
 // ImageMagick: `sed 's/ rx="9"//' app/icon.svg > apple.svg &&
 // convert -background none -density 1200 apple.svg -resize 180x180 -strip PNG24:app/apple-icon.png`
+// (Where ImageMagick has no SVG renderer: a headless Firefox screenshot of apple.svg in a 180 × 180 window, then
+// `convert shot.png -alpha off -strip PNG24:app/apple-icon.png`; that is how the darker cerulean was applied.)
 it('has an opaque 180 × 180 PNG apple touch icon', () => {
   const png = readFileSync(join(__dirname, 'apple-icon.png'));
   expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));

@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useId, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db';
 import type { T } from '../lib/i18n';
+import { operatorTextTone } from '../lib/contrast';
 import { formatChipDate, formatLength, formatPrice, formatUpdated } from '../lib/format';
-import { priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
+import { departurePrice, priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { PriceWithFrom } from './PriceWithFrom';
@@ -24,7 +25,9 @@ export const MAX_DATE_CHIPS = 4;
 const LINKABLE_URL = /^https:\/\//i;
 /** Only #rrggbb reaches the inline style; anything else could carry other declarations. */
 const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
-const FALLBACK_COLOR = 'var(--charcoal)';
+const FALLBACK_COLOR = 'var(--op-fallback)';
+/** How close a date's tooltip may come to the window's left or right edge, in px. */
+const TIP_MARGIN = 8;
 
 /** Runs a formatter that may throw on bad data; null instead, so one bad field never takes down a results page. */
 function attempt(format: () => string | null): string | null {
@@ -32,18 +35,42 @@ function attempt(format: () => string | null): string | null {
 }
 
 /**
- * One tour (mockup `.card`). Everything but the add button is one link to the operator's page, opened in
- * a new tab, or a plain block when the address is not https. The operator colour comes from
- * `operator.color` through the `--c` custom property. The link's name is short; the start/end note,
- * the price change and the dates are attached to it as its description.
+ * How far to move a box spanning `left`–`right` (px from the window's left edge) so it stays at least `margin`
+ * inside a window `viewport` px wide. A box wider than the window keeps its start visible.
+ */
+export function shiftIntoView(left: number, right: number, viewport: number, margin = TIP_MARGIN): number {
+  if (left < margin) return margin - left;
+  if (right > viewport - margin) return Math.max(viewport - margin - right, margin - left);
+  return 0;
+}
+
+/** Keeps a date's tooltip (the date element's last child) inside the window, measured as it appears. */
+function placeTip(event: SyntheticEvent<HTMLElement>) {
+  const tip = event.currentTarget.lastElementChild as HTMLElement | null;
+  if (!tip) return;
+  tip.style.setProperty('--tip-shift', '0px');
+  const { left, right } = tip.getBoundingClientRect();
+  const viewport = document.documentElement.clientWidth || window.innerWidth; // clientWidth: without a scrollbar
+  tip.style.setProperty('--tip-shift', `${shiftIntoView(left, right, viewport)}px`);
+}
+
+/**
+ * One tour (mockup `.card`). The card is one link to the operator's page, opened in a new tab: the link holds the
+ * top of the card and stretches over the whole card (CSS), so a press anywhere on it opens the page. Each departure
+ * date is a link to the same page of its own, which shows that date's price above it on hover and on keyboard
+ * focus; the dates are one tab stop, moved through with the arrow keys. A plain block instead of links when the
+ * address is not https. The operator colour comes from `operator.color` through the `--c` custom property; the
+ * tag's text is light or dark, whichever reads better on it. The link's name is short; the start/end note and
+ * the price change are attached to it as its description.
  */
 export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: TourCardProps) {
   const [picking, setPicking] = useState(false);
+  const [activeDate, setActiveDate] = useState(0);
   const addRef = useRef<HTMLButtonElement>(null);
+  const dateRefs = useRef<(HTMLElement | null)[]>([]);
   const id = useId();
   const noteId = `${id}-note`;
   const changeId = `${id}-change`;
-  const datesId = `${id}-dates`;
 
   const route = routeNames(tour.stops, places, t.locale);
   const operatorText = operatorName(operator, t.locale);
@@ -57,8 +84,11 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const chips = departures.slice(0, MAX_DATE_CHIPS);
   const moreDates = departures.length - chips.length;
   const linkable = LINKABLE_URL.test(tour.url);
-  const color = SAFE_COLOR.test(operator.color) ? operator.color : FALLBACK_COLOR;
-  const describedBy = [note && noteId, change && changeId, chips.length > 0 && datesId].filter(Boolean).join(' ');
+  const safeColor = SAFE_COLOR.test(operator.color);
+  const color = safeColor ? operator.color : FALLBACK_COLOR;
+  const tagDark = safeColor && operatorTextTone(operator.color) === 'dark';
+  const describedBy = [note && noteId, change && changeId].filter(Boolean).join(' ');
+  const active = Math.min(activeDate, Math.max(chips.length - 1, 0));
 
   // After a press outside, focus stays where the visitor pressed; every other close returns it to the button.
   const closePicker = (reason?: PickerCloseReason) => {
@@ -70,10 +100,23 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
     onAdd?.(date);
   };
 
-  const body = (
+  // The dates are one tab stop: the arrow keys, Home and End move between them (roving tabindex).
+  const moveDate = (e: KeyboardEvent) => {
+    const last = chips.length - 1;
+    const next = { ArrowRight: active + 1, ArrowLeft: active - 1, Home: 0, End: last }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const to = Math.min(Math.max(next, 0), last);
+    setActiveDate(to);
+    dateRefs.current[to]?.focus();
+  };
+
+  const linkProps = { href: tour.url, target: '_blank', rel: 'noopener noreferrer' };
+
+  const head = (
     <>
       <div className={styles.top}>
-        <span className={styles.op}>{operatorText}</span>
+        <span className={tagDark ? `${styles.op} ${styles.opDark}` : styles.op}>{operatorText}</span>
         {region && <span className={styles.reg}>{region}</span>}
       </div>
       <h3 className={styles.route}>
@@ -92,9 +135,48 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
           {change && <div id={changeId} className={`${styles.delta} ${styles[change.tone]}`}>{change.text}</div>}
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <article className={styles.card} style={{ '--c': color } as CSSProperties}>
+      {linkable ? (
+        <a
+          className={`${styles.body} ${styles.link}`}
+          {...linkProps}
+          aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
+          aria-describedby={describedBy || undefined}
+        >
+          {head}
+        </a>
+      ) : (
+        <div className={styles.body}>{head}</div>
+      )}
       {chips.length > 0 && (
-        <div id={datesId} className={styles.dates}>
-          {chips.map(d => <span key={d.date} className={styles.d}>{formatChipDate(d.date, today, t)}</span>)}
+        <div role="group" aria-label={t('card.dates')} className={styles.dates} onKeyDown={moveDate}>
+          {chips.map((d, i) => {
+            const { hkd, from } = departurePrice(d, tour.fallbackPriceHkd);
+            const content = (
+              <>
+                <span>{formatChipDate(d.date, today, t)}</span>
+                {/* The space separates date and price in the accessible name; at the end of the line, it is not drawn. */}
+                {' '}
+                <span className={styles.tip}>
+                  {from ? <PriceWithFrom price={formatPrice(hkd)} t={t} fromClassName={styles.tipFrom} /> : formatPrice(hkd)}
+                </span>
+              </>
+            );
+            const dateProps = {
+              ref: (el: HTMLElement | null) => { dateRefs.current[i] = el; },
+              className: styles.d,
+              tabIndex: i === active ? 0 : -1,
+              onFocus: (e: SyntheticEvent<HTMLElement>) => { setActiveDate(i); placeTip(e); },
+              onPointerEnter: placeTip,
+            };
+            return linkable
+              ? <a key={d.date} {...linkProps} {...dateProps}>{content}</a>
+              : <span key={d.date} {...dateProps}>{content}</span>;
+          })}
           {moreDates > 0 && <span className={`${styles.d} ${styles.more}`}>{t('card.moreDates', { n: moreDates })}</span>}
         </div>
       )}
@@ -107,25 +189,6 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
         )}
         {linkable && <span className={styles.go}>{t('card.goTo', { operator: operatorText })}</span>}
       </div>
-    </>
-  );
-
-  return (
-    <article className={styles.card} style={{ '--c': color } as CSSProperties}>
-      {linkable ? (
-        <a
-          className={`${styles.body} ${styles.link}`}
-          href={tour.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
-          aria-describedby={describedBy || undefined}
-        >
-          {body}
-        </a>
-      ) : (
-        <div className={styles.body}>{body}</div>
-      )}
       {onAdd && (
         <div className={styles.addArea}>
           <button

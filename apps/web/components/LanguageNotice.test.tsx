@@ -35,7 +35,7 @@ it.each([
 
 it('is fixed to the top of the window, full width, above every other layer, in snow on #800000', () => {
   expect(css()).toMatch(/\.fixed \{ position: fixed; top: 0; left: 0; right: 0; z-index: 1000; \}/);
-  expect(css()).toMatch(/\.notice \{[^}]*background: var\(--notice-maroon\);[^}]*color: var\(--snow\);/);
+  expect(css()).toMatch(/\.notice \{[^}]*background: var\(--notice-maroon\);[^}]*color: var\(--notice-text\);/);
   // The spacer stays in the flow (not fixed, not display: none), so it takes the notice's height.
   expect(css()).toMatch(/\.spacer \{ visibility: hidden; \}/);
   // Every other layer in the site is below it.

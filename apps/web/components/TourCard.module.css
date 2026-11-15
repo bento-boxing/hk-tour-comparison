@@ -1,23 +1,32 @@
 /* Mockup .card and its children. --c (the operator colour) is set inline from operator.color. */
 .card {
-  position: relative; /* anchors the departure picker */
+  position: relative; /* anchors the departure picker and the card link's stretched area */
   background: var(--surface); border-radius: var(--radius-card); border: 1px solid var(--ash); border-left: 5px solid var(--c);
   padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
 }
 
-/* Everything except the add button (the link, or a plain block for a non-https address); the mockup's rows with the card's own 9px gap. */
+/* The top of the card (the link, or a plain block for a non-https address); the mockup's rows with the card's own 9px gap. */
 .body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .link { color: inherit; text-decoration: none; border-radius: 6px; }
-.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 4px; }
-.link:hover .go { text-decoration: underline; }
+/*
+ * The link stretches over the whole card, so a press anywhere on it (the gaps, the footer) opens the operator's
+ * page. Positioned elements after it in the card (the dates, the add button) are drawn above it and take their
+ * own presses; the footer is not positioned and stays under it.
+ */
+.link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-card); }
+.link:focus-visible { outline: none; }
+.link:focus-visible::after { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.link:hover ~ .foot .go { text-decoration: underline; }
 
 .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
-.op { background: var(--c); color: #fff; padding: 2px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+/* The tag's text: light, or dark on a light operator colour (TourCard picks, lib/contrast.ts). */
+.op { background: var(--c); color: var(--on-operator-light); padding: 2px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+.opDark { color: var(--on-operator-dark); }
 .reg { color: var(--text-muted); text-align: right; }
 
 /* A ten-stop route wraps onto more lines; nothing is cut off. */
 .route { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
-.arrow { color: var(--khaki); font-weight: 400; margin: 0 3px; }
+.arrow { color: var(--line-control); font-weight: 400; margin: 0 3px; }
 
 /* Start or end outside Hong Kong / Shenzhen. */
 .note {
@@ -34,9 +43,39 @@
 .up { color: var(--price-up); }
 .same { color: var(--text-faint); }
 
-.dates { display: flex; flex-wrap: wrap; gap: 5px; }
-.d { font-size: 12px; background: var(--ash); border-radius: 4px; padding: 3px 7px; }
-.more { background: none; color: var(--text-muted); }
+/*
+ * The dates: information that shows more on hover, not buttons. Their row lets presses through to the card link
+ * (pointer-events: none) except on the dates themselves, which are links to the same page.
+ */
+.dates { position: relative; display: flex; flex-wrap: wrap; gap: 5px; pointer-events: none; }
+.d {
+  position: relative; pointer-events: auto; cursor: help;
+  font-size: 12px; color: inherit; text-decoration: none;
+  background: var(--ash); border-radius: 4px; padding: 3px 7px;
+}
+.d > span:first-child { text-decoration: underline dotted; text-underline-offset: 3px; }
+.d:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.more { background: none; color: var(--text-muted); cursor: auto; pointer-events: none; }
+
+/*
+ * The date's price, above it: out of the layout (absolute), so showing it moves nothing. Until shown it is
+ * visually hidden but still read with the date by screen readers. --tip-shift (set by TourCard as it appears)
+ * keeps it inside the window. Page colours reversed, so it stands out in either theme.
+ */
+.tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; z-index: 5;
+  transform: translateX(calc(-50% + var(--tip-shift, 0px)));
+  padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px var(--shadow); pointer-events: none;
+  background: var(--charcoal); color: var(--snow); font-size: 13px; font-weight: 700; white-space: nowrap;
+  /* Hidden until shown (below). */
+  clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden;
+}
+.tipFrom { font-size: 11px; font-weight: 500; }
+.d:focus-visible .tip { clip-path: none; width: auto; height: auto; overflow: visible; }
+/* Hover reveals only where there is a real hover: on a touch screen the first tap must open the operator's page. */
+@media (hover: hover) {
+  .d:hover .tip { clip-path: none; width: auto; height: auto; overflow: visible; }
+}
 
 .foot { font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 8px; }
 .footLeft { display: flex; flex-direction: column; gap: 2px; }

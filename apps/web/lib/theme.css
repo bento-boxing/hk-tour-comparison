@@ -1,16 +1,78 @@
-/* Design tokens from docs/design/mockup.html. Components use these through CSS modules. */
+/*
+ * Design tokens from docs/design/mockup.html. Components use these through CSS modules; no CSS module or
+ * component writes a colour itself (lib/theme.test.ts checks, and checks every text/background pair against
+ * WCAG AA in both themes).
+ *
+ * Light by default. Dark when the visitor chose it with the theme switch (<html data-theme="dark">, from the
+ * `theme` cookie, rendered on the server), or when they have not chosen and their system is dark (the media
+ * query below). <html data-theme="light"> keeps light on a dark system. The dark values appear twice, once for
+ * each of those cases; the test checks the two copies are the same.
+ *
+ * The palette names keep their mockup meaning by role: --charcoal is the ink (text) and --snow the paper
+ * (page, and text on an accent fill), so in the dark theme --charcoal is light and --snow dark.
+ */
 :root {
-  --charcoal: #50514f; --ash: #cbd4c2; --snow: #fffcff; --cerulean: #247ba0; --khaki: #c3b299;
+  color-scheme: light;
+  --charcoal: #50514f; --snow: #fffcff; --surface: #ffffff; --panel: #f1f3ed; --hit: #e6f1f6;
+  --ash: #cbd4c2; --khaki: #c3b299;
+  /* --cerulean: the mockup's #247ba0 a shade darker (same hue), to reach 4.5:1 on --panel and --hit too. */
+  --cerulean: #21749a;
   /* --text-muted: the mockup's #7b7c76 darkened (same hue) to reach 4.5:1 on white and on --hit. */
-  --text-muted: #6c6d67; --text-faint: #8f908a; --surface: #ffffff; --panel: #f1f3ed;
-  --hit: #e6f1f6; --price-down: #1f7a4d; --price-up: #a8432a;
+  --text-muted: #6c6d67;
+  /* --text-faint: was #8f908a (3.2:1 on white); darkened to reach 4.5:1 on white and on --snow. */
+  --text-faint: #74756f;
+  /* --line-control: khaki darkened (same hue) for the outlines of pills, fields and pager links: 3:1 on white. */
+  --line-control: #9a8a6e;
+  --divider: #e9ede4;
+  --shadow: rgba(80, 81, 79, 0.12);
+  --price-down: #1f7a4d; --price-up: #a8432a;
+  /* The nav bar is dark in both themes; its text and accent are fixed, its background is not. */
+  --bar-bg: #50514f; --bar-text: #fffcff; --bar-accent: #c3b299;
+  /* Operator colours (the database's operators.color) carry their own background, so they are the same in both themes. */
   --op-egl: #d62839; --op-jetour: #ee7b06; --op-texpert: #7d3cc8; --op-bigline: #2a9d4b;
   --op-charming: #b5179e; --op-yummy: #7a6a00; --op-sunflower: #3949ab;
-  /* --notice-maroon: the owner's colour for the language notice (components/LanguageNotice) only. */
-  --notice-maroon: #800000;
+  /* A card's tag and border when an operator has no usable colour, and the two tag text colours (lib/contrast.ts picks). */
+  --op-fallback: #50514f; --on-operator-light: #ffffff; --on-operator-dark: #1c1d1b;
+  /* --notice-maroon: the owner's colour for the language notice (components/LanguageNotice) only; fixed in both themes. */
+  --notice-maroon: #800000; --notice-text: #fffcff;
+  /* The theme switch shows the button for the other theme: display values, swapped in the dark theme. */
+  --when-light: inline-flex; --when-dark: none;
   --radius-card: 10px; --radius-pill: 999px;
   --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --charcoal: #e4e3dd; --snow: #1e1f1d; --surface: #282927; --panel: #171816; --hit: #213a47;
+  --ash: #474943; --khaki: #a99a7f;
+  --cerulean: #62b4dc;
+  --text-muted: #a9aaa3;
+  --text-faint: #9a9b94;
+  --line-control: #8e8169;
+  --divider: #33342f;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --price-down: #5cc28f; --price-up: #f08a6c;
+  --bar-bg: #2f302d;
+  --when-light: none; --when-dark: inline-flex;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --charcoal: #e4e3dd; --snow: #1e1f1d; --surface: #282927; --panel: #171816; --hit: #213a47;
+    --ash: #474943; --khaki: #a99a7f;
+    --cerulean: #62b4dc;
+    --text-muted: #a9aaa3;
+    --text-faint: #9a9b94;
+    --line-control: #8e8169;
+    --divider: #33342f;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --price-down: #5cc28f; --price-up: #f08a6c;
+    --bar-bg: #2f302d;
+    --when-light: none; --when-dark: inline-flex;
+  }
+}
+
 /* Simplified Chinese pages use Simplified glyph forms when the visitor has such a font. */
 :root:lang(zh-Hans) { --font: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
 body { background: var(--snow); color: var(--charcoal); font-family: var(--font); margin: 0; }

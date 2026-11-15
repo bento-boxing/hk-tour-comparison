@@ -1,5 +1,5 @@
 import { it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
@@ -39,7 +39,8 @@ it('renders one card per tour', () => {
   expect(cards).toHaveLength(2);
   expect(cards[0]).toHaveTextContent('東瀛遊');
   expect(cards[1]).toHaveTextContent('捷旅');
-  expect(screen.getAllByRole('link').map(a => a.getAttribute('href')))
+  // Each card's first link is the card link (its dates follow as links to the same page).
+  expect(cards.map(c => within(c).getAllByRole('link')[0].getAttribute('href')))
     .toEqual(['https://example.test/egl/KIX5', 'https://example.test/jetour/OSA6']);
 });
 
@@ -61,10 +62,10 @@ it('shows the empty message and a clear link when there are none', () => {
   expect(screen.queryByText(/個旅行團$/)).toBeNull();
 });
 
-it('a card whose operator is missing from the list still renders, in charcoal', () => {
+it('a card whose operator is missing from the list still renders, in the fallback grey', () => {
   const { container } = render(<Results {...props} operators={[operators[1]]} />);
   expect(screen.getAllByRole('article')).toHaveLength(2);
-  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('var(--charcoal)');
+  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('var(--op-fallback)');
 });
 
 it('cards get an add button only when onAdd is given', async () => {

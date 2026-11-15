@@ -23,9 +23,9 @@
   position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
   margin: 4px 0 0; padding: 0; list-style: none;
   background: var(--surface); border: 1px solid var(--ash); border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12); overflow: hidden;
+  box-shadow: 0 6px 18px var(--shadow); overflow: hidden;
 }
-.option, .none { padding: 9px 14px; font-size: 14px; border-bottom: 1px solid #e9ede4; }
+.option, .none { padding: 9px 14px; font-size: 14px; border-bottom: 1px solid var(--divider); }
 .option { cursor: pointer; }
 .option:last-child, .none { border-bottom: 0; }
 .hit { background: var(--hit); }

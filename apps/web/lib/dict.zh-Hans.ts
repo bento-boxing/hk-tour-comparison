@@ -5,6 +5,8 @@ import type { DictKey } from './i18n';
 const zhHans = {
   'site.name': '跟邊團', // the brand: the same in every language
   'lang.label': '语言',
+  'theme.toDark': '切换至深色模式',
+  'theme.toLight': '切换至浅色模式',
   'notice.cantonese': '旅行团一般以粤语进行，详情请向旅行社查询。',
   'nav.search': '搜索旅行团',
   'nav.chain': '连续行程',
@@ -36,6 +38,7 @@ const zhHans = {
   'card.higher': '↑ {amount}　较{days}天前',
   'card.same': '— 与{days}天前相同',
   'card.moreDates': '+{n} 个出发日期',
+  'card.dates': '出发日期',
   'card.goTo': '前往{operator}网站 ↗',
   'card.add': '加入行程 ＋',
   'card.startsAt': '{place}出发',
