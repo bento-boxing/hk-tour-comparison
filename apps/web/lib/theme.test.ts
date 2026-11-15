@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { blend, contrast, ON_OPERATOR, operatorTextTone } from './contrast';
@@ -173,34 +173,4 @@ it('reports the lowest ratio per theme (for the record; each pair is checked abo
   }
 });
 
-// Colour literals outside theme.css: none in CSS modules or components, so every colour follows the theme.
-const LITERAL = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/i;
-const NAMED = /(?:^|[\s:,(])(?:white|black|red|green|blue|gray|grey|silver|maroon|navy|orange|purple|yellow|pink|brown)(?=[\s;,)!]|$)/i;
-
-function sources(): { file: string; text: string }[] {
-  const roots = [join(here, '..', 'components'), join(here, '..', 'app')];
-  return roots.flatMap(dir => readdirSync(dir)
-    .filter(f => /\.(module\.css|tsx)$/.test(f) && !f.includes('.test.'))
-    .map(f => ({ file: f, text: readFileSync(join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*(\/\/|\*).*$/gm, '') })));
-}
-
-it('no CSS module or component writes a colour literally: every colour is a theme token', () => {
-  const found: string[] = [];
-  for (const { file, text } of sources()) {
-    for (const line of text.split('\n')) {
-      const value = file.endsWith('.css') ? line.replace(/^[^:{]*:/, ':') : line;
-      if (LITERAL.test(line) || (file.endsWith('.css') && NAMED.test(value))) found.push(`${file}: ${line.trim()}`);
-    }
-  }
-  expect(found).toEqual([]);
-});
-
-it('the literal-colour check catches what it should', () => {
-  for (const bad of ['color: #fff;', 'background: #50514f;', 'box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);', 'fill="#247ba0"', 'color: hsl(0 0% 0%);']) {
-    expect(LITERAL.test(bad), bad).toBe(true);
-  }
-  for (const bad of [': white;', ': 1px solid black;']) expect(NAMED.test(bad), bad).toBe(true);
-  for (const ok of [': nowrap;', 'white-space: nowrap;'.replace(/^[^:{]*:/, ':'), ': var(--charcoal);', ': transparent;']) {
-    expect(NAMED.test(ok), ok).toBe(false);
-  }
-});
+// The guard against colour literals outside theme.css is lib/colour-literals.test.ts.

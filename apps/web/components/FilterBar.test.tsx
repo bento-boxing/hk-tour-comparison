@@ -157,13 +157,13 @@ it('ticking operators updates the filter', async () => {
   expect(onChange).toHaveBeenLastCalledWith({ filters: {}, sort: 'price', page: 1 }); // nothing ticked means all
 });
 
-it('each operator checkbox shows its colour dot, and a bad colour falls back to charcoal', async () => {
+it('each operator checkbox shows its colour dot, and a bad colour falls back to the operator fallback grey (--op-fallback)', async () => {
   renderBar(base, { operators: [operators[0], { ...operators[1], color: 'red;position:fixed' }] });
   await user.click(pill('旅行社：全部'));
   const dots = screen.getByRole('dialog').querySelectorAll<HTMLElement>('[data-dot]');
   expect(dots).toHaveLength(2);
   expect(dots[0].style.getPropertyValue('--c')).toBe('#d62839');
-  expect(dots[1].style.getPropertyValue('--c')).toBe('var(--charcoal)');
+  expect(dots[1].style.getPropertyValue('--c')).toBe('var(--op-fallback)');
 });
 
 it('choosing a sort order calls onChange with page 1', async () => {

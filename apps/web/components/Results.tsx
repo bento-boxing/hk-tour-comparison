@@ -19,7 +19,7 @@ export interface ResultsProps {
   empty?: ReactNode;
 }
 
-/** An operator missing from the operators list still gets a card: its id as the name, and the charcoal fallback colour. */
+/** An operator missing from the operators list still gets a card: its id as the name, and the fallback grey (--op-fallback). */
 const unknownOperator = (id: OperatorId): OperatorInfo => ({ id, nameZh: id, nameEn: id, color: '', lastGoodRunAt: null });
 
 /**
