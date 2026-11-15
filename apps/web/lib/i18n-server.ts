@@ -3,7 +3,7 @@ import { LOCALE_COOKIE, localeFromCookie, makeT, type Locale, type T } from './i
 
 /**
  * The visitor's language, from the cookie the language switch sets. Server components only: reading the
- * request's cookies renders the route per request (every page here already is, for the latest scrape).
+ * request's cookies renders the route per request (every page here already is: requestDb).
  */
 export async function getLocale(): Promise<Locale> {
   return localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);

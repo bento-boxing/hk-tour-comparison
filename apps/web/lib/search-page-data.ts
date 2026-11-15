@@ -1,5 +1,6 @@
 import { places, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
-import { getOperators, searchTours, type Db, type OperatorInfo, type TourCardData } from '@hktours/db/read';
+import type { Db, OperatorInfo, TourCardData } from '@hktours/db/read';
+import { createReads, runUncached, type Reads } from './cached-reads';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { placeName } from './place-names';
 import { parseSearchParams, type SearchState } from './search-params';
@@ -56,13 +57,23 @@ export function destinationOrder(index: PlacesIndex, locale: Locale): string[] {
   return order;
 }
 
+const placesOrder = (locale: Locale) => destinationOrder(places, locale);
+
+/** The reads through Next.js's data cache, each result reused for an hour (see cached-reads.ts). The pages use these. */
+export const cachedReads: Reads = createReads(placesOrder);
+
+/** The same reads straight to the database, every time. The loaders' default, so their tests need no Next.js. */
+export const uncachedReads: Reads = createReads(placesOrder, runUncached);
+
 /**
  * Everything the search page renders, from the raw address. Database errors are passed on to the caller.
  * The address is untrusted: only what parseSearchParams validated reaches the database.
- * `locale` decides the destination sorts' order (see destinationOrder).
+ * `locale` decides the destination sorts' order (see destinationOrder). `reads` is how the database is read:
+ * the pages pass cachedReads.
  */
 export async function loadSearchPage(
   db: Db, raw: Record<string, string | string[] | undefined>, today: IsoDate, locale: Locale = DEFAULT_LOCALE,
+  reads: Reads = uncachedReads,
 ): Promise<SearchPageData> {
   const parsed = parseSearchParams(raw, places);
   // The search page has no control for exclusions (that is the chain page's), so an `ex` in the
@@ -71,9 +82,9 @@ export async function loadSearchPage(
   const state: SearchState = { ...parsed, filters };
 
   const [{ tours, total }, operators, withGoodRun] = await Promise.all([
-    searchTours(db, { filters, sort: state.sort, page: state.page, today, destinationOrder: destinationOrder(places, locale) }),
-    getOperators(db),
-    getOperators(db, { onlyWithGoodRun: true }),
+    reads.searchTours(db, { filters, sort: state.sort, page: state.page, today }, locale),
+    reads.getOperators(db),
+    reads.getOperators(db, { onlyWithGoodRun: true }),
   ]);
   const filterOperators = filterBarOperators(operators, withGoodRun, filters.operators);
   return { state, tours, total, operators, filterOperators };

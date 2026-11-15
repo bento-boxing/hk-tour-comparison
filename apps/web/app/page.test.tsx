@@ -13,12 +13,14 @@ import type { SearchPageData } from '../lib/search-page-data';
 const mocks = vi.hoisted(() => ({
   locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
-  loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string) => Promise<SearchPageData>>(),
+  loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<SearchPageData>>(),
+  /** Stands in for the reads through Next's data cache (lib/cached-reads.ts). */
+  cachedReads: { name: 'cachedReads' },
 }));
 vi.mock('../lib/db', () => ({ requestDb: mocks.requestDb }));
 // The language cookie: none, so Traditional Chinese, unless a test sets it.
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'locale' && mocks.locale.value ? { name, value: mocks.locale.value } : undefined) }) }));
-vi.mock('../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage }));
+vi.mock('../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage, cachedReads: mocks.cachedReads }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
   useRouter: () => ({ push: vi.fn() }),
@@ -116,6 +118,13 @@ it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('passes the language (%s) to the 
   mocks.loadSearchPage.mockResolvedValue(data);
   await renderPage({ sort: 'destination' }, locale);
   expect(mocks.loadSearchPage.mock.calls[0][3]).toBe(locale);
+});
+
+it('reads the database through the cached reads', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(data);
+  await renderPage({});
+  expect(mocks.loadSearchPage.mock.calls[0][4]).toBe(mocks.cachedReads);
 });
 
 it('the server text is in English when the cookie says so (the error message)', async () => {

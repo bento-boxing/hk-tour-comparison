@@ -3,7 +3,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
 import { getT } from '../lib/i18n-server';
 import { requestDb } from '../lib/db';
-import { loadSearchPage, type SearchPageData } from '../lib/search-page-data';
+import { cachedReads, loadSearchPage, type SearchPageData } from '../lib/search-page-data';
 import { DestinationPanelsConnected, DestinationSearchConnected } from '../components/DestinationConnected';
 import { FilterBarConnected } from '../components/FilterBarConnected';
 import { ResultsConnected } from '../components/ResultsConnected';
@@ -14,7 +14,8 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
  * The search page: destination picker, filter bar, count, cards and paging, all read from the address.
- * The root layout supplies the nav bar and footer. Rendered per request (requestDb), so it shows the latest scrape.
+ * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
+ * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const t = await getT();
@@ -23,7 +24,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   let data: SearchPageData;
   try {
-    data = await loadSearchPage(await requestDb(), raw, today, t.locale);
+    data = await loadSearchPage(await requestDb(), raw, today, t.locale, cachedReads);
   } catch (err) {
     unstable_rethrow(err); // Next.js's own signals (such as "render this per request") must pass through.
     // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.

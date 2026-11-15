@@ -6,6 +6,7 @@ import { requestDb } from '../../lib/db';
 import { formatChipDate } from '../../lib/format';
 import { chainPageHref, withPage } from '../../lib/chain-href';
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
+import { cachedReads } from '../../lib/search-page-data';
 import {
   ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
@@ -17,7 +18,8 @@ type SearchParams = Record<string, string | string[] | undefined>;
 /**
  * The chaining page: the chosen legs with their gaps and total, the gap selector, and the tours from any
  * operator that can follow, all read from the address (`legs`, `gap` and the search filters except dates).
- * The root layout supplies the nav bar and footer. Rendered per request (requestDb), so it shows the latest scrape.
+ * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
+ * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  */
 export default async function ChainPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const t = await getT();
@@ -26,7 +28,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
 
   let data: ChainPageData;
   try {
-    data = await loadChainPage(await requestDb(), raw, today, t.locale);
+    data = await loadChainPage(await requestDb(), raw, today, t.locale, cachedReads);
   } catch (err) {
     unstable_rethrow(err); // Next.js's own signals (such as "render this per request") must pass through.
     // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.

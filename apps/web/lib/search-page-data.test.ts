@@ -4,6 +4,7 @@ import { places, type NormalisedTour, type OperatorId, type ScrapedDeparture, ty
 import { saveOperatorRun, PAGE_SIZE, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
+import { createReads, type CacheFn } from './cached-reads';
 import { destinationOrder, loadSearchPage } from './search-page-data';
 
 const today = '2026-11-12';
@@ -200,5 +201,73 @@ describe('the operator filter', () => {
     expect(data.state.filters.operators).toEqual(['texpert', 'bigline']);
     expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert', 'bigline']);
     expect(keys(data)).toEqual(['texpert:LAST4']);
+  });
+});
+
+describe('through a cache (the pages pass cachedReads; see cached-reads.ts)', () => {
+  /** Stores values as JSON text, as Next's data cache does; a load that throws stores nothing. */
+  function jsonStore() {
+    const entries = new Map<string, string>();
+    const cache: CacheFn = async (key, load) => {
+      const hit = entries.get(key);
+      if (hit !== undefined) return JSON.parse(hit);
+      const value = await load();
+      entries.set(key, JSON.stringify(value));
+      return value;
+    };
+    return { cache, entries };
+  }
+  const counting = (inner: Db) => {
+    const counter = {
+      queries: 0,
+      db: { ...inner, query: (sql: string, params?: unknown[]) => { counter.queries++; return inner.query(sql, params); } } as Db,
+    };
+    return counter;
+  };
+  const readsWith = (cache: CacheFn) => createReads(locale => destinationOrder(places, locale), cache);
+
+  it('a second identical search makes no query, a different filter does, and both match the uncached page', async () => {
+    const reads = readsWith(jsonStore().cache);
+    const counter = counting(db);
+
+    const first = await loadSearchPage(counter.db, { dest: 'japan', op: 'jetour,egl' }, today, 'en', reads);
+    const afterFirst = counter.queries;
+    // The same search, written differently in the address, in another language (the price sort ignores it).
+    const again = await loadSearchPage(counter.db, { op: 'egl,jetour,egl', dest: 'japan', page: '1' }, today, 'zh-Hans', reads);
+    expect(afterFirst).toBeGreaterThan(0);
+    expect(counter.queries).toBe(afterFirst);
+    expect(again).toStrictEqual(first);
+    expect(first).toStrictEqual(await loadSearchPage(db, { dest: 'japan', op: 'jetour,egl' }, today, 'en'));
+
+    const other = await loadSearchPage(counter.db, { dest: 'korea' }, today, 'en', reads);
+    expect(counter.queries).toBeGreaterThan(afterFirst);
+    expect(keys(other)).toEqual(['bigline:SEL5']);
+  });
+
+  it('a destination sort is stored per language: no language gets another one\'s order', async () => {
+    const reads = readsWith(jsonStore().cache); // one store for all three languages
+    const orders: string[][] = [];
+    for (const locale of ['zh-Hant', 'zh-Hans', 'en', 'zh-Hans'] as const) {
+      const cached = keys(await loadSearchPage(db, { sort: 'destination' }, today, locale, reads));
+      expect(cached).toEqual(keys(await loadSearchPage(db, { sort: 'destination' }, today, locale)));
+      orders.push(cached);
+    }
+    // The languages really differ here (Korea comes first only in pinyin), so the check means something.
+    expect(orders[1]).not.toEqual(orders[0]);
+  });
+
+  it('a database error reaches the caller unchanged and is not stored: the next load asks again', async () => {
+    const store = jsonStore();
+    const reads = readsWith(store.cache);
+    const error = new Error('connection refused');
+    let down = true;
+    const flaky: Db = { ...db, query: (sql, params) => (down ? Promise.reject(error) : db.query(sql, params)) };
+
+    await expect(loadSearchPage(flaky, {}, today, 'zh-Hant', reads)).rejects.toBe(error);
+    expect(store.entries.size).toBe(0);
+    down = false;
+    expect(keys(await loadSearchPage(flaky, {}, today, 'zh-Hant', reads)))
+      .toEqual(['bigline:SEL5', 'texpert:LAST4', 'egl:KIX5', 'jetour:MID6']);
+    expect(store.entries.size).toBe(3); // the search and the two operator lists
   });
 });
