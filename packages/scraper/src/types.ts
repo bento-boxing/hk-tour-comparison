@@ -1,4 +1,5 @@
 import type { IsoDate, OperatorId, ScrapedTour } from '@hktours/core';
+import type { LogView } from './public-log';
 
 /** Per-request options for Fetcher.fetchText. */
 export interface FetchOptions {
@@ -31,8 +32,11 @@ export type RequestHeaders = Readonly<Record<string, Readonly<Record<string, str
 
 export interface OperatorScraper {
   id: OperatorId;
-  /** URLs of tour pages to fetch tonight, already filtered to tour pages. */
-  discover(fetcher: Fetcher): Promise<string[]>;
+  /**
+   * URLs of tour pages to fetch tonight, already filtered to tour pages. A line it logs about one page shows the
+   * page's address through `logView` (the run's: PUBLIC_LOG in a real run, whose log is public; unset means that).
+   */
+  discover(fetcher: Fetcher, logView?: LogView): Promise<string[]>;
   /**
    * What `parse` receives for one discovered URL, fetched through the run's fetcher (never another network
    * path): for an operator whose facts need more than the page itself, such as EGL's dates request, the

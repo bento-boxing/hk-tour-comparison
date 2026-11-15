@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { places, type IsoDate, type OperatorId, type ScrapedTour } from '@hktours/core';
 import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
+import { DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
 import { runOperator, type RunDeps } from './run-operator';
 import type { Fetcher, OperatorScraper } from './types';
 
@@ -247,7 +248,7 @@ it('a tour page with no day headings is a parse failure', async () => {
   expect(await savedTours()).toHaveLength(9);
   expect(await scrapeRuns()).toMatchObject([{ pages_fetched: 10, parse_failures: 1 }]);
   expect(await unmatchedPlaces()).toEqual([]);
-  expect(logMentions(pageUrl('BARE'), 'no-stops')).toBe(true);
+  expect(logLines).toContain('jetour: parse failure BARE: no-stops');
   expect(logLines.at(-1)).toBe('jetour: ok, 9 tours saved, 10 tour pages, 1 parse failure, 0 unmatched names');
 });
 
@@ -264,7 +265,7 @@ it('a tour whose headings match no place is a parse failure and its names are lo
   expect(await activeCodes()).not.toContain('ATL');
   expect(await scrapeRuns()).toMatchObject([{ pages_fetched: 10, parse_failures: 1 }]);
   expect(await unmatchedPlaces()).toEqual([{ name: '亞特蘭提斯', example_tour_code: 'ATL', seen_count: 1 }]);
-  expect(logMentions(pageUrl('ATL'), 'no-stops')).toBe(true);
+  expect(logLines).toContain('jetour: parse failure ATL: no-stops (1 unmatched word)');
 });
 
 it('a tour with no price at all is a parse failure', async () => {
@@ -272,7 +273,7 @@ it('a tour with no price at all is a parse failure', async () => {
   const outcome = await run(pages);
   expect(outcome).toMatchObject({ ok: true, toursSaved: 9 });
   expect(await scrapeRuns()).toMatchObject([{ parse_failures: 1 }]);
-  expect(logMentions(pageUrl('FREE'), 'no-price')).toBe(true);
+  expect(logLines).toContain('jetour: parse failure FREE: no-price');
 });
 
 it('a page that fails the scraped-tour schema is a parse failure', async () => {
@@ -281,7 +282,7 @@ it('a page that fails the scraped-tour schema is a parse failure', async () => {
   expect(outcome).toMatchObject({ ok: true, toursSaved: 9 });
   expect(await activeCodes()).not.toContain('BAD');
   expect(await scrapeRuns()).toMatchObject([{ parse_failures: 1 }]);
-  expect(logMentions(pageUrl('BAD'))).toBe(true);
+  expect(logMentions('jetour: parse failure BAD: invalid scraped tour (days:')).toBe(true);
 });
 
 it('rejects a tour claiming another operator id', async () => {
@@ -292,7 +293,7 @@ it('rejects a tour claiming another operator id', async () => {
   expect(saved.map(t => t.code)).not.toContain('EGL1');
   expect(saved.every(t => t.operator_id === 'jetour')).toBe(true);
   expect(await scrapeRuns()).toMatchObject([{ parse_failures: 1 }]);
-  expect(logMentions(pageUrl('EGL1'), 'egl')).toBe(true);
+  expect(logLines).toContain('jetour: parse failure EGL1: operator id egl, expected jetour');
 });
 
 it('keeps the first of two tours with the same code', async () => {
@@ -415,8 +416,8 @@ describe('the public run log (task 35 fix round 2)', () => {
   it('prints no day-heading text for a no-stops tour whose headings name no place: only how many headings there were', async () => {
     const headings = ['測試用的第一段很長的文字內容', '測試用的第二段很長的文字內容'];
     await run(site([...goodTours(9), ['P', tour('P', { dayHeadings: headings })]]));
-    const failure = logLines.filter(line => line.includes(pageUrl('P')));
-    expect(failure).toEqual([`jetour: parse failure ${pageUrl('P')}: no-stops (2 day headings, no place named)`]);
+    const failure = logLines.filter(line => line.startsWith('jetour: parse failure '));
+    expect(failure).toEqual(['jetour: parse failure P: no-stops (2 day headings, no place named)']);
     for (const line of logLines) for (const heading of headings) expect(line).not.toContain(heading.slice(0, 6));
     // what is stored for review is unchanged: the headings, cut to 40 characters
     expect((await unmatchedPlaces()).map(row => row.name).sort()).toEqual([...headings].sort());
@@ -424,14 +425,14 @@ describe('the public run log (task 35 fix round 2)', () => {
   it('prints how many unmatched words a no-stops tour has, not the words (they are the operator\'s phrases)', async () => {
     const words = ['亞特蘭提斯', '夢幻樂園', '星光步道'];
     await run(site([...goodTours(9), ['ATL', tour('ATL', { dayHeadings: [`香港 → ${words[0]}`, words[1], words[2]] })]]));
-    expect(logLines).toContain(`jetour: parse failure ${pageUrl('ATL')}: no-stops (3 unmatched words)`);
+    expect(logLines).toContain('jetour: parse failure ATL: no-stops (3 unmatched words)');
     for (const line of logLines) for (const word of words) expect(line).not.toContain(word);
     // what is stored for review is unchanged: the words themselves
     expect((await unmatchedPlaces()).map(row => row.name).sort()).toEqual([...words].sort());
   });
   it('says "word" for one', async () => {
     await run(site([...goodTours(9), ['ONE', tour('ONE', { dayHeadings: ['香港 → 亞特蘭提斯'] })]]));
-    expect(logLines).toContain(`jetour: parse failure ${pageUrl('ONE')}: no-stops (1 unmatched word)`);
+    expect(logLines).toContain('jetour: parse failure ONE: no-stops (1 unmatched word)');
   });
 });
 
@@ -468,5 +469,111 @@ describe('the routes read from fallback text that are new or changed (so the own
     await run(site([['A', titled('A', '中山2天')], ['N1', 'null'], ['N2', 'null']]));
     expect(await savedTours()).toEqual([]);
     expect(routeLines()).toEqual([]);
+  });
+});
+
+describe('the public run log names a page by its tour code, never by an address that carries a title (task 36)', () => {
+  /** An address like Charming's older ones: an invented title, percent-encoded. */
+  const titled = (code: string) => `https://www.example.com/?tour=${encodeURIComponent(`5天測試之旅-${code}`).toLowerCase()}`;
+  const titledSite = (entries: [code: string, page: ScrapedTour | 'null' | 'unreachable' | string][]): Site =>
+    new Map(entries.map(([code, page]) => [
+      titled(code),
+      page === 'unreachable' ? null : typeof page === 'string' ? page : JSON.stringify(page),
+    ]));
+  const noTitleText = () => {
+    for (const line of logLines) {
+      expect(line).not.toContain('%');
+      expect(line).not.toContain('測試');
+    }
+  };
+
+  it('once the code is known: no-departures, duplicate, parse failure and day-line drops lines name the code only', async () => {
+    const pages: Site = new Map([
+      ...titledSite([...goodTours(9), ['OLD', tour('OLD', { departures: [{ date: '2026-11-01', priceHkd: 5000 }] })]]),
+      ...titledSite([['DUP', tour('T1')], ['ATL', tour('ATL', { dayHeadings: ['香港 → 亞特蘭提斯'] })]]),
+      ...titledSite([['V', tour('V', { days: 3, dayHeadings: ['香港 → 中山', '高山賞紅葉', '珠海 → 香港'] })]]),
+    ]);
+    await runOperator(fakeScraper(pages), deps(fakeFetcher(pages)));
+    expect(logLines).toEqual(expect.arrayContaining([
+      'jetour: skipped OLD: no-departures',
+      'jetour: skipped T1: duplicate tour code, keeping the first',
+      'jetour: parse failure ATL: no-stops (1 unmatched word)',
+      'jetour: day-line drops V: 高山 (too-far)',
+    ]));
+    noTitleText();
+  });
+
+  it('before the code is known: a page not fetched, gone, or rejected by its parser is named by its public address', async () => {
+    const pages = titledSite([...goodTours(17), ['N', 'null'], ['BOOM', '{"boom":true}'], ['NF', 'unreachable']]);
+    const gone = titled('T17');
+    await runOperator(fakeScraper(pages, {
+      fetchPage: async (fetcher, url) => (url === gone ? { skip: 'gone' } : fetcher.fetchText(url)),
+      parse: html => {
+        const value = JSON.parse(html) as (ScrapedTour & { boom?: boolean }) | null;
+        if (value?.boom === true) throw new Error('selector not found');
+        return value;
+      },
+    }), deps(fakeFetcher(pages)));
+    const shown = (code: string) => `https://www.example.com/?tour=* ${logRef(titled(code))}`;
+    expect(logLines).toEqual(expect.arrayContaining([
+      `jetour: parse failure ${shown('N')}: parser returned null`,
+      `jetour: parse failure ${shown('BOOM')}: parser threw: selector not found`,
+      `jetour: skipped ${shown('NF')}: not fetched`,
+      `jetour: skipped ${shown('T17')}: gone`,
+    ]));
+    noTitleText();
+  });
+
+  it('a thrown message that may quote what was read is hidden, with a reference', async () => {
+    const message = 'Unexpected token, "測試之旅" is not valid JSON';
+    const pages = site([...goodTours(9), ['BOOM', '{"boom":true}']]);
+    await run(pages, NIGHT_1, {
+      parse: html => {
+        if (html.includes('boom')) throw new SyntaxError(message);
+        return JSON.parse(html) as ScrapedTour;
+      },
+    });
+    expect(logLines).toContain(`jetour: parse failure ${pageUrl('BOOM')}: parser threw: * ${logRef(message)}`);
+    noTitleText();
+  });
+
+  it('a fetchPage or discover that throws such a message has it hidden too', async () => {
+    const message = 'no answer for 測試之旅';
+    const pages = site(goodTours(10));
+    await runOperator(fakeScraper(pages, {
+      fetchPage: async (fetcher, url) => { if (url === pageUrl('T1')) throw new Error(message); return fetcher.fetchText(url); },
+    }), deps(fakeFetcher(pages)));
+    expect(logLines).toContain(`jetour: skipped ${pageUrl('T1')}: not fetched (fetch threw: * ${logRef(message)})`);
+    logLines = [];
+    await runOperator(fakeScraper(pages, { discover: async () => { throw new Error(message); } }), deps(fakeFetcher(pages)));
+    expect(logLines).toContain(`jetour: discover failed: * ${logRef(message)}`);
+    noTitleText();
+  });
+
+  it('a page that fails the schema is named by its code when the code itself is valid, by its address when not', async () => {
+    const pages = titledSite([...goodTours(18), ['BAD', tour('BAD', { days: 0 })], ['NOCODE', tour('no code', { days: 0 })]]);
+    await runOperator(fakeScraper(pages), deps(fakeFetcher(pages)));
+    const failures = logLines.filter(line => line.startsWith('jetour: parse failure '));
+    expect(failures).toHaveLength(2);
+    expect(failures[0]).toMatch(/^jetour: parse failure BAD: invalid scraped tour \(days: /);
+    expect(failures[1]).toMatch(/^jetour: parse failure https:\/\/www\.example\.com\/\?tour=\* \(ref [0-9a-f]{8}\): invalid scraped tour \(code: /);
+    noTitleText();
+  });
+
+  it('a dry run (logView DRY_RUN_LOG) prints the whole address with the same reference', async () => {
+    const pages = titledSite([...goodTours(9), ['N', 'null']]);
+    await runOperator(fakeScraper(pages), { ...deps(fakeFetcher(pages)), logView: DRY_RUN_LOG });
+    expect(logLines).toContain(`jetour: parse failure ${titled('N')} ${logRef(titled('N'))}: parser returned null`);
+  });
+
+  it('gives discover the run\'s log view (PUBLIC_LOG unless the deps say otherwise)', async () => {
+    const views: unknown[] = [];
+    const pages = site(goodTours(1));
+    const recording: Partial<OperatorScraper> = {
+      discover: async (_fetcher, view) => { views.push(view); return [...pages.keys()]; },
+    };
+    await runOperator(fakeScraper(pages, recording), deps(fakeFetcher(pages)));
+    await runOperator(fakeScraper(pages, recording), { ...deps(fakeFetcher(pages)), logView: DRY_RUN_LOG });
+    expect(views).toEqual([PUBLIC_LOG, DRY_RUN_LOG]);
   });
 });

@@ -1,16 +1,19 @@
 /**
  * `pnpm scrape --operator <id> [--dry-run] [--limit N]`: one operator's nightly run.
  * Needs DATABASE_URL unless --dry-run; DATABASE_CA_CERT, when set, verifies the database server.
- * Exit codes: 0 ok, 1 the run failed its checks, 2 bad usage or missing or invalid configuration.
+ * Exit codes: 0 ok, 1 the run failed its checks (or a real run stopped on an unexpected error), 2 bad usage or
+ * missing or invalid configuration.
  */
 import { pathToFileURL } from 'node:url';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { OPERATOR_IDS, places, todayInHongKong, type OperatorId } from '@hktours/core';
 import { createPgDb, normaliseCaCert, type Db } from '@hktours/db';
+import { unexpectedErrorLines } from '@hktours/db/public-error';
 import { createDryRunDb, latestRunSummary } from './dry-run-db';
 import { describePage, formatUnmatched, recordDryRun, unmatchedCounts } from './dry-run-report';
 import { SCRAPERS } from './operators';
 import { createFetcher } from './polite-fetch';
+import { DRY_RUN_LOG, PUBLIC_LOG, type LogView } from './public-log';
 import { runOperator } from './run-operator';
 import type { Fetcher, OperatorScraper, RequestHeaders } from './types';
 
@@ -22,9 +25,10 @@ export interface CliDeps {
   scrapers: Partial<Record<OperatorId, OperatorScraper>>;
   /**
    * Called once per process: every request of the run goes through this one fetcher. `requestHeaders`
-   * are the running operator's own (see OperatorScraper.requestHeaders), never another operator's.
+   * are the running operator's own (see OperatorScraper.requestHeaders), never another operator's. `logView`:
+   * PUBLIC_LOG for a real run, DRY_RUN_LOG for a dry run (see public-log.ts).
    */
-  makeFetcher: (requestHeaders?: RequestHeaders) => Fetcher;
+  makeFetcher: (requestHeaders?: RequestHeaders, logView?: LogView) => Fetcher;
   /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
   makeDb: (databaseUrl: string, ca: string | undefined) => Promise<Db>;
   makeDryRunDb: () => Promise<Db>;
@@ -89,12 +93,28 @@ function installEnvProxy(env: Env): void {
   }));
 }
 
-/** Returns the process exit code: 0 ok, 1 run failed its checks, 2 bad usage or missing configuration. */
+/**
+ * A real run's unexpected error, for its public log, by the rule shared with `pnpm db:migrate`
+ * (`@hktours/db/public-error`): the error's kind, the fields that hold no row data (SQLSTATE or Node code, table,
+ * column, constraint…), its message unless it may quote data (then hidden, with a reference), its cause one level
+ * deep, and the stack's `at` lines. Never a database error's `detail`, which can quote the row it was given.
+ */
+function printUnexpected(operator: OperatorId, error: unknown, print: (line: string) => void): void {
+  const [first, ...rest] = unexpectedErrorLines(error);
+  print(`${operator}: the run stopped on an unexpected error: ${first}`);
+  for (const line of rest) print(line);
+}
+
+/**
+ * Returns the process exit code: 0 ok, 1 run failed its checks (or a real run stopped on an unexpected error),
+ * 2 bad usage or missing configuration.
+ */
 export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = {}): Promise<number> {
   const print = deps.print ?? (line => console.log(line));
   const {
     scrapers = SCRAPERS,
-    makeFetcher = (requestHeaders?: RequestHeaders) => createFetcher({ log: print, extraHeaders: requestHeaders }),
+    makeFetcher = (requestHeaders?: RequestHeaders, logView?: LogView) =>
+      createFetcher({ log: print, extraHeaders: requestHeaders, logView }),
     makeDb = async (url: string, ca: string | undefined) => createPgDb(url, { ca }),
     makeDryRunDb = createDryRunDb,
     now = () => new Date(),
@@ -128,14 +148,20 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   }
 
   if (proxyWanted(env)) installProxy(env);
-  const fetcher = makeFetcher(scraper.requestHeaders);
+  // A real run's log is public (GitHub Actions); a dry run's is not, so it prints addresses and messages whole.
+  const logView = args.dryRun ? DRY_RUN_LOG : PUBLIC_LOG;
+  const fetcher = makeFetcher(scraper.requestHeaders, logView);
   const today = todayInHongKong(now());
 
   if (!args.dryRun) {
     const db = await makeDb(databaseUrl!, ca);
     try {
-      const outcome = await runOperator(scraper, { db, fetcher, index: places, today, now, log: print });
+      const outcome = await runOperator(scraper, { db, fetcher, index: places, today, now, log: print, logView });
       return outcome.ok ? 0 : 1;
+    } catch (error) {
+      // Left uncaught, Node would print the error whole, and a database error can quote a row it was given.
+      printUnexpected(args.operator, error, print);
+      return 1;
     } finally {
       await db.close();
     }
@@ -145,7 +171,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   const recorder = recordDryRun(scraper, args.limit);
   const db = await makeDryRunDb();
   try {
-    const outcome = await runOperator(recorder.scraper, { db, fetcher, index: places, today, now, log: print });
+    const outcome = await runOperator(recorder.scraper, { db, fetcher, index: places, today, now, log: print, logView });
     const pages = recorder.pages.map(page => describePage(page, places, today));
     for (const page of pages) print(`page ${JSON.stringify(page)}`);
 

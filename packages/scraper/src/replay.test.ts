@@ -13,6 +13,17 @@ describe('replaying saved crawl logs', () => {
     expect(logPages(log).map(p => p.url)).toEqual(['https://example.test/t/1', 'u']);
   });
 
+  it('reads page lines with the reference (task 36 fix 1) and without it (older logs) alike', () => {
+    const old = { url: 'https://example.test/t/1', code: 'T1', result: 'ok', dayHeadings: ['大阪'], startPoint: null, endPoint: null, days: 3 };
+    const log = [`page ${JSON.stringify(old)}`, `page ${JSON.stringify({ ref: '1a2b3c4d', ...old })}`,
+      'page {"url":"u","ref":"0f0f0f0f","result":"parser-null"}'].join('\n');
+    const pages = logPages(log);
+    expect(pages.map(p => [p.url, p.code, p.result])).toEqual([[old.url, 'T1', 'ok'], [old.url, 'T1', 'ok'], ['u', undefined, 'parser-null']]);
+    const replayed = pages.map(p => replayPage('egl', p, core));
+    expect(replayed[1]).toEqual(replayed[0]);
+    expect(changedRoutes([replayed[0]], [replayed[1]])).toEqual([]);
+  });
+
   it('gives a page with no dates on sale a route, while its result stays as logged', () => {
     const replayed = replayPage('egl', page({ result: 'no-departures', dayHeadings: ['大阪 → 京都'], days: 6 }), core);
     expect(replayed).toEqual({

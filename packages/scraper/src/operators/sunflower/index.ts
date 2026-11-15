@@ -21,8 +21,8 @@ export function createSunflowerScraper(opts: { log?: (line: string) => void } = 
   const entries = new Map<string, PublicEntry>();
   return {
     id: 'sunflower',
-    discover: async fetcher => {
-      const tours = await discoverTours(fetcher, log);
+    discover: async (fetcher, logView) => {
+      const tours = await discoverTours(fetcher, log, logView);
       entries.clear();
       for (const tour of tours) entries.set(tour.ItinCode, tour);
       return tours.map(tour => bookingUrl(tour.ItinCode));

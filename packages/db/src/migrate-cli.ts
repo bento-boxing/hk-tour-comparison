@@ -1,11 +1,13 @@
 /**
  * `pnpm db:migrate`: applies every pending migration to the database at DATABASE_URL
  * and prints the ones applied. DATABASE_CA_CERT, when set, verifies the server (see createPgDb).
- * Exit code 0 on success, 2 when DATABASE_URL is missing or DATABASE_CA_CERT is not a certificate.
+ * Exit code 0 on success, 1 when a migration (or the connection) fails, 2 when DATABASE_URL is missing or
+ * DATABASE_CA_CERT is not a certificate.
  */
 import { pathToFileURL } from 'node:url';
 import { createPgDb, normaliseCaCert, type Db } from './db';
-import { migrate } from './migrate';
+import { migrate, MigrationError } from './migrate';
+import { unexpectedErrorLines } from './public-error';
 
 export interface MigrateCliDeps {
   /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
@@ -32,16 +34,28 @@ export async function runMigrateCli(
     return 2;
   }
 
+  const printApplied = (applied: string[]) => {
+    print(`applied ${applied.length} ${applied.length === 1 ? 'migration' : 'migrations'}:`);
+    for (const name of applied) print(`  ${name}`);
+  };
   const db = await makeDb(databaseUrl, ca);
   try {
     const applied = await migrate(db);
-    if (applied.length === 0) {
-      print('no migrations to apply');
-    } else {
-      print(`applied ${applied.length} ${applied.length === 1 ? 'migration' : 'migrations'}:`);
-      for (const name of applied) print(`  ${name}`);
-    }
+    if (applied.length === 0) print('no migrations to apply');
+    else printApplied(applied);
     return 0;
+  } catch (error) {
+    // The migrate job's log is public: left uncaught, Node would print a database error whole, and its `detail` can
+    // quote a stored row (a tour's title). Printed by the shared rule instead (public-error.ts).
+    const [first, ...rest] = unexpectedErrorLines(error);
+    if (error instanceof MigrationError) {
+      if (error.applied.length > 0) printApplied(error.applied);
+      print(`migration ${error.migration} failed: ${first}`);
+    } else {
+      print(`the migrations stopped on an error: ${first}`);
+    }
+    for (const line of rest) print(line);
+    return 1;
   } finally {
     await db.close();
   }

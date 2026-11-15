@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./public-error": "./src/public-error.ts",
     "./read": "./src/read.ts",
     "./test": "./src/test-db.ts"
   },

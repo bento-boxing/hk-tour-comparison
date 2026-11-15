@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { DRY_RUN_LOG, PUBLIC_LOG } from '../../public-log';
 import type { Fetcher } from '../../types';
 import { bookingUrl, codeOf, isTourUrl, LISTING_URL, readListing } from './discover';
 import { rawListing, rawListingRow, SECRETS } from './test-responses';
@@ -104,7 +105,23 @@ describe('discovery (through the scraper)', () => {
     expect(await scraper.discover(fetcher)).toEqual([page('KKFE05WR'), page('CFAG03MK')]);
     expect(asked).toEqual([LISTING_URL]);
     expect(options).toEqual([{ sameOriginRedirectsOnly: true }]);
-    expect(logs).toEqual(['sunflower: left out 1 listing entry without an online booking code (郵輪 1)']);
+    // The labels are the operator's own wording: the public log gives counts only (task 36 fix 1).
+    expect(logs).toEqual(['sunflower: left out 1 listing entry without an online booking code (1 category)']);
+  });
+
+  it('logs the listing\'s labels for what it left out only in a dry run (DRY_RUN_LOG)', async () => {
+    const { createSunflowerScraper } = await import('./index');
+    const listing = JSON.stringify(rawListing([
+      rawListingRow('KKFE05WR'), rawListingRow('', { region: '測試甲' }), rawListingRow('', { region: '測試乙' }),
+      rawListingRow('', { region: '測試甲' }),
+    ]));
+    const logs: string[] = [];
+    await createSunflowerScraper({ log: line => logs.push(line) }).discover(listingFetcher(listing).fetcher, PUBLIC_LOG);
+    await createSunflowerScraper({ log: line => logs.push(line) }).discover(listingFetcher(listing).fetcher, DRY_RUN_LOG);
+    expect(logs).toEqual([
+      'sunflower: left out 3 listing entries without an online booking code (2 categories)',
+      'sunflower: left out 3 listing entries without an online booking code (測試甲 2, 測試乙 1)',
+    ]);
   });
 
   it('throws when the listing is not fetched', async () => {

@@ -6,6 +6,7 @@ import {
   createFetcher, siteOf, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
   type PoliteFetcher,
 } from './polite-fetch';
+import { addressRef, DRY_RUN_LOG, logRef, type LogView } from './public-log';
 
 interface RecordedRequest {
   path: string; userAgent: string | undefined; start: number; end: number;
@@ -860,6 +861,102 @@ it('a POST already queued when its site is refused is not sent', async () => {
     await glacial.close();
     await plain.close();
   }
+});
+
+describe('a logged address that may carry a title is shown as the log view allows (task 36: the run log is public)', () => {
+  /** An address like Charming's older ones: an invented title, percent-encoded. */
+  const titled = `https://shop.test/?tour=${encodeURIComponent('5天測試之旅')}`;
+  const shown = `https://shop.test/?tour=* ${logRef(titled)}`;
+
+  /** https://shop.test, robots.txt allowing everything, every other request answered by `answer`. */
+  async function onShop(answer: (href: string) => Response, run: () => Promise<void>): Promise<void> {
+    vi.stubGlobal('fetch', async (input: URL | string) => {
+      const href = String(input);
+      return href.endsWith('/robots.txt') ? new Response('User-agent: *\nDisallow:', { status: 200 }) : answer(href);
+    });
+    try {
+      await run();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+  const fetcher = (logView?: LogView) =>
+    createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), logView });
+
+  it('a page not fetched: its public address (by default), or the whole address and the same reference (DRY_RUN_LOG)', async () => {
+    await onShop(() => new Response(null, { status: 404 }), async () => {
+      expect(await fetcher().fetchText(titled)).toBeNull();
+      expect(await fetcher(DRY_RUN_LOG).fetchText(titled)).toBeNull();
+    });
+    expect(logLines).toEqual([`not fetched ${shown}: HTTP 404`, `not fetched ${titled} ${logRef(titled)}: HTTP 404`]);
+  });
+
+  it('a retry, a redirect\'s target, and a network error\'s message that quotes text', async () => {
+    await onShop(href => (href === 'https://shop.test/go'
+      ? new Response(null, { status: 302, headers: { location: titled } })
+      : new Response(null, { status: 500 })), async () => {
+      expect(await fetcher().fetchText('https://shop.test/go')).toBeNull();
+    });
+    expect(logLines).toEqual([
+      `retry 1/2 ${shown}: HTTP 500`,
+      `retry 2/2 ${shown}: HTTP 500`,
+      `not fetched https://shop.test/go (redirected to ${shown}): HTTP 500`,
+    ]);
+    logLines = [];
+    const message = 'TypeError: no answer for 測試之旅';
+    await onShop(() => { throw new TypeError('no answer for 測試之旅'); }, async () => {
+      expect(await fetcher().fetchText(titled)).toBeNull();
+    });
+    expect(logLines.at(-1)).toBe(`not fetched ${shown}: * ${logRef(message)}`);
+  });
+
+  it('a raw non-ASCII address: the retry line (rewritten by new URL) and the not-fetched line give one reference', async () => {
+    const raw = 'https://shop.test/tour/測試之旅';
+    await onShop(() => new Response(null, { status: 500 }), async () => {
+      expect(await fetcher().fetchText(raw)).toBeNull();
+    });
+    const ref = addressRef(raw);
+    expect(logLines).toEqual([
+      `retry 1/2 https://shop.test/tour/* ${ref}: HTTP 500`,
+      `retry 2/2 https://shop.test/tour/* ${ref}: HTTP 500`,
+      `not fetched https://shop.test/tour/* ${ref}: HTTP 500`,
+    ]);
+  });
+
+  it('a POST body JSON.stringify throws on: the address is shown as the view allows (task 36 fix 1)', async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(await fetcher().postJson(titled, circular)).toBeNull();
+    expect(logLines).toEqual([`not fetched ${shown} (POST): the body is not JSON (TypeError)`]);
+  });
+
+  it('a robots.txt that cannot be read for a network error: its message goes through the view', async () => {
+    const message = 'TypeError: no answer for 測試之旅';
+    vi.stubGlobal('fetch', async () => { throw new TypeError('no answer for 測試之旅'); });
+    try {
+      expect(await fetcher().fetchText('https://shop.test/a')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(logLines).toContain(`not crawling https://shop.test: robots.txt unreadable (* ${logRef(message)})`);
+    for (const line of logLines) expect(line).not.toContain('測試');
+  });
+
+  it('a POST not answered, a POST body that is not JSON, and a text that is not an address', async () => {
+    await onShop(() => new Response(null, { status: 404 }), async () => {
+      const f2 = fetcher();
+      expect(await f2.postJson(titled, {})).toBeNull();
+      expect(await f2.postJson(titled, undefined)).toBeNull();
+      expect(await f2.fetchText('測試之旅')).toBeNull();
+      expect(await f2.postJson('測試之旅', {})).toBeNull();
+    });
+    expect(logLines).toEqual([
+      `not fetched ${shown} (POST, not retried): HTTP 404`,
+      `not fetched ${shown} (POST): the body is not JSON (undefined)`,
+      `not an http(s) URL: * ${logRef('測試之旅')}`,
+      `not an http(s) URL: * ${logRef('測試之旅')}`,
+    ]);
+  });
 });
 
 it('USER_AGENT is generic', () => { expect(USER_AGENT).toBe('tour-comparison-bot/0.1'); });

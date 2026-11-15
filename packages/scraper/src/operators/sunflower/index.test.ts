@@ -61,7 +61,8 @@ it('a run requests only the listing, then each tour\'s booking page, by GET, and
   const allowed = /^https:\/\/www\.sunflower\.com\.hk\/(?:App\/Tour\/Get\?Region=&Area=&Subarea=&keyword=|OnlineBooking\/\?TourCode=[A-Z0-9]+)$/;
   for (const url of asked) expect(url).toMatch(allowed);
   expect(outcome).toMatchObject({ operatorId: 'sunflower', ok: false, reasons: ['too-many-parse-failures'] }); // 1 of 3
-  expect(logs).toContain('sunflower: left out 1 listing entry without an online booking code (郵輪 1)');
+  // A real run (PUBLIC_LOG): counts only, not the listing's own labels (task 36 fix 1).
+  expect(logs).toContain('sunflower: left out 1 listing entry without an online booking code (1 category)');
   expect(logs).toContain(`sunflower: parse failure ${bookingUrl('CFAG03MK')}: parser threw: the booking page has no day count (#Content_lbtnday)`);
 
   answers.set(bookingUrl('CFAG03MK'), rawBookingPage({ code: 'CFAG03MK', days: '#3天團', month: '2026年11月', cells: [{ date: '20261122', price: '$1,249起' }] }));
