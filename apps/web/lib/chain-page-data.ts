@@ -1,10 +1,11 @@
 import { decodeChain, places, MAX_CHAIN_LEGS, type IsoDate } from '@hktours/core';
-import { getOperators, getToursByKeys, searchTours, type Db, type OperatorInfo, type TourCardData } from '@hktours/db/read';
+import type { Db, OperatorInfo, TourCardData } from '@hktours/db/read';
+import type { Reads } from './cached-reads';
 import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { parseSearchParams } from './search-params';
-import { destinationOrder, filterBarOperators } from './search-page-data';
+import { filterBarOperators, uncachedReads } from './search-page-data';
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -49,8 +50,11 @@ function legsAsked(text: string | null): number {
  * Everything the chain page renders, from the raw address. Database errors are passed on to the caller.
  * The address is untrusted: only what decodeChain and parseSearchParams validated reaches the database.
  * The list offers every sort order, as the search page does; `locale` decides the destination sorts' order.
+ * `reads` is how the database is read: the page passes cachedReads.
  */
-export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate, locale: Locale = DEFAULT_LOCALE): Promise<ChainPageData> {
+export async function loadChainPage(
+  db: Db, raw: RawParams, today: IsoDate, locale: Locale = DEFAULT_LOCALE, reads: Reads = uncachedReads,
+): Promise<ChainPageData> {
   const legsText = first(raw, 'legs');
   const decoded = decodeChain({ legs: legsText, gap: first(raw, 'gap') });
   // A shared link that lost a malformed leg still tells the visitor something was removed.
@@ -60,9 +64,9 @@ export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate, loca
   const search = parseSearchParams(raw, places, { includeDates: false });
 
   const [tours, operators, withGoodRun] = await Promise.all([
-    getToursByKeys(db, decoded.legs.map(l => l.tourKey), today),
-    getOperators(db),
-    getOperators(db, { onlyWithGoodRun: true }),
+    reads.getToursByKeys(db, decoded.legs.map(l => l.tourKey), today),
+    reads.getOperators(db),
+    reads.getOperators(db, { onlyWithGoodRun: true }),
   ]);
   const filterOperators = filterBarOperators(operators, withGoodRun, search.filters.operators);
   const resolved = resolveChain(decoded, tours, today);
@@ -76,10 +80,10 @@ export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate, loca
   const full = legs.length >= MAX_CHAIN_LEGS;
   const departWindow = full ? null : nextWindow(legs, decoded.gap);
   const next = departWindow
-    ? await searchTours(db, {
+    ? await reads.searchTours(db, {
       filters: { ...search.filters, dateFrom: departWindow.from, dateTo: departWindow.to },
-      sort: search.sort, page: search.page, today, destinationOrder: destinationOrder(places, locale),
-    })
+      sort: search.sort, page: search.page, today,
+    }, locale)
     : null;
 
   return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators };

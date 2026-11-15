@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Every page's frame, in the visitor's language (the language switch's cookie; Traditional Chinese without
- * one). Reading the cookie renders every route per request, as the pages already were for the latest scrape.
+ * one). Reading the cookie renders every route per request, as the pages already were (requestDb).
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // One locale for the server translator, the client provider and <html lang>, so they cannot disagree.

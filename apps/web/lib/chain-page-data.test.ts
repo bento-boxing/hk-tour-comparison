@@ -1,11 +1,13 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe } from 'vitest';
-import { MAX_CHAIN_LEGS, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
+import { MAX_CHAIN_LEGS, places, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
 import { saveOperatorRun, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import { loadChainPage, type ChainPageData } from './chain-page-data';
 import { chainPageHref } from './chain-href';
+import { createReads, type CacheFn } from './cached-reads';
+import { destinationOrder } from './search-page-data';
 
 const today = '2026-11-12';
 
@@ -287,5 +289,47 @@ describe('the operator filter', () => {
     const data = await loadChainPage(launch, query('legs=jetour:OSA6@2026-12-20&gap=1-3&op=egl'), today);
     expect(data.address.search.filters.operators).toEqual(['egl']);
     expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert']);
+  });
+});
+
+describe('through a cache (the page passes cachedReads; see cached-reads.ts)', () => {
+  /** Stores values as JSON text, as Next's data cache does; a load that throws stores nothing. */
+  function jsonStore() {
+    const entries = new Map<string, string>();
+    const cache: CacheFn = async (key, load) => {
+      const hit = entries.get(key);
+      if (hit !== undefined) return JSON.parse(hit);
+      const value = await load();
+      entries.set(key, JSON.stringify(value));
+      return value;
+    };
+    return { cache, entries };
+  }
+  const readsWith = (cache: CacheFn) => createReads(locale => destinationOrder(places, locale), cache);
+
+  it('a second identical chain makes no query and resolves the same legs from the stored tours', async () => {
+    const reads = readsWith(jsonStore().cache);
+    let queries = 0;
+    const counted: Db = { ...db, query: (sql, params) => { queries++; return db.query(sql, params); } };
+    const address = query('legs=egl:KIX5@2026-12-18,texpert:SEL5@2026-12-24&gap=1-3');
+
+    const first = await loadChainPage(counted, address, today, 'zh-Hant', reads);
+    const afterFirst = queries;
+    const second = await loadChainPage(counted, address, today, 'zh-Hant', reads);
+
+    expect(afterFirst).toBeGreaterThan(0);
+    expect(queries).toBe(afterFirst);
+    expect(second).toStrictEqual(first);
+    expect(first).toStrictEqual(await loadChainPage(db, address, today, 'zh-Hant'));
+    expect(legKeys(second)).toEqual(['egl:KIX5@2026-12-18', 'texpert:SEL5@2026-12-24']);
+    expect(nextKeys(second)).toEqual(['jetour:FAR4']);
+  });
+
+  it('a database error reaches the caller unchanged and is not stored', async () => {
+    const store = jsonStore();
+    const error = new Error('connection refused');
+    const broken: Db = { ...db, query: () => Promise.reject(error) };
+    await expect(loadChainPage(broken, query('legs=egl:KIX5@2026-12-18'), today, 'en', readsWith(store.cache))).rejects.toBe(error);
+    expect(store.entries.size).toBe(0);
   });
 });
