@@ -16,6 +16,11 @@ it('a country id means all regions', () => {
   expect(parseSearchParams({ dest: 'japan' }, places).filters.destination).toEqual({ countryId: 'japan', regionId: null });
 });
 
+it('a province that was part of 華中 is a destination; an old 華中 address (china-central) is dropped, not an error', () => {
+  expect(parseSearchParams({ dest: 'china-hubei' }, places).filters.destination).toEqual({ countryId: 'china', regionId: 'china-hubei' });
+  expect(parseSearchParams({ dest: 'china-central', sort: 'days' }, places)).toEqual({ filters: {}, sort: 'days', page: 1 });
+});
+
 it('empty address gives defaults', () => {
   expect(parseSearchParams({}, places)).toEqual({ filters: {}, sort: 'price', page: 1 });
   expect(DEFAULT_SORT).toBe('price');

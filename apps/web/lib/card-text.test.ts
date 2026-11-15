@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { places, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
 import { departureDateText, priceChangeText, regionLabel, routeNames, startNote } from './card-text';
 import { makeT } from './i18n';
@@ -20,9 +20,12 @@ it('routeNames uses the city name, or the region name for a region-only stop', (
     .toEqual(['北海道', '札幌']);
 });
 
-it('routeNames falls back to the region name, then the id, for ids missing from the places list', () => {
-  expect(routeNames([city('japan-kansai', 'japan-kansai-nowhere'), city('japan-nowhere', null)], places))
-    .toEqual(['關西', 'japan-nowhere']);
+it('routeNames falls back to the region name for an unknown city, and leaves out a stop whose region is unknown (never an id)', () => {
+  expect(routeNames([city('japan-kansai', 'japan-kansai-nowhere'), city('japan-nowhere', null)], places)).toEqual(['關西']);
+  // Nothing nameable left: the country, so the card's route line is never empty while the country is known.
+  expect(routeNames([city('japan-nowhere', null)], places)).toEqual(['日本']);
+  expect(routeNames([city('japan-nowhere', null)], places, 'en')).toEqual(['Japan']);
+  expect(routeNames([{ countryId: 'atlantis', regionId: 'atlantis-nowhere', cityId: null }], places)).toEqual([]);
 });
 
 it('regionLabel', () => {
@@ -30,6 +33,53 @@ it('regionLabel', () => {
   expect(regionLabel([...kansaiStops, tokyoStop, seoulStop], places)).toBe('日本 · 關西 +2');
   expect(regionLabel([...kansaiStops, tokyoStop], places, tZh)).toBe('日本 · 關西 +1');
   expect(regionLabel([], places)).toBe('');
+});
+
+it('regionLabel names the province of a stop that was in 華中 (task 37)', () => {
+  const wuhan: Stop = { countryId: 'china', regionId: 'china-hubei', cityId: 'china-central-wuhan' };
+  expect(regionLabel([wuhan], places)).toBe('中國 · 湖北');
+  expect(regionLabel([wuhan], places, tEn)).toBe('China · Hubei');
+  expect(routeNames([wuhan, { countryId: 'china', regionId: 'china-jiangxi', cityId: null }], places)).toEqual(['武漢', '江西']);
+});
+
+it('regionLabel reads a stop saved before 華中 was split by its city, or names the country alone (task 37)', () => {
+  // Saved stops keep the old region id until the operator's next good run rewrites them.
+  const savedWuhan: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-wuhan' };
+  const savedNanchang: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-nanchang' };
+  expect(regionLabel([savedWuhan], places)).toBe('中國 · 湖北');
+  expect(regionLabel([savedWuhan, savedNanchang], places)).toBe('中國 · 湖北 +1');
+  expect(routeNames([savedWuhan], places)).toEqual(['武漢']);
+});
+
+describe('a stop saved under the retired region 華中 (china-central) reads as it did before the split (review I1)', () => {
+  const saved華中: Stop = { countryId: 'china', regionId: 'china-central', cityId: null };
+  const savedWuhan: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-wuhan' };
+  const hunan: Stop = { countryId: 'china', regionId: 'china-hunan', cityId: null };
+  it.each([
+    ['zh-Hant', tZh, '華中', '中國 · 華中'],
+    ['zh-Hans', makeT('zh-Hans'), '华中', '中国 · 华中'],
+    ['en', tEn, 'Central China', 'China · Central China'],
+  ] as const)('route and label in %s, never the id', (locale, t, name, label) => {
+    expect(routeNames([saved華中], places, locale)).toEqual([name]);
+    expect(routeNames([saved華中], places, locale)).not.toContain('china-central');
+    expect(regionLabel([saved華中], places, t)).toBe(label);
+  });
+  it('an old city stop and an old region-only stop: the province, with no +1 for the 華中 it was part of', () => {
+    expect(routeNames([savedWuhan, saved華中], places)).toEqual(['武漢', '華中']);
+    expect(regionLabel([savedWuhan, saved華中], places)).toBe('中國 · 湖北');
+    expect(regionLabel([saved華中, savedWuhan], places, tEn)).toBe('China · Hubei');
+  });
+  it('beside another region, 華中 counts as one more region', () => {
+    expect(routeNames([hunan, saved華中], places, 'en')).toEqual(['Hunan', 'Central China']);
+    expect(regionLabel([hunan, saved華中], places)).toBe('中國 · 湖南 +1');
+    expect(regionLabel([saved華中, hunan], places, tEn)).toBe('China · Central China +1');
+  });
+  it('a region unknown and not retired is left out of the label and the +N count', () => {
+    expect(regionLabel([city('japan-nowhere', null), tokyoStop], places)).toBe('日本 · 關東');
+    expect(regionLabel([tokyoStop, city('japan-nowhere', null)], places)).toBe('日本 · 關東');
+    expect(regionLabel([city('japan-nowhere', null)], places)).toBe('日本');
+    expect(regionLabel([{ countryId: 'atlantis', regionId: 'atlantis-nowhere', cityId: null }], places)).toBe('');
+  });
 });
 
 it('regionLabel names a country once when its region has the same name', () => {

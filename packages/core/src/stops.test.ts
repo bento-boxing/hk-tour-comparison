@@ -681,7 +681,13 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     });
     it('keeps the short-trip regions: Guangdong, Guangxi, Hunan, Fujian, Jiangxi, Macau, Seoul, Busan', () => {
       for (const place of ['中山', '桂林', '郴州', '廈門', '澳門', '首爾', '釜山']) expect(read(`${place}2天`, 2)).toEqual({ names: [place], dropped: [] });
-      expect(read('江西', 3)).toEqual({ names: ['華中'], dropped: [] }); // a region-only stop
+      expect(read('江西', 3)).toEqual({ names: ['江西'], dropped: [] }); // a region-only stop
+      expect(read('贛州3天', 3)).toEqual({ names: ['贛州'], dropped: [] });
+    });
+    it('of the provinces that were 華中, only 江西 is within reach: 湖北 and 河南 are too far for 3 days (task 37)', () => {
+      expect(read('湖北 武漢3天', 3)).toEqual({ names: [], dropped: [{ name: '湖北', rule: 'too-far' }, { name: '武漢', rule: 'too-far' }] });
+      expect(read('河南 鄭州3天', 3)).toEqual({ names: [], dropped: [{ name: '河南', rule: 'too-far' }, { name: '鄭州', rule: 'too-far' }] });
+      expect(read('湖北 武漢4天', 4).names).toEqual(['湖北', '武漢']);
     });
   });
 
@@ -761,6 +767,10 @@ describe('extractDayLineStops (a route read from day lines, owner decision 2026-
   describe('too far for the trip: out-of-reach places go only when strictly fewer than the places within reach', () => {
     it('drops a stop outside the short-trip regions on a tour of at most 3 days, and lists it', () => {
       expect(read(['香港 → 中山', '高山賞紅葉', '珠海 → 香港'], 3)).toMatchObject({ names: ['中山', '珠海'], dropped: [{ name: '高山', rule: 'too-far' }] });
+    });
+    it('drops 武漢 beside two Hunan places on 3 days: Hubei is out of reach since 華中 was split (task 37)', () => {
+      expect(read(['長沙 → 岳陽', '武漢'], 3)).toMatchObject({ names: ['長沙', '岳陽'], dropped: [{ name: '武漢', rule: 'too-far' }] });
+      expect(read(['長沙 → 岳陽', '南昌'], 3)).toMatchObject({ names: ['長沙', '岳陽', '南昌'], dropped: [] });
     });
     it('counts a place once however often the route returns to it', () => {
       // 中山 three times is one place within reach against one out of reach: not fewer, so the route stays

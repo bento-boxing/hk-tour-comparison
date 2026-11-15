@@ -396,6 +396,10 @@ describe('dropping a region whose city is listed (Yummy Holiday, owner decision 
   it('drops a region whose city comes only before it: the list is a set of tags, not an order', () => {
     expect(route(['大理', '麗江', '雲南'], true)).toEqual(['china-yunnan-dali', 'china-yunnan-lijiang']);
   });
+  it('drops a province only for its own cities: 湖北 beside a Jiangxi city stays (task 37, when both were 華中 it went)', () => {
+    expect(route(['湖北', '南昌'], true)).toEqual(['region:china-hubei', 'china-central-nanchang']);
+    expect(route(['湖北', '武漢'], true)).toEqual(['china-central-wuhan']);
+  });
   it('keeps a region none of whose cities is listed', () => {
     expect(route(['雲南', '清遠'], true)).toEqual(['region:china-yunnan', 'china-guangdong-qingyuan']);
     expect(route(['雲南'], true)).toEqual(['region:china-yunnan']);

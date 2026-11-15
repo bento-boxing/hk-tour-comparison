@@ -1,10 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { places, buildPlacesIndex, normaliseName, groupCountries, COUNTRY_GROUPS } from './index';
 import { extractFallbackStops, extractStops } from '../stops';
+import { suggestRegions } from '../suggest';
 import type { PlacesData } from './index';
 import rawData from './data.json';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * Regions whose cities keep the id prefix of the region they were split from (task 37, 2026-11-15): 華中
+ * (`china-central`) became 湖北, 河南 and 江西, and their cities kept their `china-central-…` ids, which tours
+ * already saved in the database hold. A city added to one of these regions later takes the same prefix.
+ */
+const KEPT_CITY_ID_PREFIXES: Readonly<Record<string, string>> = {
+  'china-hubei': 'china-central', 'china-henan': 'china-central', 'china-jiangxi': 'china-central',
+};
 
 /** Returns every consistency problem in a places list; empty means consistent. */
 function consistencyProblems(data: PlacesData): string[] {
@@ -24,7 +34,7 @@ function consistencyProblems(data: PlacesData): string[] {
     if (!countryIds.has(r.countryId)) problems.push(`region ${r.id} has unknown country ${r.countryId}`);
   }
   for (const c of data.cities) {
-    checkId(c.id, c.regionId);
+    checkId(c.id, Object.hasOwn(KEPT_CITY_ID_PREFIXES, c.regionId) ? KEPT_CITY_ID_PREFIXES[c.regionId] : c.regionId);
     if (!regionIds.has(c.regionId)) problems.push(`city ${c.id} has unknown region ${c.regionId}`);
   }
   return problems;
@@ -71,7 +81,7 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(route(['西江'])).toEqual(['china-guizhou-xijiang']);
     expect(route(['小七孔', '中國天眼'])).toEqual(['china-guizhou-libo', 'china-guizhou-pingtang']);
     expect(route(['普者黑', '響沙灣', '海花島'])).toEqual(['china-yunnan-qiubei', 'china-inner-mongolia-ordos', 'china-hainan-danzhou']);
-    expect(route(['山西', '浙江', '遼寧', '中原古都'])).toEqual(['region:china-beijing', 'region:china-shanghai', 'region:china-northeast', 'region:china-central']);
+    expect(route(['山西', '浙江', '遼寧', '中原古都'])).toEqual(['region:china-beijing', 'region:china-shanghai', 'region:china-northeast', 'region:china-henan']);
     expect(route(['華川', '全州', '楊平', '內藏山', '昆池岩', '永宗島'])).toEqual([
       'korea-gangwon-hwacheon', 'korea-jeolla-jeonju', 'korea-seoul-yangpyeong', 'korea-jeolla-naejangsan', 'korea-seoul-gonjiam', 'korea-seoul-incheon',
     ]);
@@ -158,6 +168,62 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
     expect(japan.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['region:japan-tohoku', 'japan-tohoku-sendai', 'japan-tohoku-matsushima']);
     expect(japan.unmatched).toEqual([]);
     expect(extractFallbackStops('東北 長白山8天', 8, places).stops.map(s => s.regionId)).toEqual(['china-northeast', 'china-northeast']);
+  });
+});
+
+describe('華中 is replaced by the provinces 湖北, 河南 and 江西 (task 37)', () => {
+  const route = (headings: string[]) => extractStops(headings, places).stops.map(s => s.cityId ?? `region:${s.regionId}`);
+  const PROVINCE_CITIES: Record<string, string[]> = {
+    'china-hubei': ['武漢', '宜昌', '恩施', '武當山', '巴東', '仙桃', '荊州', '秭歸', '襄陽', '漢川', '神農架', '宣恩'],
+    'china-henan': ['登封', '鄭州', '開封', '洛陽', '三門峽', '焦作', '新鄉', '欒川'],
+    'china-jiangxi': ['贛州', '鷹潭', '南豐', '南昌', '景德鎮', '婺源', '九江', '上饒', '吉安', '宜春', '新餘', '上猶', '龍南', '井岡山'],
+  };
+  it('each province is a region of China named by itself', () => {
+    expect(['china-hubei', 'china-henan', 'china-jiangxi'].map(id => [places.region(id)?.countryId, places.region(id)?.nameZh, places.region(id)?.nameEn]))
+      .toEqual([['china', '湖北', 'Hubei'], ['china', '河南', 'Henan'], ['china', '江西', 'Jiangxi']]);
+    expect(places.findRegion('湖北').map(r => r.id)).toEqual(['china-hubei']);
+    expect(places.findRegion('河南').map(r => r.id)).toEqual(['china-henan']);
+    expect(places.findRegion('江西').map(r => r.id)).toEqual(['china-jiangxi']);
+  });
+  it('each of the 34 cities of 華中 is in its own province, with its id unchanged', () => {
+    for (const [regionId, names] of Object.entries(PROVINCE_CITIES)) {
+      expect(places.citiesOf(regionId).map(c => c.nameZh).sort(), regionId).toEqual([...names].sort());
+      for (const city of places.citiesOf(regionId)) expect(city.id, city.nameZh).toMatch(/^china-central-/);
+    }
+    expect(places.city('china-central-wuhan')?.regionId).toBe('china-hubei');
+    expect(places.city('china-central-jinggangshan')?.regionId).toBe('china-jiangxi');
+  });
+  it('華中 is gone: no region has its id or name', () => {
+    expect(places.region('china-central')).toBeUndefined();
+    expect(places.citiesOf('china-central')).toEqual([]);
+    expect(places.findRegion('華中')).toEqual([]);
+    expect(places.findRegion('华中')).toEqual([]);
+    expect(route(['華中'])).toEqual([]);
+  });
+  it('中原古都 (the old capitals of the Central Plains: 鄭州, 開封, 洛陽) is 河南', () => {
+    expect(route(['中原古都'])).toEqual(['region:china-henan']);
+    expect(route(['江西', '湖北'])).toEqual(['region:china-jiangxi', 'region:china-hubei']);
+  });
+  it('a province name inside a longer word in the crawl logs is not the province', () => {
+    expect(route(['杭州 ~ 西湖北山街'])).toEqual(['china-shanghai-hangzhou']); // 西湖 北山街 in Hangzhou, not 湖北
+    expect(route(['西湖北山路'])).toEqual([]);
+    expect(route(['湛江西站 ~ 香港'])).toEqual(['china-guangdong-zhanjiang']); // Zhanjiang West station, not 江西
+    expect(route(['鄭州 ~ 河南博物院'])).toEqual(['china-central-zhengzhou']);
+    expect(route(['武漢（湖北省博物館）'])).toEqual(['china-central-wuhan']);
+  });
+  it('the search bar offers the province for its name, its English name and its cities', () => {
+    const first = (q: string) => suggestRegions(q, places)[0];
+    expect(first('湖北')).toMatchObject({ destination: { countryId: 'china', regionId: 'china-hubei' }, label: '中國 → 湖北' });
+    expect(first('武漢')).toMatchObject({ destination: { countryId: 'china', regionId: 'china-hubei' }, via: '武漢' });
+    expect(first('Henan')?.destination).toEqual({ countryId: 'china', regionId: 'china-henan' });
+    expect(first('景德镇')?.destination).toEqual({ countryId: 'china', regionId: 'china-jiangxi' });
+  });
+  it('the search bar offers the three provinces for 華中, which stays no place name for routes (review M6)', () => {
+    for (const q of ['華中', '华中']) {
+      expect(suggestRegions(q, places).slice(0, 3).map(s => s.label), q).toEqual(['中國 → 湖北', '中國 → 河南', '中國 → 江西']);
+    }
+    expect(places.findRegion('華中')).toEqual([]);
+    expect(extractStops(['華中', '华中'], places).stops).toEqual([]);
   });
 });
 
@@ -418,10 +484,11 @@ describe('seed list', () => {
     const seedIds = ['japan', 'korea', 'taiwan', 'thailand', 'china', 'vietnam', 'singapore', 'malaysia', 'hongkong', 'macau'];
     const counts = Object.fromEntries(seedIds.map(id => [id, places.regionsOf(id).length]));
     // china: the 11 seed regions plus 東北三省, added for Jetour's Harbin tours (Task 15),
-    // and 西北, 華中, 貴州, 內蒙古 and 海南, added from the operator dry runs (Task 19).
+    // and 西北, 華中, 貴州, 內蒙古 and 海南, added from the operator dry runs (Task 19); 華中 became 湖北, 河南 and
+    // 江西 in task 37.
     // korea: the 4 seed regions plus 忠清道 and 全羅道, added from EGL's practice crawl.
     expect(counts).toEqual({
-      japan: 9, korea: 6, taiwan: 4, thailand: 3, china: 17, vietnam: 3,
+      japan: 9, korea: 6, taiwan: 4, thailand: 3, china: 19, vietnam: 3,
       singapore: 1, malaysia: 2, hongkong: 1, macau: 1,
     });
   });
