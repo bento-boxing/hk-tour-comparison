@@ -13,6 +13,10 @@ describe('the short-trip regions (a fallback route\'s "too far for the trip" rul
     expect(SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.filter(id => !SHORT_TRIP_REGION_IDS.includes(id))).toEqual([]);
     expect(SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.map(id => places.region(id)?.countryId)).toEqual(['korea', 'korea']);
   });
+  it('of the provinces that were 華中, holds only 江西, the one seen on tours of 2 or 3 days (task 37)', () => {
+    expect(SHORT_TRIP_REGION_IDS.filter(id => ['china-hubei', 'china-henan', 'china-jiangxi', 'china-central'].includes(id)))
+      .toEqual(['china-jiangxi']);
+  });
   it('applies to tours of up to 3 days', () => {
     expect(SHORT_TRIP_MAX_DAYS).toBe(3);
   });

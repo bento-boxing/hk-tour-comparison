@@ -681,7 +681,13 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     });
     it('keeps the short-trip regions: Guangdong, Guangxi, Hunan, Fujian, Jiangxi, Macau, Seoul, Busan', () => {
       for (const place of ['中山', '桂林', '郴州', '廈門', '澳門', '首爾', '釜山']) expect(read(`${place}2天`, 2)).toEqual({ names: [place], dropped: [] });
-      expect(read('江西', 3)).toEqual({ names: ['華中'], dropped: [] }); // a region-only stop
+      expect(read('江西', 3)).toEqual({ names: ['江西'], dropped: [] }); // a region-only stop
+      expect(read('贛州3天', 3)).toEqual({ names: ['贛州'], dropped: [] });
+    });
+    it('of the provinces that were 華中, only 江西 is within reach: 湖北 and 河南 are too far for 3 days (task 37)', () => {
+      expect(read('湖北 武漢3天', 3)).toEqual({ names: [], dropped: [{ name: '湖北', rule: 'too-far' }, { name: '武漢', rule: 'too-far' }] });
+      expect(read('河南 鄭州3天', 3)).toEqual({ names: [], dropped: [{ name: '河南', rule: 'too-far' }, { name: '鄭州', rule: 'too-far' }] });
+      expect(read('湖北 武漢4天', 4).names).toEqual(['湖北', '武漢']);
     });
   });
 
