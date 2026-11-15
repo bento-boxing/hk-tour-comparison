@@ -205,7 +205,7 @@ describe('on the seed table', () => {
     // jetour:TYO-KIX starts in Kanto (its first stop), so it sorts there although it also visits Kansai.
     expect(await sorted('destination', order)).toEqual(['bigline:TPE4', 'texpert:SEL5', 'jetour:TYO-KIX', 'egl:KIX5', 'jetour:HKD7']);
     expect(await sorted('destination-desc', order)).toEqual(['jetour:HKD7', 'egl:KIX5', 'jetour:TYO-KIX', 'texpert:SEL5', 'bigline:TPE4']);
-    // A region missing from the ranking comes last either way, in id order.
+    // A region missing from the ranking comes last either way: in id order, reversed under destination-desc.
     expect(await sorted('destination', ['korea-seoul'])).toEqual(['texpert:SEL5', 'jetour:HKD7', 'egl:KIX5', 'jetour:TYO-KIX', 'bigline:TPE4']);
     expect(await sorted('destination-desc', ['korea-seoul'])).toEqual(['texpert:SEL5', 'bigline:TPE4', 'jetour:TYO-KIX', 'egl:KIX5', 'jetour:HKD7']);
   });
@@ -512,6 +512,27 @@ describe('a destination reached only by a middle stop', () => {
     expect(kansai.total).toBe(3);
     expect(kansai.tours[0].stops).toEqual([TOKYO, OSAKA, NAGOYA]);
   });
+});
+
+describe('two tours equal on everything but price', () => {
+  // Same length, same first (and only) date, same region; bigline:A is dearer, so key order and price
+  // order disagree and a flipped price tie-break shows.
+  let db: Db;
+  beforeAll(async () => {
+    db = await createTestDb();
+    await save(db, 'bigline', [
+      tour('bigline', 'A', [TAIPEI], 4, [{ date: '2026-12-23', priceHkd: 5000 }], 5000),
+      tour('bigline', 'B', [TAIPEI], 4, [{ date: '2026-12-23', priceHkd: 3000 }], 3000),
+    ]);
+  });
+  afterAll(async () => { await db.close(); });
+
+  it.each(['days', 'days-desc', 'date', 'date-desc', 'destination', 'destination-desc'] as const)(
+    '%s puts the cheaper one first', async sort => {
+      const r = await searchTours(db, { filters: {}, sort, page: 1, today, destinationOrder: ['taiwan-north'] });
+      expect(r.tours.map(t => t.key)).toEqual(['bigline:B', 'bigline:A']);
+    },
+  );
 });
 
 describe('the owner\'s travel-window example', () => {

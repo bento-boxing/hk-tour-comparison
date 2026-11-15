@@ -43,7 +43,8 @@ export interface SearchInput {
   /**
    * Region ids in the order the visitor reads their names (country name, then region name), for the
    * destination sorts. A tour sorts by its first region, the one its card names first; a region missing
-   * from the list comes after every listed one, in id order. Without it, the destination sorts use id order.
+   * from the list comes after every listed one in both directions, in id order (reverse id order under
+   * destination-desc). Without it, the destination sorts use id order.
    */
   destinationOrder?: string[];
 }
@@ -239,7 +240,7 @@ async function toCards(db: Db, rows: TourRow[], params: Params): Promise<TourCar
   const departures = await db.query<{ id: string; date: IsoDate; price_hkd: number | null }>(
     `select d.tour_id::text as id, d.date::text as date, d.price_hkd
      from departures d
-     join tours t on t.id = d.tour_id
+     join tours t on t.id = d.tour_id and t.id = any($6::bigint[]) -- only the page's tours, by primary key
      where d.tour_id = any($6::bigint[]) and ${inWindow('$1', '$2', '$3', '$4', '$5')}
      order by d.tour_id, d.date`,
     [params[0], params[1], params[2], params[12], params[13], ids],
