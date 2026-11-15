@@ -10,15 +10,24 @@ import type { Locale } from './i18n';
  * The website's three database reads, each result kept in Next.js's data cache and reused by every visitor
  * who asks the same question, so most page views make no query (the data changes once a night).
  *
- * A result shown is at most an hour old (READ_CACHE_SECONDS). Each entry carries the time it was read
- * (ageLimited). Once that is an hour ago the entry is never shown: that visitor's read goes straight to the
- * database (and an error then reaches the page's error message, as with no entry), while the same lookup has
- * started Next's own refresh of the entry for the visitors after. A failed read is never stored.
+ * A result shown is at most an hour old (READ_CACHE_SECONDS), by the server's clock. Each entry carries the
+ * time it was read (ageLimited). Once that is an hour ago, or more than CLOCK_TOLERANCE_SECONDS in the future,
+ * the entry is not shown: that visitor's read goes straight to the database (and an error then reaches the
+ * page's error message, as with no entry). The same lookup has usually started Next's own refresh of the entry
+ * for the visitors after; not when Next still counts the entry as fresh (its clock is the time the entry was
+ * written, a moment after ours), in which case each visit reads directly until Next's hour is up too.
+ * A clock up to the tolerance ahead on the instance that wrote an entry can stretch the hour by that much.
+ * A failed read is never stored.
  *
  * The key is built here, field by field, from values the address parsers already validated; the read then
  * runs on exactly what is in the key, so two requests can share an entry only if they ask the database the
- * same thing. The raw address never reaches it. Every key also names the build (BUILD_ID), so a new
- * deployment never reads an entry written by another build's code: each deploy starts with an empty cache.
+ * same thing. The raw address never reaches it.
+ *
+ * Every key also starts with BUILD_ID: the Vercel environment and git commit, when Vercel provides them to
+ * the functions (the project setting "Enable access to System Environment Variables"). Entries are then kept
+ * per commit and environment: a new commit's deployment starts with an empty cache, while a redeploy of the
+ * same commit reuses its entries. Without those variables every build is "local" and every deployment shares
+ * entries; the one-hour limit still holds.
  */
 
 /** How long a stored result is reused, in seconds: one hour, fixed. */
@@ -35,11 +44,14 @@ export const READ_CACHE_TAG = 'db-reads';
 export type CacheFn = <T>(key: string, load: () => Promise<T>) => Promise<T>;
 
 /**
- * The build whose code wrote an entry: the deployment's git commit on Vercel (VERCEL_GIT_COMMIT_SHA), else
- * 'local'. Part of every key.
+ * The build and environment whose code wrote an entry, part of every key: `<VERCEL_ENV>:<VERCEL_GIT_COMMIT_SHA>`
+ * (production, preview or development; the deployment's commit), 'local' for a part Vercel does not give,
+ * and just 'local' when it gives neither.
  */
 export function buildId(env: Record<string, string | undefined>): string {
-  return env.VERCEL_GIT_COMMIT_SHA || 'local';
+  const environment = env.VERCEL_ENV || 'local';
+  const commit = env.VERCEL_GIT_COMMIT_SHA || 'local';
+  return environment === 'local' && commit === 'local' ? 'local' : `${environment}:${commit}`;
 }
 
 /** This server's build id, read once. */
@@ -53,20 +65,29 @@ export const BUILD_ID = buildId(process.env);
 export const nextStore: CacheFn = (key, load) =>
   unstable_cache(load, [key], { revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG] })();
 
+/**
+ * How far ahead of this server's clock a stored time may be and still count: clocks of different servers
+ * differ a little. An entry stamped further in the future is treated as over the hour.
+ */
+export const CLOCK_TOLERANCE_SECONDS = 60;
+
 /** What ageLimited stores: the value and when it was read (milliseconds since 1970). */
 interface Stamped<T> { at: number; value: T }
 
 function isFresh<T>(entry: unknown, now: number): entry is Stamped<T> {
   const at = (entry as Partial<Stamped<T>> | null)?.at;
-  return typeof at === 'number' && Number.isFinite(at) && now - at < READ_CACHE_SECONDS * 1000;
+  if (typeof at !== 'number' || !Number.isFinite(at)) return false;
+  const age = now - at;
+  return age >= -CLOCK_TOLERANCE_SECONDS * 1000 && age < READ_CACHE_SECONDS * 1000;
 }
 
 /**
  * `store` with a hard age limit. Each value is stored with the time it was read; an entry read
- * READ_CACHE_SECONDS ago or longer (or one without a readable time) is never returned: `load` runs instead,
- * for this caller only, and its result or its error is what the caller gets. (Next's unstable_cache serves an
- * entry past its lifetime once more while refreshing it in the background; that refresh still happens, so the
- * next caller gets a fresh entry.) `now` is the clock, for tests.
+ * READ_CACHE_SECONDS ago or longer, stamped more than CLOCK_TOLERANCE_SECONDS in the future, or without a
+ * readable time, is never returned: `load` runs instead, for this caller only, and its result or its error is
+ * what the caller gets. (Next's unstable_cache serves an entry past its own lifetime once more while
+ * refreshing it in the background; that refresh still happens, so usually the next caller gets a fresh entry.)
+ * `now` is the clock, for tests.
  */
 export function ageLimited(store: CacheFn, now: () => number = Date.now): CacheFn {
   return async <T>(key: string, load: () => Promise<T>): Promise<T> => {

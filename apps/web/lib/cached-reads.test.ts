@@ -7,7 +7,8 @@ import { createTestDb } from '@hktours/db/test';
 import type { SortKey } from '@hktours/db/read';
 import type { Locale } from './i18n';
 import {
-  ageLimited, buildId, createReads, nextCache, nextStore, READ_CACHE_SECONDS, READ_CACHE_TAG, usesDestinationOrder,
+  ageLimited, buildId, CLOCK_TOLERANCE_SECONDS, createReads, nextCache, nextStore, READ_CACHE_SECONDS, READ_CACHE_TAG,
+  usesDestinationOrder,
   type CacheFn, type SearchQuery,
 } from './cached-reads';
 
@@ -100,6 +101,19 @@ describe('the key is built only from validated values, in a canonical form', () 
     ];
     const keys = await Promise.all(changed.map(q => keyFor(q)));
     expect(new Set([none, ...keys]).size).toBe(changed.length + 1);
+  });
+
+  it('a filter of 0 is kept: in the key as 0, and passed to the database as 0', async () => {
+    const zeros: SearchQuery = { ...base, filters: { priceMin: 0, priceMax: 0, daysMin: 0 } };
+    const key = JSON.parse(await keyFor(zeros));
+    expect(key.filters).toMatchObject({ priceMin: 0, priceMax: 0, daysMin: 0, daysMax: null });
+    expect(await keyFor({ ...base, filters: { priceMax: 0 } })).not.toBe(await keyFor(base));
+
+    // The shared parameters are $1 … $14 (packages/db/src/search.ts): $7 daysMin, $9 priceMin, $10 priceMax.
+    const params: unknown[][] = [];
+    const db = { query: async (_sql: string, p: unknown[]) => { params.push(p); return [{ total: 0 }]; } } as unknown as Db;
+    await createReads(() => [], jsonStore().cache, BUILD).searchTours(db, zeros, 'en');
+    expect([params[0][6], params[0][8], params[0][9]]).toEqual([0, 0, 0]);
   });
 
   it('a field outside the validated input never reaches the key', async () => {
@@ -341,10 +355,24 @@ describe('errors are never stored', () => {
 });
 
 describe('the build is in every key, so different builds never share an entry', () => {
-  it('the build id is the deployment\'s commit when Vercel gives one, else "local"', () => {
-    expect(buildId({ VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' })).toBe('0a0a93a1b2c3');
+  it('the build id is the Vercel environment and the commit, when Vercel gives them; "local" when neither', () => {
+    expect(buildId({ VERCEL_ENV: 'production', VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' })).toBe('production:0a0a93a1b2c3');
+    expect(buildId({ VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' })).toBe('preview:0a0a93a1b2c3');
     expect(buildId({})).toBe('local');
-    expect(buildId({ VERCEL_GIT_COMMIT_SHA: '' })).toBe('local');
+    expect(buildId({ VERCEL_ENV: '', VERCEL_GIT_COMMIT_SHA: '' })).toBe('local');
+    // Only one of the two: the other part says it is missing, so it is still never shared with "local".
+    expect(buildId({ VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' })).toBe('local:0a0a93a1b2c3');
+    expect(buildId({ VERCEL_ENV: 'preview' })).toBe('preview:local');
+  });
+
+  it('the same commit in production and in preview gives different keys', async () => {
+    const keyIn = async (env: string) => {
+      const store = jsonStore();
+      const build = buildId({ VERCEL_ENV: env, VERCEL_GIT_COMMIT_SHA: '0a0a93a1b2c3' });
+      await createReads(() => [], store.cache, build).getOperators(brokenDb(new Error('down'))).catch(() => {});
+      return keyOf(store);
+    };
+    expect(await keyIn('production')).not.toBe(await keyIn('preview'));
   });
 
   it('all three reads put it in their key, and two builds give different keys for the same question', async () => {
@@ -402,6 +430,18 @@ describe('no result older than the hour is ever shown', () => {
       c.t += HOUR_MS + over;
       expect(await cache('k', l.load)).toBe('result 2');
       expect(l.calls).toBe(2);
+    },
+  );
+
+  it.each([['59 s ahead', 59_000, true], ['61 s ahead', 61_000, false], ['a day ahead', 86_400_000, false]])(
+    'an entry stamped %s of this clock is served only within the tolerance', async (_label, ahead, served) => {
+      expect(CLOCK_TOLERANCE_SECONDS).toBe(60);
+      const store = jsonStore();
+      const c = clock();
+      const l = counted();
+      store.entries.set('k', JSON.stringify({ at: c.t + ahead, value: 'stored' }));
+      expect(await ageLimited(store.cache, c.now)('k', l.load)).toBe(served ? 'stored' : 'result 1');
+      expect(l.calls).toBe(served ? 0 : 1);
     },
   );
 
