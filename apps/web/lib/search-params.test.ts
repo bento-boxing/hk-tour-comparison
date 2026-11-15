@@ -122,9 +122,26 @@ it('keeps one valid end of the travel window and drops a bad one', () => {
   expect(parseSearchParams({ tfrom: 'soon', tto: '2027-01-15' }, places).filters).toEqual({ travelTo: '2027-01-15' });
 });
 
-it('keeps a travel window that ends before it starts: it matches nothing, so the list shows its empty message', () => {
-  expect(parseSearchParams({ tfrom: '2027-01-15', tto: '2027-01-12' }, places).filters)
-    .toEqual({ travelFrom: '2027-01-15', travelTo: '2027-01-12' });
+it('drops a travel window that ends before it starts, as it drops such a departure window', () => {
+  expect(parseSearchParams({ tfrom: '2027-01-15', tto: '2027-01-12' }, places).filters).toEqual({});
+  expect(parseSearchParams({ tfrom: '2027-01-15', tto: '2027-01-12', from: '2027-01-01' }, places).filters)
+    .toEqual({ dateFrom: '2027-01-01' });
+  // One day is a window, not a reversed one.
+  expect(parseSearchParams({ tfrom: '2027-01-12', tto: '2027-01-12' }, places).filters)
+    .toEqual({ travelFrom: '2027-01-12', travelTo: '2027-01-12' });
+});
+
+it.each(['from', 'to', 'tfrom', 'tto'])('drops a %s date before year 1, which the database would refuse', name => {
+  for (const text of ['0000-01-01', '0000-12-31']) {
+    expect(parseSearchParams({ [name]: text }, places).filters, text).toEqual({});
+  }
+  // The first and last days the address accepts.
+  expect(Object.values(parseSearchParams({ [name]: '0001-01-01' }, places).filters)).toEqual(['0001-01-01']);
+  expect(Object.values(parseSearchParams({ [name]: '9999-12-31' }, places).filters)).toEqual(['9999-12-31']);
+});
+
+it.each(['10000-01-01', '2027-02-30', '2027-13-01', '+02027-01-01', '2027-01-01T00:00'])('drops the date %s', text => {
+  expect(parseSearchParams({ from: text, to: text, tfrom: text, tto: text }, places).filters).toEqual({});
 });
 
 it('includeDates false drops the travel window too', () => {

@@ -12,6 +12,9 @@ export const SORT_KEYS: readonly SortKey[] = [
   'price', 'price-desc', 'days', 'days-desc', 'date', 'date-desc', 'destination', 'destination-desc',
 ];
 
+/** The earliest date the address accepts (the database has no year 0). */
+const FIRST_DATE = '0001-01-01';
+
 export const DAYS_RANGE = { min: 1, max: 60 } as const;
 export const PRICE_RANGE = { min: 0, max: 2_000_000 } as const;
 
@@ -64,9 +67,16 @@ function compact<T extends object>(obj: T): T {
  */
 export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { includeDates?: boolean } = {}): SearchState {
   const includeDates = opts.includeDates ?? true;
+  // A real calendar date from year 1 on: isIsoDate accepts year 0000, which Postgres refuses (an error page).
   const isoDate = (name: string) => {
     const text = first(raw, name);
-    return text !== undefined && isIsoDate(text) ? text : undefined;
+    return text !== undefined && isIsoDate(text) && text >= FIRST_DATE ? text : undefined;
+  };
+  // Both ends, or neither when the window ends before it starts. Same-format ISO dates compare as strings.
+  const datePair = (fromName: string, toName: string): [string | undefined, string | undefined] => {
+    const from = isoDate(fromName);
+    const to = isoDate(toName);
+    return from !== undefined && to !== undefined && from > to ? [undefined, undefined] : [from, to];
   };
 
   let dateFrom: string | undefined;
@@ -74,14 +84,8 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
   let travelFrom: string | undefined;
   let travelTo: string | undefined;
   if (includeDates) {
-    dateFrom = isoDate('from');
-    dateTo = isoDate('to');
-    // Same-format ISO dates compare correctly as strings.
-    if (dateFrom !== undefined && dateTo !== undefined && dateFrom > dateTo) dateFrom = dateTo = undefined;
-    // A travel window that ends before it starts is kept: no tour fits it, so the list shows its empty
-    // message, and the pill shows the window so it can be changed or cleared.
-    travelFrom = isoDate('tfrom');
-    travelTo = isoDate('tto');
+    [dateFrom, dateTo] = datePair('from', 'to');
+    [travelFrom, travelTo] = datePair('tfrom', 'tto');
   }
 
   const days = range(intInRange(first(raw, 'dmin'), DAYS_RANGE), intInRange(first(raw, 'dmax'), DAYS_RANGE));

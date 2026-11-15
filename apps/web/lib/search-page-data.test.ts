@@ -90,11 +90,32 @@ it('the travel window applies, and the cards list only the departures that fit',
 });
 
 it('a travel window nothing fits gives an empty list, not an error', async () => {
-  for (const raw of [{ tfrom: '2026-12-25', tto: '2026-12-18' }, { tfrom: '2026-12-18', tto: '2026-12-19' }, { tto: '2026-01-31' }]) {
+  for (const raw of [{ tfrom: '2026-12-18', tto: '2026-12-19' }, { tto: '2026-01-31' }]) {
     const data = await loadSearchPage(db, raw, today);
     expect(data.total, JSON.stringify(raw)).toBe(0);
     expect(data.tours).toEqual([]);
   }
+});
+
+it('a travel window that ends before it starts is dropped, as a reversed departure window is: the full list', async () => {
+  const data = await loadSearchPage(db, { tfrom: '2026-12-25', tto: '2026-12-18' }, today);
+  expect(data.state.filters).toEqual({});
+  expect(data.total).toBe(4);
+});
+
+describe('odd dates in the address never reach the database as an error', () => {
+  // Each passes or fails isIsoDate differently: year 0 (Postgres has none), the last day of year 9999,
+  // a five-digit year, 30 February, month 13, and the first day of year 1.
+  const dates = ['0000-01-01', '9999-12-31', '10000-01-01', '2027-02-30', '2027-13-01', '0001-01-01'];
+  it.each(['from', 'to', 'tfrom', 'tto'])('%s', async name => {
+    for (const text of dates) {
+      const data = await loadSearchPage(db, { [name]: text }, today);
+      expect(data.tours.length, `${name}=${text}`).toBe(data.total);
+    }
+    // Year 0 is dropped, so the whole list shows; 9999-12-31 is kept and is a valid bound.
+    expect((await loadSearchPage(db, { [name]: '0000-01-01' }, today)).total).toBe(4);
+    expect((await loadSearchPage(db, { [name]: '9999-12-31' }, today)).state.filters).not.toEqual({});
+  });
 });
 
 // LAST4 and MID6 both start in Kanto (Tokyo): the cheaper one comes first in both directions.
