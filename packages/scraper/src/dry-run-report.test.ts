@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { places, type ScrapedTour } from '@hktours/core';
 import { describePage, recordDryRun } from './dry-run-report';
-import { DRY_RUN_LOG } from './public-log';
+import { addressRefId, DRY_RUN_LOG, PUBLIC_LOG } from './public-log';
 import type { Fetcher, OperatorScraper } from './types';
 
 const TODAY = '2026-11-14';
@@ -20,6 +20,23 @@ it('the recorded scraper hands discover the run\'s log view (task 36)', async ()
   const fetcher: Fetcher = { fetchText: async () => null };
   expect(await recordDryRun(scraper, null).scraper.discover(fetcher, DRY_RUN_LOG)).toEqual(['https://example.test/t/1']);
   expect(views).toEqual([DRY_RUN_LOG]);
+});
+
+describe('the dry-run page line carries the page\'s reference, as the public log gives it (task 36 fix 1)', () => {
+  const titled = `https://example.test/?tour=${encodeURIComponent('5天測試之旅')}`;
+  it.each([
+    ['a saved tour', { url: titled, parsed: tour({ url: titled }) }],
+    ['a page the parser rejected', { url: titled, parsed: null }],
+    ['a page that fails the schema', { url: titled, parsed: { code: 'X' } }],
+  ])('%s', (_name, page) => {
+    const described = describePage(page, places, TODAY);
+    expect(described).toMatchObject({ url: titled, ref: addressRefId(titled) });
+    expect(PUBLIC_LOG.address(titled)).toContain(`(ref ${described.ref})`);
+  });
+  it('a raw non-ASCII address gets the reference of its rewritten form, as on every log line', () => {
+    const raw = 'https://example.test/tour/測試';
+    expect(describePage({ url: raw, parsed: null }, places, TODAY).ref).toBe(addressRefId(new URL(raw).href));
+  });
 });
 
 describe('the dry-run page line', () => {

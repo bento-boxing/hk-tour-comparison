@@ -1,8 +1,43 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
+import { addressRef, addressRefId, DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
 
 const sha8 = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 8);
+/** An address's reference: the hash of the address as `new URL` writes it (an http(s) address), else of the text. */
+const addrRef = (text: string) => {
+  try {
+    const url = new URL(text);
+    return sha8(url.protocol === 'http:' || url.protocol === 'https:' ? url.href : text);
+  } catch {
+    return sha8(text);
+  }
+};
+
+describe('an address\'s reference is the same however the address is written (task 36 fix 1)', () => {
+  const raw = 'https://www.example.com/tour/測試之旅?q=秋';
+  const rewritten = new URL(raw).href; // percent-encoded, as polite-fetch's retry line has it
+
+  it('a raw non-ASCII address and the same address as new URL rewrites it get one reference', () => {
+    expect(rewritten).not.toBe(raw);
+    expect(addressRef(raw)).toBe(addressRef(rewritten));
+    expect(addressRef(raw)).toBe(`(ref ${sha8(rewritten)})`);
+    expect(addressRefId(raw)).toBe(sha8(rewritten));
+    expect(PUBLIC_LOG.address(raw)).toBe(`https://www.example.com/tour/*?q=* ${addressRef(raw)}`);
+    expect(PUBLIC_LOG.address(rewritten)).toBe(`https://www.example.com/tour/*?q=* ${addressRef(raw)}`);
+    expect(DRY_RUN_LOG.address(raw)).toBe(`${raw} ${addressRef(raw)}`);
+  });
+  it('a text that is not an http(s) address is hashed as it is', () => {
+    expect(addressRef('測試')).toBe(`(ref ${sha8('測試')})`);
+    expect(addressRef('ftp://example.com/測試')).toBe(`(ref ${sha8('ftp://example.com/測試')})`);
+  });
+});
+
+describe('wording: operator text that is neither an address nor a message', () => {
+  it('the public log prints the given public form (counts, say); a dry run the wording itself', () => {
+    expect(PUBLIC_LOG.wording('郵輪 3, 香港 2', '2 categories')).toBe('2 categories');
+    expect(DRY_RUN_LOG.wording('郵輪 3, 香港 2', '2 categories')).toBe('郵輪 3, 香港 2');
+  });
+});
 /** An invented title, percent-encoded as Charming's older addresses are. */
 const encodedSlug = encodeURIComponent('5天測試之旅-abcd').toLowerCase();
 
@@ -31,12 +66,12 @@ describe('PUBLIC_LOG.address: an address as the public run log may print it', ()
 
   it('hides a percent-encoded piece (a title in the address) and adds a reference to the whole address', () => {
     const url = `https://www.charming-online.com/?tour=${encodedSlug}`;
-    expect(PUBLIC_LOG.address(url)).toBe(`https://www.charming-online.com/?tour=* (ref ${sha8(url)})`);
+    expect(PUBLIC_LOG.address(url)).toBe(`https://www.charming-online.com/?tour=* (ref ${addrRef(url)})`);
   });
 
   it('hides a piece of several hyphen-joined words (an English title) but keeps a code and the fixed path', () => {
     const url = 'https://www.example.com/zh-hk/tour/12-sample-autumn-trip-5-days?lang=en';
-    expect(PUBLIC_LOG.address(url)).toBe(`https://www.example.com/zh-hk/tour/*?lang=en (ref ${sha8(url)})`);
+    expect(PUBLIC_LOG.address(url)).toBe(`https://www.example.com/zh-hk/tour/*?lang=en (ref ${addrRef(url)})`);
   });
 
   it.each([
@@ -46,7 +81,7 @@ describe('PUBLIC_LOG.address: an address as the public run log may print it', ()
     ['a plus sign (a space in a query)', 'https://www.example.com/s?q=autumn+trip', 'https://www.example.com/s?q=*'],
     ['two underscores', 'https://www.example.com/a_b_c', 'https://www.example.com/*'],
   ])('hides %s', (_name, url, shown) => {
-    expect(PUBLIC_LOG.address(url)).toBe(`${shown} (ref ${sha8(url)})`);
+    expect(PUBLIC_LOG.address(url)).toBe(`${shown} (ref ${addrRef(url)})`);
   });
 
   it.each([
@@ -55,7 +90,7 @@ describe('PUBLIC_LOG.address: an address as the public run log may print it', ()
     ['an address with a non-ASCII host', 'https://測試.example.com/a'],
     ['an empty text', ''],
   ])('hides %s altogether', (_name, text) => {
-    expect(PUBLIC_LOG.address(text)).toBe(`* (ref ${sha8(text)})`);
+    expect(PUBLIC_LOG.address(text)).toBe(`* (ref ${addrRef(text)})`);
   });
 });
 
@@ -65,8 +100,8 @@ describe('DRY_RUN_LOG.address: the whole address, with the reference the public 
   });
   it('prints an address the public log hides in full, followed by the same reference', () => {
     const url = `https://www.charming-online.com/?tour=${encodedSlug}`;
-    expect(DRY_RUN_LOG.address(url)).toBe(`${url} (ref ${sha8(url)})`);
-    expect(PUBLIC_LOG.address(url).endsWith(logRef(url))).toBe(true);
+    expect(DRY_RUN_LOG.address(url)).toBe(`${url} (ref ${addrRef(url)})`);
+    expect(PUBLIC_LOG.address(url).endsWith(addressRef(url))).toBe(true);
   });
 });
 

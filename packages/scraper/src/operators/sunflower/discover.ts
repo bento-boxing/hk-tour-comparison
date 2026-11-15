@@ -1,3 +1,4 @@
+import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 import { publicEntry, type PublicEntry } from './public';
 
@@ -91,15 +92,22 @@ export function readListing(text: string): Listing {
   };
 }
 
-/** One request: the listing, read by readListing. What was left out is logged. */
-export async function discoverTours(fetcher: Fetcher, log: (line: string) => void): Promise<PublicEntry[]> {
+/**
+ * One request: the listing, read by readListing. What was left out is logged: by the listing's own region labels
+ * (the operator's wording: cruise, private group…) in a dry run, by how many labels in a real run, whose log is public.
+ */
+export async function discoverTours(
+  fetcher: Fetcher, log: (line: string) => void, logView: LogView = PUBLIC_LOG,
+): Promise<PublicEntry[]> {
   const text = await fetcher.fetchText(LISTING_URL, SAME_SITE);
   if (text === null) throw new Error('sunflower: the listing was not fetched');
   const listing = readListing(text);
   const count = listing.leftOut.reduce((sum, [, n]) => sum + n, 0);
   if (count > 0) {
     const regions = listing.leftOut.map(([region, n]) => `${region} ${n}`).join(', ');
-    log(`sunflower: left out ${count} listing ${count === 1 ? 'entry' : 'entries'} without an online booking code (${regions})`);
+    const labels = listing.leftOut.length;
+    const shown = logView.wording(regions, `${labels} ${labels === 1 ? 'category' : 'categories'}`);
+    log(`sunflower: left out ${count} listing ${count === 1 ? 'entry' : 'entries'} without an online booking code (${shown})`);
   }
   for (const code of listing.repeated) log(`sunflower: booking code ${code} is on more than one listing entry; the first is kept`);
   return listing.tours;

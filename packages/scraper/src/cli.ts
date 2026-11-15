@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { OPERATOR_IDS, places, todayInHongKong, type OperatorId } from '@hktours/core';
 import { createPgDb, normaliseCaCert, type Db } from '@hktours/db';
+import { unexpectedErrorLines } from '@hktours/db/public-error';
 import { createDryRunDb, latestRunSummary } from './dry-run-db';
 import { describePage, formatUnmatched, recordDryRun, unmatchedCounts } from './dry-run-report';
 import { SCRAPERS } from './operators';
@@ -93,19 +94,15 @@ function installEnvProxy(env: Env): void {
 }
 
 /**
- * A real run's unexpected error, for its public log: the error's kind and its message as PUBLIC_LOG shows one (hidden,
- * with a reference, unless it is plain text), then the stack's `at` lines (where in the code: file names and line
- * numbers only). Nothing else of it, such as a database error's `detail`, which can quote the row it was given.
+ * A real run's unexpected error, for its public log, by the rule shared with `pnpm db:migrate`
+ * (`@hktours/db/public-error`): the error's kind, the fields that hold no row data (SQLSTATE or Node code, table,
+ * column, constraint…), its message unless it may quote data (then hidden, with a reference), its cause one level
+ * deep, and the stack's `at` lines. Never a database error's `detail`, which can quote the row it was given.
  */
 function printUnexpected(operator: OperatorId, error: unknown, print: (line: string) => void): void {
-  const kind = error instanceof Error ? error.name : typeof error;
-  const message = error instanceof Error ? error.message : String(error);
-  // A database error's code (SQLSTATE, such as 22001) says what went wrong without quoting anything.
-  const code = (error as { code?: unknown } | null)?.code;
-  const coded = typeof code === 'string' && /^[A-Z0-9_]{1,12}$/.test(code) ? ` (code ${code})` : '';
-  print(`${operator}: the run stopped on an unexpected error: ${PUBLIC_LOG.message(kind)}${coded}: ${PUBLIC_LOG.message(message)}`);
-  const stack = error instanceof Error ? error.stack ?? '' : '';
-  for (const line of stack.split('\n')) if (/^ {4}at [ -~]*$/.test(line)) print(line);
+  const [first, ...rest] = unexpectedErrorLines(error);
+  print(`${operator}: the run stopped on an unexpected error: ${first}`);
+  for (const line of rest) print(line);
 }
 
 /**

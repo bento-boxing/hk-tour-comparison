@@ -6,7 +6,7 @@ import {
   createFetcher, siteOf, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
   type PoliteFetcher,
 } from './polite-fetch';
-import { DRY_RUN_LOG, logRef, type LogView } from './public-log';
+import { addressRef, DRY_RUN_LOG, logRef, type LogView } from './public-log';
 
 interface RecordedRequest {
   path: string; userAgent: string | undefined; start: number; end: number;
@@ -908,6 +908,38 @@ describe('a logged address that may carry a title is shown as the log view allow
       expect(await fetcher().fetchText(titled)).toBeNull();
     });
     expect(logLines.at(-1)).toBe(`not fetched ${shown}: * ${logRef(message)}`);
+  });
+
+  it('a raw non-ASCII address: the retry line (rewritten by new URL) and the not-fetched line give one reference', async () => {
+    const raw = 'https://shop.test/tour/測試之旅';
+    await onShop(() => new Response(null, { status: 500 }), async () => {
+      expect(await fetcher().fetchText(raw)).toBeNull();
+    });
+    const ref = addressRef(raw);
+    expect(logLines).toEqual([
+      `retry 1/2 https://shop.test/tour/* ${ref}: HTTP 500`,
+      `retry 2/2 https://shop.test/tour/* ${ref}: HTTP 500`,
+      `not fetched https://shop.test/tour/* ${ref}: HTTP 500`,
+    ]);
+  });
+
+  it('a POST body JSON.stringify throws on: the address is shown as the view allows (task 36 fix 1)', async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(await fetcher().postJson(titled, circular)).toBeNull();
+    expect(logLines).toEqual([`not fetched ${shown} (POST): the body is not JSON (TypeError)`]);
+  });
+
+  it('a robots.txt that cannot be read for a network error: its message goes through the view', async () => {
+    const message = 'TypeError: no answer for 測試之旅';
+    vi.stubGlobal('fetch', async () => { throw new TypeError('no answer for 測試之旅'); });
+    try {
+      expect(await fetcher().fetchText('https://shop.test/a')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(logLines).toContain(`not crawling https://shop.test: robots.txt unreadable (* ${logRef(message)})`);
+    for (const line of logLines) expect(line).not.toContain('測試');
   });
 
   it('a POST not answered, a POST body that is not JSON, and a text that is not an address', async () => {

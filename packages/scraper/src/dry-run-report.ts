@@ -1,16 +1,20 @@
 import {
   normaliseTour, scrapedTourSchema, type IsoDate, type PlacesIndex, type RouteDrop, type ScrapedTour, type Stop,
 } from '@hktours/core';
+import { addressRefId } from './public-log';
 import type { OperatorScraper } from './types';
 
 /** What the parser returned for one fetched page (null when it rejected the page). */
 interface ParsedPage { url: string; parsed: unknown }
 
-/** One fetched page as `--dry-run` prints it, so matches can be checked by eye. */
+/**
+ * One fetched page as `--dry-run` prints it, so matches can be checked by eye. `ref` is the page's reference as the
+ * public run log prints it (`(ref 1a2b3c4d)`, public-log.ts), so any reference there can be looked up here.
+ */
 export type PageDescription =
-  | { url: string; result: 'parser-null' | 'invalid' }
+  | { url: string; ref: string; result: 'parser-null' | 'invalid' }
   | {
-    url: string; code: string;
+    url: string; ref: string; code: string;
     result: 'ok' | 'no-stops' | 'no-departures' | 'no-price';
     /** Stops of a saved tour as `name (country)`; empty when the tour was not saved. */
     route: string[];
@@ -79,13 +83,15 @@ function stopName(stop: Stop, index: PlacesIndex): string {
  */
 export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDate): PageDescription {
   const { url, parsed } = page;
-  if (parsed === null) return { url, result: 'parser-null' };
+  const ref = addressRefId(url);
+  if (parsed === null) return { url, ref, result: 'parser-null' };
   const checked = scrapedTourSchema.safeParse(parsed);
-  if (!checked.success) return { url, result: 'invalid' };
+  if (!checked.success) return { url, ref, result: 'invalid' };
   const scraped = checked.data;
   const normalised = normaliseTour(scraped, index, today);
   const description: PageDescription = {
     url,
+    ref,
     code: scraped.code,
     result: normalised.ok ? 'ok' : normalised.reason,
     route: normalised.ok ? normalised.tour.stops.map(stop => stopName(stop, index)) : [],

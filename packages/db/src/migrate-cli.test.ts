@@ -73,6 +73,48 @@ it('exits 2 when DATABASE_CA_CERT is not a certificate, without connecting or ec
   expect(printed.join('\n')).not.toContain('garbage-value-123');
 });
 
+it('a failing migration: names the file, prints the database error as a public log may, exits 1 and closes', async () => {
+  const db = await emptyDb();
+  // The first migration applies; the second fails with a database error whose detail quotes a row (invented values).
+  let migrations = 0;
+  const failing: Db = {
+    ...db,
+    transaction: async fn => {
+      if (++migrations === 2) {
+        throw Object.assign(new Error('could not create unique index "tours_code_key"'), {
+          name: 'error', code: '23505', severity: 'ERROR', schema: 'public', table: 'tours', constraint: 'tours_code_key',
+          detail: 'Key (code)=(測試之旅) is duplicated.',
+        });
+      }
+      return db.transaction(fn);
+    },
+  };
+  const printed: string[] = [];
+  expect(await runMigrateCli({ DATABASE_URL: 'postgres://x' }, { makeDb: () => failing, print: line => printed.push(line) })).toBe(1);
+  expect(printed.slice(0, 4)).toEqual([
+    'applied 1 migration:',
+    '  0001_init.sql',
+    'migration 0002_charming_operator.sql failed: MigrationError: 0002_charming_operator.sql was rolled back',
+    '  cause: error (code 23505, severity ERROR, schema public, table tours, constraint tours_code_key): '
+      + 'could not create unique index "tours_code_key"',
+  ]);
+  expect(printed.slice(4).every(line => line.startsWith('    at '))).toBe(true);
+  for (const line of printed) expect(line).not.toContain('測試');
+  expect(db.closed()).toBe(true);
+});
+
+it('an error before any migration (connecting, say) is printed by the same rule and exits 1', async () => {
+  const db = await emptyDb();
+  const refused: Db = {
+    ...db,
+    exec: async () => { throw Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:5432'), { code: 'ECONNREFUSED' }); },
+  };
+  const printed: string[] = [];
+  expect(await runMigrateCli({ DATABASE_URL: 'postgres://x' }, { makeDb: () => refused, print: line => printed.push(line) })).toBe(1);
+  expect(printed[0]).toBe('the migrations stopped on an error: Error (code ECONNREFUSED): connect ECONNREFUSED 127.0.0.1:5432');
+  expect(db.closed()).toBe(true);
+});
+
 it('says so when there is nothing to apply', async () => {
   const db = await emptyDb();
   await migrate(db);

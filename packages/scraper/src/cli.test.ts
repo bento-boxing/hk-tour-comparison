@@ -6,7 +6,7 @@ import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
 import { parseArgs, runCli, proxyWanted, type CliDeps } from './cli';
 import { SCRAPERS } from './operators';
-import { DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
+import { addressRefId, DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
 import type { Fetcher, OperatorScraper } from './types';
 
 const pageUrl = (code: string) => `https://www.jetour.com.hk/tour/${code}`;
@@ -251,10 +251,10 @@ describe('runCli', () => {
     const pageLines = h.printed.filter(line => line.startsWith('page ')).map(line => JSON.parse(line.slice(5)));
     expect(pageLines).toEqual([
       {
-        url: pageUrl('A'), code: 'A', result: 'ok', route: ['大阪 (日本)', '京都 (日本)'], unmatched: [],
+        url: pageUrl('A'), ref: addressRefId(pageUrl('A')), code: 'A', result: 'ok', route: ['大阪 (日本)', '京都 (日本)'], unmatched: [],
         dayHeadings: ['香港 → 大阪', '大阪 → 京都'], startPoint: null, endPoint: null, days: 6, dayHeadingsDropped: [],
       },
-      { url: pageUrl('N'), result: 'parser-null' },
+      { url: pageUrl('N'), ref: addressRefId(pageUrl('N')), result: 'parser-null' },
     ]);
   });
 
@@ -335,6 +335,39 @@ describe('runCli', () => {
       expect(h.printed.length).toBeGreaterThan(1);
       for (const line of h.printed) expect(line).not.toContain('測試');
       expect(testDbCloses).toBe(1);
+    });
+
+    it('a database error\'s fields that hold no row data are printed, and a cause one level deep (task 36 fix 1)', async () => {
+      const unique = Object.assign(new Error('duplicate key value violates unique constraint "tours_pkey"'), {
+        name: 'error', code: '23505', table: 'tours', constraint: 'tours_pkey', detail: 'Key (code)=(測試之旅) already exists.',
+      });
+      const h = harness(site(goodTours(2)), {
+        makeDb: async () => ({ ...testDb, query: async () => { throw new Error('the save failed', { cause: unique }); } }),
+      });
+      expect(await runCli(['--operator', 'jetour'], DATABASE, h.deps)).toBe(1);
+      expect(h.printed.slice(0, 2)).toEqual([
+        'jetour: the run stopped on an unexpected error: Error: the save failed',
+        '  cause: error (code 23505, table tours, constraint tours_pkey): duplicate key value violates unique constraint "tours_pkey"',
+      ]);
+      expect(h.printed.slice(2).every(line => line.startsWith('    at '))).toBe(true);
+      for (const line of h.printed) expect(line).not.toContain('測試');
+    });
+
+    it('the default fetcher is made with the run\'s log view: whole text in a dry run, hidden in a real run', async () => {
+      // No request is made: a text that is not an http(s) address is refused by the fetcher before any network use.
+      const asking: OperatorScraper = {
+        id: 'jetour', parse: () => null,
+        discover: async fetcher => { await fetcher.fetchText('測試之旅'); return []; },
+      };
+      const dry = harness(new Map(), { scrapers: { jetour: asking } });
+      delete dry.deps.makeFetcher;
+      await runCli(['--operator', 'jetour', '--dry-run'], {}, dry.deps);
+      expect(dry.printed).toContain(`not an http(s) URL: 測試之旅 ${logRef('測試之旅')}`);
+
+      const real = harness(new Map(), { scrapers: { jetour: asking } });
+      delete real.deps.makeFetcher;
+      await runCli(['--operator', 'jetour'], DATABASE, real.deps);
+      expect(real.printed).toContain(`not an http(s) URL: * ${logRef('測試之旅')}`);
     });
 
     it('a dry run that stops on an unexpected error throws it as before (its output is not public)', async () => {

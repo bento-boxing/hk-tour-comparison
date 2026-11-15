@@ -1,21 +1,45 @@
-import { createHash } from 'node:crypto';
+import { isPlainMessage, logRef, refId } from '@hktours/db/public-error';
+
+export { logRef } from '@hktours/db/public-error';
 
 /**
  * How a log line shows text that may carry an operator's wording: a page's address before its tour code is known,
- * and the message of an error raised by code we do not control. The nightly run's log is public (GitHub Actions)
- * and holds tour codes and place names only, never an operator's wording; once a page's tour code is known, its
- * log lines name it by that code instead. A real run uses PUBLIC_LOG; a dry run, whose output is not public, uses
- * DRY_RUN_LOG, which prints everything whole, followed by the same reference wherever PUBLIC_LOG hides a part, so a
- * reference in the public log can be looked up in a dry run's output.
+ * the message of an error raised by code we do not control, and other operator wording (Sunflower's listing labels).
+ * The nightly run's log is public (GitHub Actions); once a page's tour code is known, its log lines name it by that
+ * code instead. A real run uses PUBLIC_LOG; a dry run, whose output is not public, uses DRY_RUN_LOG, which prints
+ * everything whole, followed by the same reference wherever PUBLIC_LOG hides a part. A dry run's `page {…}` lines
+ * also carry each page's reference (`ref`), so a reference in the public log can be looked up in a dry run's output.
+ * The reference and the plain-message rule are shared with the database package (public-error.ts there).
  */
 export interface LogView {
   address(url: string): string;
   message(text: string): string;
+  /** Operator wording that is neither an address nor a message: PUBLIC_LOG prints `publicForm` (counts, say). */
+  wording(text: string, publicForm: string): string;
 }
 
-/** `(ref 1a2b3c4d)`: the first 8 hex characters of the text's SHA-256. The same text always gets the same one. */
-export function logRef(text: string): string {
-  return `(ref ${createHash('sha256').update(text).digest('hex').slice(0, 8)})`;
+/**
+ * The text an address's reference is taken from: an http(s) address as `new URL` writes it (non-ASCII text
+ * percent-encoded, a host in lower case), so one page has one reference however a line got its address (the fetcher's
+ * retry line has it rewritten); any other text as it is.
+ */
+function canonical(text: string): string {
+  try {
+    const url = new URL(text);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : text;
+  } catch {
+    return text;
+  }
+}
+
+/** `1a2b3c4d`: an address's reference, as a dry run's `page` line carries it. */
+export function addressRefId(url: string): string {
+  return refId(canonical(url));
+}
+
+/** `(ref 1a2b3c4d)`: an address's reference, as a log line carries it. */
+export function addressRef(url: string): string {
+  return logRef(canonical(url));
 }
 
 /** `https://` or `http://`, an ASCII host name or IP address, and a port: no user name, password or other text. */
@@ -44,20 +68,19 @@ function hiddenForm(url: string): string | null {
   return hid ? origin + rest.join('') : null;
 }
 
-/** Printable ASCII without `"`, `%` or `://`: no quotation of what was read, no encoded text, no address. */
-const PLAIN_MESSAGE = /^(?!.*:\/\/)[ !#-$&-~]*$/;
-
 /** The public run log: plain text as it is; anything else with its non-plain part as `*`, and a reference. */
 export const PUBLIC_LOG: LogView = {
   address: url => {
     const hidden = hiddenForm(url);
-    return hidden === null ? url : `${hidden} ${logRef(url)}`;
+    return hidden === null ? url : `${hidden} ${addressRef(url)}`;
   },
-  message: text => (PLAIN_MESSAGE.test(text) ? text : `${HIDDEN} ${logRef(text)}`),
+  message: text => (isPlainMessage(text) ? text : `${HIDDEN} ${logRef(text)}`),
+  wording: (_text, publicForm) => publicForm,
 };
 
 /** A dry run's log (not public): everything whole, followed by the reference wherever PUBLIC_LOG hides a part. */
 export const DRY_RUN_LOG: LogView = {
-  address: url => (hiddenForm(url) === null ? url : `${url} ${logRef(url)}`),
-  message: text => (PLAIN_MESSAGE.test(text) ? text : `${text} ${logRef(text)}`),
+  address: url => (hiddenForm(url) === null ? url : `${url} ${addressRef(url)}`),
+  message: text => (isPlainMessage(text) ? text : `${text} ${logRef(text)}`),
+  wording: text => text,
 };
