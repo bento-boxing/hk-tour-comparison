@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractFallbackStops, extractStops, places, buildPlacesIndex } from './index';
+import { extractDayLineStops, extractFallbackStops, extractStops, places, buildPlacesIndex } from './index';
 import type { PlacesIndex, StopsResult } from './index';
 
 /** Maps stops to city nameZh, or region nameZh when cityId is null. */
@@ -609,8 +609,9 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
       expect(read('小欖菊展').names).toEqual(['小欖']);
       expect(read('小樽運河').names).toEqual(['小樽']);
     });
-    it('day headings are read as before: the rule is for fallback text only', () => {
+    it('extractStops alone does not apply it unless asked: the day-line route does (extractDayLineStops)', () => {
       expect(names(extractStops(['廣東小香格里拉'], places))).toEqual(['香格里拉']);
+      expect(names(extractDayLineStops(['廣東小香格里拉'], 8, places))).toEqual([]);
     });
   });
 
@@ -638,6 +639,7 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     });
     it('day headings are read as before: the rule is for fallback text only', () => {
       expect(names(extractStops(['乘澳門航空'], places))).toEqual(['澳門']);
+      expect(names(extractDayLineStops(['乘澳門航空'], 8, places))).toEqual(['澳門']);
     });
     it('spares a place whose 航空 goes on into an airport town, an air show or an aviation museum', () => {
       expect(read('珠海航空城2天', 2)).toEqual({ names: ['珠海'], dropped: [] });
@@ -726,5 +728,139 @@ describe('extractFallbackStops (a route read from a title, owner request 2026-11
     expect(read('香港 中山').names).toEqual(['中山']);
     expect(extractFallbackStops('深圳 中山', 2, places, ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen']).stops.map(s => s.cityId))
       .toEqual(['china-guangdong-zhongshan']);
+  });
+});
+
+describe('extractDayLineStops (a route read from day lines, owner decision 2026-11-15)', () => {
+  const read = (headings: string[], days = 8, exclude?: string[]) => {
+    const r = extractDayLineStops(headings, days, places, exclude);
+    return { names: names(r), dropped: r.dropped, unmatched: r.unmatched };
+  };
+
+  describe('comparisons are not places, as in fallback text', () => {
+    it('drops a place attached to a marker and lists it', () => {
+      expect(read(['香港 → 廣東小香格里拉 → 中山'])).toMatchObject({ names: ['中山'], dropped: [{ name: '香格里拉', rule: 'comparison' }] });
+      expect(read(['東方威尼斯水鄉', '江門'])).toMatchObject({ names: ['江門'], dropped: [{ name: '威尼斯', rule: 'comparison' }] });
+      expect(read(['巴黎風格酒店', '中山'])).toMatchObject({ names: ['中山'], dropped: [{ name: '巴黎', rule: 'comparison' }] });
+    });
+    it('reads the next place in the same words instead', () => {
+      expect(read(['享受峇里式溫泉中山度假村'])).toMatchObject({ names: ['中山'], dropped: [{ name: '峇里島', rule: 'comparison' }] });
+    });
+    it('keeps the same place named on its own, and lists nothing', () => {
+      expect(read(['峇里式按摩', '峇里島'])).toMatchObject({ names: ['峇里島'], dropped: [] });
+    });
+    it('keeps 版X after an edition word and X版 (the place before 版 is where the tour goes)', () => {
+      expect(read(['豪華版大阪', '京都'])).toMatchObject({ names: ['大阪', '京都'], dropped: [] });
+      expect(read(['陽朔版清明上河圖'])).toMatchObject({ names: ['陽朔'], dropped: [] });
+    });
+    it('reports the words as unmatched when the comparison was all they named', () => {
+      expect(read(['東方威尼斯水鄉', '中山']).unmatched).toEqual(['東方威尼斯水鄉']);
+    });
+  });
+
+  describe('too far for the trip: out-of-reach places go only when strictly fewer than the places within reach', () => {
+    it('drops a stop outside the short-trip regions on a tour of at most 3 days, and lists it', () => {
+      expect(read(['香港 → 中山', '高山賞紅葉', '珠海 → 香港'], 3)).toMatchObject({ names: ['中山', '珠海'], dropped: [{ name: '高山', rule: 'too-far' }] });
+    });
+    it('counts a place once however often the route returns to it', () => {
+      // 中山 three times is one place within reach against one out of reach: not fewer, so the route stays
+      expect(read(['香港 → 中山', '高山賞紅葉', '中山 → 香港'], 3)).toMatchObject({ names: ['中山', '高山', '中山'], dropped: [] });
+    });
+    it('keeps a short route whose every stop is out of reach, and lists nothing (a trip elsewhere)', () => {
+      expect(read(['香港 → 雲南'], 2)).toMatchObject({ names: ['雲南'], dropped: [] });
+      // the title path still empties such a route
+      expect(extractFallbackStops('雲南', 2, places).stops).toEqual([]);
+    });
+    describe('the outcomes of the fix-round-2 ruling (day lines only)', () => {
+      it('廣州, 上海, 深圳 on 2 days: two within reach against one, so 上海 goes', () => {
+        expect(read(['香港 → 廣州 → 上海', '深圳 → 香港'], 2)).toMatchObject({ names: ['廣州', '深圳'], dropped: [{ name: '上海', rule: 'too-far' }] });
+      });
+      it('澳門, 大阪, 京都, 大阪, 澳門 on 3 days: a gateway does not outweigh the destination, unchanged', () => {
+        expect(read(['香港 → 澳門 → 大阪', '大阪 → 京都', '大阪 → 澳門 → 香港'], 3))
+          .toMatchObject({ names: ['澳門', '大阪', '京都', '大阪', '澳門'], dropped: [] });
+      });
+      it('澳門, 首爾 on 3 days: one against one (首爾 beside a China-group stop is out of reach), unchanged', () => {
+        expect(read(['澳門 → 首爾', '首爾 → 澳門'], 3)).toMatchObject({ names: ['澳門', '首爾', '澳門'], dropped: [] });
+      });
+      it('深圳, 首爾 on 3 days with no stated start: unchanged', () => {
+        expect(read(['香港 → 深圳機場 → 首爾', '首爾 → 深圳 → 香港'], 3)).toMatchObject({ names: ['深圳', '首爾', '深圳'], dropped: [] });
+      });
+      it('廣州, 首爾 on 3 days: one against one, unchanged (round 1 dropped 首爾; the accepted cost)', () => {
+        expect(read(['香港 → 廣州', '首爾'], 3)).toMatchObject({ names: ['廣州', '首爾'], dropped: [] });
+      });
+      it('首爾, 東京 (3 days) and 溫哥華 (2 days) alone: unchanged', () => {
+        expect(read(['香港 → 首爾', '首爾 → 香港'], 3)).toMatchObject({ names: ['首爾'], dropped: [] });
+        expect(read(['香港 → 東京', '東京 → 香港'], 3)).toMatchObject({ names: ['東京'], dropped: [] });
+        expect(read(['溫哥華'], 2)).toMatchObject({ names: ['溫哥華'], dropped: [] });
+      });
+      it('廣州, 佛山, 首爾 on 3 days: two against one, so 首爾 goes', () => {
+        expect(read(['香港 → 廣州', '佛山', '首爾'], 3)).toMatchObject({ names: ['廣州', '佛山'], dropped: [{ name: '首爾', rule: 'too-far' }] });
+      });
+    });
+    it('keeps it on a tour of 4 days or more', () => {
+      expect(read(['香港 → 中山', '高山賞紅葉', '珠海 → 香港'], 4)).toMatchObject({ names: ['中山', '高山', '珠海'], dropped: [] });
+    });
+    it('drops a Korean stop beside China-group stops, and keeps Seoul on a flight from Hong Kong', () => {
+      expect(read(['中山溫泉', '首爾炸雞', '珠海'], 3)).toMatchObject({ names: ['中山', '珠海'], dropped: [{ name: '首爾', rule: 'too-far' }] });
+      // Hong Kong is excluded before the rule: it is not a China-group stop that would take Seoul away
+      expect(read(['香港 → 首爾', '首爾 → 水原', '首爾 → 香港'], 3)).toMatchObject({ names: ['首爾', '水原', '首爾'], dropped: [] });
+    });
+    it('a stated Shenzhen start is excluded before the rule too', () => {
+      const exclude = ['hongkong-hongkong-hongkong', 'china-guangdong-shenzhen'];
+      expect(read(['深圳 → 首爾', '首爾'], 3, exclude)).toMatchObject({ names: ['首爾'], dropped: [] });
+    });
+  });
+
+  it('leaves the places of the given stated start and end out of the too-far count, and never drops them (fix round 3)', () => {
+    const gateways = new Set(['china-guangdong-zhuhai', 'macau-macau-macau']);
+    const r = extractDayLineStops(['珠海 → 東京', '東京 → 澳門'], 3, places, undefined, gateways);
+    expect(names(r)).toEqual(['珠海', '東京', '澳門']);
+    expect(r.dropped).toEqual([]);
+    // without them (a caller with no stated start or end), the round-2 count: two within reach against one
+    expect(extractDayLineStops(['珠海 → 東京', '東京 → 澳門'], 3, places)).toMatchObject({ dropped: [{ name: '東京', rule: 'too-far' }] });
+  });
+
+  describe('the outlier rule and comparisons (fix round 2)', () => {
+    it('a stop the outlier rule removes in the plain reading stays removed and reported when a comparison takes a stop away', () => {
+      // plain: 中山, 塔林, 蘇州, 江門: 塔林 (a collision name) alone amid three Chinese stops goes. 東方蘇州 is a
+      // comparison, which leaves only two Chinese stops; 塔林 must not come back as Tallinn.
+      const r = read(['中山', '塔林', '東方蘇州', '江門']);
+      expect(r).toMatchObject({ names: ['中山', '江門'], dropped: [{ name: '蘇州', rule: 'comparison' }] });
+      expect(r.unmatched).toContain('塔林');
+    });
+    it('a comparison can make the outlier rule fire, and the outlier is not listed as a comparison', () => {
+      // plain: 中山, 珠海, 塔林, 威尼斯, 江門: three countries, so no outlier. Without the likeness 威尼斯, 塔林 is alone
+      // amid three Chinese stops: removed and reported as unmatched, as the outlier rule does.
+      const r = read(['中山', '珠海', '塔林', '東方威尼斯', '江門']);
+      expect(r).toMatchObject({ names: ['中山', '珠海', '江門'], dropped: [{ name: '威尼斯', rule: 'comparison' }] });
+      expect(r.unmatched).toContain('塔林');
+    });
+  });
+
+  it('lists as a comparison only a place the comparison rule passed over, not a shared name read in another country', () => {
+    // plain: 東京 (Japan) makes 東北 Tohoku; without the likeness 東京式, 東北 is north-east China beside 吉林. Only 東京 was
+    // passed over; 東北 changed country, it was not dropped.
+    const r = extractDayLineStops(['東京式拉麵', '東北', '吉林'], 8, places);
+    expect(r.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['region:china-northeast', 'china-northeast-jilin']);
+    expect(r.dropped).toEqual([{ name: '東京', rule: 'comparison' }]);
+  });
+
+  it('applies the day-line outlier rule before too far, as before: a collision name amid one country goes to unmatched', () => {
+    // 塔林 (Tallinn, a collision name) alone amid four Guangdong stops: removed by the outlier rule, not listed as too far
+    const r = read(['中山', '珠海', '塔林', '江門', '佛山'], 3);
+    expect(r).toMatchObject({ names: ['中山', '珠海', '江門', '佛山'], dropped: [] });
+    expect(r.unmatched).toContain('塔林');
+  });
+
+  it('does not apply the fallback-only rules: an airline name and a lone foreign stop stay', () => {
+    expect(read(['乘澳門航空直飛廈門'], 5)).toMatchObject({ names: ['澳門'], dropped: [] });
+    expect(read(['巴黎', '尼斯', '倫敦'], 8)).toMatchObject({ names: ['巴黎', '尼斯', '倫敦'], dropped: [] });
+  });
+
+  it('gives what extractStops gives when no rule applies', () => {
+    const headings = ['第一天 香港 → 大阪', '第二天 大阪 → 京都 → 亞特蘭提斯'];
+    const r = extractDayLineStops(headings, 5, places);
+    expect({ stops: r.stops, unmatched: r.unmatched }).toEqual(extractStops(headings, places));
+    expect(r.dropped).toEqual([]);
   });
 });

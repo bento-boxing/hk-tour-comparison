@@ -8,7 +8,9 @@
  *   pnpm replay --before <file>       compares with a replay saved earlier instead of a commit
  *   --logs <dir>                      where the logs are (default .superpowers/raw-pages, git-ignored)
  *
- * For each operator directory the newest `dry-run-<n>.log` is read. Nothing is fetched. --base copies that commit's
+ * For each operator directory the newest `dry-run-<n>.log` is read. Nothing is fetched. A page whose log gives no days
+ * (logged, stated in the fallback text or in the code) is given one per day heading, counted per operator and marked
+ * in the changed-route list: the too-far rule depends on the days. --base copies that commit's
  * packages/core with `git archive` into a temporary directory and loads it from there.
  */
 import { execFileSync } from 'node:child_process';
@@ -70,10 +72,10 @@ const routeText = (route: string[]) => (route.length === 0 ? 'no stops' : route.
 }).join(' → '));
 
 function printCounts(label: string, result: Replay): void {
-  console.log(`${label}: saved / no-stops / no departures / parse failures of pages`);
+  console.log(`${label}: saved / no-stops / no departures / parse failures of pages; pages whose days are their heading count`);
   for (const [operator, pages] of Object.entries(result)) {
     const c = countsOf(pages);
-    console.log(`  ${operator}: ${c.saved} / ${c.noStops} / ${c.noDepartures} / ${c.failures} of ${c.pages} (${percent(c.failureRate)})`);
+    console.log(`  ${operator}: ${c.saved} / ${c.noStops} / ${c.noDepartures} / ${c.failures} of ${c.pages} (${percent(c.failureRate)}); ${c.daysFromHeadings}`);
   }
 }
 
@@ -113,7 +115,8 @@ async function main(args: string[]): Promise<number> {
   for (const [operator, pages] of Object.entries(after)) {
     for (const change of changedRoutes(before[operator] ?? [], pages)) {
       changed++;
-      console.log(`${operator} ${change.code ?? change.url}: ${routeText(change.before)} => ${routeText(change.after)}`);
+      const days = change.days == null ? '' : ` (${change.days} days${change.daysFrom === 'headings' ? ', from the heading count' : ''})`;
+      console.log(`${operator} ${change.code ?? change.url}${days}: ${routeText(change.before)} => ${routeText(change.after)}`);
     }
   }
   console.log(`${changed} tours changed route (each page given dates on sale, so tours with none today are compared too)`);

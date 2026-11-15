@@ -49,7 +49,7 @@ export async function discover(fetcher: Fetcher): Promise<string[]> {
 }
 
 function checkedId(id: string): string {
-  if (!TOUR_ID.test(id)) throw new Error(`not a Big Line tour id: ${JSON.stringify(id)}`);
+  if (!TOUR_ID.test(id)) throw new Error(`not a Big Line tour id (${id.length} characters)`);
   return id;
 }
 
@@ -64,6 +64,6 @@ export function detailUrl(id: string): string {
  * digits or a month that is not `YYYY-MM`.
  */
 export function datesBody(id: string, yearMonth: string): { pageNo: 1; productId: string; yearMonth: string; pageSize: 1000 } {
-  if (!YEAR_MONTH.test(yearMonth)) throw new Error(`not a month (YYYY-MM): ${JSON.stringify(yearMonth)}`);
+  if (!YEAR_MONTH.test(yearMonth)) throw new Error(`not a month (YYYY-MM) (${yearMonth.length} characters)`);
   return { pageNo: 1, productId: checkedId(id), yearMonth, pageSize: 1000 };
 }

@@ -94,7 +94,12 @@ it('passes its own index to the start-point rule', () => {
 it('reports the raw headings, cut to 40 characters, when nothing was flagged unmatched', () => {
   const heading = 'x'.repeat(45);
   const r = normaliseTour({ ...base, dayHeadings: [heading, 'Day 2'] }, places, today);
-  expect(r).toEqual({ ok: false, reason: 'no-stops', unmatched: ['x'.repeat(40), 'Day 2'] });
+  expect(r).toEqual({ ok: false, reason: 'no-stops', unmatched: ['x'.repeat(40), 'Day 2'], unmatchedAreHeadings: true });
+});
+it('says when the reported names are heading text rather than unmatched place words, so a public log can leave them out', () => {
+  expect(normaliseTour({ ...base, dayHeadings: ['香港 → 亞特蘭提斯'] }, places, today)).not.toHaveProperty('unmatchedAreHeadings');
+  expect(normaliseTour({ ...base, dayHeadings: ['自由活動 → 酒店'] }, places, today))
+    .toMatchObject({ ok: false, reason: 'no-stops', unmatched: ['自由活動 → 酒店'], unmatchedAreHeadings: true });
 });
 it('drops Shenzhen from the route when only the end point is in Shenzhen', () => {
   const r = normaliseTour({ ...base, endPoint: '羅湖口岸散團', dayHeadings: ['深圳 → 桂林', '桂林 → 深圳'] }, places, today);
@@ -226,12 +231,100 @@ describe('the fallback route (Big Line: its title, owner decision 2026-11-14)', 
     expect(r).toMatchObject({ fallbackDropped: [{ name: '澳門', rule: 'airline' }] });
     expect(r.unmatched).toEqual(normaliseTour({ ...base, ...noPlaces }, places, today).unmatched);
   });
-  it('lists no drops when the rules drop nothing, and never for day headings', () => {
+  it('lists no drops when the rules drop nothing', () => {
     expect(normaliseTour({ ...base, ...noPlaces, fallbackRoute: '京都5天' }, places, today)).not.toHaveProperty('fallbackDropped');
-    // the same comparison in a day heading is read as before: the rules are for fallback text only
-    const headings = normaliseTour({ ...base, days: 2, dayHeadings: ['廣東小香格里拉'], fallbackRoute: '中山2天' }, places, today);
-    expect(cityIds(headings)).toEqual(['china-yunnan-shangri-la']);
-    expect(headings).not.toHaveProperty('fallbackDropped');
+  });
+  it('is read when the day-line rules leave no stop, each list naming its own drops', () => {
+    // the comparison in the day heading is dropped there (task 35), so the title is read
+    const r = normaliseTour({ ...base, days: 2, dayHeadings: ['廣東小香格里拉'], fallbackRoute: '中山2天' }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhongshan']);
+    expect(r).toMatchObject({ ok: true, routeFromFallback: true, dayHeadingsDropped: [{ name: '香格里拉', rule: 'comparison' }] });
+    expect(r).not.toHaveProperty('fallbackDropped');
+  });
+});
+
+describe('the day-line rules (owner decision 2026-11-15: comparisons and too far for the trip)', () => {
+  const cityIds = (r: ReturnType<typeof normaliseTour>) => (r.ok ? r.tour.stops.map(s => s.cityId ?? `region:${s.regionId}`) : r.reason);
+
+  it('drop a comparison from a day-line route and list it', () => {
+    const r = normaliseTour({ ...base, dayHeadings: ['香港 → 東方威尼斯水鄉 → 大阪', '大阪 → 京都'] }, places, today);
+    expect(cityIds(r)).toEqual(['japan-kansai-osaka', 'japan-kansai-kyoto']);
+    expect(r).toMatchObject({ dayHeadingsDropped: [{ name: '威尼斯', rule: 'comparison' }] });
+  });
+  it('drop a place too far for a short trip, using the tour\'s days', () => {
+    const headings = ['香港 → 中山', '高山賞紅葉 → 珠海'];
+    const short = normaliseTour({ ...base, days: 3, dayHeadings: headings }, places, today);
+    expect(cityIds(short)).toEqual(['china-guangdong-zhongshan', 'china-guangdong-zhuhai']);
+    expect(short).toMatchObject({ dayHeadingsDropped: [{ name: '高山', rule: 'too-far' }] });
+    expect(cityIds(normaliseTour({ ...base, days: 4, dayHeadings: headings }, places, today)))
+      .toEqual(['china-guangdong-zhongshan', 'japan-chubu-takayama', 'china-guangdong-zhuhai']);
+  });
+  it('list nothing when they drop nothing', () => {
+    expect(normaliseTour(base, places, today)).not.toHaveProperty('dayHeadingsDropped');
+  });
+  it('leave the tour no-stops when they drop every stop and there is no fallback, listing the drops', () => {
+    const r = normaliseTour({ ...base, days: 2, dayHeadings: ['香港 → 東方威尼斯水鄉'] }, places, today);
+    expect(r).toMatchObject({ ok: false, reason: 'no-stops', dayHeadingsDropped: [{ name: '威尼斯', rule: 'comparison' }] });
+  });
+  it('keep a short route whose every stop is out of reach: a trip elsewhere, nothing listed', () => {
+    const r = normaliseTour({ ...base, days: 2, dayHeadings: ['香港 → 高山'] }, places, today);
+    expect(cityIds(r)).toEqual(['japan-chubu-takayama']);
+    expect(r).not.toHaveProperty('dayHeadingsDropped');
+  });
+  it('list their drops on a tour with nothing to book too', () => {
+    const r = normaliseTour({ ...base, days: 2, dayHeadings: ['香港 → 中山 → 高山 → 珠海'], departures: [] }, places, today);
+    expect(r).toEqual({ ok: false, reason: 'no-departures', unmatched: [], dayHeadingsDropped: [{ name: '高山', rule: 'too-far' }] });
+  });
+  it('list their drops on a tour with no price too', () => {
+    const r = normaliseTour({
+      ...base, days: 2, dayHeadings: ['香港 → 中山 → 高山 → 珠海'], fromPriceHkd: null, departures: [{ date: '2026-12-18', priceHkd: null }],
+    }, places, today);
+    expect(r).toEqual({ ok: false, reason: 'no-price', unmatched: [], dayHeadingsDropped: [{ name: '高山', rule: 'too-far' }] });
+  });
+  it('leave a place the stated end names to the stated-ends step: it goes from the edge, not listed as too far (fix round 3)', () => {
+    const r = normaliseTour({ ...base, days: 2, endPoint: '東京成田機場解散', dayHeadings: ['香港 → 中山', '中山 → 珠海 → 東京'] }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhongshan', 'china-guangdong-zhuhai']);
+    expect(r).not.toHaveProperty('dayHeadingsDropped');
+    // with no stated end, the same place is too far and listed
+    const unstated = normaliseTour({ ...base, days: 2, dayHeadings: ['香港 → 中山', '中山 → 珠海 → 東京'] }, places, today);
+    expect(cityIds(unstated)).toEqual(['china-guangdong-zhongshan', 'china-guangdong-zhuhai']);
+    expect(unstated).toMatchObject({ dayHeadingsDropped: [{ name: '東京', rule: 'too-far' }] });
+  });
+  it('come before dropping a province beside its own city (the opt-in): a province and its city go together', () => {
+    const r = normaliseTour({ ...base, days: 3, dropRegionWithListedCity: true, dayHeadings: ['雲南', '大理', '中山', '珠海', '江門'] }, places, today);
+    expect(cityIds(r)).toEqual(['china-guangdong-zhongshan', 'china-guangdong-zhuhai', 'china-guangdong-jiangmen']);
+    expect(r).toMatchObject({ dayHeadingsDropped: [{ name: '雲南', rule: 'too-far' }, { name: '大理', rule: 'too-far' }] });
+  });
+  describe('leave a place the stated start or end names out of the count (fix round 3)', () => {
+    it('a tour from one stated gateway back to another keeps its destination', () => {
+      const r = normaliseTour({ ...base, days: 3, startPoint: '珠海拱北口岸', endPoint: '澳門外港碼頭', dayHeadings: ['珠海 → 東京', '東京 → 澳門'] }, places, today);
+      expect(cityIds(r)).toEqual(['japan-kanto-tokyo']);
+      expect(r).not.toHaveProperty('dayHeadingsDropped');
+    });
+    it('the other places are still compared: two within reach against one, so 上海 goes', () => {
+      const r = normaliseTour({ ...base, days: 2, startPoint: '珠海拱北口岸', dayHeadings: ['珠海 → 廣州 → 上海', '佛山'] }, places, today);
+      expect(cityIds(r)).toEqual(['china-guangdong-guangzhou', 'china-guangdong-foshan']);
+      expect(r).toMatchObject({ dayHeadingsDropped: [{ name: '上海', rule: 'too-far' }] });
+    });
+    it('one within reach against one beyond, with the gateway left out: nothing is dropped, then the gateway goes as the stated start', () => {
+      const r = normaliseTour({ ...base, days: 3, startPoint: '珠海拱北口岸', dayHeadings: ['珠海 → 中山', '首爾'] }, places, today);
+      expect(cityIds(r)).toEqual(['china-guangdong-zhongshan', 'korea-seoul-seoul']);
+      expect(r).not.toHaveProperty('dayHeadingsDropped');
+    });
+    it('a Shenzhen start (excluded before the rule) behaves as before', () => {
+      const r = normaliseTour({ ...base, days: 3, startPoint: '深圳灣口岸', dayHeadings: ['深圳 → 首爾', '首爾'] }, places, today);
+      expect(cityIds(r)).toEqual(['korea-seoul-seoul']);
+      expect(r).not.toHaveProperty('dayHeadingsDropped');
+    });
+  });
+  it('count a stated gateway as within reach, so it never outweighs the destination; the stated-ends step then removes it', () => {
+    // fix round 2: a short flight package from a stated Zhuhai or Macau gateway keeps its destination
+    const zhuhai = normaliseTour({ ...base, days: 2, startPoint: '珠海拱北口岸', dayHeadings: ['珠海 → 東京'] }, places, today);
+    expect(cityIds(zhuhai)).toEqual(['japan-kanto-tokyo']);
+    expect(zhuhai).not.toHaveProperty('dayHeadingsDropped');
+    const macau = normaliseTour({ ...base, days: 3, startPoint: '澳門外港碼頭', dayHeadings: ['澳門 → 大阪', '大阪 → 京都'] }, places, today);
+    expect(cityIds(macau)).toEqual(['japan-kansai-osaka', 'japan-kansai-kyoto']);
+    expect(macau).not.toHaveProperty('dayHeadingsDropped');
   });
 });
 

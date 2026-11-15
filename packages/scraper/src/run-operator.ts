@@ -131,13 +131,23 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     }
 
     const result = normaliseTour(scraped, index, today);
+    // The places the day-line rules dropped (task 35), so a drop is visible in the run's log as in a dry run: the
+    // tour code and place names from the places data only, never the day-line text.
+    if (result.dayHeadingsDropped !== undefined) {
+      log(`${operatorId}: day-line drops ${scraped.code}: ${result.dayHeadingsDropped.map(d => `${d.name} (${d.rule})`).join(', ')}`);
+    }
     if (!result.ok) {
       if (result.reason === 'no-departures') {
         log(`${operatorId}: skipped ${url}: no-departures`);
         continue;
       }
-      keepUnmatched(result.unmatched, scraped.code);
-      const names = result.unmatched.length > 0 ? ` (unmatched: ${result.unmatched.join(', ')})` : '';
+      keepUnmatched(result.unmatched, scraped.code); // stored for review as before, headings included
+      // The log is public: day-heading text (unmatchedAreHeadings) and unmatched words are the operator's phrases, so
+      // only their count is printed. The words themselves are stored (keepUnmatched) and shown by a dry run.
+      const names = result.unmatched.length === 0 ? ''
+        : result.unmatchedAreHeadings === true
+          ? ` (${count(result.unmatched.length, 'day heading', 'day headings')}, no place named)`
+          : ` (${count(result.unmatched.length, 'unmatched word', 'unmatched words')})`;
       parseFailure(url, `${result.reason}${names}`);
       continue;
     }

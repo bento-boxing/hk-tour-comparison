@@ -66,3 +66,7 @@ it('datesUrl is the JSON dates request for a tour code, in HKD', () => {
 it.each(['', '../x', 'HTJS JG06', 'HTJSJG06?x=1', 'HTJSJG06/../../admin'])('datesUrl refuses %j, which is not a tour code', code => {
   expect(() => datesUrl(code)).toThrow(/not a tour code/);
 });
+
+it('the refusal does not quote the text it refused, since a run log is public (it may be operator prose)', () => {
+  expect(() => datesUrl('行程文字示例')).toThrow('not a tour code (6 characters)');
+});

@@ -397,6 +397,44 @@ it('a throwing discover ends the run as failed', async () => {
   expect(logMentions('sitemap moved')).toBe(true);
 });
 
+describe('the public run log (task 35 fix round 2)', () => {
+  it('lists the places the day-line rules dropped, by tour code and place name, one line per tour', async () => {
+    await run(site([
+      ['A', tour('A', { days: 3, dayHeadings: ['香港 → 中山', '高山賞紅葉 → 東方威尼斯水鄉', '珠海 → 香港'] })],
+      ['B', tour('B')],
+    ]));
+    expect(logLines.filter(line => line.includes('day-line drops'))).toEqual([
+      'jetour: day-line drops A: 威尼斯 (comparison), 高山 (too-far)',
+    ]);
+    expect(logLines.at(-1)).toMatch(/^jetour: ok, 2 tours saved/); // the summary stays last
+  });
+  it('lists them for a tour that is not saved too', async () => {
+    await run(site([...goodTours(9), ['V', tour('V', { dayHeadings: ['香港 → 東方威尼斯水鄉'] })]]));
+    expect(logLines).toContain('jetour: day-line drops V: 威尼斯 (comparison)');
+  });
+  it('prints no day-heading text for a no-stops tour whose headings name no place: only how many headings there were', async () => {
+    const headings = ['測試用的第一段很長的文字內容', '測試用的第二段很長的文字內容'];
+    await run(site([...goodTours(9), ['P', tour('P', { dayHeadings: headings })]]));
+    const failure = logLines.filter(line => line.includes(pageUrl('P')));
+    expect(failure).toEqual([`jetour: parse failure ${pageUrl('P')}: no-stops (2 day headings, no place named)`]);
+    for (const line of logLines) for (const heading of headings) expect(line).not.toContain(heading.slice(0, 6));
+    // what is stored for review is unchanged: the headings, cut to 40 characters
+    expect((await unmatchedPlaces()).map(row => row.name).sort()).toEqual([...headings].sort());
+  });
+  it('prints how many unmatched words a no-stops tour has, not the words (they are the operator\'s phrases)', async () => {
+    const words = ['亞特蘭提斯', '夢幻樂園', '星光步道'];
+    await run(site([...goodTours(9), ['ATL', tour('ATL', { dayHeadings: [`香港 → ${words[0]}`, words[1], words[2]] })]]));
+    expect(logLines).toContain(`jetour: parse failure ${pageUrl('ATL')}: no-stops (3 unmatched words)`);
+    for (const line of logLines) for (const word of words) expect(line).not.toContain(word);
+    // what is stored for review is unchanged: the words themselves
+    expect((await unmatchedPlaces()).map(row => row.name).sort()).toEqual([...words].sort());
+  });
+  it('says "word" for one', async () => {
+    await run(site([...goodTours(9), ['ONE', tour('ONE', { dayHeadings: ['香港 → 亞特蘭提斯'] })]]));
+    expect(logLines).toContain(`jetour: parse failure ${pageUrl('ONE')}: no-stops (1 unmatched word)`);
+  });
+});
+
 describe('the routes read from fallback text that are new or changed (so the owner reads only those)', () => {
   /** A tour whose day headings name no place, its stops read from the fallback text. */
   const titled = (code: string, fallbackRoute: string) =>

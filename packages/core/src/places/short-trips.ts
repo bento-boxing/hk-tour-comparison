@@ -1,6 +1,10 @@
 /**
- * Rule 3 of a route read from fallback text ("too far for the trip", owner request 2026-11-14): on a tour of at
- * most SHORT_TRIP_MAX_DAYS days, a stop outside these regions is dropped (see extractFallbackStops).
+ * "Too far for the trip" (owner requests 2026-11-14 for routes read from fallback text, 2026-11-15 for routes read
+ * from day lines too): on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside these regions is out of reach
+ * (see withinReachOfTrip in stops.ts, used by extractDayLineStops and extractFallbackStops). On fallback text every
+ * stop out of reach is dropped, even all of them. On day lines the stops out of reach are dropped only when they are
+ * strictly fewer distinct places than those within reach, not counting the places the stated start or end names
+ * (gateways, which the rule never drops); otherwise the route stays as read (a flight package or a tour abroad).
  *
  * Derived on 2026-11-14 (task 33) from every tour of 1 to 4 days whose route came from its day headings in the
  * saved crawl logs (Big Line, EGL, Charming, Yummy) and from the subarea of the saved Sunflower listing. Of the 307

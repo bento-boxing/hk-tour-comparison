@@ -81,7 +81,8 @@ function firstOccurrenceOutside(key: string, name: string, spans: Span[], skip?:
 }
 
 /**
- * Comparison markers (fallback text only, owner request 2026-11-14): a place name with one of these directly before
+ * Comparison markers (owner requests 2026-11-14 for fallback text, 2026-11-15 for day lines too: extractFallbackStops,
+ * extractDayLineStops): a place name with one of these directly before
  * it (`廣東小香格里拉`, `東方威尼斯`, `廣東版《麗江古城》`, opening quote marks between them allowed) or after it
  * (`巴黎風格`, `東京式`) says what a place is like, not where the tour goes. Checked on 2026-11-14 (task 33) against
  * every Big Line title of that day's crawl, every title of the Sunflower listing and, for evidence only, every day
@@ -232,7 +233,10 @@ function loneForeignStopAt(route: Stop[], isCollision: (stop: Stop) => boolean):
 }
 
 export interface ExtractOptions {
-  /** Fallback text only: a place name attached to a comparison marker is not a stop (COMPARISON_PREFIXES, …_SUFFIXES). */
+  /**
+   * A place name attached to a comparison marker is not a stop (COMPARISON_PREFIXES, …_SUFFIXES). Set for day lines
+   * (extractDayLineStops) and fallback text (extractFallbackStops) alike.
+   */
   comparisonsAreNotPlaces?: boolean;
   /** Fallback text only: a place name forming an airline's name is not a stop (isAirline). */
   airlinesAreNotPlaces?: boolean;
@@ -245,8 +249,9 @@ export interface ExtractOptions {
 }
 
 /**
- * The route the day headings name. Transit chunks give no stops; a single foreign outlier (see
- * loneForeignStopAt) is removed and its name reported as unmatched, for review.
+ * The places the day headings name, read without the route rules unless `options` asks for them (a tour's route is
+ * extractDayLineStops or extractFallbackStops, which call this). Transit chunks give no stops; a single foreign
+ * outlier (see loneForeignStopAt) is removed and its name reported as unmatched, for review.
  * excludeCityIds: places never shown on a route (Hong Kong, and the tour's start/end city).
  */
 export function extractStops(
@@ -255,12 +260,32 @@ export function extractStops(
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
   options: ExtractOptions = {},
 ): StopsResult {
+  const { stops, unmatched } = readStops(dayHeadings, index, excludeCityIds, options);
+  return { stops, unmatched };
+}
+
+/**
+ * extractStops, with what the route rules need to know about the reading: the stop the outlier rule removed, if any,
+ * and each name a rule applied while reading passed over (a comparison, an airline), by rule.
+ */
+interface Reading extends StopsResult {
+  outlier: Stop | undefined;
+  passedOver: { name: string; rule: 'comparison' | 'airline' }[];
+}
+
+function readStops(dayHeadings: string[], index: PlacesIndex, excludeCityIds: string[], options: ExtractOptions): Reading {
   const excluded = new Set(excludeCityIds);
   const isExcludedCity: Skip = (_key, _at, name) => index.findCity(name).every(city => excluded.has(city.id));
+  const passedOver: Reading['passedOver'] = [];
+  const recorded = (rule: 'comparison' | 'airline', test: Skip): Skip => (key, at, name) => {
+    const passes = test(key, at, name);
+    if (passes) passedOver.push({ name, rule });
+    return passes;
+  };
   const skip = anyOf([
     ...(options.passOverExcludedCities === true ? [isExcludedCity] : []),
-    ...(options.comparisonsAreNotPlaces === true ? [comparisonRule(index)] : []),
-    ...(options.airlinesAreNotPlaces === true ? [isAirline] : []),
+    ...(options.comparisonsAreNotPlaces === true ? [recorded('comparison', comparisonRule(index))] : []),
+    ...(options.airlinesAreNotPlaces === true ? [recorded('airline', isAirline)] : []),
   ]);
   const cityNames = containedNameList(index);
   const notPlaces = notPlaceList(index);
@@ -320,22 +345,140 @@ export function extractStops(
   const isCollision = (stop: Stop) =>
     [placeOf(stop).nameZh, ...placeOf(stop).aliases].some(name => collisionNames.has(normaliseName(name)));
   const outlierAt = loneForeignStopAt(route, isCollision);
+  const outlier = outlierAt === -1 ? undefined : route[outlierAt];
   if (outlierAt !== -1) {
     unmatched.push(placeOf(route[outlierAt]).nameZh);
     route = withoutRepeats(route.filter((_, at) => at !== outlierAt));
   }
-  return { stops: route, unmatched: [...new Set(unmatched)] };
+  return { stops: route, unmatched: [...new Set(unmatched)], outlier, passedOver };
 }
 
-/** Why a route read from fallback text left a place out (see extractFallbackStops). */
-export type FallbackRule = 'comparison' | 'airline' | 'too-far' | 'lone-country';
-export interface FallbackDrop { name: string; rule: FallbackRule }
-export interface FallbackStopsResult { stops: Stop[]; dropped: FallbackDrop[] }
+/**
+ * Why a route left a place out: comparison and too-far for day lines and fallback text alike (extractDayLineStops),
+ * airline and lone-country for fallback text only (extractFallbackStops).
+ */
+export type RouteRule = 'comparison' | 'airline' | 'too-far' | 'lone-country';
+export interface RouteDrop { name: string; rule: RouteRule }
+export interface FallbackStopsResult { stops: Stop[]; dropped: RouteDrop[] }
+export interface DayLineStopsResult extends StopsResult { dropped: RouteDrop[] }
 
 const stopKey = (stop: Stop) => stop.cityId ?? `region:${stop.regionId}`;
 
 function placeName(stop: Stop, index: PlacesIndex): string {
   return stop.cityId !== null ? index.city(stop.cityId)!.nameZh : index.region(stop.regionId)!.nameZh;
+}
+
+/** The places a route's rules leave out, each listed once per rule by name. */
+function dropList(index: PlacesIndex) {
+  const dropped: RouteDrop[] = [];
+  const note = (stop: Stop, rule: RouteRule) => {
+    const name = placeName(stop, index);
+    if (!dropped.some(d => d.name === name && d.rule === rule)) dropped.push({ name, rule });
+  };
+  return {
+    dropped,
+    /** The stops `keep` accepts, the others listed under `rule`. */
+    keepOnly(stops: Stop[], keep: (stop: Stop) => boolean, rule: RouteRule): Stop[] {
+      for (const stop of stops) if (!keep(stop)) note(stop, rule);
+      return withoutRepeats(stops.filter(keep));
+    },
+    /**
+     * For a rule applied while reading (`after` is the reading with it): each place read without it and not with it
+     * is one it removed, when the rule passed over a name of that place. A place missing for another reason is not
+     * listed under the rule: a shared name read in another country once a likeness is gone (東北: Tohoku beside
+     * 東京, north-east China without it), or an outlier the reading without the likeness did not have.
+     */
+    noteRemoved(before: Stop[], after: Reading, rule: 'comparison' | 'airline'): void {
+      const kept = new Set(after.stops.map(stopKey));
+      const passedOver = new Set(after.passedOver.filter(p => p.rule === rule)
+        .flatMap(p => index.findCity(p.name).map(city => city.id)));
+      for (const stop of before) if (!kept.has(stopKey(stop)) && stop.cityId !== null && passedOver.has(stop.cityId)) note(stop, rule);
+    },
+  };
+}
+
+/**
+ * When the too-far rule removes the out-of-reach places (see withinReachOfTrip): 'always' (fallback text), or
+ * 'when-fewer' (day lines): only when they are strictly fewer distinct places than those within reach.
+ */
+type TooFarWhen = 'always' | 'when-fewer';
+
+/**
+ * Too far for the trip (owner requests 2026-11-14 for fallback text, 2026-11-15 for day lines): on a tour of at most
+ * SHORT_TRIP_MAX_DAYS days, a stop is within reach when it is in SHORT_TRIP_REGION_IDS, except one in
+ * SHORT_TRIP_REGION_IDS_WITHOUT_CHINA (Seoul, Busan) on a route with a China-group stop. The stops are those left
+ * after the excluded cities (Hong Kong, a Shenzhen start) are removed, so a flight from Hong Kong to Seoul keeps Seoul.
+ *
+ * The two paths differ (task 35 fix rounds 1 and 2, orchestrator rulings). Fallback text ('always') loses every stop
+ * out of reach, even all of them: a title names likenesses and dishes (`峇里風情`, `高山賞紅葉`) beside where the tour
+ * goes, and a route of those alone is no route. Day lines ('when-fewer') list where the tour goes, and the rule assumes
+ * a tour leaving Hong Kong by road or rail, which a short flight package or a land tour abroad is not: its day lines
+ * name a gateway within reach (澳門, 珠海, 深圳, often also its stated start) and a destination beyond it. So on day
+ * lines the out-of-reach places go only when they are strictly fewer distinct places (each counted once however often
+ * it recurs) than those within reach; otherwise the route stays as read and nothing is listed. `廣州, 上海, 深圳` on 2
+ * days loses 上海 (a venue name); `澳門, 大阪, 京都` on 3 days keeps everything. The accepted cost: one place within reach
+ * against one beyond it is left alone, so `廣州, 首爾` on 3 days keeps 首爾 even when it is a dish's name.
+ *
+ * statedCityIds (day lines only; fix round 3): the cities the tour's stated start or end names (normaliseTour's
+ * citiesNamedBy, the same test its stated-ends step uses). They are the gateways a flight leaves from and returns to:
+ * left out of the count and never dropped by this rule, wherever they stand (the stated-ends step then removes them at
+ * the route's edges, as before). So `珠海 → 東京 → 澳門` from a stated 珠海 back to a stated 澳門 keeps 東京.
+ */
+function withinReachOfTrip(
+  stops: Stop[], days: number, index: PlacesIndex, drops: ReturnType<typeof dropList>, when: TooFarWhen,
+  statedCityIds: ReadonlySet<string> = new Set(),
+): Stop[] {
+  if (days > SHORT_TRIP_MAX_DAYS) return stops;
+  const hasChinaStop = stops.some(stop => index.country(stop.countryId)?.group === 'china');
+  const nearEnough = (stop: Stop) => SHORT_TRIP_REGION_IDS.includes(stop.regionId)
+    && !(hasChinaStop && SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.includes(stop.regionId));
+  const isStated = (stop: Stop) => stop.cityId !== null && statedCityIds.has(stop.cityId);
+  if (when === 'when-fewer') {
+    const counted = stops.filter(stop => !isStated(stop));
+    const placesWhere = (near: boolean) => new Set(counted.filter(stop => nearEnough(stop) === near).map(stopKey)).size;
+    if (placesWhere(false) >= placesWhere(true)) return stops;
+  }
+  return drops.keepOnly(stops, stop => isStated(stop) || nearEnough(stop), 'too-far');
+}
+
+/**
+ * The route the day headings name (extractStops: excluded cities, transit chunks, the lone collision-name outlier),
+ * with the two rules fallback text also gets (owner decision 2026-11-15), in this order:
+ * - comparisons are not places, while reading (COMPARISON_PREFIXES, COMPARISON_SUFFIXES: `東方威尼斯`), so they come
+ *   before the excluded cities and the outlier rule, as for fallback text;
+ * - the outlier rule (loneForeignStopAt, unchanged) runs inside each reading. A stop it removes in the plain reading
+ *   (without comparisons) stays removed, and reported as unmatched, in the comparison reading too: a likeness taken
+ *   away must not leave fewer than three stops around a collision name and so bring it back (`中山, 塔林, 東方蘇州,
+ *   江門`: 塔林 stays out). The other way round is right as it is: once a likeness is gone, the outlier rule may find a
+ *   collision name it did not find beside the likeness (`中山, 珠海, 塔林, 東方威尼斯, 江門`), and removes it;
+ * - too far for the trip (withinReachOfTrip, 'when-fewer'), after the excluded cities (Hong Kong is not a China-group
+ *   stop that would take Seoul off a flight there) and after the outlier rule: the out-of-reach places go only when
+ *   they are fewer than the places within reach (a gateway does not outweigh a flight package's destination), the
+ *   places of the stated start and end (statedCityIds; none when the caller has none) left out of both counts.
+ * normaliseTour then drops a province beside its own city (when the operator opts in) and a stated start or end place,
+ * as for fallback text. Every place a rule leaves out is listed once per rule, by name (a comparison only when the
+ * rule passed over its name); it is not added to `unmatched` (the words of a comparison that named nothing else are,
+ * as any words that name no place).
+ */
+export function extractDayLineStops(
+  dayHeadings: string[],
+  days: number,
+  index: PlacesIndex,
+  excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
+  statedCityIds: ReadonlySet<string> = new Set(),
+): DayLineStopsResult {
+  const drops = dropList(index);
+  const plain = readStops(dayHeadings, index, excludeCityIds, {});
+  const read = readStops(dayHeadings, index, excludeCityIds, { comparisonsAreNotPlaces: true });
+  const outlier = plain.outlier;
+  if (outlier !== undefined && read.stops.some(stop => stopKey(stop) === stopKey(outlier))) {
+    read.stops = withoutRepeats(read.stops.filter(stop => stopKey(stop) !== stopKey(outlier)));
+    const name = placeName(outlier, index);
+    if (!read.unmatched.includes(name)) read.unmatched.push(name);
+  }
+  drops.noteRemoved(plain.stops, read, 'comparison');
+  const stops = withinReachOfTrip(read.stops, days, index, drops, 'when-fewer', statedCityIds);
+  return { stops, unmatched: read.unmatched, dropped: drops.dropped };
 }
 
 /**
@@ -358,13 +501,16 @@ function loneStopOf(stops: Stop[], index: PlacesIndex): Stop | undefined {
 
 /**
  * The route fallback text names (ScrapedTour.fallbackRoute: a tour title, not a list of places): the day-heading
- * rules, then four more that day headings never get (owner requests 2026-11-14 and 15), in this order:
+ * rules, including the two day lines also get (extractDayLineStops), and two more for fallback text only (owner
+ * requests 2026-11-14 and 15), in this order:
  * - comparisons are not places, while reading (COMPARISON_PREFIXES, COMPARISON_SUFFIXES: `廣東小香格里拉`);
- * - airlines are not places, while reading (isAirline: `澳門航空`);
- * - too far for the trip: on a tour of at most SHORT_TRIP_MAX_DAYS days, a stop outside SHORT_TRIP_REGION_IDS goes,
- *   and so does one in SHORT_TRIP_REGION_IDS_WITHOUT_CHINA (Seoul, Busan) when the route has a China-group stop;
- * - a lone foreign stop (loneStopOf): the one place alone in its country, on a route with another country of two or
- *   more places, goes (one place in each of two countries stays).
+ * - airlines are not places, while reading (isAirline: `澳門航空`; fallback text only);
+ * - too far for the trip (withinReachOfTrip, 'always'), which here may empty the route: a title whose every place is
+ *   out of reach of a short trip names likenesses or dishes, not where the tour goes (day lines drop out-of-reach
+ *   places only when they are fewer than those within reach);
+ * - a lone foreign stop (loneStopOf; fallback text only): the one place alone in its country, on a route with another
+ *   country of two or more places, goes (one place in each of two countries stays).
+ * An excluded city is also passed over inside a run of text (passOverExcludedCities; fallback text only).
  * Every place left out is listed once per rule, by name. Unmatched words are not returned: a title is not a list of
  * place names.
  */
@@ -374,37 +520,20 @@ export function extractFallbackStops(
   index: PlacesIndex,
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
 ): FallbackStopsResult {
-  const dropped: FallbackDrop[] = [];
-  const noteDrop = (stop: Stop, rule: FallbackRule) => {
-    const name = placeName(stop, index);
-    if (!dropped.some(d => d.name === name && d.rule === rule)) dropped.push({ name, rule });
-  };
-  const keepOnly = (stops: Stop[], keep: (stop: Stop) => boolean, rule: FallbackRule): Stop[] => {
-    for (const stop of stops) if (!keep(stop)) noteDrop(stop, rule);
-    return withoutRepeats(stops.filter(keep));
-  };
+  const drops = dropList(index);
 
   // The rules applied while reading, each in turn; a place one of them removes is one the text gives without it.
-  const read = (options: ExtractOptions) => extractStops([text], index, excludeCityIds, options).stops;
-  const noteRemoved = (before: Stop[], after: Stop[], rule: FallbackRule) => {
-    const kept = new Set(after.map(stopKey));
-    for (const stop of before) if (!kept.has(stopKey(stop))) noteDrop(stop, rule);
-  };
+  const read = (options: ExtractOptions) => readStops([text], index, excludeCityIds, options);
   const plain = read({ passOverExcludedCities: true });
   const withoutComparisons = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true });
-  noteRemoved(plain, withoutComparisons, 'comparison');
-  let stops = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
-  noteRemoved(withoutComparisons, stops, 'airline');
+  drops.noteRemoved(plain.stops, withoutComparisons, 'comparison');
+  const withoutAirlines = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true, airlinesAreNotPlaces: true });
+  drops.noteRemoved(withoutComparisons.stops, withoutAirlines, 'airline');
 
-  if (days <= SHORT_TRIP_MAX_DAYS) {
-    const hasChinaStop = stops.some(stop => index.country(stop.countryId)?.group === 'china');
-    const nearEnough = (stop: Stop) => SHORT_TRIP_REGION_IDS.includes(stop.regionId)
-      && !(hasChinaStop && SHORT_TRIP_REGION_IDS_WITHOUT_CHINA.includes(stop.regionId));
-    stops = keepOnly(stops, nearEnough, 'too-far');
-  }
+  let stops = withinReachOfTrip(withoutAirlines.stops, days, index, drops, 'always');
 
   const lone = loneStopOf(stops, index);
-  if (lone !== undefined) stops = keepOnly(stops, stop => stopKey(stop) !== stopKey(lone), 'lone-country');
+  if (lone !== undefined) stops = drops.keepOnly(stops, stop => stopKey(stop) !== stopKey(lone), 'lone-country');
 
-  return { stops, dropped };
+  return { stops, dropped: drops.dropped };
 }

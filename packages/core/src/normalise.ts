@@ -1,15 +1,22 @@
 import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
 import { normaliseName, type PlacesIndex } from './places/index';
-import { extractFallbackStops, extractStops, withoutRegionsOfListedCities, type FallbackDrop } from './stops';
+import { extractDayLineStops, extractFallbackStops, withoutRegionsOfListedCities, type RouteDrop } from './stops';
 import { normaliseStartPoint } from './start-point';
 
 /**
- * routeFromFallback: the stops came from ScrapedTour.fallbackRoute. fallbackDropped: present when that text was read
- * and its rules (extractFallbackStops) left places out, so a crawl log can show them.
+ * routeFromFallback: the stops came from ScrapedTour.fallbackRoute. dayHeadingsDropped: present when the day-line
+ * rules (extractDayLineStops) left places out of the day headings' route; fallbackDropped: present when the fallback
+ * text was read and its rules (extractFallbackStops) left places out. Both are there so a crawl log can show them.
+ */
+export interface RouteDrops { dayHeadingsDropped?: RouteDrop[]; fallbackDropped?: RouteDrop[] }
+/**
+ * unmatchedAreHeadings: on a no-stops result whose day headings named no place and no word to report, `unmatched` holds
+ * the headings themselves (cut to MAX_UNMATCHED_HEADING_LENGTH characters) for review. They are the operator's text,
+ * not place words, so a public log prints how many there are instead (run-operator.ts).
  */
 export type NormaliseResult =
-  | { ok: true; tour: NormalisedTour; unmatched: string[]; routeFromFallback: boolean; fallbackDropped?: FallbackDrop[] }
-  | { ok: false; reason: 'no-stops' | 'no-departures' | 'no-price'; unmatched: string[]; fallbackDropped?: FallbackDrop[] };
+  | ({ ok: true; tour: NormalisedTour; unmatched: string[]; routeFromFallback: boolean } & RouteDrops)
+  | ({ ok: false; reason: 'no-stops' | 'no-departures' | 'no-price'; unmatched: string[]; unmatchedAreHeadings?: true } & RouteDrops);
 
 const HONG_KONG_CITY_ID = 'hongkong-hongkong-hongkong';
 const SHENZHEN_CITY_ID = 'china-guangdong-shenzhen';
@@ -22,26 +29,31 @@ function lowerPrice(a: number | null, b: number | null): number | null {
   return Math.min(a, b);
 }
 
-/** True when the stop is a city whose name or an alias (2+ characters) appears in the point's label. */
-function isNamedBy(stop: Stop | undefined, point: TourPoint, index: PlacesIndex): boolean {
-  if (stop?.cityId == null || point.kind !== 'other' || point.label === null) return false;
-  const city = index.city(stop.cityId);
-  if (!city) return false;
+/**
+ * The cities a stated start or end point (kind `other`) names: those whose name or an alias (2+ characters) appears in
+ * its label. The one definition of "named by the stated start or end", for withoutStatedEnds and the day-line too-far
+ * rule (extractDayLineStops' statedCityIds).
+ */
+function citiesNamedBy(point: TourPoint, index: PlacesIndex): Set<string> {
+  if (point.kind !== 'other' || point.label === null) return new Set();
   const label = normaliseName(point.label);
-  return [city.nameZh, ...city.aliases].some(name => {
-    const key = normaliseName(name);
-    return [...key].length >= 2 && label.includes(key);
-  });
+  return new Set(index.data.cities
+    .filter(city => [city.nameZh, ...city.aliases].some(name => {
+      const key = normaliseName(name);
+      return [...key].length >= 2 && label.includes(key);
+    }))
+    .map(city => city.id));
 }
 
 /**
- * The route without a stated start or end place (kind `other`) at its edges: the first stop when the start
- * point names it, the last when the end point does. The same city in the middle of the route stays.
+ * The route without a stated start or end place at its edges: the first stop when the start point names it
+ * (citiesNamedBy), the last when the end point does. The same city in the middle of the route stays.
  */
-function withoutStatedEnds(stops: Stop[], start: TourPoint, end: TourPoint, index: PlacesIndex): Stop[] {
+function withoutStatedEnds(stops: Stop[], namedByStart: Set<string>, namedByEnd: Set<string>): Stop[] {
+  const namedBy = (stop: Stop | undefined, named: Set<string>) => stop?.cityId != null && named.has(stop.cityId);
   let route = stops;
-  if (isNamedBy(route[0], start, index)) route = route.slice(1);
-  if (isNamedBy(route.at(-1), end, index)) route = route.slice(0, -1);
+  if (namedBy(route[0], namedByStart)) route = route.slice(1);
+  if (namedBy(route.at(-1), namedByEnd)) route = route.slice(0, -1);
   return route;
 }
 
@@ -77,40 +89,45 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
 
   const excluded = [HONG_KONG_CITY_ID];
   if (start.kind === 'sz' || end.kind === 'sz') excluded.push(SHENZHEN_CITY_ID);
-  const extracted = extractStops(scraped.dayHeadings, index, excluded);
+  // The day-line rules (comparisons, too far for the trip) come first, so a province and its city, or a stated start or
+  // end place, that one of them removes is listed as dropped by it.
+  const namedByStart = citiesNamedBy(start, index);
+  const namedByEnd = citiesNamedBy(end, index);
+  // A place the stated start or end names is a gateway: the day-line too-far rule neither counts nor drops it.
+  const extracted = extractDayLineStops(scraped.dayHeadings, scraped.days, index, excluded, new Set([...namedByStart, ...namedByEnd]));
   const { unmatched } = extracted;
+  let drops: RouteDrops = extracted.dropped.length > 0 ? { dayHeadingsDropped: extracted.dropped } : {};
   // Opt-in (ScrapedTour.dropRegionWithListedCity): a province given only as a tag beside its own cities is not a stop.
   const listed = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(extracted.stops) : extracted.stops;
-  let stops = withoutStatedEnds(listed, start, end, index);
+  let stops = withoutStatedEnds(listed, namedByStart, namedByEnd);
 
   // A tour with nothing to book is skipped whatever its route: no-departures comes before no-stops.
   const departures = upcomingDepartures(scraped.departures, today);
-  if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched };
+  if (departures.length === 0) return { ok: false, reason: 'no-departures', unmatched, ...drops };
 
-  // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop, with the heading rules and the
-  // fallback rules after them (extractFallbackStops), and its unmatched words are not reported (a title is not a list
-  // of place names). Several texts are read in order until one gives a stop; the drops of every text read are listed.
+  // Opt-in (ScrapedTour.fallbackRoute): read only when the headings leave no stop (after their rules), with the heading
+  // rules and the fallback rules after them (extractFallbackStops), and its unmatched words are not reported (a title is
+  // not a list of place names). Several texts are read in order until one gives a stop; the drops of every text read
+  // are listed.
   let routeFromFallback = false;
-  let drops: { fallbackDropped?: FallbackDrop[] } = {};
   if (stops.length === 0 && scraped.fallbackRoute !== undefined) {
-    const dropped: FallbackDrop[] = [];
+    const dropped: RouteDrop[] = [];
     for (const text of typeof scraped.fallbackRoute === 'string' ? [scraped.fallbackRoute] : scraped.fallbackRoute) {
       const fallback = extractFallbackStops(text, scraped.days, index, excluded);
       for (const drop of fallback.dropped) if (!dropped.some(d => d.name === drop.name && d.rule === drop.rule)) dropped.push(drop);
       const listedOnly = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(fallback.stops) : fallback.stops;
-      stops = withoutStatedEnds(listedOnly, start, end, index);
+      stops = withoutStatedEnds(listedOnly, namedByStart, namedByEnd);
       if (stops.length === 0 && excluded.includes(SHENZHEN_CITY_ID)) stops = shenzhenAlone(text, scraped.days, index);
       if (stops.length > 0) break;
     }
     routeFromFallback = stops.length > 0;
-    if (dropped.length > 0) drops = { fallbackDropped: dropped };
+    if (dropped.length > 0) drops = { ...drops, fallbackDropped: dropped };
   }
 
   if (stops.length === 0) {
-    const reported = unmatched.length > 0
-      ? unmatched
-      : scraped.dayHeadings.map(heading => [...heading].slice(0, MAX_UNMATCHED_HEADING_LENGTH).join(''));
-    return { ok: false, reason: 'no-stops', unmatched: reported, ...drops };
+    if (unmatched.length > 0) return { ok: false, reason: 'no-stops', unmatched, ...drops };
+    const headings = scraped.dayHeadings.map(heading => [...heading].slice(0, MAX_UNMATCHED_HEADING_LENGTH).join(''));
+    return { ok: false, reason: 'no-stops', unmatched: headings, unmatchedAreHeadings: true, ...drops };
   }
 
   // The lowest departure price, or the operator's "from" price when no departure has one. A departure without a

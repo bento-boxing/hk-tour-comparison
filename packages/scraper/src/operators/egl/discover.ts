@@ -47,6 +47,6 @@ export async function discover(fetcher: Fetcher): Promise<string[]> {
  * allows `/api/`). Throws for a `code` that does not match TOUR_CODE_PATTERN, so no code can change the path.
  */
 export function datesUrl(code: string): string {
-  if (!TOUR_CODE_PATTERN.test(code)) throw new Error(`not a tour code: ${JSON.stringify(code)}`);
+  if (!TOUR_CODE_PATTERN.test(code)) throw new Error(`not a tour code (${code.length} characters)`);
   return `${ORIGIN}/api/v1/tours/${code}/dates?currencyCode=HKD`;
 }

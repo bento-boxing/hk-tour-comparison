@@ -113,7 +113,7 @@ function wholeNumber(value: unknown): number | null {
 function pageCount(value: unknown): number {
   const count = wholeNumber(value);
   if (count === null || count < 1) {
-    throw new Error(`charming: REST list gives no page count (X-WP-TotalPages ${JSON.stringify(value)})`);
+    throw new Error('charming: REST list gives no page count (X-WP-TotalPages missing or not a whole number)');
   }
   if (count > MAX_LIST_PAGES) {
     throw new Error(`charming: REST list has ${count} pages, more than the ${MAX_LIST_PAGES} read`);
@@ -134,7 +134,7 @@ export async function discover(fetcher: Fetcher, log: (line: string) => void = l
   const first = await readPage(fetcher, 1);
   const pageTotal = pageCount(first.totalPages);
   const postTotal = wholeNumber(first.total);
-  if (postTotal === null) throw new Error(`charming: REST list gives no post count (X-WP-Total ${JSON.stringify(first.total)})`);
+  if (postTotal === null) throw new Error('charming: REST list gives no post count (X-WP-Total missing or not a whole number)');
   const pages = [first];
   for (let page = 2; page <= pageTotal; page++) pages.push(await readPage(fetcher, page));
 

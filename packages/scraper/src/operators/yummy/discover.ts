@@ -20,7 +20,7 @@ const TOUR_ID = /^[1-9][0-9]{0,9}$/;
 const TOUR_PAGE = /^https:\/\/www\.yummyholiday\.net\/#\/pages\/detail\/detail\?id=([1-9][0-9]{0,9})$/;
 
 function checkedId(id: string): string {
-  if (!TOUR_ID.test(id)) throw new Error(`not a Yummy Holiday tour id: ${JSON.stringify(id)}`);
+  if (!TOUR_ID.test(id)) throw new Error(`not a Yummy Holiday tour id (${id.length} characters)`);
   return id;
 }
 

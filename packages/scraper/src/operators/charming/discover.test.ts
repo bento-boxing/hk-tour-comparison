@@ -155,4 +155,9 @@ describe('discover throws rather than return part of the list', () => {
   ] as [string, Record<number, string | null>, RegExp][])('when %s', async (_, pages, message) => {
     await expect(discover(listFetcher(pages).fetcher)).rejects.toThrow(message);
   });
+  it('does not quote a count header it cannot read, since a run log is public', async () => {
+    const error = await discover(listFetcher({ 1: envelope(posts(0, 3), { pages: '兩頁' }) }).fetcher).catch((e: unknown) => e);
+    expect(String(error)).toMatch(/no page count/);
+    expect(String(error)).not.toContain('兩頁');
+  });
 });

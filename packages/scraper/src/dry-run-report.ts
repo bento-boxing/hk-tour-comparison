@@ -1,5 +1,5 @@
 import {
-  normaliseTour, scrapedTourSchema, type FallbackDrop, type IsoDate, type PlacesIndex, type ScrapedTour, type Stop,
+  normaliseTour, scrapedTourSchema, type IsoDate, type PlacesIndex, type RouteDrop, type ScrapedTour, type Stop,
 } from '@hktours/core';
 import type { OperatorScraper } from './types';
 
@@ -16,13 +16,16 @@ export type PageDescription =
     route: string[];
     unmatched: string[];
     dayHeadings: string[]; startPoint: string | null; endPoint: string | null;
+    /** The tour's days: the too-far rule depends on them, for day lines and fallback text alike. */
+    days: number;
+    /** Each place the day-line rules (comparisons, too far for the trip) left out of the day headings' route. */
+    dayHeadingsDropped: RouteDrop[];
     /** Only for a parser that gives one (Big Line: the title; Sunflower: its texts in order), so a crawl log shows what it was read from. */
     fallbackRoute?: string | string[];
     /** With fallbackRoute: true when the saved route came from it (the day headings named no stop). */
     routeFromFallback?: boolean;
-    /** With fallbackRoute: the tour's days (the too-far rule depends on them) and each place its rules dropped. */
-    days?: number;
-    fallbackDropped?: FallbackDrop[];
+    /** With fallbackRoute: each place its rules dropped. */
+    fallbackDropped?: RouteDrop[];
   };
 
 export interface DryRunRecorder {
@@ -90,13 +93,14 @@ export function describePage(page: ParsedPage, index: PlacesIndex, today: IsoDat
     dayHeadings: scraped.dayHeadings,
     startPoint: scraped.startPoint,
     endPoint: scraped.endPoint,
+    days: scraped.days,
+    dayHeadingsDropped: normalised.dayHeadingsDropped ?? [],
   };
   if (scraped.fallbackRoute === undefined) return description;
   return {
     ...description,
     fallbackRoute: scraped.fallbackRoute,
     routeFromFallback: normalised.ok && normalised.routeFromFallback,
-    days: scraped.days,
     fallbackDropped: normalised.fallbackDropped ?? [],
   };
 }

@@ -10,7 +10,7 @@ export interface ScrapedTour {
   code: string;            // operator's own tour code, non-empty
   url: string;             // operator's page for this tour, https
   title: string;
-  days: number;            // integer 1..60
+  days: number;            // integer 1..60; the route's too-far rule reads it (SHORT_TRIP_MAX_DAYS)
   nights: number | null;
   dayHeadings: string[];   // one per itinerary day, in order, heading text only
   startPoint: string | null; // raw text if the operator states it
@@ -18,9 +18,10 @@ export interface ScrapedTour {
   fromPriceHkd: number | null; // operator's displayed "from" price, if any
   departures: ScrapedDeparture[]; // not sold out; may include past dates
   /**
-   * Opt-in, for an operator whose day headings often name no place: text read only when the headings give no stop,
-   * with the day-heading rules and the fallback rules after them (extractFallbackStops: comparisons, too far for the
-   * trip, a lone foreign stop, airlines), its unmatched words not reported. Several texts are read in order, and the
+   * Opt-in, for an operator whose day headings often name no place: text read only when the headings give no stop
+   * after their rules (extractDayLineStops: comparisons, too far for the trip), with the day-heading rules and the
+   * fallback rules after them (extractFallbackStops: those two, a lone foreign stop, airlines), its unmatched words not
+   * reported. Several texts are read in order, and the
    * first that gives a stop after its rules is the route. Big Line sets its title (owner decision 2026-11-14);
    * Sunflower its title, subarea and area for a Guangdong short trip, else its area then its title (2026-11-15).
    */

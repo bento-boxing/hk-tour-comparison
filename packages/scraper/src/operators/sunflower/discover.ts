@@ -28,7 +28,7 @@ const BOOKING_PAGE = /^https:\/\/www\.sunflower\.com\.hk\/OnlineBooking\/\?TourC
  * a run and the "view on the operator's site" link.
  */
 export function bookingUrl(code: string): string {
-  if (!CODE.test(code)) throw new Error(`not a Sunflower tour code: ${JSON.stringify(code)}`);
+  if (!CODE.test(code)) throw new Error(`not a Sunflower tour code (${code.length} characters)`);
   return `${SITE}/OnlineBooking/?TourCode=${code}`;
 }
 

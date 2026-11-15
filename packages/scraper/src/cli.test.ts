@@ -251,7 +251,7 @@ describe('runCli', () => {
     expect(pageLines).toEqual([
       {
         url: pageUrl('A'), code: 'A', result: 'ok', route: ['大阪 (日本)', '京都 (日本)'], unmatched: [],
-        dayHeadings: ['香港 → 大阪', '大阪 → 京都'], startPoint: null, endPoint: null,
+        dayHeadings: ['香港 → 大阪', '大阪 → 京都'], startPoint: null, endPoint: null, days: 6, dayHeadingsDropped: [],
       },
       { url: pageUrl('N'), result: 'parser-null' },
     ]);
