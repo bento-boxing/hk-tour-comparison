@@ -768,6 +768,10 @@ describe('extractDayLineStops (a route read from day lines, owner decision 2026-
     it('drops a stop outside the short-trip regions on a tour of at most 3 days, and lists it', () => {
       expect(read(['香港 → 中山', '高山賞紅葉', '珠海 → 香港'], 3)).toMatchObject({ names: ['中山', '珠海'], dropped: [{ name: '高山', rule: 'too-far' }] });
     });
+    it('drops 武漢 beside two Hunan places on 3 days: Hubei is out of reach since 華中 was split (task 37)', () => {
+      expect(read(['長沙 → 岳陽', '武漢'], 3)).toMatchObject({ names: ['長沙', '岳陽'], dropped: [{ name: '武漢', rule: 'too-far' }] });
+      expect(read(['長沙 → 岳陽', '南昌'], 3)).toMatchObject({ names: ['長沙', '岳陽', '南昌'], dropped: [] });
+    });
     it('counts a place once however often the route returns to it', () => {
       // 中山 three times is one place within reach against one out of reach: not fewer, so the route stays
       expect(read(['香港 → 中山', '高山賞紅葉', '中山 → 香港'], 3)).toMatchObject({ names: ['中山', '高山', '中山'], dropped: [] });
