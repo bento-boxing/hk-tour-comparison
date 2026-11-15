@@ -190,9 +190,80 @@ describe('on the seed table', () => {
     expect(await keys({}, 'destination')).toEqual(['jetour:HKD7', 'egl:KIX5', 'jetour:TYO-KIX', 'texpert:SEL5', 'bigline:TPE4']);
   });
 
+  it('sorts each way, breaking ties by the shown price and then the key', async () => {
+    expect(await keys({}, 'price-desc')).toEqual(['jetour:HKD7', 'jetour:TYO-KIX', 'egl:KIX5', 'texpert:SEL5', 'bigline:TPE4']);
+    // SEL5 and KIX5 are both 5 days: the cheaper one comes first in both directions.
+    expect(await keys({}, 'days-desc')).toEqual(['jetour:HKD7', 'jetour:TYO-KIX', 'texpert:SEL5', 'egl:KIX5', 'bigline:TPE4']);
+    // By the first departure the card shows, latest first.
+    expect(await keys({}, 'date-desc')).toEqual(['jetour:HKD7', 'texpert:SEL5', 'bigline:TPE4', 'jetour:TYO-KIX', 'egl:KIX5']);
+  });
+
+  it('destination sorts follow the ranking of first regions it is given, in both directions', async () => {
+    const order = ['taiwan-north', 'korea-seoul', 'japan-kanto', 'japan-kansai', 'japan-hokkaido'];
+    const sorted = async (sort: SortKey, destinationOrder: string[]) =>
+      (await searchTours(db, { filters: {}, sort, page: 1, today, destinationOrder })).tours.map(t => t.key);
+    // jetour:TYO-KIX starts in Kanto (its first stop), so it sorts there although it also visits Kansai.
+    expect(await sorted('destination', order)).toEqual(['bigline:TPE4', 'texpert:SEL5', 'jetour:TYO-KIX', 'egl:KIX5', 'jetour:HKD7']);
+    expect(await sorted('destination-desc', order)).toEqual(['jetour:HKD7', 'egl:KIX5', 'jetour:TYO-KIX', 'texpert:SEL5', 'bigline:TPE4']);
+    // A region missing from the ranking comes last either way, in id order.
+    expect(await sorted('destination', ['korea-seoul'])).toEqual(['texpert:SEL5', 'jetour:HKD7', 'egl:KIX5', 'jetour:TYO-KIX', 'bigline:TPE4']);
+    expect(await sorted('destination-desc', ['korea-seoul'])).toEqual(['texpert:SEL5', 'bigline:TPE4', 'jetour:TYO-KIX', 'egl:KIX5', 'jetour:HKD7']);
+  });
+
   it('date sort uses the earliest departure inside the window', async () => {
     // From 12-21 on, egl:KIX5's first listed departure is 12-27, after bigline 12-23 and texpert 12-24.
     expect(await keys({ dateFrom: '2026-12-21' }, 'date')).toEqual(['bigline:TPE4', 'texpert:SEL5', 'egl:KIX5', 'jetour:HKD7']);
+  });
+
+  it('a travel window keeps the departures that leave and come back inside it, and reprices', async () => {
+    // egl:KIX5 (5 days) on 12-18 is back on 12-22, inside; on 12-27 it is back on 12-31, outside.
+    // texpert:SEL5 (5 days) on 12-24 and 12-25 is back on 12-28 and 12-29: it is not listed.
+    const r = await searchTours(db, { filters: { travelFrom: '2026-12-18', travelTo: '2026-12-27' }, sort: 'price', page: 1, today });
+    expect(r.tours.map(t => [t.key, t.departures.map(d => d.date), t.windowPriceHkd])).toEqual([
+      ['bigline:TPE4', ['2026-12-23'], 3980],
+      ['egl:KIX5', ['2026-12-18'], 7999],
+      ['jetour:TYO-KIX', ['2026-12-20'], 9880],
+    ]);
+    expect(r.total).toBe(3);
+    const later = await searchTours(db, { filters: { travelFrom: '2026-12-27', travelTo: '2026-12-31' }, sort: 'price', page: 1, today });
+    expect(later.tours.map(t => [t.key, t.departures, t.windowPriceHkd, t.fromPriceHkd])).toEqual([
+      ['egl:KIX5', [{ date: '2026-12-27', priceHkd: 8999 }], 8999, 7999],
+    ]);
+  });
+
+  it('price filters, the price sort and the date sort use the fitting departures only', async () => {
+    expect(await keys({ travelFrom: '2026-12-27', travelTo: '2026-12-31', priceMax: 8000 })).toEqual([]);
+    // From 12-25: SEL5 fits only on 12-25 and KIX5 only on 12-27, although both have earlier departures.
+    const fitting = { travelFrom: '2026-12-25' as IsoDate, travelTo: '2026-12-31' as IsoDate };
+    expect(await keys(fitting, 'date')).toEqual(['texpert:SEL5', 'egl:KIX5']);
+    expect(await keys(fitting, 'date-desc')).toEqual(['egl:KIX5', 'texpert:SEL5']);
+    expect(await keys(fitting, 'price-desc')).toEqual(['egl:KIX5', 'texpert:SEL5']);
+  });
+
+  it('with a departure window as well, a departure must pass both', async () => {
+    // From 12-20 the departure window drops egl:KIX5's 12-18, its only departure that fits the travel window.
+    expect(await keys({ dateFrom: '2026-12-20', travelFrom: '2026-12-18', travelTo: '2026-12-27' }))
+      .toEqual(['bigline:TPE4', 'jetour:TYO-KIX']);
+    expect(await keys({ dateTo: '2026-12-21', travelFrom: '2026-12-18', travelTo: '2026-12-27' }))
+      .toEqual(['egl:KIX5', 'jetour:TYO-KIX']);
+  });
+
+  it('a travel window that nothing can fit gives an empty list, not an error', async () => {
+    expect(await keys({ travelFrom: '2026-12-27', travelTo: '2026-12-18' })).toEqual([]); // end before start
+    expect(await keys({ travelFrom: '2026-12-23', travelTo: '2026-12-25' })).toEqual([]); // shorter than any tour
+    expect(await keys({ travelFrom: '2026-01-01', travelTo: '2026-11-30' })).toEqual([]); // in the past
+  });
+
+  it('a travel window starting in the past starts after today; one end alone applies on its own', async () => {
+    const r = await searchTours(db, { filters: { travelFrom: '2026-01-01', travelTo: '2026-12-31' }, sort: 'price', page: 1, today: '2026-12-19' });
+    expect(r.tours.map(t => [t.key, t.departures.map(d => d.date)])).toEqual([
+      ['bigline:TPE4', ['2026-12-23']],
+      ['texpert:SEL5', ['2026-12-24', '2026-12-25']],
+      ['egl:KIX5', ['2026-12-27']],
+      ['jetour:TYO-KIX', ['2026-12-20']],
+    ]);
+    expect(await keys({ travelFrom: '2026-12-24' })).toEqual(['texpert:SEL5', 'egl:KIX5', 'jetour:HKD7']);
+    expect(await keys({ travelTo: '2026-12-25' })).toEqual(['egl:KIX5', 'jetour:TYO-KIX']);
   });
 
   it('hides tours whose departures have all passed', async () => {
@@ -393,6 +464,19 @@ describe('paging', () => {
     }
   });
 
+  it.each([
+    'price', 'price-desc', 'days', 'days-desc', 'date', 'date-desc', 'destination', 'destination-desc',
+  ] as const)('sort %s pages every tour exactly once, equal tours in key order', async sort => {
+    const destinationOrder = ['taiwan-north', 'korea-seoul', 'japan-kanto', 'japan-kansai', 'japan-hokkaido'];
+    const at = (n: number) => searchTours(db, { filters: {}, sort, page: n, today, destinationOrder });
+    const all = [...(await at(1)).tours, ...(await at(2)).tours].map(t => t.key);
+    expect(all).toHaveLength(35);
+    expect(new Set(all).size).toBe(35);
+    // The 30 extras tie on every sort value (price, length, date, region): the key decides, in both directions.
+    expect(all.filter(k => extraKeys.includes(k))).toEqual(extraKeys);
+    expect([...(await at(1)).tours, ...(await at(2)).tours].map(t => t.key)).toEqual(all);
+  });
+
   it('makes a fixed handful of queries for a full page', async () => {
     const c = countingDb(db);
     const r = await searchTours(c.db, { filters: {}, sort: 'price', page: 1, today });
@@ -427,6 +511,32 @@ describe('a destination reached only by a middle stop', () => {
     expect(kansai.tours.map(t => t.key)).toEqual(['texpert:TYO-OSA-NGO', 'egl:KIX5', 'jetour:TYO-KIX']);
     expect(kansai.total).toBe(3);
     expect(kansai.tours[0].stops).toEqual([TOKYO, OSAKA, NAGOYA]);
+  });
+});
+
+describe('the owner\'s travel-window example', () => {
+  // Free from 12 to 15 January 2027: a 4-day tour must leave on the 12th, a 3-day tour on the 12th or 13th,
+  // and a 5-day tour never fits.
+  let db: Db;
+  const daily = (price: number): ScrapedDeparture[] =>
+    ['2027-01-11', '2027-01-12', '2027-01-13', '2027-01-14'].map(date => ({ date, priceHkd: price }));
+  beforeAll(async () => {
+    db = await createTestDb();
+    await save(db, 'bigline', [
+      tour('bigline', 'D3', [TAIPEI], 3, daily(3000), 3000),
+      tour('bigline', 'D4', [TAIPEI], 4, daily(4000), 4000),
+      tour('bigline', 'D5', [TAIPEI], 5, daily(5000), 5000),
+    ]);
+  });
+  afterAll(async () => { await db.close(); });
+
+  it('lists each tour with the departures that fit', async () => {
+    const r = await searchTours(db, { filters: { travelFrom: '2027-01-12', travelTo: '2027-01-15' }, sort: 'price', page: 1, today });
+    expect(r.tours.map(t => [t.key, t.departures.map(d => d.date)])).toEqual([
+      ['bigline:D3', ['2027-01-12', '2027-01-13']],
+      ['bigline:D4', ['2027-01-12']],
+    ]);
+    expect(r.total).toBe(2);
   });
 });
 

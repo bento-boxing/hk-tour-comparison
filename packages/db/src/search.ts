@@ -9,13 +9,20 @@ export interface TourFilters {
   destination?: Destination;          // matches if ANY stop is in it
   excludeCountryIds?: string[];       // drops tours with ANY stop in these countries
   dateFrom?: IsoDate; dateTo?: IsoDate; // departure window, inclusive
+  /**
+   * The visitor's free dates, inclusive: a departure fits when it leaves on or after travelFrom and is back
+   * on or before travelTo (date + days − 1 ≤ travelTo). Applies together with the departure window.
+   */
+  travelFrom?: IsoDate; travelTo?: IsoDate;
   /** Whole days. Integers only: any of these four that is not an integer in the int4 range is ignored. */
   daysMin?: number; daysMax?: number;
   /** Whole HKD, applied to windowPriceHkd. Integers only, as for the day bounds. */
   priceMin?: number; priceMax?: number;
   operators?: OperatorId[];
 }
-export type SortKey = 'price' | 'days' | 'date' | 'destination';
+/** Each order and its reverse. A bare name is the original direction (cheapest, shortest, soonest, first name). */
+export type SortKey =
+  | 'price' | 'price-desc' | 'days' | 'days-desc' | 'date' | 'date-desc' | 'destination' | 'destination-desc';
 export const PAGE_SIZE = 24;
 
 export interface TourCardData {
@@ -26,36 +33,52 @@ export interface TourCardData {
   fromPriceHkd: number;               // lowest across all upcoming departures
   windowPriceHkd: number;             // lowest across the departures listed below
   fallbackPriceHkd: number;           // the stored tours.from_price_hkd: the price of a departure whose priceHkd is null
-  departures: ScrapedDeparture[];     // upcoming and inside the window, ascending
+  departures: ScrapedDeparture[];     // upcoming and inside the window (both windows), ascending
   priceChange: PriceChange | null;    // compares fromPriceHkd with the snapshots
   lastUpdated: string;                // operator's last_good_run_at, ISO timestamp
 }
 
-export interface SearchInput { filters: TourFilters; sort: SortKey; page: number; today: IsoDate }
+export interface SearchInput {
+  filters: TourFilters; sort: SortKey; page: number; today: IsoDate;
+  /**
+   * Region ids in the order the visitor reads their names (country name, then region name), for the
+   * destination sorts. A tour sorts by its first region, the one its card names first; a region missing
+   * from the list comes after every listed one, in id order. Without it, the destination sorts use id order.
+   */
+  destinationOrder?: string[];
+}
 
 export interface OperatorInfo { id: OperatorId; nameZh: string; nameEn: string; color: string; lastGoodRunAt: string | null }
 
 /*
- * Every query below shares one parameter list ($1 … $12); a null parameter
+ * Every query below shares one parameter list ($1 … $14); a null parameter
  * switches its condition off. Values only ever travel as parameters.
  *
  *   $1 today        $2 dateFrom     $3 dateTo
  *   $4 countryId    $5 regionId     $6 excludeCountryIds (text[])
  *   $7 daysMin      $8 daysMax      $9 priceMin    $10 priceMax
  *   $11 operators (text[])          $12 tour keys (text[])
+ *   $13 travelFrom  $14 travelTo
  */
 type Params = [
   today: IsoDate, dateFrom: IsoDate | null, dateTo: IsoDate | null,
   countryId: string | null, regionId: string | null, excludeCountryIds: string[] | null,
   daysMin: number | null, daysMax: number | null, priceMin: number | null, priceMax: number | null,
   operators: string[] | null, keys: string[] | null,
+  travelFrom: IsoDate | null, travelTo: IsoDate | null,
 ];
 
 /**
- * A departure inside the window. Only departures after today are upcoming, so the lower bound is the
- * later of dateFrom and tomorrow.
+ * A departure `d` of tour `t` inside both windows, from the placeholders of today, dateFrom, dateTo,
+ * travelFrom and travelTo. Only departures after today are upcoming, so the lower bound is the latest of
+ * tomorrow, dateFrom and travelFrom; a tour of n days is back n − 1 days after it leaves.
  */
-const IN_WINDOW = `d.date >= greatest($1::date + 1, $2::date) and ($3::date is null or d.date <= $3::date)`;
+function inWindow(today: string, dateFrom: string, dateTo: string, travelFrom: string, travelTo: string): string {
+  return `d.date >= greatest(${today}::date + 1, ${dateFrom}::date, ${travelFrom}::date)
+    and (${dateTo}::date is null or d.date <= ${dateTo}::date)
+    and (${travelTo}::date is null or d.date + (t.days - 1) <= ${travelTo}::date)`;
+}
+const IN_WINDOW = inWindow('$1', '$2', '$3', '$13', '$14');
 /** A departure's own price, or the tour's from-price when it has none. */
 const EFFECTIVE_PRICE = `coalesce(d.price_hkd, t.from_price_hkd)`;
 /** UTC ISO-8601 with milliseconds, the same text Date#toISOString gives, on every driver. */
@@ -92,12 +115,20 @@ matched as (
     and ($10::int is null or window_price <= $10::int)
 )`;
 
-/** A closed table: the sort order is never built from caller text. `key` is always the final tie-break. */
+/**
+ * A closed table: the sort order is never built from caller text. Within equal values the shown price,
+ * lowest first, then the key decide, in both directions; the key is unique, so the order is total and
+ * paging never repeats or skips a tour. `first_date` is the first departure the card lists.
+ */
 const ORDER_BY: Record<SortKey, string> = {
-  price: `m.window_price, m.key collate "C"`,
-  days: `m.days, m.window_price, m.key collate "C"`,
-  date: `m.first_date, m.window_price, m.key collate "C"`,
-  destination: `fs.country_id collate "C", fs.region_id collate "C", m.window_price, m.key collate "C"`,
+  'price': `m.window_price, m.key collate "C"`,
+  'price-desc': `m.window_price desc, m.key collate "C"`,
+  'days': `m.days, m.window_price, m.key collate "C"`,
+  'days-desc': `m.days desc, m.window_price, m.key collate "C"`,
+  'date': `m.first_date, m.window_price, m.key collate "C"`,
+  'date-desc': `m.first_date desc, m.window_price, m.key collate "C"`,
+  'destination': `fs.rank nulls last, fs.country_id collate "C", fs.region_id collate "C", m.window_price, m.key collate "C"`,
+  'destination-desc': `fs.rank desc nulls last, fs.country_id collate "C" desc, fs.region_id collate "C" desc, m.window_price, m.key collate "C"`,
 };
 
 interface TourRow {
@@ -107,7 +138,10 @@ interface TourRow {
   from_price: number; window_price: number; fallback_price: number; last_updated: string;
 }
 
-/** One page of `matched`, in sort order. `limit` null means every row. */
+/**
+ * One page of `matched`, in sort order: the shared parameters, then $15 destinationOrder (text[], the
+ * ranking of first regions), $16 limit (null means every row) and $17 offset.
+ */
 function selectPage(sort: SortKey): string {
   const orderBy = Object.hasOwn(ORDER_BY, sort) ? ORDER_BY[sort] : ORDER_BY.price;
   return `${MATCHED_CTE}
@@ -118,14 +152,15 @@ from matched m
 join tours t on t.id = m.id
 join operators o on o.id = t.operator_id
 left join lateral (
-  select s.country_id, s.region_id from tour_stops s where s.tour_id = m.id order by s.position limit 1
+  select s.country_id, s.region_id, array_position($15::text[], s.region_id) as rank
+  from tour_stops s where s.tour_id = m.id order by s.position limit 1
 ) fs on true
 order by ${orderBy}
-limit $13::int offset $14::int`;
+limit $16::int offset $17::int`;
 }
 
 function noFilters(today: IsoDate): Params {
-  return [today, null, null, null, null, null, null, null, null, null, null, null];
+  return [today, null, null, null, null, null, null, null, null, null, null, null, null, null];
 }
 
 const nonEmpty = <T>(xs: T[] | undefined): T[] | null => (xs && xs.length > 0 ? xs : null);
@@ -151,6 +186,7 @@ function searchParams(filters: TourFilters, today: IsoDate): Params {
     nonEmpty(filters.excludeCountryIds),
     int4OrNull(filters.daysMin), int4OrNull(filters.daysMax), int4OrNull(filters.priceMin), int4OrNull(filters.priceMax),
     nonEmpty(filters.operators), null,
+    filters.travelFrom ?? null, filters.travelTo ?? null,
   ];
 }
 
@@ -162,7 +198,9 @@ export async function searchTours(db: Db, input: SearchInput): Promise<{ tours: 
   const [{ total }] = await db.query<{ total: number }>(`${MATCHED_CTE} select count(*)::int as total from matched`, params);
   if (total === 0) return { tours: [], total };
 
-  const rows = await db.query<TourRow>(selectPage(input.sort), [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]);
+  const rows = await db.query<TourRow>(
+    selectPage(input.sort), [...params, nonEmpty(input.destinationOrder), PAGE_SIZE, (page - 1) * PAGE_SIZE],
+  );
   return { tours: await toCards(db, rows, params), total };
 }
 
@@ -177,7 +215,7 @@ export async function getToursByKeys(db: Db, keys: string[], today: IsoDate): Pr
 
   const params = noFilters(today);
   params[11] = wanted;
-  const rows = await db.query<TourRow>(selectPage('price'), [...params, null, 0]);
+  const rows = await db.query<TourRow>(selectPage('price'), [...params, null, null, 0]);
   const byKey = new Map((await toCards(db, rows, params)).map(card => [card.key, card]));
   for (const key of wanted) {
     const card = byKey.get(key);
@@ -197,12 +235,14 @@ async function toCards(db: Db, rows: TourRow[], params: Params): Promise<TourCar
      order by tour_id, position`,
     [ids],
   );
+  // The same windows as the search, so a card lists exactly the departures its price and sort came from.
   const departures = await db.query<{ id: string; date: IsoDate; price_hkd: number | null }>(
     `select d.tour_id::text as id, d.date::text as date, d.price_hkd
      from departures d
-     where d.tour_id = any($4::bigint[]) and ${IN_WINDOW}
+     join tours t on t.id = d.tour_id
+     where d.tour_id = any($6::bigint[]) and ${inWindow('$1', '$2', '$3', '$4', '$5')}
      order by d.tour_id, d.date`,
-    [params[0], params[1], params[2], ids],
+    [params[0], params[1], params[2], params[12], params[13], ids],
   );
   const snapshots = await db.query<{ id: string; date: IsoDate; price_hkd: number }>(
     `select tour_id::text as id, date::text as date, price_hkd
