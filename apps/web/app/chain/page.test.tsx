@@ -13,7 +13,7 @@ import type { ChainPageData } from '../../lib/chain-page-data';
 const mocks = vi.hoisted(() => ({
   locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
-  loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string) => Promise<ChainPageData>>(),
+  loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string) => Promise<ChainPageData>>(),
   push: vi.fn<(href: string, opts?: { scroll?: boolean }) => void>(),
   /** The raw address the browser shows; the page must never build a link from it. */
   query: { value: '' },
@@ -83,6 +83,12 @@ beforeEach(() => {
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => { consoleError.mockRestore(); });
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('passes the language (%s) to the loader, for the destination sort', async locale => {
+  mocks.loadChainPage.mockResolvedValue(data);
+  await renderPage({ legs: 'egl:KIX5@2026-12-18', gap: '1-3', sort: 'destination' }, locale);
+  expect(mocks.loadChainPage.mock.calls[0][3]).toBe(locale);
+});
 
 it.each([
   ['zh-Hans', '可接续的旅行团（12/24 – 12/26 出发）', '東瀛遊 · 12/18 – 12/22 · HK$7,999', '可出发日期：12/24 – 12/26'],

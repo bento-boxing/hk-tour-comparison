@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { places } from '@hktours/core';
-import { parseSearchParams, buildSearchQuery, withFilters, searchHref, DEFAULT_SORT } from './search-params';
+import { parseSearchParams, buildSearchQuery, withFilters, searchHref, DEFAULT_SORT, SORT_KEYS } from './search-params';
 
 it('parses a full address', () => {
   const s = parseSearchParams({ dest: 'japan-kansai', from: '2026-12-01', to: '2026-12-31', dmin: '4', dmax: '6',
@@ -108,4 +108,41 @@ it('searchHref is the bare path for the default state', () => {
 
 it('buildSearchQuery leaves out empty lists', () => {
   expect(buildSearchQuery({ filters: { operators: [], excludeCountryIds: [] }, sort: 'price', page: 1 }).toString()).toBe('');
+});
+
+it('reads the travel window from tfrom and tto, and writes it back', () => {
+  const s = parseSearchParams({ tfrom: '2027-01-12', tto: '2027-01-15', from: '2027-01-01' }, places);
+  expect(s.filters).toEqual({ dateFrom: '2027-01-01', travelFrom: '2027-01-12', travelTo: '2027-01-15' });
+  expect(Object.fromEntries(buildSearchQuery(s))).toEqual({ from: '2027-01-01', tfrom: '2027-01-12', tto: '2027-01-15' });
+  expect(parseSearchParams(Object.fromEntries(buildSearchQuery(s)), places)).toEqual(s);
+});
+
+it('keeps one valid end of the travel window and drops a bad one', () => {
+  expect(parseSearchParams({ tfrom: '2027-01-12', tto: '2027-02-30' }, places).filters).toEqual({ travelFrom: '2027-01-12' });
+  expect(parseSearchParams({ tfrom: 'soon', tto: '2027-01-15' }, places).filters).toEqual({ travelTo: '2027-01-15' });
+});
+
+it('keeps a travel window that ends before it starts: it matches nothing, so the list shows its empty message', () => {
+  expect(parseSearchParams({ tfrom: '2027-01-15', tto: '2027-01-12' }, places).filters)
+    .toEqual({ travelFrom: '2027-01-15', travelTo: '2027-01-12' });
+});
+
+it('includeDates false drops the travel window too', () => {
+  expect(parseSearchParams({ tfrom: '2027-01-12', tto: '2027-01-15', dmin: '4' }, places, { includeDates: false }).filters)
+    .toEqual({ daysMin: 4 });
+});
+
+it.each([
+  ['price'], ['price-desc'], ['days'], ['days-desc'], ['date'], ['date-desc'], ['destination'], ['destination-desc'],
+] as const)('sort=%s is read and written back as itself', sort => {
+  const s = parseSearchParams({ sort }, places);
+  expect(s.sort).toBe(sort);
+  expect(parseSearchParams(Object.fromEntries(buildSearchQuery(s)), places).sort).toBe(sort);
+});
+
+it('offers eight sort orders, each bare name keeping its old meaning', () => {
+  expect(SORT_KEYS).toEqual(['price', 'price-desc', 'days', 'days-desc', 'date', 'date-desc', 'destination', 'destination-desc']);
+  expect(parseSearchParams({ sort: 'days' }, places).sort).toBe('days');
+  expect(parseSearchParams({ sort: 'DAYS-DESC' }, places).sort).toBe('price');
+  expect(parseSearchParams({ sort: '-price' }, places).sort).toBe('price');
 });

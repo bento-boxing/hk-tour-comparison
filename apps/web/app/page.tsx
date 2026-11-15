@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   let data: SearchPageData;
   try {
-    data = await loadSearchPage(await requestDb(), raw, today);
+    data = await loadSearchPage(await requestDb(), raw, today, t.locale);
   } catch (err) {
     unstable_rethrow(err); // Next.js's own signals (such as "render this per request") must pass through.
     // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.

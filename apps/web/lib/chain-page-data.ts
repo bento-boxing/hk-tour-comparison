@@ -2,8 +2,9 @@ import { decodeChain, places, MAX_CHAIN_LEGS, type IsoDate } from '@hktours/core
 import { getOperators, getToursByKeys, searchTours, type Db, type OperatorInfo, type TourCardData } from '@hktours/db/read';
 import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
+import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { parseSearchParams } from './search-params';
-import { filterBarOperators } from './search-page-data';
+import { destinationOrder, filterBarOperators } from './search-page-data';
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -47,13 +48,15 @@ function legsAsked(text: string | null): number {
 /**
  * Everything the chain page renders, from the raw address. Database errors are passed on to the caller.
  * The address is untrusted: only what decodeChain and parseSearchParams validated reaches the database.
+ * The list offers every sort order, as the search page does; `locale` decides the destination sorts' order.
  */
-export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate): Promise<ChainPageData> {
+export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate, locale: Locale = DEFAULT_LOCALE): Promise<ChainPageData> {
   const legsText = first(raw, 'legs');
   const decoded = decodeChain({ legs: legsText, gap: first(raw, 'gap') });
   // A shared link that lost a malformed leg still tells the visitor something was removed.
   const unreadable = Math.max(0, legsAsked(legsText) - decoded.legs.length);
-  // The departure window comes from the gap, so from/to in the address are not read.
+  // The departure window comes from the gap, so neither from/to nor the travel window (tfrom/tto) in the
+  // address is read.
   const search = parseSearchParams(raw, places, { includeDates: false });
 
   const [tours, operators, withGoodRun] = await Promise.all([
@@ -75,7 +78,7 @@ export async function loadChainPage(db: Db, raw: RawParams, today: IsoDate): Pro
   const next = departWindow
     ? await searchTours(db, {
       filters: { ...search.filters, dateFrom: departWindow.from, dateTo: departWindow.to },
-      sort: search.sort, page: search.page, today,
+      sort: search.sort, page: search.page, today, destinationOrder: destinationOrder(places, locale),
     })
     : null;
 
