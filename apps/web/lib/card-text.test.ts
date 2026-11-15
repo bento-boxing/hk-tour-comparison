@@ -32,6 +32,23 @@ it('regionLabel', () => {
   expect(regionLabel([], places)).toBe('');
 });
 
+it('regionLabel names the province of a stop that was in 華中 (task 37)', () => {
+  const wuhan: Stop = { countryId: 'china', regionId: 'china-hubei', cityId: 'china-central-wuhan' };
+  expect(regionLabel([wuhan], places)).toBe('中國 · 湖北');
+  expect(regionLabel([wuhan], places, tEn)).toBe('China · Hubei');
+  expect(routeNames([wuhan, { countryId: 'china', regionId: 'china-jiangxi', cityId: null }], places)).toEqual(['武漢', '江西']);
+});
+
+it('regionLabel reads a stop saved before 華中 was split by its city, or names the country alone (task 37)', () => {
+  // Saved stops keep the old region id until the operator's next good run rewrites them.
+  const savedWuhan: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-wuhan' };
+  const savedNanchang: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-nanchang' };
+  expect(regionLabel([savedWuhan], places)).toBe('中國 · 湖北');
+  expect(regionLabel([savedWuhan, savedNanchang], places)).toBe('中國 · 湖北 +1');
+  expect(regionLabel([{ countryId: 'china', regionId: 'china-central', cityId: null }], places)).toBe('中國');
+  expect(routeNames([savedWuhan], places)).toEqual(['武漢']);
+});
+
 it('regionLabel names a country once when its region has the same name', () => {
   const paris: Stop = { countryId: 'france', regionId: 'france-france', cityId: 'france-france-paris' };
   const zurich: Stop = { countryId: 'switzerland', regionId: 'switzerland-switzerland', cityId: 'switzerland-switzerland-zurich' };

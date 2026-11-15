@@ -20,14 +20,17 @@ export function routeNames(stops: Stop[], places: PlacesIndex, locale: Locale = 
  * The first `country · region` of the route, e.g. '日本 · 關西', and '日本 · 關西 +2' when two more
  * regions follow; just '法國' when the region's name is the country's. Empty for a tour without stops.
  * Names are in `t`'s language; `t` defaults to the zh-Hant text.
+ * A stop saved under a region the places list no longer has (`china-central`, split into provinces in task 37)
+ * counts in its city's region, or names the country alone when it has no city the list knows.
  */
 export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT(DEFAULT_LOCALE)): string {
-  const [first, ...rest] = tourRegions(stops);
+  const [first, ...rest] = tourRegions(stops.map(s => (places.region(s.regionId) || s.cityId === null ? s
+    : { ...s, regionId: places.city(s.cityId)?.regionId ?? s.regionId })));
   if (!first) return '';
   const country = places.country(first.countryId);
   const region = first.regionId === null ? undefined : places.region(first.regionId);
   const countryText = country ? placeName(country, t.locale) : first.countryId;
-  const regionText = first.regionId === null ? null : region ? placeName(region, t.locale) : first.regionId;
+  const regionText = first.regionId === null || region === undefined ? null : placeName(region, t.locale);
   // A region named like its country (法國 · 法國) is not named twice.
   const sameName = region !== undefined && country !== undefined ? region.nameZh === country.nameZh : regionText === countryText;
   const label = regionText === null || sameName ? countryText : `${countryText} · ${regionText}`;
