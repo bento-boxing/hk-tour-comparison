@@ -42,7 +42,9 @@ it('a run reads the REST list, saves the tours with dates and skips the old post
 
   expect(outcome).toEqual({ operatorId: 'charming', ok: true, reasons: [], toursSaved: 2 });
   expect(asked).toEqual([listUrl(1), ...pages.keys()]); // one list page (3 posts), then each tour page once
-  expect(logs).toContain(`charming: skipped ${sourceUrl('edge')}: no-departures`);
+  // Named by its tour code: its address is a percent-encoded title, and the run log is public (task 36).
+  expect(logs).toContain('charming: skipped GDXD: no-departures');
+  for (const line of logs) expect(line).not.toContain('%');
   const saved = await db.query<{ code: string; url: string; days: number }>(
     "select code, url, days from tours where operator_id = 'charming' order by code");
   expect(saved).toEqual([

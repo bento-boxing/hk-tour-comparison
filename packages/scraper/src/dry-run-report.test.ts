@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { places, type ScrapedTour } from '@hktours/core';
-import { describePage } from './dry-run-report';
+import { describePage, recordDryRun } from './dry-run-report';
+import { DRY_RUN_LOG } from './public-log';
+import type { Fetcher, OperatorScraper } from './types';
 
 const TODAY = '2026-11-14';
 const tour = (fields: Partial<ScrapedTour>): ScrapedTour => ({
   operatorId: 'egl', code: 'T1', url: 'https://example.test/t/1', title: '中山3天', days: 3, nights: 2,
   dayHeadings: ['香港 → 中山'], startPoint: null, endPoint: null, fromPriceHkd: 1000,
   departures: [{ date: '2026-12-01', priceHkd: 1000 }], ...fields,
+});
+
+it('the recorded scraper hands discover the run\'s log view (task 36)', async () => {
+  const views: unknown[] = [];
+  const scraper: OperatorScraper = {
+    id: 'egl', parse: () => null,
+    discover: async (_fetcher, logView) => { views.push(logView); return ['https://example.test/t/1']; },
+  };
+  const fetcher: Fetcher = { fetchText: async () => null };
+  expect(await recordDryRun(scraper, null).scraper.discover(fetcher, DRY_RUN_LOG)).toEqual(['https://example.test/t/1']);
+  expect(views).toEqual([DRY_RUN_LOG]);
 });
 
 describe('the dry-run page line', () => {

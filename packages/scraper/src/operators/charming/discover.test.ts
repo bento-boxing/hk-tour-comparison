@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DRY_RUN_LOG, logRef } from '../../public-log';
 import type { Fetcher } from '../../types';
 import { discover, isNotAGroupTour, isTourUrl, listUrl, MAX_LIST_PAGES, PER_PAGE } from './discover';
 
@@ -121,18 +122,31 @@ it.each([
   expect(isNotAGroupTour(link(slug))).toBe(expected);
 });
 
-it('discover leaves out the posts that are not group tours, counted in X-WP-Total, logging each with its rule', async () => {
-  const spa = link('中醫入門套餐-單人價錢：5100-雙人價錢：8100');
-  const cruise = link('9-晚-希臘精選之旅《海洋奧德賽號》');
-  const { fetcher } = listFetcher({ 1: envelope([
+describe('discover leaves out the posts that are not group tours, counted in X-WP-Total, logging each with its rule', () => {
+  // Invented slugs of the shapes the rules match.
+  const spa = link('測試套餐-單人價錢：5100');
+  const cruise = link('9-晚-測試之旅《測試號》');
+  const list = () => listFetcher({ 1: envelope([
     { id: 1, link: link('f-26-mono-008-ghtg') }, { id: 2, link: spa }, { id: 3, link: cruise },
-  ], { pages: 1, total: 3 }) });
-  const logs: string[] = [];
-  expect(await discover(fetcher, line => logs.push(line))).toEqual([link('f-26-mono-008-ghtg')]);
-  expect(logs).toEqual([
-    `charming: excluded ${spa}: not a group tour (priced in the slug)`,
-    `charming: excluded ${cruise}: not a group tour (cruise counted in nights)`,
-  ]);
+  ], { pages: 1, total: 3 }) }).fetcher;
+
+  it('naming each by its public address (the slug is a title: hidden, with a reference), by default', async () => {
+    const logs: string[] = [];
+    expect(await discover(list(), undefined, line => logs.push(line))).toEqual([link('f-26-mono-008-ghtg')]);
+    expect(logs).toEqual([
+      `charming: excluded https://www.charming-online.com/?tour=* ${logRef(spa)}: not a group tour (priced in the slug)`,
+      `charming: excluded https://www.charming-online.com/?tour=* ${logRef(cruise)}: not a group tour (cruise counted in nights)`,
+    ]);
+  });
+
+  it('naming each by its whole address and the same reference with DRY_RUN_LOG', async () => {
+    const logs: string[] = [];
+    await discover(list(), DRY_RUN_LOG, line => logs.push(line));
+    expect(logs).toEqual([
+      `charming: excluded ${spa} ${logRef(spa)}: not a group tour (priced in the slug)`,
+      `charming: excluded ${cruise} ${logRef(cruise)}: not a group tour (cruise counted in nights)`,
+    ]);
+  });
 });
 
 describe('discover throws rather than return part of the list', () => {

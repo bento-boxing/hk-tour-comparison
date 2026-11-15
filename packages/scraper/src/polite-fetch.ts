@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import robotsParser from 'robots-parser';
+import { PUBLIC_LOG, type LogView } from './public-log';
 import type { FetchOptions, Fetcher } from './types';
 
 export const REQUEST_DELAY_MS = 3000;
@@ -31,6 +32,11 @@ export interface FetcherOptions {
   delayMs?: number;                   // per site, from the end of one request to the start of the next; defaults to REQUEST_DELAY_MS
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
+  /**
+   * How a logged line shows a page's address and a network error's message (see public-log.ts): defaults to
+   * PUBLIC_LOG, for a real run, whose log is public. A dry run passes DRY_RUN_LOG.
+   */
+  logView?: LogView;
   /**
    * Extra request headers by host name (`api.example.com`, any case), which means `https://` on the
    * default port only, or by an exact http(s) origin (`http://127.0.0.1:8080`, for tests). Sent on every
@@ -124,8 +130,9 @@ const isRetryable = (answer: Answer) => answer.kind === 'error'
   || (answer.kind === 'response' && answer.status >= 500 && !(answer.status === 503 && answer.retryAfter));
 /** UTF-8 with replacement characters, as Response.text() decodes. */
 const decodeText = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
-const describe = (answer: Answer) =>
-  (answer.kind === 'error' ? answer.message : answer.kind === 'not-sent' ? answer.why : `HTTP ${answer.status}`);
+/** What went wrong, for the log: a network error's message is shown through `view` (it is not our text). */
+const describe = (answer: Answer, view: LogView) =>
+  (answer.kind === 'error' ? view.message(answer.message) : answer.kind === 'not-sent' ? answer.why : `HTTP ${answer.status}`);
 
 /** The URL as a parsed http(s) URL, or null. */
 function httpUrl(url: string, base?: URL): URL | null {
@@ -169,6 +176,9 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
+  // A page's address is logged only through this (the run log is public; an address can carry a tour's title).
+  // Origins and site names are logged as they are: a host name is the operator's, not a tour's.
+  const view = opts.logView ?? PUBLIC_LOG;
   /** By origin. */
   const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([key, headers]) => [headersOrigin(key), headers]));
 
@@ -268,7 +278,7 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   async function requestWithRetries(url: URL, isPage: boolean): Promise<Answer> {
     let answer = await request(url, isPage);
     for (let retry = 1; retry <= MAX_RETRIES && isRetryable(answer); retry++) {
-      log(`retry ${retry}/${MAX_RETRIES} ${url.href}: ${describe(answer)}`);
+      log(`retry ${retry}/${MAX_RETRIES} ${view.address(url.href)}: ${describe(answer, view)}`);
       answer = await request(url, isPage);
     }
     return answer;
@@ -335,7 +345,7 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
     if (typeof failure !== 'string' && failure.kind === 'response' && NO_ROBOTS_STATUSES.includes(failure.status)) {
       return { refusal: null, isAllowed: () => true, crawlDelayMs: 0 };
     }
-    return refuseOrigin(origin, `robots.txt unreadable (${typeof failure === 'string' ? failure : describe(failure)})`);
+    return refuseOrigin(origin, `robots.txt unreadable (${typeof failure === 'string' ? failure : describe(failure, view)})`);
   }
 
   /**
@@ -378,7 +388,7 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
   async function fetchBody(url: string, options: FetchOptions = {}): Promise<Uint8Array | null> {
     const start = httpUrl(url);
     if (start === null) {
-      log(`not an http(s) URL: ${url}`);
+      log(`not an http(s) URL: ${view.address(url)}`);
       return null;
     }
     const whyNot = options.sameOriginRedirectsOnly === true
@@ -387,9 +397,9 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
     const result = await getFollowingRedirects(start, true, whyNot);
     if ('body' in result) return result.body;
     const { failure, at } = result;
-    const why = typeof failure === 'string' ? failure : describe(failure);
-    const where = at.href === start.href ? '' : ` (redirected to ${at.href})`;
-    log(`not fetched ${url}${where}: ${why}`);
+    const why = typeof failure === 'string' ? failure : describe(failure, view);
+    const where = at.href === start.href ? '' : ` (redirected to ${view.address(at.href)})`;
+    log(`not fetched ${view.address(url)}${where}: ${why}`);
     return null;
   }
 
@@ -399,23 +409,23 @@ export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
     try {
       json = JSON.stringify(body);
     } catch (error) {
-      log(`not fetched ${url} (POST): the body is not JSON (${error instanceof Error ? error.name : typeof error})`);
+      log(`not fetched ${view.address(url)} (POST): the body is not JSON (${error instanceof Error ? error.name : typeof error})`);
       return null;
     }
     if (json === undefined) {
-      log(`not fetched ${url} (POST): the body is not JSON (${typeof body})`);
+      log(`not fetched ${view.address(url)} (POST): the body is not JSON (${typeof body})`);
       return null;
     }
     const target = httpUrl(url);
     if (target === null) {
-      log(`not an http(s) URL: ${url}`);
+      log(`not an http(s) URL: ${view.address(url)}`);
       return null;
     }
     const answer = await whyNotAllowed(target) ?? await request(target, true, { json });
     if (typeof answer !== 'string' && answer.kind === 'response' && answer.status === 200) {
       return decodeText(answer.body ?? new Uint8Array());
     }
-    log(`not fetched ${url} (POST, not retried): ${typeof answer === 'string' ? answer : describe(answer)}`);
+    log(`not fetched ${view.address(url)} (POST, not retried): ${typeof answer === 'string' ? answer : describe(answer, view)}`);
     return null;
   }
 

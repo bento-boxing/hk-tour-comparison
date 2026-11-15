@@ -1,3 +1,4 @@
+import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 
 const ORIGIN = 'https://www.charming-online.com';
@@ -130,7 +131,9 @@ function pageCount(value: unknown): number {
  * caught. A post published or removed while the list is read also fails that night's run. Many posts are old
  * tours with no dates left; their pages are still fetched, and skipped as no-departures.
  */
-export async function discover(fetcher: Fetcher, log: (line: string) => void = line => console.log(line)): Promise<string[]> {
+export async function discover(
+  fetcher: Fetcher, logView: LogView = PUBLIC_LOG, log: (line: string) => void = line => console.log(line),
+): Promise<string[]> {
   const first = await readPage(fetcher, 1);
   const pageTotal = pageCount(first.totalPages);
   const postTotal = wholeNumber(first.total);
@@ -151,7 +154,8 @@ export async function discover(fetcher: Fetcher, log: (line: string) => void = l
   for (const tour of linked) {
     const rule = exclusionRule(tour);
     if (rule === null) tours.add(tour);
-    else log(`charming: excluded ${tour}: not a group tour (${rule})`);
+    // The slug may be a percent-encoded title: logged as the run's log view shows an address (public-log.ts).
+    else log(`charming: excluded ${logView.address(tour)}: not a group tour (${rule})`);
   }
   return [...tours];
 }

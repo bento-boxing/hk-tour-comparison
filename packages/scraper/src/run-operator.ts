@@ -1,5 +1,5 @@
 import {
-  normaliseTour, scrapedTourSchema,
+  normaliseTour, scrapedTourSchema, TOUR_CODE_PATTERN,
   type IsoDate, type NormalisedTour, type OperatorId, type PlacesIndex, type ScrapedTour, type Stop,
 } from '@hktours/core';
 import {
@@ -7,11 +7,17 @@ import {
   type Db, type RunStats, type UnmatchedName,
 } from '@hktours/db';
 import { checkRun } from './check-run';
+import { PUBLIC_LOG, type LogView } from './public-log';
 import type { Fetcher, OperatorScraper, PageSkip } from './types';
 
 export interface RunDeps {
   db: Db; fetcher: Fetcher; index: PlacesIndex;
   today: IsoDate; now: () => Date; log: (line: string) => void;
+  /**
+   * How a log line shows a page's address before its tour code is known, and an error's message (see public-log.ts).
+   * Unset: PUBLIC_LOG, for a real run, whose log is public. A dry run passes DRY_RUN_LOG.
+   */
+  logView?: LogView;
 }
 
 export interface RunOutcome { operatorId: OperatorId; ok: boolean; reasons: string[]; toursSaved: number }
@@ -46,22 +52,37 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The page's tour, or why it is a parse failure. A parser that throws is a failure, not a crash. */
-function scrapePage(scraper: OperatorScraper, html: string, url: string): ScrapedTour | { failure: string } {
+/**
+ * The parsed value's tour code when it is a valid one (TOUR_CODE_PATTERN: ASCII letters, digits, `_` and `-`), so a
+ * page that fails the schema for another reason is still named by its code; null otherwise.
+ */
+function validCode(parsed: unknown): string | null {
+  const code = typeof parsed === 'object' && parsed !== null ? (parsed as { code?: unknown }).code : undefined;
+  return typeof code === 'string' && TOUR_CODE_PATTERN.test(code) ? code : null;
+}
+
+/**
+ * The page's tour, or why it is a parse failure, with its tour code when one is known (null when the parser gave no
+ * valid one). A parser that throws is a failure, not a crash; its message is shown through `view`, since it may
+ * quote what the parser read.
+ */
+function scrapePage(scraper: OperatorScraper, html: string, url: string, view: LogView):
+  ScrapedTour | { failure: string; code: string | null } {
   let parsed: unknown;
   try {
     parsed = scraper.parse(html, url);
   } catch (error) {
-    return { failure: `parser threw: ${errorMessage(error)}` };
+    return { failure: `parser threw: ${view.message(errorMessage(error))}`, code: null };
   }
-  if (parsed === null) return { failure: 'parser returned null' };
+  if (parsed === null) return { failure: 'parser returned null', code: null };
   const result = scrapedTourSchema.safeParse(parsed);
   if (!result.success) {
+    // The schema's own wording and the fields' names, never the values read.
     const issues = result.error.issues.map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`);
-    return { failure: `invalid scraped tour (${issues.join('; ')})` };
+    return { failure: `invalid scraped tour (${issues.join('; ')})`, code: validCode(parsed) };
   }
   if (result.data.operatorId !== scraper.id) {
-    return { failure: `operator id ${result.data.operatorId}, expected ${scraper.id}` };
+    return { failure: `operator id ${result.data.operatorId}, expected ${scraper.id}`, code: result.data.code };
   }
   return result.data;
 }
@@ -71,15 +92,15 @@ function scrapePage(scraper: OperatorScraper, html: string, url: string): Scrape
  * A run that fails the checks is recorded but saves nothing, so last night's data stays.
  */
 export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Promise<RunOutcome> {
-  const { db, fetcher, index, today, now, log } = deps;
+  const { db, fetcher, index, today, now, log, logView: view = PUBLIC_LOG } = deps;
   const operatorId = scraper.id;
   const startedAt = now();
 
   let urls: string[];
   try {
-    urls = [...new Set(await scraper.discover(fetcher))];
+    urls = [...new Set(await scraper.discover(fetcher, view))];
   } catch (error) {
-    log(`${operatorId}: discover failed: ${errorMessage(error)}`);
+    log(`${operatorId}: discover failed: ${view.message(errorMessage(error))}`);
     const reasons = ['discover-error'];
     const stats: RunStats = { startedAt, finishedAt: now(), pagesFetched: 0, parseFailures: 0 };
     await recordFailedRun(db, { operatorId, runDate: today, stats, reasons });
@@ -97,9 +118,11 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
   const keepUnmatched = (names: string[], tourCode: string) => {
     for (const name of names) unmatched.set(name, tourCode);
   };
-  const parseFailure = (url: string, reason: string) => {
+  // The log is public: a line about one page names it by its tour code once that is known, and before that by its
+  // address as the log view shows it (a title carried in the address hidden, see public-log.ts).
+  const parseFailure = (page: string, reason: string) => {
     parseFailures++;
-    log(`${operatorId}: parse failure ${url}: ${reason}`);
+    log(`${operatorId}: parse failure ${page}: ${reason}`);
   };
 
   for (const url of urls) {
@@ -109,24 +132,26 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
       page = scraper.fetchPage ? await scraper.fetchPage(fetcher, url, today) : await fetcher.fetchText(url);
     } catch (error) {
       page = null;
-      why = ` (fetch threw: ${errorMessage(error)})`; // fetchPage, or a fetchText breaking its never-throws contract
+      // fetchPage, or a fetchText breaking its never-throws contract
+      why = ` (fetch threw: ${view.message(errorMessage(error))})`;
     }
     if (page !== null && typeof page === 'object') {
-      log(`${operatorId}: skipped ${url}: ${page.skip}`); // the tour is gone: neither fetched nor a fetch failure
+      // the tour is gone: neither fetched nor a fetch failure
+      log(`${operatorId}: skipped ${view.address(url)}: ${page.skip}`);
       pagesGone++;
       continue;
     }
     const html = page;
     if (html === null) {
-      log(`${operatorId}: skipped ${url}: not fetched${why}`);
+      log(`${operatorId}: skipped ${view.address(url)}: not fetched${why}`);
       pagesNotFetched++;
       continue;
     }
     pagesFetched++;
 
-    const scraped = scrapePage(scraper, html, url);
+    const scraped = scrapePage(scraper, html, url, view);
     if ('failure' in scraped) {
-      parseFailure(url, scraped.failure);
+      parseFailure(scraped.code ?? view.address(url), scraped.failure);
       continue;
     }
 
@@ -138,7 +163,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
     }
     if (!result.ok) {
       if (result.reason === 'no-departures') {
-        log(`${operatorId}: skipped ${url}: no-departures`);
+        log(`${operatorId}: skipped ${scraped.code}: no-departures`);
         continue;
       }
       keepUnmatched(result.unmatched, scraped.code); // stored for review as before, headings included
@@ -148,11 +173,11 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
         : result.unmatchedAreHeadings === true
           ? ` (${count(result.unmatched.length, 'day heading', 'day headings')}, no place named)`
           : ` (${count(result.unmatched.length, 'unmatched word', 'unmatched words')})`;
-      parseFailure(url, `${result.reason}${names}`);
+      parseFailure(scraped.code, `${result.reason}${names}`);
       continue;
     }
     if (tours.has(result.tour.code)) {
-      log(`${operatorId}: skipped ${url}: duplicate tour code ${result.tour.code}, keeping the first`);
+      log(`${operatorId}: skipped ${result.tour.code}: duplicate tour code, keeping the first`);
       continue;
     }
     tours.set(result.tour.code, result.tour);
