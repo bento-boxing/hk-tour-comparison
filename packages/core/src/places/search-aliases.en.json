@@ -22,5 +22,8 @@
   "kyrgyzstan": ["Kyrgyz Republic"],
   "ireland": ["Republic of Ireland"],
   "antarctica": ["Antarctic"],
-  "usa-east-new-york": ["NYC"]
+  "usa-east-new-york": ["NYC"],
+  "china-hubei": ["華中", "华中"],
+  "china-henan": ["華中", "华中"],
+  "china-jiangxi": ["華中", "华中"]
 }

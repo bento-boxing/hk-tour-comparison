@@ -217,7 +217,13 @@ describe('華中 is replaced by the provinces 湖北, 河南 and 江西 (task 37
     expect(first('武漢')).toMatchObject({ destination: { countryId: 'china', regionId: 'china-hubei' }, via: '武漢' });
     expect(first('Henan')?.destination).toEqual({ countryId: 'china', regionId: 'china-henan' });
     expect(first('景德镇')?.destination).toEqual({ countryId: 'china', regionId: 'china-jiangxi' });
-    expect(suggestRegions('華中', places)).toEqual([]);
+  });
+  it('the search bar offers the three provinces for 華中, which stays no place name for routes (review M6)', () => {
+    for (const q of ['華中', '华中']) {
+      expect(suggestRegions(q, places).slice(0, 3).map(s => s.label), q).toEqual(['中國 → 湖北', '中國 → 河南', '中國 → 江西']);
+    }
+    expect(places.findRegion('華中')).toEqual([]);
+    expect(extractStops(['華中', '华中'], places).stops).toEqual([]);
   });
 });
 

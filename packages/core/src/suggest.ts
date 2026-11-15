@@ -17,7 +17,9 @@ type NameTest = (name: string) => boolean;
 
 // English names a visitor may type that are not the place's own (UK, USA, Holland…). Search only: they are
 // not data.json aliases, which the scraper's place index also reads, so operator text saying 'UK' or 'US'
-// never resolves to a stop through them.
+// never resolves to a stop through them. The one Chinese entry: 華中 / 华中 on 湖北, 河南 and 江西, the provinces the
+// vague region 華中 was split into (task 37), so a visitor typing it is offered all three while operator text
+// saying 華中 gives no stop.
 const englishSearchAliases: Record<string, string[]> = searchAliasesEn;
 const englishAliasesOf = (p: Place) => (Object.hasOwn(englishSearchAliases, p.id) ? englishSearchAliases[p.id] : []);
 
