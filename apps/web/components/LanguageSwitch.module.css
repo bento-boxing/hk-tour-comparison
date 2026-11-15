@@ -1,24 +1,24 @@
-/* The language switch, at the right of the nav bar (on charcoal). Each button is 44px tall for touch. */
+/* The language switch, at the right of the nav bar (on the dark bar). Each button is 44px tall for touch. */
 .form { margin: 0 0 0 auto; }
 .group { display: flex; align-items: center; }
 
 .option {
   min-height: 44px; padding: 0 8px; border: 0; background: none;
-  font: inherit; font-size: 13px; color: var(--snow); opacity: 0.75; cursor: pointer; white-space: nowrap;
+  font: inherit; font-size: 13px; color: var(--bar-text); opacity: 0.75; cursor: pointer; white-space: nowrap;
 }
 .option:hover { opacity: 1; }
 /* The current language: full strength with the khaki underline the current nav link has. */
-.option[aria-pressed='true'] { opacity: 1; text-decoration: underline; text-decoration-color: var(--khaki); text-decoration-thickness: 2px; text-underline-offset: 6px; }
-.option:focus-visible { outline: 2px solid var(--khaki); outline-offset: -4px; opacity: 1; }
+.option[aria-pressed='true'] { opacity: 1; text-decoration: underline; text-decoration-color: var(--bar-accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.option:focus-visible { outline: 2px solid var(--bar-accent); outline-offset: -4px; opacity: 1; }
 
 .short { display: none; }
 
 /*
- * Phones: 繁 / 简 / EN, 30px wide each, so the switch fits beside the mark, the name and the two links at 375px
- * in English too (the widest links), measured in Firefox with 8px to spare.
+ * Phones: 繁 / 简 / EN, 26px wide each (44px tall), so this switch and the theme switch fit beside the mark, the
+ * name and the two links at 375px in every language (English has the widest links; see NavBar.module.css).
  */
 @media (max-width: 639px) {
-  .option { min-width: 30px; padding: 0 4px; }
+  .option { min-width: 26px; padding: 0 3px; }
   .long { display: none; }
   .short { display: inline; }
 }

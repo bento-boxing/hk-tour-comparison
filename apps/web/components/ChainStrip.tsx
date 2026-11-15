@@ -40,7 +40,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
     <div className={styles.chain}>
       {legs.map((leg, i) => {
         const operator = byId.get(leg.tour.operatorId);
-        const color = operator && SAFE_COLOR.test(operator.color) ? operator.color : 'var(--charcoal)';
+        const color = operator && SAFE_COLOR.test(operator.color) ? operator.color : 'var(--op-fallback)';
         const facts = [
           operator ? operatorName(operator, t.locale) : leg.tour.operatorId,
           `${date(leg.departure)} – ${date(leg.endDate)}`,

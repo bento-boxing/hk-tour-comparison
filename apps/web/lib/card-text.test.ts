@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { places, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
-import { departureDateText, priceChangeText, regionLabel, routeNames, startNote } from './card-text';
+import { departureDateText, departurePrice, priceChangeText, regionLabel, routeNames, startNote } from './card-text';
 import { makeT } from './i18n';
 
 const tZh = makeT('zh-Hant');
@@ -155,6 +155,13 @@ it.each([
 it('priceChangeText in Simplified Chinese', () => {
   const change: PriceChange = { kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' };
   expect(priceChangeText(change, '2026-11-12', makeT('zh-Hans'))?.text).toBe('↓ HK$500　较7天前');
+});
+
+it('departurePrice: a date\'s own price, or the tour\'s stored from-price marked as a lowest price', () => {
+  expect(departurePrice({ date: '2026-12-18', priceHkd: 7999 }, 7499)).toEqual({ hkd: 7999, from: false });
+  expect(departurePrice({ date: '2026-12-27', priceHkd: null }, 7499)).toEqual({ hkd: 7499, from: true });
+  // A price of 0 is a price (never treated as missing).
+  expect(departurePrice({ date: '2026-12-28', priceHkd: 0 }, 7499)).toEqual({ hkd: 0, from: false });
 });
 
 it('departureDateText is null for a string that is not a real date', () => {

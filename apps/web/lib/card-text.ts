@@ -1,4 +1,7 @@
-import { daysBetween, isIsoDate, tourRegions, type IsoDate, type PlacesIndex, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
+import {
+  daysBetween, isIsoDate, tourRegions,
+  type IsoDate, type PlacesIndex, type PriceChange, type ScrapedDeparture, type Stop, type TourPoint,
+} from '@hktours/core';
 import { formatPrice, monthName } from './format';
 import { DEFAULT_LOCALE, makeT, type DictKey, type Locale, type T } from './i18n';
 import { placeName, retiredRegion } from './place-names';
@@ -82,6 +85,14 @@ export function startNote(start: TourPoint, end: TourPoint, t: T): string | null
   if (startLabel) parts.push(t('card.startsAt', { place: startLabel }));
   if (endLabel && endLabel !== startLabel) parts.push(t('card.endsAt', { place: endLabel }));
   return parts.length === 0 ? null : parts.join(' · ');
+}
+
+/**
+ * What a departure costs, as the card's date tooltip and the departure picker show it: its own price, or, when
+ * the operator lists none for that date, the tour's stored from-price (`fallbackPriceHkd`) marked 起 / from.
+ */
+export function departurePrice(departure: ScrapedDeparture, fallbackPriceHkd: number): { hkd: number; from: boolean } {
+  return departure.priceHkd === null ? { hkd: fallbackPriceHkd, from: true } : { hkd: departure.priceHkd, from: false };
 }
 
 const WEEKDAY_KEYS = [

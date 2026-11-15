@@ -3,6 +3,8 @@
 const zh = {
   'site.name': '跟邊團',
   'lang.label': '語言', // the language switch's accessible name
+  'theme.toDark': '切換至深色模式', // the theme switch's accessible name while the page is light
+  'theme.toLight': '切換至淺色模式', // … and while it is dark
   'notice.cantonese': '旅行團一般以粵語進行，詳情請向旅行社查詢。', // shown only in the other languages
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
@@ -34,6 +36,9 @@ const zh = {
   'card.higher': '↑ {amount}　比{days}日前',
   'card.same': '— 與{days}日前相同',
   'card.moreDates': '+{n} 個出發日',
+  'card.dates': '出發日期', // the accessible name of a card's row of dates (each shows its price on hover or focus)
+  'card.openedEarlier': '已瀏覽', // on a card whose operator page the visitor opened earlier in this tab
+  'card.openedLatest': '最近瀏覽', // … on the one opened most recently
   'card.goTo': '前往{operator}網站 ↗',
   'card.add': '加入行程 ＋',
   'card.startsAt': '{place}出發',

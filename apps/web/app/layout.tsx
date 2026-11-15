@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import '../lib/theme.css';
 import { HTML_LANG, makeT } from '../lib/i18n';
 import { getLocale, getT } from '../lib/i18n-server';
+import { getTheme } from '../lib/theme-server';
 import { I18nProvider } from '../lib/i18n-client';
 import { LanguageNotice } from '../components/LanguageNotice';
 import { SiteNav } from '../components/SiteNav';
@@ -21,8 +22,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // One locale for the server translator, the client provider and <html lang>, so they cannot disagree.
   const locale = await getLocale();
   const t = makeT(locale);
+  // The theme the visitor chose (cookie), on <html> from the first byte so no page paints in the wrong theme;
+  // without a choice, no attribute, and theme.css follows the system setting.
+  const theme = await getTheme();
   return (
-    <html lang={HTML_LANG[locale]} className={locale === 'zh-Hant' ? undefined : styles.withNotice}>
+    <html
+      lang={HTML_LANG[locale]}
+      data-theme={theme ?? undefined}
+      className={locale === 'zh-Hant' ? undefined : styles.withNotice}
+    >
       <body>
         <I18nProvider locale={locale}>
           <LanguageNotice t={t} />

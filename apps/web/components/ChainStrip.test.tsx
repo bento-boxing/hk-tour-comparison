@@ -147,9 +147,9 @@ it('uses the operator colour on each leg', () => {
   expect(css()).toMatch(/\.leg \{[^}]*border-left: 5px solid var\(--c\)/);
 });
 
-it('an unsafe colour falls back to charcoal', () => {
+it('an unsafe colour falls back to the operator fallback grey (--op-fallback, the same in both themes)', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']), { operators: [{ ...operators[0], color: 'red; background: url(x)' }] });
-  expect(legBoxes()[0].style.getPropertyValue('--c')).toBe('var(--charcoal)');
+  expect(legBoxes()[0].style.getPropertyValue('--c')).toBe('var(--op-fallback)');
   expect(legBoxes()[0]).not.toHaveAttribute('style', expect.stringContaining('url'));
 });
 

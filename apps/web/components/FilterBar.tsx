@@ -221,7 +221,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
                   <span
                     data-dot=""
                     className={styles.dot}
-                    style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--charcoal)' } as CSSProperties}
+                    style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--op-fallback)' } as CSSProperties}
                   />
                   {operatorName(op, t.locale)}
                 </label>

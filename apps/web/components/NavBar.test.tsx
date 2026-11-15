@@ -24,7 +24,8 @@ it('marks the current page', () => {
 it('shows the mark immediately before the site name, hidden from assistive technology', () => {
   const { container } = render(<NavBar current="search" t={tZh} />);
   const name = screen.getByText('跟邊團');
-  const svgs = container.querySelectorAll('nav svg');
+  // The only drawing outside a button (the theme switch's icons are inside its buttons).
+  const svgs = [...container.querySelectorAll('nav svg')].filter(svg => !svg.closest('button'));
   expect(svgs).toHaveLength(1);
   const mark = svgs[0];
   expect(mark).toHaveAttribute('aria-hidden', 'true');
@@ -38,9 +39,9 @@ it('shows the mark immediately before the site name, hidden from assistive techn
   expect(screen.getAllByRole('link').map(l => l.textContent)).toEqual(['搜尋旅行團', '連續行程']);
 });
 
-it('draws the mark in the on-charcoal colouring from the theme, sized to the name\'s line', () => {
-  expect(css()).toMatch(/\.mark \{[^}]*--mark-primary: var\(--snow\)/);
-  expect(css()).toMatch(/\.mark \{[^}]*--mark-accent: var\(--khaki\)/);
+it('draws the mark in the nav bar\'s fixed colouring from the theme (dark bar in both themes), sized to the name\'s line', () => {
+  expect(css()).toMatch(/\.mark \{[^}]*--mark-primary: var\(--bar-text\)/);
+  expect(css()).toMatch(/\.mark \{[^}]*--mark-accent: var\(--bar-accent\)/);
   expect(css()).toMatch(/\.mark \{[^}]*height: 1\.3em/);
   expect(css()).toMatch(/\.mark \{[^}]*flex: none/); // never squeezed at narrow widths
   expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
@@ -56,6 +57,16 @@ it('ends with the language switch, labelled in the current language', () => {
   expect(links[1].compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByText('跟邊團')).toBeInTheDocument(); // the brand stays 跟邊團 in English
+});
+
+it('ends with the theme switch, after the language switch, named in the current language', () => {
+  render(<NavBar current="search" t={makeT('en')} />);
+  const nav = screen.getByRole('navigation');
+  const group = screen.getByRole('group', { name: 'Language' });
+  const toDark = screen.getByRole('button', { name: 'Switch to dark theme' });
+  expect(nav).toContainElement(toDark);
+  expect(group.compareDocumentPosition(toDark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeInTheDocument();
 });
 
 it('wraps rather than scrolling sideways if a very narrow screen cannot fit the switch on the line', () => {

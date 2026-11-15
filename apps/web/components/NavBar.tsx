@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { T } from '../lib/i18n';
 import { LanguageSwitch } from './LanguageSwitch';
 import { Mark } from './Mark';
+import { ThemeSwitch } from './ThemeSwitch';
 import styles from './NavBar.module.css';
 
 export type NavPage = 'search' | 'chain';
@@ -12,7 +13,8 @@ const links: { page: NavPage; href: string; label: 'nav.search' | 'nav.chain' }[
 ];
 
 /**
- * The site's top bar (mockup `.bar`): mark and name, the two page links, and the language switch at the right.
+ * The site's top bar (mockup `.bar`): mark and name, the two page links, and the language and theme switches at
+ * the right. The bar is dark in both themes.
  * `current` is the page whose link is highlighted, if any.
  */
 export function NavBar({ current, t }: { current?: NavPage; t: T }) {
@@ -30,7 +32,10 @@ export function NavBar({ current, t }: { current?: NavPage; t: T }) {
             {t(label)}
           </Link>
         ))}
-        <LanguageSwitch t={t} />
+        <div className={styles.tools}>
+          <LanguageSwitch t={t} />
+          <ThemeSwitch t={t} />
+        </div>
       </div>
     </nav>
   );

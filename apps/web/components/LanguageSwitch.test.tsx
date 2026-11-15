@@ -58,5 +58,7 @@ it('is 44px tall for touch, sits at the right, and drops to 繁 / 简 / EN on ph
   expect(css()).toMatch(/\.form \{ margin: 0 0 0 auto; \}/);
   expect(css()).toMatch(/\.short \{ display: none; \}/);
   expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*\.long \{ display: none; \}[^@]*\.short \{ display: inline; \}/);
+  // Phones: 26px wide (above the 24px minimum touch target), so the bar keeps one row at 375px in every language.
+  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.option \{ min-width: 26px; padding: 0 3px; \}/);
   expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
 });
