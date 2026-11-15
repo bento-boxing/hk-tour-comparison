@@ -50,10 +50,7 @@ function datesText(from: IsoDate | undefined, to: IsoDate | undefined, today: Is
   return null;
 }
 
-/**
- * A reversed pair of typed dates is swapped, as for the number ranges. (In the address a reversed departure
- * window is dropped, and a reversed travel window is kept and matches nothing.)
- */
+/** A reversed pair of typed dates is swapped, as for the number ranges (in the address, a reversed pair is dropped). */
 const inOrder = (from: string, to: string): [string, string] => (from && to && from > to ? [to, from] : [from, to]);
 
 function daysText(min: number | undefined, max: number | undefined, t: T): string | null {
@@ -310,21 +307,24 @@ interface RangeFormProps {
 function RangeForm({ type, t, from, to, bounds, hint, onApply, onReset }: RangeFormProps) {
   const [a, setA] = useState(from);
   const [b, setB] = useState(to);
+  const hintId = useId();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     onApply(a.trim(), b.trim());
   };
   const numberProps = type === 'number' ? { min: bounds?.min, max: bounds?.max, step: 1, inputMode: 'numeric' as const } : {};
+  // Focus lands on the first input when the popover opens, so the note is tied to both inputs to be read out.
+  const inputProps = { className: styles.input, type, 'aria-describedby': hint ? hintId : undefined, ...numberProps };
   return (
     <form className={styles.range} onSubmit={submit}>
-      {hint && <p className={styles.hint}>{hint}</p>}
+      {hint && <p id={hintId} className={styles.hint}>{hint}</p>}
       <label className={styles.field}>
         <span>{t('filter.from')}</span>
-        <input className={styles.input} type={type} value={a} onChange={e => setA(e.target.value)} {...numberProps} />
+        <input {...inputProps} value={a} onChange={e => setA(e.target.value)} />
       </label>
       <label className={styles.field}>
         <span>{t('filter.to')}</span>
-        <input className={styles.input} type={type} value={b} onChange={e => setB(e.target.value)} {...numberProps} />
+        <input {...inputProps} value={b} onChange={e => setB(e.target.value)} />
       </label>
       <div className={styles.actions}>
         <button type="button" className={styles.reset} onClick={onReset}>{t('filter.reset')}</button>

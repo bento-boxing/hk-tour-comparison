@@ -237,12 +237,21 @@ it('the travel window is applied from its two date inputs, with the other filter
   const to = within(dialog).getByLabelText('至');
   expect(from).toHaveAttribute('type', 'date');
   expect(from).toHaveFocus();
+  // Focus lands on 由, so the note is read with each input.
+  expect(from).toHaveAccessibleDescription('只列出出發及回程都在這段日子內的旅行團');
+  expect(to).toHaveAccessibleDescription('只列出出發及回程都在這段日子內的旅行團');
   await user.type(from, '2027-01-12');
   await user.type(to, '2027-01-15');
   await user.click(within(dialog).getByRole('button', { name: '套用' }));
   expect(onChange).toHaveBeenCalledWith({
     filters: { dateFrom: '2026-12-01', travelFrom: '2027-01-12', travelTo: '2027-01-15', operators: ['egl'] }, sort: 'date', page: 1,
   });
+});
+
+it('the other ranges have no note and no description', async () => {
+  renderBar(base);
+  await user.click(pill('價錢：全部'));
+  expect(screen.getByRole('spinbutton', { name: '由' })).not.toHaveAttribute('aria-describedby');
 });
 
 it('a travel window typed back to front is swapped; 清除 removes it', async () => {
