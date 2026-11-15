@@ -134,19 +134,24 @@ const PAIRS: { what: string; fg: string; bg: string; min: number; opacity?: numb
   { what: 'nav bar: site name, current link', fg: 'bar-text', bg: 'bar-bg', min: 4.5 },
   { what: 'nav bar: other links and language buttons at 75%', fg: 'bar-text', bg: 'bar-bg', min: 4.5, opacity: 0.75 },
   { what: 'language notice', fg: 'notice-text', bg: 'notice-maroon', min: 4.5 },
-  // Cards opened this session (TourCard): every text a card shows, on both tints, and the two cues.
+  // Cards opened this session (TourCard): on the two tints a card's muted and faint text, accent, price-down and
+  // arrow use the --marked-* tokens (TourCard.module.css sets them on .card[data-opened]); every text it shows.
   ...(['opened-bg', 'latest-bg'] as const).flatMap(bg => [
     { what: `card text on ${bg}`, fg: 'charcoal', bg, min: 4.5 },
-    { what: `muted text on ${bg}`, fg: 'text-muted', bg, min: 4.5 },
-    { what: `faint text on ${bg}`, fg: 'text-faint', bg, min: 4.5 },
-    { what: `accent text on ${bg}`, fg: 'cerulean', bg, min: 4.5 },
-    { what: `price down on ${bg}`, fg: 'price-down', bg, min: 4.5 },
+    { what: `muted and faint text on ${bg}`, fg: 'marked-muted', bg, min: 4.5 },
+    { what: `accent text on ${bg}`, fg: 'marked-accent', bg, min: 4.5 },
+    { what: `price down on ${bg}`, fg: 'marked-down', bg, min: 4.5 },
     { what: `price up on ${bg}`, fg: 'price-up', bg, min: 4.5 },
-    { what: `route arrow on ${bg}`, fg: 'line-control', bg, min: 3 },
-    { what: `add button outline on ${bg}`, fg: 'cerulean', bg, min: 3 },
+    { what: `route arrow on ${bg}`, fg: 'marked-line', bg, min: 3 },
+    { what: `add button outline and date focus ring on ${bg}`, fg: 'marked-accent', bg, min: 3 },
   ]),
   { what: 'cue on an earlier-opened card (已瀏覽)', fg: 'charcoal', bg: 'ash', min: 4.5 },
   { what: 'cue on the most recent card (最近瀏覽)', fg: 'on-latest-accent', bg: 'latest-accent', min: 4.5 },
+  { what: 'the most recent card\'s ring against the page', fg: 'latest-accent', bg: 'snow', min: 3 },
+  // The card's focus ring: outside the border box, with a page-coloured band (--snow) inside it and the page outside.
+  { what: 'card focus ring against its band and the page', fg: 'cerulean', bg: 'snow', min: 3 },
+  { what: 'card focus ring of an opened card against its band and the page', fg: 'marked-accent', bg: 'snow', min: 3 },
+  { what: 'date focus ring against the card', fg: 'cerulean', bg: 'surface', min: 3 },
   { what: 'control outlines (pills, fields, pager) on the page', fg: 'line-control', bg: 'snow', min: 3 },
   { what: 'control outlines in popovers', fg: 'line-control', bg: 'surface', min: 3 },
   { what: 'route arrow on cards', fg: 'line-control', bg: 'surface', min: 3 },
@@ -170,6 +175,14 @@ it('reports the lowest ratio per theme (for the record; each pair is checked abo
       return contrast(opacity === undefined ? hex(theme, fg) : blend(hex(theme, fg), back, opacity), back);
     }));
     expect(lowest).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+it('opened cards are clearly greyed: "opened earlier" differs from a normal card, "most recent" has a ring that stands out', () => {
+  for (const theme of Object.values(themes)) {
+    expect(contrast(hex(theme, 'opened-bg'), hex(theme, 'surface'))).toBeGreaterThanOrEqual(1.15);
+    expect(contrast(hex(theme, 'latest-bg'), hex(theme, 'surface'))).toBeGreaterThanOrEqual(1.15);
+    expect(contrast(hex(theme, 'latest-accent'), hex(theme, 'snow'))).toBeGreaterThanOrEqual(3);
   }
 });
 

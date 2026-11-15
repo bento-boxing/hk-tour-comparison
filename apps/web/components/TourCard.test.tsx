@@ -131,12 +131,35 @@ describe('each departure date shows its own price', () => {
     expect(screen.getByRole('button', { name: '加入行程 ＋' })).toHaveFocus();
   });
 
-  it('a card without a link still shows each date\'s price on focus, without making the dates links', async () => {
+  it('a mouse (or pen) over a date shows its price; leaving hides it', () => {
+    render(<TourCard {...props} />);
+    const link = dateLinks()[1];
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    expect(link).toHaveAttribute('data-hover');
+    fireEvent.pointerLeave(link, { pointerType: 'mouse' });
+    expect(link).not.toHaveAttribute('data-hover');
+    fireEvent.pointerEnter(link, { pointerType: 'pen' });
+    expect(link).toHaveAttribute('data-hover');
+  });
+
+  it('a finger does not: a tap opens the page and leaves no price showing, even where the screen also has a mouse', async () => {
+    render(<TourCard {...props} />);
+    const link = dateLinks()[1];
+    fireEvent.pointerEnter(link, { pointerType: 'touch' });
+    expect(link).not.toHaveAttribute('data-hover');
+    expect(link).toHaveAttribute('href', tour.url);
+  });
+
+  it('a card without an https address: the dates are plain text, not links and not tab stops; a mouse still shows the price', async () => {
     render(<TourCard {...props} tour={{ ...tour, url: 'http://example.com' }} />);
     expect(screen.queryByRole('link')).toBeNull();
+    const chip = screen.getByText('12/18').parentElement!;
+    expect(chip).not.toHaveAttribute('tabindex');
     await user.tab();
-    expect(screen.getByText('12/18').parentElement).toHaveFocus();
-    expect(screen.getByText('12/18').parentElement).toHaveTextContent('12/18 HK$7,999');
+    expect(document.body).toHaveFocus(); // nothing in the card to stop at (no add button here)
+    expect(chip).toHaveTextContent('12/18 HK$7,999'); // screen readers still read the price with the date
+    fireEvent.pointerEnter(chip, { pointerType: 'mouse' });
+    expect(chip).toHaveAttribute('data-hover');
   });
 
   it('keeps a tooltip inside the window: shifts it left or right by what would overflow', () => {
@@ -146,36 +169,54 @@ describe('each departure date shows its own price', () => {
     expect(shiftIntoView(0, 1200, 1000)).toBe(8); // wider than the window: keep its start visible
   });
 
-  it('sets the shift when a date is hovered or focused', () => {
+  /**
+   * A stand-in for the browser: the tooltip measures as the 16px hidden box unless its shown geometry applies at
+   * the moment of measuring (in Firefox, :hover is not yet applied when pointerenter fires). Measuring the hidden
+   * box would always give a shift of 0, which is what the first version did.
+   */
+  function layOut(tip: HTMLElement, shown: { left: number; right: number }) {
+    tip.getBoundingClientRect = () => (tip.hasAttribute('data-measure')
+      ? { left: shown.left, right: shown.right }
+      : { left: (shown.left + shown.right) / 2 - 8, right: (shown.left + shown.right) / 2 + 8 }) as DOMRect;
+  }
+
+  it('measures the tooltip as it will show, not as the hidden box, when a mouse enters or the date takes focus', () => {
     render(<TourCard {...props} />);
-    const link = dateLinks()[0];
-    const tip = link.lastElementChild as HTMLElement;
-    tip.getBoundingClientRect = () => ({ left: -20, right: 60 } as DOMRect);
-    fireEvent.pointerEnter(link);
+    const [first, second] = dateLinks();
+    const tip = first.lastElementChild as HTMLElement;
+    layOut(tip, { left: -20, right: 90 }); // would start 20px off the left edge
+    fireEvent.pointerEnter(first, { pointerType: 'mouse' });
     expect(tip.style.getPropertyValue('--tip-shift')).toBe('28px');
-    tip.getBoundingClientRect = () => ({ left: 10, right: 90 } as DOMRect);
-    fireEvent.focus(link);
-    expect(tip.style.getPropertyValue('--tip-shift')).toBe('0px');
+    expect(tip).not.toHaveAttribute('data-measure'); // only for the measurement: nothing is left behind
+    const tip2 = second.lastElementChild as HTMLElement;
+    layOut(tip2, { left: window.innerWidth - 50, right: window.innerWidth + 40 }); // 40px off the right edge
+    fireEvent.focus(second);
+    expect(tip2.style.getPropertyValue('--tip-shift')).toBe('-48px');
   });
 
-  it('the CSS: dates read as information (help cursor, no button fill, no pressed look); the price appears above the date on hover (pointer devices only) and on keyboard focus, out of the layout', () => {
+  it('the CSS: dates use the link cursor and have no pressed look; the price shows for a mouse (data-hover), on keyboard focus (:focus-visible, not a tap\'s :focus) and while measured, out of the layout', () => {
     const css = cardCss();
-    expect(css).toMatch(/\.d \{[^}]*cursor: help/);
+    expect(css).toMatch(/a\.d \{ cursor: pointer; \}/);
+    expect(css).not.toMatch(/cursor: help/);
     expect(css).not.toMatch(/\.d:active/);
     expect(css).toMatch(/\.tip \{[^}]*position: absolute[^}]*bottom: calc\(100% \+ 6px\)/);
     expect(css).toMatch(/\.tip \{[^}]*background: var\(--charcoal\)[^}]*color: var\(--snow\)/);
-    expect(css).toMatch(/\.d:focus-visible \.tip \{/);
-    // Hover reveals only where there is a real hover: on a touch screen the first tap must open the operator's page.
-    expect(css).toMatch(/@media \(hover: hover\) \{ \.d:hover \.tip \{/);
-    expect(css.replace(/@media \(hover: hover\) \{[^@]*\}\s*\}/, '')).not.toMatch(/\.d:hover \.tip/);
+    expect(css).toMatch(/\.d\[data-hover\] \.tip, \.d:focus-visible \.tip, \.tip\[data-measure\] \{ clip-path: none;/);
+    // Never on :hover or :focus alone: a finger's tap sets both and would leave the price stuck on screen.
+    expect(css).not.toMatch(/:hover \.tip|:focus \.tip/);
   });
 
   it('the CSS: a click anywhere on the card reaches the card link, except on a date (its own link to the same page) and the add button', () => {
     const css = cardCss();
-    expect(css).toMatch(/\.link::after \{[^}]*content: ''[^}]*position: absolute[^}]*inset: 0/);
+    expect(css).toMatch(/\.link::after \{[^}]*content: ''[^}]*position: absolute[^}]*inset: -1px -1px -1px -5px/);
     expect(css).toMatch(/\.dates \{[^}]*position: relative[^}]*pointer-events: none/);
     expect(css).toMatch(/\.d \{[^}]*pointer-events: auto/);
-    expect(css).toMatch(/\.link:focus-visible::after \{[^}]*outline: 2px solid var\(--cerulean\)/);
+  });
+
+  it('the CSS: the card\'s focus ring goes round the whole card, outside its borders, with a page-coloured band inside it', () => {
+    const css = cardCss();
+    // The stretched area covers the border box (the 5px operator edge included); the band covers any khaki ring.
+    expect(css).toMatch(/\.link:focus-visible::after \{ outline: 2px solid var\(--cerulean\); outline-offset: 4px; box-shadow: 0 0 0 4px var\(--snow\); \}/);
   });
 });
 
@@ -303,7 +344,9 @@ describe('cards opened this session are marked', () => {
 
   it('the CSS: two tints from the theme, a ring for the most recent; the cue sits on the border, out of the layout, and lets presses through', () => {
     const css = cardCss();
-    expect(css).toMatch(/\.card\[data-opened\] \{ background: var\(--opened-bg\); \}/);
+    expect(css).toMatch(/\.card\[data-opened\] \{ background: var\(--opened-bg\);/);
+    // On the tints the card's secondary text, accent, price-down and arrow use the darker --marked-* tokens.
+    expect(css).toMatch(/\.card\[data-opened\] \{[^}]*--text-muted: var\(--marked-muted\); --text-faint: var\(--marked-muted\); --cerulean: var\(--marked-accent\);[^}]*--price-down: var\(--marked-down\); --line-control: var\(--marked-line\);/);
     expect(css).toMatch(/\.card\[data-opened='latest'\] \{[^}]*background: var\(--latest-bg\)[^}]*box-shadow: 0 0 0 2px var\(--latest-accent\)/);
     expect(css).toMatch(/\.cue \{[^}]*position: absolute[^}]*pointer-events: none/);
     expect(css).toMatch(/\.cue \{[^}]*background: var\(--ash\)[^}]*color: var\(--charcoal\)/);

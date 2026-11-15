@@ -2,7 +2,7 @@
 
 import {
   Fragment, useId, useRef, useState, useSyncExternalStore,
-  type CSSProperties, type KeyboardEvent, type MouseEvent, type SyntheticEvent,
+  type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent,
 } from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db';
@@ -48,22 +48,42 @@ export function shiftIntoView(left: number, right: number, viewport: number, mar
   return 0;
 }
 
-/** Keeps a date's tooltip (the date element's last child) inside the window, measured as it appears. */
-function placeTip(event: SyntheticEvent<HTMLElement>) {
-  const tip = event.currentTarget.lastElementChild as HTMLElement | null;
+/**
+ * Keeps a date's tooltip (the date element's last child) at least TIP_MARGIN inside the window. It is measured with
+ * its shown geometry (`data-measure`, set and removed within this call, so nothing is ever drawn with it): when the
+ * pointer enters, :hover may not apply yet, and the hidden tooltip is a 1px box that says nothing about its width.
+ */
+function placeTip(date: HTMLElement) {
+  const tip = date.lastElementChild as HTMLElement | null;
   if (!tip) return;
   tip.style.setProperty('--tip-shift', '0px');
+  tip.setAttribute('data-measure', '');
   const { left, right } = tip.getBoundingClientRect();
+  tip.removeAttribute('data-measure');
   const viewport = document.documentElement.clientWidth || window.innerWidth; // clientWidth: without a scrollbar
   tip.style.setProperty('--tip-shift', `${shiftIntoView(left, right, viewport)}px`);
 }
 
 /**
+ * A mouse or pen over a date shows its price (`data-hover`); a finger does not. On a touch screen a tap opens the
+ * operator's page and must leave nothing shown, and :hover (and @media (hover: hover), true on touchscreen laptops)
+ * cannot tell a finger from a mouse, so the pointer's own type decides.
+ */
+function showTip(event: PointerEvent<HTMLElement>) {
+  if (event.pointerType === 'touch') return;
+  event.currentTarget.setAttribute('data-hover', '');
+  placeTip(event.currentTarget);
+}
+function hideTip(event: PointerEvent<HTMLElement>) {
+  event.currentTarget.removeAttribute('data-hover');
+}
+
+/**
  * One tour (mockup `.card`). The card is one link to the operator's page, opened in a new tab: the link holds the
  * top of the card and stretches over the whole card (CSS), so a press anywhere on it opens the page. Each departure
- * date is a link to the same page of its own, which shows that date's price above it on hover and on keyboard
- * focus; the dates are one tab stop, moved through with the arrow keys. A plain block instead of links when the
- * address is not https. The operator colour comes from `operator.color` through the `--c` custom property; the
+ * date is a link to the same page of its own, which shows that date's price above it for a mouse and on keyboard
+ * focus (never for a finger); the dates are one tab stop, moved through with the arrow keys. A plain block instead
+ * of links when the address is not https: its dates are then plain text (price for a mouse only, no tab stop). The operator colour comes from `operator.color` through the `--c` custom property; the
  * tag's text is light or dark, whichever reads better on it. The link's name is short; the start/end note,
  * the price change and the opened mark are attached to it as its description.
  *
@@ -195,16 +215,22 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
                 </span>
               </>
             );
-            const dateProps = {
-              ref: (el: HTMLElement | null) => { dateRefs.current[i] = el; },
-              className: styles.d,
-              tabIndex: i === active ? 0 : -1,
-              onFocus: (e: SyntheticEvent<HTMLElement>) => { setActiveDate(i); placeTip(e); },
-              onPointerEnter: placeTip,
-            };
-            return linkable
-              ? <a key={d.date} {...linkProps} {...dateProps}>{content}</a>
-              : <span key={d.date} {...dateProps}>{content}</span>;
+            const pointer = { className: styles.d, onPointerEnter: showTip, onPointerLeave: hideTip };
+            return linkable ? (
+              <a
+                key={d.date}
+                {...linkProps}
+                {...pointer}
+                ref={el => { dateRefs.current[i] = el; }}
+                tabIndex={i === active ? 0 : -1}
+                onFocus={e => { setActiveDate(i); placeTip(e.currentTarget); }}
+              >
+                {content}
+              </a>
+            ) : (
+              // Not a link: nothing to open, so not a tab stop either.
+              <span key={d.date} {...pointer}>{content}</span>
+            );
           })}
           {moreDates > 0 && <span className={`${styles.d} ${styles.more}`}>{t('card.moreDates', { n: moreDates })}</span>}
         </div>

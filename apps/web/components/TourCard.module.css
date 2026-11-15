@@ -6,10 +6,15 @@
 }
 
 /*
- * Opened in this tab (set after hydration from lib/opened-tours): earlier ones a quiet grey, the most recent a
- * khaki wash with a khaki ring. Neither changes the card's size (box-shadow, not a border).
+ * Opened in this tab (set after hydration from lib/opened-tours): earlier ones greyed, the most recent a khaki
+ * wash with a darker khaki ring. Neither changes the card's size (box-shadow, not a border). On the tints the
+ * secondary text, accent, price-down and arrow take a shade darker (--marked-*), so every text stays AA.
  */
-.card[data-opened] { background: var(--opened-bg); }
+.card[data-opened] {
+  background: var(--opened-bg);
+  --text-muted: var(--marked-muted); --text-faint: var(--marked-muted); --cerulean: var(--marked-accent);
+  --price-down: var(--marked-down); --line-control: var(--marked-line);
+}
 .card[data-opened='latest'] { background: var(--latest-bg); box-shadow: 0 0 0 2px var(--latest-accent); }
 /* The text cue (已瀏覽 / 最近瀏覽): on the top border at the right, out of the layout; presses go through to the card. */
 .cue {
@@ -27,9 +32,14 @@
  * page. Positioned elements after it in the card (the dates, the add button) are drawn above it and take their
  * own presses; the footer is not positioned and stays under it.
  */
-.link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-card); }
+.link::after { content: ''; position: absolute; inset: -1px -1px -1px -5px; border-radius: var(--radius-card); }
+/*
+ * The focus ring: round the card's border box (the 5px operator edge included), 4px out, with a band of page
+ * colour inside it, so the ring always meets the page colour on both sides: never the operator colour, nor the
+ * most recent card's khaki ring (the band covers it while focused).
+ */
 .link:focus-visible { outline: none; }
-.link:focus-visible::after { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.link:focus-visible::after { outline: 2px solid var(--cerulean); outline-offset: 4px; box-shadow: 0 0 0 4px var(--snow); }
 .link:hover ~ .foot .go { text-decoration: underline; }
 
 .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
@@ -58,23 +68,27 @@
 .same { color: var(--text-faint); }
 
 /*
- * The dates: information that shows more on hover, not buttons. Their row lets presses through to the card link
- * (pointer-events: none) except on the dates themselves, which are links to the same page.
+ * The dates: information that shows more on hover, not buttons (no fill change, no pressed look). Their row lets
+ * presses through to the card link (pointer-events: none) except on the dates themselves, which are links to the
+ * same page, so they have the link cursor; on a card without a link they are plain text.
  */
 .dates { position: relative; display: flex; flex-wrap: wrap; gap: 5px; pointer-events: none; }
 .d {
-  position: relative; pointer-events: auto; cursor: help;
+  position: relative; pointer-events: auto;
   font-size: 12px; color: inherit; text-decoration: none;
   background: var(--ash); border-radius: 4px; padding: 3px 7px;
 }
+a.d { cursor: pointer; }
 .d > span:first-child { text-decoration: underline dotted; text-underline-offset: 3px; }
 .d:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
-.more { background: none; color: var(--text-muted); cursor: auto; pointer-events: none; }
+.more { background: none; color: var(--text-muted); pointer-events: none; }
 
 /*
  * The date's price, above it: out of the layout (absolute), so showing it moves nothing. Until shown it is
- * visually hidden but still read with the date by screen readers. --tip-shift (set by TourCard as it appears)
- * keeps it inside the window. Page colours reversed, so it stands out in either theme.
+ * visually hidden but still read with the date by screen readers. Shown for a mouse or pen (data-hover, set by
+ * TourCard from the pointer's type: never for a finger, so a tap leaves nothing on screen) and on keyboard focus
+ * (:focus-visible, which a tap's focus does not match); data-measure gives TourCard the shown size to measure.
+ * --tip-shift (set by TourCard) keeps it 8px inside the window. Page colours reversed, for either theme.
  */
 .tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; z-index: 5;
@@ -85,11 +99,7 @@
   clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden;
 }
 .tipFrom { font-size: 11px; font-weight: 500; }
-.d:focus-visible .tip { clip-path: none; width: auto; height: auto; overflow: visible; }
-/* Hover reveals only where there is a real hover: on a touch screen the first tap must open the operator's page. */
-@media (hover: hover) {
-  .d:hover .tip { clip-path: none; width: auto; height: auto; overflow: visible; }
-}
+.d[data-hover] .tip, .d:focus-visible .tip, .tip[data-measure] { clip-path: none; width: auto; height: auto; overflow: visible; }
 
 .foot { font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 8px; }
 .footLeft { display: flex; flex-direction: column; gap: 2px; }

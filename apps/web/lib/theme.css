@@ -19,18 +19,20 @@
   --cerulean: #21749a;
   /* --text-muted: the mockup's #7b7c76 darkened (same hue) to reach 4.5:1 on white and on --hit. */
   --text-muted: #6c6d67;
-  /* --text-faint: was #8f908a (3.2:1 on white); darkened to reach 4.5:1 on white and on the opened-card tints. */
-  --text-faint: #6f706a;
+  /* --text-faint: was #8f908a (3.2:1 on white); darkened to reach 4.5:1 on white and on --snow. */
+  --text-faint: #74756f;
   /* --line-control: khaki darkened (same hue) for the outlines of pills, fields and pager links: 3:1 on white. */
   --line-control: #9a8a6e;
   --divider: #e9ede4;
   --shadow: rgba(80, 81, 79, 0.12);
   --price-down: #1f7a4d; --price-up: #a8432a;
   /*
-   * Cards opened in this tab (TourCard): earlier ones a quiet grey, the most recent a khaki wash with a khaki ring
-   * and cue (the mockup's khaki); the cue's text is dark in both themes.
+   * Cards opened in this tab (TourCard): earlier ones greyed, the most recent a khaki wash with a darker khaki ring
+   * and cue (the mockup's khaki, as --line-control); the cue's text is dark in both themes. On those two tints a
+   * card's muted/faint text, accent, price-down and arrow are a shade darker (--marked-*), to stay AA.
    */
-  --opened-bg: #f5f6f2; --latest-bg: #f8f3e9; --latest-accent: #c3b299; --on-latest-accent: #1c1d1b;
+  --opened-bg: #e9ebe4; --latest-bg: #f4ead6; --latest-accent: #9a8a6e; --on-latest-accent: #1c1d1b;
+  --marked-muted: #60615b; --marked-accent: #1d6a8d; --marked-down: #1b6a42; --marked-line: #8a7b60;
   /* The nav bar is dark in both themes; its text and accent are fixed, its background is not. */
   --bar-bg: #50514f; --bar-text: #fffcff; --bar-accent: #c3b299;
   /* Operator colours (the database's operators.color) carry their own background, so they are the same in both themes. */
@@ -57,7 +59,8 @@
   --divider: #33342f;
   --shadow: rgba(0, 0, 0, 0.45);
   --price-down: #5cc28f; --price-up: #f08a6c;
-  --opened-bg: #1c1d1b; --latest-bg: #332f27; --latest-accent: #a99a7f;
+  --opened-bg: #1a1b19; --latest-bg: #3a3428; --latest-accent: #a99a7f;
+  --marked-muted: #a9aaa3; --marked-accent: #62b4dc; --marked-down: #5cc28f; --marked-line: #8e8169;
   --bar-bg: #2f302d;
   --when-light: none; --when-dark: inline-flex;
 }
@@ -74,7 +77,8 @@
     --divider: #33342f;
     --shadow: rgba(0, 0, 0, 0.45);
     --price-down: #5cc28f; --price-up: #f08a6c;
-    --opened-bg: #1c1d1b; --latest-bg: #332f27; --latest-accent: #a99a7f;
+    --opened-bg: #1a1b19; --latest-bg: #3a3428; --latest-accent: #a99a7f;
+    --marked-muted: #a9aaa3; --marked-accent: #62b4dc; --marked-down: #5cc28f; --marked-line: #8e8169;
     --bar-bg: #2f302d;
     --when-light: none; --when-dark: inline-flex;
   }
