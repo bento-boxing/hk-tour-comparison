@@ -1,19 +1,29 @@
 import { daysBetween, isIsoDate, tourRegions, type IsoDate, type PlacesIndex, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
 import { formatPrice, monthName } from './format';
 import { DEFAULT_LOCALE, makeT, type DictKey, type Locale, type T } from './i18n';
-import { placeName } from './place-names';
+import { placeName, retiredRegion } from './place-names';
 
 // The text pieces of a tour card. Pure: no React, no clock, no local-timezone Date arithmetic.
 
 /**
  * One name per stop, in the visitor's language: the city's, or the region's when the stop has no city.
- * Unknown ids fall back to the region, then the id.
+ * An unknown city falls back to its region, a retired region (retiredRegion) to the name it had; a stop whose
+ * region is unknown otherwise is left out, never shown as an id. When no stop is left, the first known country.
  */
 export function routeNames(stops: Stop[], places: PlacesIndex, locale: Locale = DEFAULT_LOCALE): string[] {
-  return stops.map(s => {
+  const names = stops.flatMap(s => {
     const place = (s.cityId === null ? undefined : places.city(s.cityId)) ?? places.region(s.regionId);
-    return place ? placeName(place, locale) : s.regionId;
+    if (place) return [placeName(place, locale)];
+    const retired = retiredRegion(s.regionId);
+    return retired ? [retired.name[locale]] : [];
   });
+  return names.length > 0 ? names : firstCountryName(stops, places, locale);
+}
+
+/** The first stop's country the places list knows, in `locale`, as a one-name list; empty when there is none. */
+function firstCountryName(stops: Stop[], places: PlacesIndex, locale: Locale): string[] {
+  const country = stops.map(s => places.country(s.countryId)).find(c => c !== undefined);
+  return country ? [placeName(country, locale)] : [];
 }
 
 /**
@@ -21,19 +31,27 @@ export function routeNames(stops: Stop[], places: PlacesIndex, locale: Locale = 
  * regions follow; just '法國' when the region's name is the country's. Empty for a tour without stops.
  * Names are in `t`'s language; `t` defaults to the zh-Hant text.
  * A stop saved under a region the places list no longer has (`china-central`, split into provinces in task 37)
- * counts in its city's region, or names the country alone when it has no city the list knows.
+ * counts in its city's current region. Without a known city, a retired region (retiredRegion) counts under the name
+ * it had, unless a region that replaced it is already on the card; any other unknown region is not counted. When
+ * nothing is counted, the label is the first known country alone. No id is ever shown.
  */
 export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT(DEFAULT_LOCALE)): string {
-  const [first, ...rest] = tourRegions(stops.map(s => (places.region(s.regionId) || s.cityId === null ? s
-    : { ...s, regionId: places.city(s.cityId)?.regionId ?? s.regionId })));
-  if (!first) return '';
+  const current = stops.map(s => (places.region(s.regionId) || s.cityId === null ? s
+    : { ...s, regionId: places.city(s.cityId)?.regionId ?? s.regionId }));
+  const onCard = new Set(current.map(s => s.regionId));
+  const counted = current.filter(s => places.region(s.regionId) !== undefined
+    || retiredRegion(s.regionId)?.replacedBy.every(id => !onCard.has(id)) === true);
+  const [first, ...rest] = tourRegions(counted);
+  if (!first) return firstCountryName(stops, places, t.locale)[0] ?? '';
   const country = places.country(first.countryId);
   const region = first.regionId === null ? undefined : places.region(first.regionId);
-  const countryText = country ? placeName(country, t.locale) : first.countryId;
-  const regionText = first.regionId === null || region === undefined ? null : placeName(region, t.locale);
+  const countryText = country ? placeName(country, t.locale) : null;
+  const regionText = first.regionId === null ? null
+    : region ? placeName(region, t.locale) : retiredRegion(first.regionId)?.name[t.locale] ?? null;
   // A region named like its country (法國 · 法國) is not named twice.
   const sameName = region !== undefined && country !== undefined ? region.nameZh === country.nameZh : regionText === countryText;
-  const label = regionText === null || sameName ? countryText : `${countryText} · ${regionText}`;
+  const label = regionText === null || sameName ? countryText ?? ''
+    : countryText === null ? regionText : `${countryText} · ${regionText}`;
   return rest.length === 0 ? label : `${label} ${t('card.moreRegions', { n: rest.length })}`;
 }
 
