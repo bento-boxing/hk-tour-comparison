@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe } from 'vitest';
-import type { NormalisedTour, OperatorId, ScrapedDeparture, Stop } from '@hktours/core';
+import { places, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
 import { saveOperatorRun, PAGE_SIZE, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
-import { loadSearchPage } from './search-page-data';
+import { destinationOrder, loadSearchPage } from './search-page-data';
 
 const today = '2026-11-12';
 
@@ -78,6 +78,85 @@ it('the address strings become numbers for the database: days, price and sort ap
 it('the date window and operators apply', async () => {
   const data = await loadSearchPage(db, { from: '2026-12-10', to: '2026-12-31', op: 'egl,jetour,wingon' }, today);
   expect(keys(data)).toEqual(['egl:KIX5', 'jetour:MID6']);
+});
+
+it('the travel window applies, and the cards list only the departures that fit', async () => {
+  // KIX5 (5 days, 12-18) is back on 12-22 and MID6 (6 days, 12-20) on 12-25; SEL5 (12-24) only on 12-28.
+  const data = await loadSearchPage(db, { tfrom: '2026-12-18', tto: '2026-12-25' }, today);
+  expect(data.state.filters).toEqual({ travelFrom: '2026-12-18', travelTo: '2026-12-25' });
+  expect(data.tours.map(t => [t.key, t.departures.map(d => d.date)])).toEqual([
+    ['egl:KIX5', ['2026-12-18']], ['jetour:MID6', ['2026-12-20']],
+  ]);
+});
+
+it('a travel window nothing fits gives an empty list, not an error', async () => {
+  for (const raw of [{ tfrom: '2026-12-18', tto: '2026-12-19' }, { tto: '2026-01-31' }]) {
+    const data = await loadSearchPage(db, raw, today);
+    expect(data.total, JSON.stringify(raw)).toBe(0);
+    expect(data.tours).toEqual([]);
+  }
+});
+
+it('a travel window that ends before it starts is dropped, as a reversed departure window is: the full list', async () => {
+  const data = await loadSearchPage(db, { tfrom: '2026-12-25', tto: '2026-12-18' }, today);
+  expect(data.state.filters).toEqual({});
+  expect(data.total).toBe(4);
+});
+
+describe('odd dates in the address never reach the database as an error', () => {
+  // Each passes or fails isIsoDate differently: year 0 (Postgres has none), the last day of year 9999,
+  // a five-digit year, 30 February, month 13, and the first day of year 1.
+  const dates = ['0000-01-01', '9999-12-31', '10000-01-01', '2027-02-30', '2027-13-01', '0001-01-01'];
+  it.each(['from', 'to', 'tfrom', 'tto'])('%s', async name => {
+    for (const text of dates) {
+      const data = await loadSearchPage(db, { [name]: text }, today);
+      expect(data.tours.length, `${name}=${text}`).toBe(data.total);
+    }
+    // Year 0 is dropped, so the whole list shows; 9999-12-31 is kept and is a valid bound.
+    expect((await loadSearchPage(db, { [name]: '0000-01-01' }, today)).total).toBe(4);
+    expect((await loadSearchPage(db, { [name]: '9999-12-31' }, today)).state.filters).not.toEqual({});
+  });
+});
+
+// LAST4 and MID6 both start in Kanto (Tokyo): the cheaper one comes first in both directions.
+it.each([
+  // 日本 (4 strokes) · 關西 (關 19, 西 6) before 關東 (東 8), then 韓國 (17 strokes).
+  ['zh-Hant', ['egl:KIX5', 'texpert:LAST4', 'jetour:MID6', 'bigline:SEL5'], ['bigline:SEL5', 'texpert:LAST4', 'jetour:MID6', 'egl:KIX5']],
+  // 韩国 (hán) before 日本 (rì); 关东 (dōng) before 关西 (xī).
+  ['zh-Hans', ['bigline:SEL5', 'texpert:LAST4', 'jetour:MID6', 'egl:KIX5'], ['egl:KIX5', 'texpert:LAST4', 'jetour:MID6', 'bigline:SEL5']],
+  // Japan · Kansai, Japan · Kanto, South Korea.
+  ['en', ['egl:KIX5', 'texpert:LAST4', 'jetour:MID6', 'bigline:SEL5'], ['bigline:SEL5', 'texpert:LAST4', 'jetour:MID6', 'egl:KIX5']],
+] as const)('%s: the destination sorts follow the names the visitor reads, by first region', async (locale, ascending, descending) => {
+  expect(keys(await loadSearchPage(db, { sort: 'destination' }, today, locale))).toEqual(ascending);
+  expect(keys(await loadSearchPage(db, { sort: 'destination-desc' }, today, locale))).toEqual(descending);
+});
+
+describe('destinationOrder', () => {
+  const at = (order: string[], ids: string[]) => ids.map(id => order.indexOf(id));
+  const increasing = (xs: number[]) => xs.every((x, i) => x >= 0 && (i === 0 || x > xs[i - 1]));
+
+  it('lists every region once', () => {
+    for (const locale of ['zh-Hant', 'zh-Hans', 'en'] as const) {
+      const order = destinationOrder(places, locale);
+      expect(order).toHaveLength(places.data.regions.length);
+      expect(new Set(order)).toEqual(new Set(places.data.regions.map(r => r.id)));
+    }
+  });
+
+  it('Traditional Chinese is by stroke count: 日本, 台灣, 韓國; 北海道, 關西, 關東', () => {
+    expect(increasing(at(destinationOrder(places, 'zh-Hant'),
+      ['japan-hokkaido', 'japan-kansai', 'japan-kanto', 'taiwan-north', 'korea-seoul']))).toBe(true);
+  });
+
+  it('Simplified Chinese is by pinyin: 韩国, 日本, 台湾; 北海道, 关东, 关西', () => {
+    expect(increasing(at(destinationOrder(places, 'zh-Hans'),
+      ['korea-seoul', 'japan-hokkaido', 'japan-kanto', 'japan-kansai', 'taiwan-north']))).toBe(true);
+  });
+
+  it('English is A to Z: Japan, South Korea, Taiwan; Hokkaido, Kansai, Kanto', () => {
+    expect(increasing(at(destinationOrder(places, 'en'),
+      ['japan-hokkaido', 'japan-kansai', 'japan-kanto', 'korea-seoul', 'taiwan-north']))).toBe(true);
+  });
 });
 
 it('an exclusion in the address is ignored on the search page, which has no control to remove it', async () => {

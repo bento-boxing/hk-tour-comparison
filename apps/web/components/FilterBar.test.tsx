@@ -45,7 +45,7 @@ it('shows each filter with its current value', () => {
 it('shows the pills in the brief order, destination first', () => {
   renderBar({ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'price', page: 1 });
   const names = screen.getAllByRole('button').map(b => b.getAttribute('aria-label') ?? b.textContent);
-  expect(names).toEqual(['清除目的地：日本 → 關西', '出發日期：全部', '日數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
+  expect(names).toEqual(['清除目的地：日本 → 關西', '出發日期：全部', '可出行日期：全部', '日數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
   expect(pill('清除目的地：日本 → 關西')).toHaveTextContent('日本 → 關西 ✕');
 });
 
@@ -170,11 +170,116 @@ it('choosing a sort order calls onChange with page 1', async () => {
   renderBar({ ...base, page: 5 });
   await user.click(pill('排序：價錢 低→高'));
   const dialog = screen.getByRole('dialog', { name: '排序' });
-  expect(within(dialog).getAllByRole('button').map(b => b.textContent))
-    .toEqual(['價錢 低→高', '日數 短→長', '出發日期 早→遲', '目的地']);
+  // Four rows, one per order, each with its two directions: short visible text, the full order as the name.
+  const rows = within(dialog).getAllByRole('listitem');
+  expect(rows.map(r => [r.querySelector('[data-sort-name]')?.textContent, ...within(r).getAllByRole('button').map(b => b.textContent)])).toEqual([
+    ['價錢', '低→高', '高→低'],
+    ['日數', '短→長', '長→短'],
+    ['出發日期', '早→遲', '遲→早'],
+    ['目的地', '筆劃少→多', '筆劃多→少'],
+  ]);
+  expect(within(dialog).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual([
+    '價錢 低→高', '價錢 高→低', '日數 短→長', '日數 長→短', '出發日期 早→遲', '出發日期 遲→早', '目的地 筆劃少→多', '目的地 筆劃多→少',
+  ]);
   expect(within(dialog).getByRole('button', { name: '價錢 低→高' })).toHaveAttribute('aria-pressed', 'true');
+  expect(within(dialog).getByRole('button', { name: '價錢 高→低' })).toHaveAttribute('aria-pressed', 'false');
   await user.click(within(dialog).getByRole('button', { name: '出發日期 早→遲' }));
   expect(onChange).toHaveBeenCalledWith({ filters: {}, sort: 'date', page: 1 });
+});
+
+it('a reversed order is chosen the same way and named in full on the pill', async () => {
+  renderBar({ filters: { daysMin: 4 }, sort: 'price-desc', page: 3 });
+  const sort = pill('排序：價錢 高→低');
+  expect(sort).toHaveAttribute('data-on', 'true');
+  await user.click(sort);
+  const dialog = screen.getByRole('dialog', { name: '排序' });
+  expect(within(dialog).getByRole('button', { name: '價錢 高→低' })).toHaveAttribute('aria-pressed', 'true');
+  await user.click(within(dialog).getByRole('button', { name: '目的地 筆劃多→少' }));
+  expect(onChange).toHaveBeenCalledWith({ filters: { daysMin: 4 }, sort: 'destination-desc', page: 1 });
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('the sort rows lay out as a name and two equal buttons, using only theme colours', () => {
+  expect(css()).toMatch(/\.sortRows \{[^}]*display: grid; grid-template-columns: auto 1fr 1fr;/);
+  expect(css()).toMatch(/\.sortRow \{[^}]*grid-column: 1 \/ -1;[^}]*grid-template-columns: subgrid;/);
+  // A dark theme is coming: the rules added for this control name no colour of their own.
+  const added = css().match(/\.sort[A-Z]\w* \{[^}]*\}|\.hint \{[^}]*\}/g) ?? [];
+  expect(added.length).toBeGreaterThan(0);
+  for (const rule of added) expect(rule, rule).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+});
+
+it.each([
+  ['en', 'Sort by: Price, lowest first', 'Departure date', 'Latest first', 'Departure date, latest first', 'Sort by: Destination, Z–A'],
+  ['zh-Hans', '排序：价格 低→高', '出发日期', '晚→早', '出发日期 晚→早', '排序：目的地 Z→A'],
+] as const)('%s: the sort rows and pill', async (locale, sortPill, dateRow, latest, latestName, destDescPill) => {
+  const { unmount } = render(<FilterBar state={base} operators={operators} places={places} t={makeT(locale)} onChange={onChange} today="2026-11-12" />);
+  await user.click(pill(sortPill));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText(dateRow)).toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: latestName })).toHaveTextContent(latest);
+  unmount();
+  render(<FilterBar state={{ ...base, sort: 'destination-desc' }} operators={operators} places={places} t={makeT(locale)} onChange={onChange} today="2026-11-12" />);
+  expect(pill(destDescPill)).toBeInTheDocument();
+});
+
+it('the travel-dates pill shows its window, and is filled when set', () => {
+  renderBar({ filters: { travelFrom: '2026-12-20', travelTo: '2027-01-03' }, sort: 'price', page: 1 });
+  expect(pill('可出行日期：12/20 – 2027/1/3')).toHaveAttribute('data-on', 'true');
+  expect(pill('出發日期：全部')).not.toHaveAttribute('data-on');
+});
+
+it('the travel window is applied from its two date inputs, with the other filters kept', async () => {
+  renderBar({ filters: { dateFrom: '2026-12-01', operators: ['egl'] }, sort: 'date', page: 4 });
+  await user.click(pill('可出行日期：全部'));
+  const dialog = screen.getByRole('dialog', { name: '可出行日期' });
+  expect(dialog).toHaveTextContent('只列出出發及回程都在這段日子內的旅行團');
+  const from = within(dialog).getByLabelText('由');
+  const to = within(dialog).getByLabelText('至');
+  expect(from).toHaveAttribute('type', 'date');
+  expect(from).toHaveFocus();
+  // Focus lands on 由, so the note is read with each input.
+  expect(from).toHaveAccessibleDescription('只列出出發及回程都在這段日子內的旅行團');
+  expect(to).toHaveAccessibleDescription('只列出出發及回程都在這段日子內的旅行團');
+  await user.type(from, '2027-01-12');
+  await user.type(to, '2027-01-15');
+  await user.click(within(dialog).getByRole('button', { name: '套用' }));
+  expect(onChange).toHaveBeenCalledWith({
+    filters: { dateFrom: '2026-12-01', travelFrom: '2027-01-12', travelTo: '2027-01-15', operators: ['egl'] }, sort: 'date', page: 1,
+  });
+});
+
+it('the other ranges have no note and no description', async () => {
+  renderBar(base);
+  await user.click(pill('價錢：全部'));
+  expect(screen.getByRole('spinbutton', { name: '由' })).not.toHaveAttribute('aria-describedby');
+});
+
+it('a travel window typed back to front is swapped; 清除 removes it', async () => {
+  const { rerender } = renderBar(base);
+  await user.click(pill('可出行日期：全部'));
+  let dialog = screen.getByRole('dialog', { name: '可出行日期' });
+  await user.type(within(dialog).getByLabelText('由'), '2027-01-15');
+  await user.type(within(dialog).getByLabelText('至'), '2027-01-12');
+  await user.keyboard('{Enter}');
+  expect(onChange).toHaveBeenLastCalledWith({ filters: { travelFrom: '2027-01-12', travelTo: '2027-01-15' }, sort: 'price', page: 1 });
+
+  rerender(<FilterBar state={{ filters: { travelFrom: '2027-01-12', travelTo: '2027-01-15', daysMin: 3 }, sort: 'price', page: 2 }}
+    operators={operators} places={places} t={t} onChange={onChange} today="2026-11-12" />);
+  await user.click(pill('可出行日期：2027/1/12 – 2027/1/15'));
+  dialog = screen.getByRole('dialog', { name: '可出行日期' });
+  expect(within(dialog).getByLabelText('由')).toHaveValue('2027-01-12');
+  await user.click(within(dialog).getByRole('button', { name: '清除' }));
+  expect(onChange).toHaveBeenLastCalledWith({ filters: { daysMin: 3 }, sort: 'price', page: 1 });
+});
+
+it.each([
+  ['zh-Hans', '可出行日期：12/20 – 12/27', '只列出出发和回程都在这段日子内的旅行团'],
+  ['en', 'Travel dates: 20 Dec – 27 Dec', 'Only tours that leave and come back within these dates'],
+] as const)('%s: the travel-dates pill and its note', async (locale, travelPill, note) => {
+  render(<FilterBar state={{ filters: { travelFrom: '2026-12-20', travelTo: '2026-12-27' }, sort: 'price', page: 1 }}
+    operators={operators} places={places} t={makeT(locale)} onChange={onChange} today="2026-11-12" />);
+  await user.click(pill(travelPill));
+  expect(screen.getByRole('dialog')).toHaveTextContent(note);
 });
 
 it('clearing the destination pill removes it', async () => {
@@ -195,6 +300,7 @@ it('a whole-country destination is labelled 全部地區', () => {
 it('hides dates and shows exclusion when asked', async () => {
   renderBar({ filters: { excludeCountryIds: ['japan'] }, sort: 'price', page: 1 }, { show: { dates: false, exclude: true } });
   expect(screen.queryByRole('button', { name: /出發日期/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /可出行日期/ })).toBeNull(); // the chain page sets its own window
   const exclude = pill('排除：日本');
   expect(exclude).toHaveAttribute('data-on', 'true');
   await user.click(exclude);
@@ -229,6 +335,7 @@ it('the exclusion list groups the countries by part of the world, as the destina
 it('by default shows dates and no exclusion pill', () => {
   renderBar(base);
   expect(pill('出發日期：全部')).toBeInTheDocument();
+  expect(pill('可出行日期：全部')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /排除/ })).toBeNull();
 });
 
@@ -286,8 +393,8 @@ it('tabbing out of a popover closes it; moving between the popover and its own p
   await user.tab({ shift: true }); // back to its own pill
   expect(pill('日數：全部')).toHaveFocus();
   expect(screen.getByRole('dialog', { name: '日數' })).toBeInTheDocument();
-  await user.tab({ shift: true }); // on to the 出發日期 pill: outside
-  expect(pill('出發日期：全部')).toHaveFocus();
+  await user.tab({ shift: true }); // on to the 可出行日期 pill: outside
+  expect(pill('可出行日期：全部')).toHaveFocus();
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(onChange).not.toHaveBeenCalled();
 });

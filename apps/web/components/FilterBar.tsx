@@ -2,11 +2,11 @@
 
 import { useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { OPERATOR_IDS, groupCountries, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
-import type { OperatorInfo, TourFilters } from '@hktours/db/read';
+import type { OperatorInfo, SortKey, TourFilters } from '@hktours/db/read';
 import type { DictKey, T } from '../lib/i18n';
 import { formatChipDate, formatPrice } from '../lib/format';
 import {
-  buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, SORT_KEYS, type SearchState,
+  buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, type SearchState,
 } from '../lib/search-params';
 import { operatorName, placeName } from '../lib/place-names';
 import { destinationLabel } from './DestinationSearch';
@@ -17,15 +17,23 @@ export interface FilterBarProps {
   state: SearchState; operators: OperatorInfo[]; places: PlacesIndex; t: T;
   /** Called with the whole next state, always back on page 1. */
   onChange: (next: SearchState) => void;
-  /** dates defaults to true, exclude to false; the chain page flips both. */
+  /** dates (both the departure and the travel window) defaults to true, exclude to false; the chain page flips both. */
   show?: { dates?: boolean; exclude?: boolean };
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
 }
 
-type PillId = 'dates' | 'days' | 'price' | 'operators' | 'exclude' | 'sort';
+type PillId = 'dates' | 'travel' | 'days' | 'price' | 'operators' | 'exclude' | 'sort';
 
 const DAY_PRESETS: { min: number; max?: number }[] = [{ min: 1, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 9 }, { min: 10 }];
+
+/** The sort popover's rows: each order with its two directions, so eight choices fit a phone as four short rows. */
+const SORT_ROWS = [
+  { by: 'price', keys: ['price', 'price-desc'] },
+  { by: 'days', keys: ['days', 'days-desc'] },
+  { by: 'date', keys: ['date', 'date-desc'] },
+  { by: 'destination', keys: ['destination', 'destination-desc'] },
+] as const satisfies readonly { by: string; keys: readonly [SortKey, SortKey] }[];
 
 /** Countries never offered for exclusion, as in the destination panels. */
 const HIDDEN_COUNTRY_IDS = ['hongkong'];
@@ -34,13 +42,16 @@ const HIDDEN_COUNTRY_IDS = ['hongkong'];
 const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
 /** '12/1 – 12/31'; a date outside today's year shows its year, as on the cards: '12/20 – 2027/1/10'. */
-function datesText(f: TourFilters, today: IsoDate, t: T): string | null {
+function datesText(from: IsoDate | undefined, to: IsoDate | undefined, today: IsoDate, t: T): string | null {
   const date = (d: IsoDate) => formatChipDate(d, today, t);
-  if (f.dateFrom && f.dateTo) return `${date(f.dateFrom)} – ${date(f.dateTo)}`;
-  if (f.dateFrom) return `${date(f.dateFrom)} –`;
-  if (f.dateTo) return `– ${date(f.dateTo)}`;
+  if (from && to) return `${date(from)} – ${date(to)}`;
+  if (from) return `${date(from)} –`;
+  if (to) return `– ${date(to)}`;
   return null;
 }
+
+/** A reversed pair of typed dates is swapped, as for the number ranges (in the address, a reversed pair is dropped). */
+const inOrder = (from: string, to: string): [string, string] => (from && to && from > to ? [to, from] : [from, to]);
 
 function daysText(min: number | undefined, max: number | undefined, t: T): string | null {
   if (min === undefined && max === undefined) return null;
@@ -60,7 +71,8 @@ function priceText(f: TourFilters, t: T): string | null {
 
 /**
  * The filter pills (mockup `.filters` / `.f`), in this order: destination (only when set, with ✕ to clear),
- * departure dates, length, price, operators, exclusions (only when asked), sort. A pill whose filter is set is filled.
+ * departure dates, travel dates, length, price, operators, exclusions (only when asked), sort. A pill whose
+ * filter is set is filled.
  */
 export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong() }: FilterBarProps) {
   const showDates = show?.dates ?? true;
@@ -112,7 +124,8 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
 
   const days = daysText(f.daysMin, f.daysMax, t);
   const price = priceText(f, t);
-  const dates = datesText(f, today, t);
+  const dates = datesText(f.dateFrom, f.dateTo, today, t);
+  const travel = datesText(f.travelFrom, f.travelTo, today, t);
   const separator = t('dest.listSeparator');
 
   return (
@@ -135,9 +148,22 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
             <RangeForm
               type="date" t={t}
               from={f.dateFrom ?? ''} to={f.dateTo ?? ''}
-              // A reversed pair is swapped, as for the number ranges (in the address, the brief drops it).
-              onApply={(from, to) => { applyTyped(from && to && from > to ? { from: to, to: from } : { from, to }); done(); }}
+              onApply={(a, b) => { const [from, to] = inOrder(a, b); applyTyped({ from, to }); done(); }}
               onReset={() => { update({ dateFrom: undefined, dateTo: undefined }); done(); }}
+            />
+          )}
+        </FilterPopover>
+      )}
+
+      {showDates && (
+        // The visitor's free dates: only tours that leave and come back inside them. Applies with 出發日期.
+        <FilterPopover {...popover('travel')} label={pillLabel('filter.travel', travel)} title={t('filter.travel')} on={travel !== null}>
+          {done => (
+            <RangeForm
+              type="date" t={t} hint={t('filter.travelHint')}
+              from={f.travelFrom ?? ''} to={f.travelTo ?? ''}
+              onApply={(a, b) => { const [tfrom, tto] = inOrder(a, b); applyTyped({ tfrom, tto }); done(); }}
+              onReset={() => { update({ travelFrom: undefined, travelTo: undefined }); done(); }}
             />
           )}
         </FilterPopover>
@@ -232,19 +258,32 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
         </FilterPopover>
       )}
 
-      <FilterPopover {...popover('sort')} label={pillLabel('filter.sort', t(`sort.${state.sort}`))} title={t('filter.sort')} on={state.sort !== DEFAULT_SORT}>
+      <FilterPopover
+        {...popover('sort')}
+        label={pillLabel('filter.sort', t(`sort.${state.sort}`))}
+        title={t('filter.sort')}
+        on={state.sort !== DEFAULT_SORT}
+        // Wide enough for a row name and two directions side by side ('Departure date  Soonest first  Latest first').
+        wide
+      >
         {done => (
-          <ul className={styles.options}>
-            {SORT_KEYS.map(key => (
-              <li key={key}>
-                <button
-                  type="button"
-                  className={styles.option}
-                  aria-pressed={state.sort === key}
-                  onClick={() => { onChange({ ...state, sort: key, page: 1 }); done(); }}
-                >
-                  {t(`sort.${key}`)}
-                </button>
+          <ul className={styles.sortRows}>
+            {SORT_ROWS.map(row => (
+              <li key={row.by} className={styles.sortRow}>
+                <span data-sort-name="" className={styles.sortName}>{t(`sort.by.${row.by}`)}</span>
+                {row.keys.map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`${styles.chip} ${styles.sortDir}`}
+                    // The short visible text ('高→低') is part of the full name ('價錢 高→低').
+                    aria-label={t(`sort.${key}`)}
+                    aria-pressed={state.sort === key}
+                    onClick={() => { onChange({ ...state, sort: key, page: 1 }); done(); }}
+                  >
+                    {t(`sort.dir.${key}`)}
+                  </button>
+                ))}
               </li>
             ))}
           </ul>
@@ -258,28 +297,34 @@ interface RangeFormProps {
   type: 'number' | 'date'; t: T;
   from: string; to: string;
   bounds?: { min: number; max: number };
+  /** A short note above the inputs on what the range means. */
+  hint?: string;
   onApply: (from: string, to: string) => void;
   onReset: () => void;
 }
 
 /** Two inputs (由 / 至) with 清除 and 套用. Nothing is applied while typing; Enter or 套用 applies both. */
-function RangeForm({ type, t, from, to, bounds, onApply, onReset }: RangeFormProps) {
+function RangeForm({ type, t, from, to, bounds, hint, onApply, onReset }: RangeFormProps) {
   const [a, setA] = useState(from);
   const [b, setB] = useState(to);
+  const hintId = useId();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     onApply(a.trim(), b.trim());
   };
   const numberProps = type === 'number' ? { min: bounds?.min, max: bounds?.max, step: 1, inputMode: 'numeric' as const } : {};
+  // Focus lands on the first input when the popover opens, so the note is tied to both inputs to be read out.
+  const inputProps = { className: styles.input, type, 'aria-describedby': hint ? hintId : undefined, ...numberProps };
   return (
     <form className={styles.range} onSubmit={submit}>
+      {hint && <p id={hintId} className={styles.hint}>{hint}</p>}
       <label className={styles.field}>
         <span>{t('filter.from')}</span>
-        <input className={styles.input} type={type} value={a} onChange={e => setA(e.target.value)} {...numberProps} />
+        <input {...inputProps} value={a} onChange={e => setA(e.target.value)} />
       </label>
       <label className={styles.field}>
         <span>{t('filter.to')}</span>
-        <input className={styles.input} type={type} value={b} onChange={e => setB(e.target.value)} {...numberProps} />
+        <input {...inputProps} value={b} onChange={e => setB(e.target.value)} />
       </label>
       <div className={styles.actions}>
         <button type="button" className={styles.reset} onClick={onReset}>{t('filter.reset')}</button>

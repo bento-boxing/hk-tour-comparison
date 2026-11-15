@@ -110,6 +110,26 @@ it('the other filters, sort and page apply to the list; dates in the address are
   expect(page2.next).toEqual({ tours: [], total: 2 });
 });
 
+it('a travel window in the address is ignored too: the gap sets the window', async () => {
+  // Applied, 12-24 to 12-28 would keep SEL5 (12-24, back 12-28) and drop OSA6 (back 12-30 at the earliest).
+  const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3&tfrom=2026-12-24&tto=2026-12-28'), today);
+  expect(data.address.search.filters).toEqual({});
+  expect(nextKeys(data)).toEqual(['texpert:SEL5', 'jetour:OSA6']);
+  expect(chainPageHref(data.address)).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3');
+});
+
+it('every sort order applies to the list, destination by the names in the visitor\'s language', async () => {
+  const sorted = async (sort: string, locale?: 'zh-Hant' | 'zh-Hans' | 'en') =>
+    nextKeys(await loadChainPage(db, query(`legs=egl:KIX5@2026-12-18&gap=1-3&sort=${sort}`), today, locale));
+  expect(await sorted('price-desc')).toEqual(['jetour:OSA6', 'texpert:SEL5']);
+  // 日本 (4 strokes) before 韓國 (17) in Traditional; 韩国 (hán) before 日本 (rì) in Simplified.
+  expect(await sorted('destination')).toEqual(['jetour:OSA6', 'texpert:SEL5']);
+  expect(await sorted('destination', 'zh-Hant')).toEqual(['jetour:OSA6', 'texpert:SEL5']);
+  expect(await sorted('destination', 'zh-Hans')).toEqual(['texpert:SEL5', 'jetour:OSA6']);
+  expect(await sorted('destination-desc', 'zh-Hans')).toEqual(['jetour:OSA6', 'texpert:SEL5']);
+  expect(await sorted('destination', 'en')).toEqual(['jetour:OSA6', 'texpert:SEL5']); // Japan, South Korea
+});
+
 it('the address the page links from is built from validated state only', async () => {
   const data = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,egl:NOPE@2026-12-30&gap=3-1&ex=japan,mars&dest=<b>&page=x'), today);
   expect(data.address).toEqual({

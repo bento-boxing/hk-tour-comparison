@@ -17,7 +17,8 @@
   padding: 10px 12px; background: var(--surface); color: var(--charcoal);
   border: 1px solid var(--ash); border-radius: 8px; box-shadow: 0 6px 18px rgba(80, 81, 79, 0.12);
 }
-.wide { width: 400px; }
+/* Pushed back inside the window by FilterPopover when its pill is near the right edge (see fitShift). */
+.wide { width: min(400px, calc(100vw - 32px)); }
 .title { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
 
 .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -51,16 +52,20 @@
 .check input { margin: 0; accent-color: var(--cerulean); }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 
-.options { margin: 0; padding: 0; list-style: none; }
-.option {
-  display: block; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: none; text-align: left;
-  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+/* The sort popover: one row per order, its name then its two directions as chips (the pressed one filled). */
+/* The rows share the list's columns (subgrid), so the chips line up under long names; per-row columns where unsupported. */
+.sortRows { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sortRow {
+  display: grid; grid-column: 1 / -1; align-items: center; gap: 6px;
+  grid-template-columns: minmax(4.5em, auto) 1fr 1fr; grid-template-columns: subgrid;
 }
-.option:hover { background: var(--hit); }
-.option[aria-pressed='true'] { color: var(--cerulean); font-weight: 700; }
+.sortName { font-size: 13px; color: var(--text-muted); }
+.sortDir { white-space: nowrap; text-align: center; }
+
+/* A short note above a range's inputs (the travel dates). */
+.hint { width: 100%; margin: 0 0 2px; font-size: 12px; color: var(--text-muted); }
 
 .chip:focus-visible, .reset:focus-visible, .apply:focus-visible, .input:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
-.option:focus-visible { outline: 2px solid var(--cerulean); outline-offset: -2px; background: var(--hit); }
 .check:has(input:focus-visible) { outline: 2px solid var(--cerulean); outline-offset: -2px; }
 
 /* Phones: a popover spans the whole bar instead of hanging off its pill past the screen edge. */
@@ -69,5 +74,6 @@
   .slot { position: static; }
   .popover, .wide { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
   .input { font-size: 16px; } /* 16px stops iOS zooming into the field on focus */
-  .check, .option { padding: 9px 6px; }
+  .check { padding: 9px 6px; }
+  .sortDir { padding: 8px 6px; }
 }

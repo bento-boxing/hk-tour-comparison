@@ -30,10 +30,13 @@ export function chainStartHref(tourKey: string, departure: IsoDate): string {
  */
 export interface ChainAddress { chain: ChainState; search: SearchState }
 
-/** `/chain?legs=…&gap=…&dest=…&ex=…&…&sort=…&page=…`. Never `from`/`to`: the page sets the window from the gap. */
+/**
+ * `/chain?legs=…&gap=…&dest=…&ex=…&…&sort=…&page=…`. Never `from`/`to` or `tfrom`/`tto`: the page sets the
+ * window from the gap.
+ */
 export function chainPageHref(address: ChainAddress): string {
   const query = chainQuery(address.chain);
-  const { dateFrom: _from, dateTo: _to, ...filters } = address.search.filters;
+  const { dateFrom: _from, dateTo: _to, travelFrom: _tfrom, travelTo: _tto, ...filters } = address.search.filters;
   for (const [name, value] of buildSearchQuery({ ...address.search, filters })) query.set(name, value);
   return `/chain?${query}`;
 }

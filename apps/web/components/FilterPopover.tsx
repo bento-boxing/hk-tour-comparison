@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, type FocusEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
 import { usePopoverDismiss, type DismissReason } from '../lib/use-popover-dismiss';
 import styles from './FilterBar.module.css';
 
@@ -8,6 +8,21 @@ import styles from './FilterBar.module.css';
 type CloseReason = DismissReason | 'done';
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled])';
+
+/** The least room kept between a popover and either side of the window, in px. */
+const EDGE = 8;
+
+/**
+ * How far to move a popover sideways (px, negative = left) so it stays inside a window `viewport` px wide:
+ * none when it fits where it hangs (from its pill's left edge, `naturalLeft` px from the window's left);
+ * otherwise just enough that its right edge is EDGE px inside, and never so far that its left edge is
+ * nearer than EDGE. Zero before layout (no width), as in a test page.
+ */
+export function fitShift(naturalLeft: number, width: number, viewport: number): number {
+  if (viewport <= 0 || width <= 0) return 0;
+  const left = Math.max(EDGE, Math.min(naturalLeft, viewport - EDGE - width));
+  return left - naturalLeft;
+}
 
 export interface FilterPopoverProps {
   /** The pill's text, e.g. '日數：4–6日'; also its accessible name. */
@@ -74,6 +89,22 @@ function PopoverPanel({ title, wide, onClose, children }: { title: string; wide?
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const onKeyDown = usePopoverDismiss(rootRef, onClose);
+  // The CSS hangs the popover from its pill's left edge; a pill near the right of the window would push it
+  // off the screen, so it is measured before it is painted (and again on resize) and moved back inside.
+  const [shift, setShift] = useState(0);
+
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const applied = parseFloat(el.style.left || '0');
+      setShift(fitShift(rect.left - applied, rect.width, document.documentElement.clientWidth));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
 
   useEffect(() => {
     rootRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
@@ -85,6 +116,7 @@ function PopoverPanel({ title, wide, onClose, children }: { title: string; wide?
       role="dialog"
       aria-labelledby={titleId}
       className={wide ? `${styles.popover} ${styles.wide}` : styles.popover}
+      style={shift !== 0 ? { left: `${shift}px` } : undefined}
       onKeyDown={onKeyDown}
     >
       <span id={titleId} className={styles.title}>{title}</span>

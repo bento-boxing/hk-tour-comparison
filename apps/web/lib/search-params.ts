@@ -7,7 +7,13 @@ export interface SearchState { filters: TourFilters; sort: SortKey; page: number
 type RawParams = Record<string, string | string[] | undefined>;
 
 export const DEFAULT_SORT: SortKey = 'price';
-export const SORT_KEYS: readonly SortKey[] = ['price', 'days', 'date', 'destination'];
+/** Each order then its reverse. The bare names are the four from before, with the same meaning. */
+export const SORT_KEYS: readonly SortKey[] = [
+  'price', 'price-desc', 'days', 'days-desc', 'date', 'date-desc', 'destination', 'destination-desc',
+];
+
+/** The earliest date the address accepts (the database has no year 0). */
+const FIRST_DATE = '0001-01-01';
 
 export const DAYS_RANGE = { min: 1, max: 60 } as const;
 export const PRICE_RANGE = { min: 0, max: 2_000_000 } as const;
@@ -56,20 +62,30 @@ function compact<T extends object>(obj: T): T {
 /**
  * Reads the search state from the page address. Never throws: anything invalid is dropped (see the
  * address table in the task brief). A repeated parameter uses its first value.
- * includeDates false is used by the chain page, which sets the date window itself.
+ * includeDates false is used by the chain page, which sets the date window itself: it drops both the
+ * departure window (from, to) and the travel window (tfrom, tto).
  */
 export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { includeDates?: boolean } = {}): SearchState {
   const includeDates = opts.includeDates ?? true;
+  // A real calendar date from year 1 on: isIsoDate accepts year 0000, which Postgres refuses (an error page).
+  const isoDate = (name: string) => {
+    const text = first(raw, name);
+    return text !== undefined && isIsoDate(text) && text >= FIRST_DATE ? text : undefined;
+  };
+  // Both ends, or neither when the window ends before it starts. Same-format ISO dates compare as strings.
+  const datePair = (fromName: string, toName: string): [string | undefined, string | undefined] => {
+    const from = isoDate(fromName);
+    const to = isoDate(toName);
+    return from !== undefined && to !== undefined && from > to ? [undefined, undefined] : [from, to];
+  };
 
   let dateFrom: string | undefined;
   let dateTo: string | undefined;
+  let travelFrom: string | undefined;
+  let travelTo: string | undefined;
   if (includeDates) {
-    const from = first(raw, 'from');
-    const to = first(raw, 'to');
-    dateFrom = from !== undefined && isIsoDate(from) ? from : undefined;
-    dateTo = to !== undefined && isIsoDate(to) ? to : undefined;
-    // Same-format ISO dates compare correctly as strings.
-    if (dateFrom !== undefined && dateTo !== undefined && dateFrom > dateTo) dateFrom = dateTo = undefined;
+    [dateFrom, dateTo] = datePair('from', 'to');
+    [travelFrom, travelTo] = datePair('tfrom', 'tto');
   }
 
   const days = range(intInRange(first(raw, 'dmin'), DAYS_RANGE), intInRange(first(raw, 'dmax'), DAYS_RANGE));
@@ -83,6 +99,7 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
     destination: destination(first(raw, 'dest'), places),
     excludeCountryIds: excludeCountryIds.length > 0 ? excludeCountryIds : undefined,
     dateFrom, dateTo,
+    travelFrom, travelTo,
     daysMin: days.min, daysMax: days.max,
     priceMin: price.min, priceMax: price.max,
     operators: operators.length > 0 ? operators : undefined,
@@ -106,6 +123,8 @@ export function buildSearchQuery(state: SearchState): URLSearchParams {
   list('ex', f.excludeCountryIds);
   set('from', f.dateFrom);
   set('to', f.dateTo);
+  set('tfrom', f.travelFrom);
+  set('tto', f.travelTo);
   set('dmin', f.daysMin);
   set('dmax', f.daysMax);
   set('pmin', f.priceMin);

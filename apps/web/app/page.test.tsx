@@ -13,7 +13,7 @@ import type { SearchPageData } from '../lib/search-page-data';
 const mocks = vi.hoisted(() => ({
   locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
-  loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string) => Promise<SearchPageData>>(),
+  loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string) => Promise<SearchPageData>>(),
 }));
 vi.mock('../lib/db', () => ({ requestDb: mocks.requestDb }));
 // The language cookie: none, so Traditional Chinese, unless a test sets it.
@@ -109,6 +109,13 @@ it.each([
   expect(within(card).getByText(operator)).toBeInTheDocument();
   expect(within(card).getByRole('heading')).toHaveTextContent(city);
   expect(container.textContent).not.toMatch(/關西|個旅行團/);
+});
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('passes the language (%s) to the loader, for the destination sort', async locale => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(data);
+  await renderPage({ sort: 'destination' }, locale);
+  expect(mocks.loadSearchPage.mock.calls[0][3]).toBe(locale);
 });
 
 it('the server text is in English when the cookie says so (the error message)', async () => {

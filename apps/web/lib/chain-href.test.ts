@@ -41,6 +41,11 @@ it('chainPageHref never writes a departure window: the page sets it from the gap
   expect(chainPageHref(withDates)).toBe(chainPageHref(address));
 });
 
+it('chainPageHref never writes a travel window either', () => {
+  const withTravel = { ...address, search: { ...address.search, filters: { ...address.search.filters, travelFrom: '2027-01-12', travelTo: '2027-01-15' } } };
+  expect(chainPageHref(withTravel)).toBe(chainPageHref(address));
+});
+
 it('chainPageHref reads back through decodeChain and parseSearchParams to the same state', () => {
   const url = new URL(chainPageHref(address), 'http://localhost');
   const raw = Object.fromEntries(url.searchParams);
