@@ -41,7 +41,9 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
   // Step two: 全部地區 first, then the country's regions.
   const regionChoices: { key: string; label: string; dest: Destination }[] = country === undefined ? [] : [
     { key: '', label: t('dest.allRegions'), dest: { countryId: country.id, regionId: null } },
-    ...places.regionsOf(country.id).map(r => ({ key: r.id, label: placeName(r, t.locale), dest: { countryId: country.id, regionId: r.id } })),
+    // An area region (華東, 東北) is not offered (task 40 fix round 1): it finds only tours whose only place it is.
+    ...places.regionsOf(country.id).filter(r => r.members === undefined)
+      .map(r => ({ key: r.id, label: placeName(r, t.locale), dest: { countryId: country.id, regionId: r.id } })),
   ];
 
   const close = () => {

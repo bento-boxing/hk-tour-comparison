@@ -47,4 +47,6 @@ it('the scraper\'s place index never sees the search aliases', () => {
   }
   // Operator text naming the UK or the USA in English finds no stop through them.
   expect(extractStops(['UK', 'USA', 'England', 'Holland'], places).stops).toEqual([]);
+  // Nor the group words that have no area region (task 40).
+  expect(extractStops(['華北', '西北', '大西北', '川渝'], places).stops).toEqual([]);
 });

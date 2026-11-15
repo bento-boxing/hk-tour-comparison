@@ -234,6 +234,10 @@ The open places pass above is done, with offline before-and-after sweeps over ev
 
 **Yummy after the pass (offline, the practice crawl's log):** **319 would be saved, 3 `no-stops`, 7 no departures: 3 parse failures (0.9%)**, against 312 / 10 (3.0%). Still failing: the 台灣-only list (a country) and the two tours with an empty `dist_list`. The floor stays 104.
 
+## Grouped Chinese regions become provinces (task 40, 2026-11-15)
+
+北京及華北, 上海及華東, 四川重慶, 東北三省 and 西北 were split into their provinces and municipalities (as 華中 was in task 37). A province tag is now its own province (`浙江`, `安徽`, `陕西`, `山西`, `黑龍江`, `遼寧`, `四川`), and `dropRegionWithListedCity` drops a province only beside a city of that province. `華東` and `東北` / `東北三省` are areas that add no stop beside a city or province of theirs (for every operator, not an opt-in). Offline sweep of the practice crawl's log: counts unchanged (319 / 3 / 7), 6 routes changed, each now naming the provinces its tags name: AL-D-KZ08 and AL-D-KY08 (`黑龍江`, `遼寧` beside `吉林`, which used to swallow them), KL-W-XR07 (`四川` beside `重慶`), KL-J-NS08 (`浙江 → 安徽`), AL-S-JK06 and AL-M-DG06 (`陝西 → 山西`).
+
 ## Every URL fetched (investigation: 12 + 2 page fetches; robots.txt not counted)
 
 All were GETs through `createFetcher`. "Bytes" is the size of the decoded body. The ledger (`.superpowers/raw-pages/yummy/ledger.tsv`) also lists each time a saved robots.txt was reused instead of fetched again.

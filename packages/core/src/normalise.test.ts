@@ -407,6 +407,34 @@ describe('dropping a region whose city is listed (Yummy Holiday, owner decision 
   it('removes a repeat that dropping a region leaves side by side', () => {
     expect(route(['昆明', '雲南', '昆明'], true)).toEqual(['china-yunnan-kunming']);
   });
+  it('drops a province only for its own cities: 黑龍江 beside a Jilin city stays (task 40, when both were 東北三省 it went)', () => {
+    expect(route(['黑龍江', '吉林', '長白山'], true)).toEqual(['region:china-heilongjiang', 'china-northeast-jilin', 'china-northeast-changbaishan']);
+    expect(route(['四川', '重慶'], true)).toEqual(['region:china-sichuan', 'china-sichuan-chongqing']);
+    expect(route(['四川', '成都'], true)).toEqual(['china-sichuan-chengdu']);
+  });
+  it('is not what drops an area (華東, 東北) beside a member: that rule is always on, for every operator (task 40)', () => {
+    expect(route(['華東', '杭州'])).toEqual(['china-shanghai-hangzhou']);
+    expect(route(['華東', '浙江'])).toEqual(['region:china-zhejiang']);
+    expect(route(['華東', '杭州'], true)).toEqual(['china-shanghai-hangzhou']);
+    expect(route(['華東'], true)).toEqual(['region:china-area-east']);
+  });
+  describe('an area beside a member that is a stated start or end (fix round 1, review M2)', () => {
+    const stated = (dayHeadings: string[], startPoint: string | null, endPoint: string | null, fallbackRoute?: string) => {
+      const r = normaliseTour({ ...base, dayHeadings, startPoint, endPoint, ...(fallbackRoute ? { fallbackRoute } : {}) }, places, today);
+      return r.ok ? r.tour.stops.map(s => s.cityId ?? `region:${s.regionId}`) : r.reason;
+    };
+    it('keeps the area when the stated-ends step removes its only listed member, so the tour keeps a route', () => {
+      expect(stated(['上海', '華東'], '上海浦東機場集合', null)).toEqual(['region:china-area-east']);
+      expect(stated(['華東', '杭州'], null, '杭州東站散團')).toEqual(['region:china-area-east']);
+      expect(stated([], '上海浦東機場集合', null, '上海 華東 5天')).toEqual(['region:china-area-east']);
+    });
+    it('still drops the area when a member remains after the stated-ends step', () => {
+      expect(stated(['上海', '華東', '杭州'], '上海浦東機場集合', null)).toEqual(['china-shanghai-hangzhou']);
+      // A stated city in the middle of the route is not removed, so it still counts as a member.
+      expect(stated(['廣州', '上海', '華東', '廣州'], '上海浦東機場集合', null))
+        .toEqual(['china-guangdong-guangzhou', 'china-shanghai-shanghai', 'china-guangdong-guangzhou']);
+    });
+  });
   it('is opt-in: without it (every other operator) a region stays a stop', () => {
     expect(route(['雲南', '大理', '瀘沽湖', '麗江', '昆明'])).toEqual([
       'region:china-yunnan', 'china-yunnan-dali', 'china-yunnan-lugu-lake', 'china-yunnan-lijiang', 'china-yunnan-kunming',

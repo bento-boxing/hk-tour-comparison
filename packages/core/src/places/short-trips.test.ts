@@ -17,6 +17,12 @@ describe('the short-trip regions (a fallback route\'s "too far for the trip" rul
     expect(SHORT_TRIP_REGION_IDS.filter(id => ['china-hubei', 'china-henan', 'china-jiangxi', 'china-central'].includes(id)))
       .toEqual(['china-jiangxi']);
   });
+  it('holds none of the provinces and areas the five grouped regions became, as it held none of the groups (task 40)', () => {
+    const split = places.regionsOf('china').filter(r => r.members !== undefined || places.citiesOf(r.id).some(c =>
+      /^china-(beijing|shanghai|sichuan|northeast|northwest)-/.test(c.id))).map(r => r.id);
+    expect(split).toHaveLength(19);
+    expect(SHORT_TRIP_REGION_IDS.filter(id => split.includes(id))).toEqual([]);
+  });
   it('applies to tours of up to 3 days', () => {
     expect(SHORT_TRIP_MAX_DAYS).toBe(3);
   });

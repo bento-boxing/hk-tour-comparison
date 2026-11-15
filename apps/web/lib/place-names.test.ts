@@ -35,3 +35,15 @@ it('a retired region is not in the places data, and the regions that replaced it
   expect(retiredRegion('china-hubei')).toBeUndefined();
   expect(retiredRegion('constructor')).toBeUndefined();
 });
+
+it('東北三省 and 西北 are retired regions too, replaced by their provinces (task 40)', () => {
+  const northeast = retiredRegion('china-northeast');
+  expect(northeast?.name).toEqual({ 'zh-Hant': '東北三省', 'zh-Hans': '东北三省', en: 'Northeast China' });
+  expect(northeast?.replacedBy.map(id => places.region(id)?.nameZh)).toEqual(['黑龍江', '吉林', '遼寧', '東北']);
+  const northwest = retiredRegion('china-northwest');
+  expect(northwest?.name).toEqual({ 'zh-Hant': '西北', 'zh-Hans': '西北', en: 'Northwest China' });
+  expect(northwest?.replacedBy.map(id => places.region(id)?.nameZh)).toEqual(['陝西', '甘肅', '青海', '寧夏']);
+  for (const id of ['china-northeast', 'china-northwest']) expect(places.region(id), id).toBeUndefined();
+  // The kept ids are regions in the data, so not retired.
+  for (const id of ['china-beijing', 'china-shanghai', 'china-sichuan']) expect(retiredRegion(id), id).toBeUndefined();
+});

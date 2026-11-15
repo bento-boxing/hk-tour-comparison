@@ -21,6 +21,15 @@ it('a province that was part of 華中 is a destination; an old 華中 address (
   expect(parseSearchParams({ dest: 'china-central', sort: 'days' }, places)).toEqual({ filters: {}, sort: 'days', page: 1 });
 });
 
+it('the provinces and areas of task 40 are destinations, the kept ids still work, and the two retired ids are dropped', () => {
+  for (const id of ['china-beijing', 'china-shanghai', 'china-sichuan', 'china-zhejiang', 'china-chongqing', 'china-jilin', 'china-shaanxi', 'china-area-east', 'china-area-northeast']) {
+    expect(parseSearchParams({ dest: id }, places).filters.destination, id).toEqual({ countryId: 'china', regionId: id });
+  }
+  for (const id of ['china-northeast', 'china-northwest']) {
+    expect(parseSearchParams({ dest: id, sort: 'days' }, places), id).toEqual({ filters: {}, sort: 'days', page: 1 });
+  }
+});
+
 it('empty address gives defaults', () => {
   expect(parseSearchParams({}, places)).toEqual({ filters: {}, sort: 'price', page: 1 });
   expect(DEFAULT_SORT).toBe('price');

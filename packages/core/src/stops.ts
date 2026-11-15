@@ -215,6 +215,22 @@ export function withoutRegionsOfListedCities(stops: Stop[]): Stop[] {
 }
 
 /**
+ * The route without each stop in an area region (Region.members: 華東, 東北) when the route also has a stop, a city
+ * or a province alone, in one of the area's members, before or after it, and without the consecutive repeats that
+ * leaves (task 40). An area is a group word, not a place: beside a member it says nothing the member does not.
+ * Always on, for every operator and every text (extractStops, so day lines and fallback text alike), unlike
+ * dropRegionWithListedCity, which an operator opts into for a province given as a tag beside its own city: an area
+ * never holds a city, and no operator uses one as a place of its own beside its provinces.
+ * uncountedCityIds: city stops that do not count as members here. While reading, these are the cities of the tour's
+ * stated start and end, which normaliseTour may yet remove from the route's edges; it applies this rule again, with
+ * none uncounted, to what remains (fix round 1, review M2: `上海, 華東` from a stated 上海 keeps 華東, not no stop).
+ */
+export function withoutAreasOfListedMembers(stops: Stop[], index: PlacesIndex, uncountedCityIds: ReadonlySet<string> = new Set()): Stop[] {
+  const regions = new Set(stops.filter(stop => stop.cityId === null || !uncountedCityIds.has(stop.cityId)).map(stop => stop.regionId));
+  return withoutRepeats(stops.filter(stop => !(index.region(stop.regionId)?.members ?? []).some(id => regions.has(id))));
+}
+
+/**
  * Where the route's single foreign outlier is, or -1: the one stop in a country no other stop is in,
  * neither first nor last, amid at least three other stops all in one other country. Only a place named
  * by a collisionNames entry counts (塔林, the Shaolin Pagoda Forest, read as Tallinn): real cross-border
@@ -240,6 +256,8 @@ export interface ExtractOptions {
   comparisonsAreNotPlaces?: boolean;
   /** Fallback text only: a place name forming an airline's name is not a stop (isAirline). */
   airlinesAreNotPlaces?: boolean;
+  /** Cities that do not count as members of an area while reading (withoutAreasOfListedMembers): the stated ends. */
+  areaUncountedCityIds?: ReadonlySet<string>;
   /**
    * Fallback text only: an excluded city's name (Hong Kong, a stated start) is passed over inside a run of text, so it
    * does not take the run's one city and hide the place after it (`香港直航#廣西南寧`). Day headings keep reading the
@@ -250,8 +268,9 @@ export interface ExtractOptions {
 
 /**
  * The places the day headings name, read without the route rules unless `options` asks for them (a tour's route is
- * extractDayLineStops or extractFallbackStops, which call this). Transit chunks give no stops; a single foreign
- * outlier (see loneForeignStopAt) is removed and its name reported as unmatched, for review.
+ * extractDayLineStops or extractFallbackStops, which call this). Transit chunks give no stops; an area beside one of
+ * its members gives none either (withoutAreasOfListedMembers); a single foreign outlier (see loneForeignStopAt) is
+ * removed and its name reported as unmatched, for review.
  * excludeCityIds: places never shown on a route (Hong Kong, and the tour's start/end city).
  */
 export function extractStops(
@@ -338,7 +357,9 @@ function readStops(dayHeadings: string[], index: PlacesIndex, excludeCityIds: st
     if (isReportable(token)) unmatched.push(token);
   }
 
-  let route = withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId)));
+  // An area beside its member adds no stop (task 40), before the outlier rule counts the stops.
+  let route = withoutAreasOfListedMembers(withoutRepeats(stops.filter(stop => stop.cityId === null || !excluded.has(stop.cityId))), index,
+    options.areaUncountedCityIds);
   const collisionNames = new Set((index.data.collisionNames ?? []).map(normaliseName));
   const placeOf = (stop: Stop): City | Region =>
     stop.cityId !== null ? index.city(stop.cityId)! : index.region(stop.regionId)!;
@@ -468,8 +489,8 @@ export function extractDayLineStops(
   statedCityIds: ReadonlySet<string> = new Set(),
 ): DayLineStopsResult {
   const drops = dropList(index);
-  const plain = readStops(dayHeadings, index, excludeCityIds, {});
-  const read = readStops(dayHeadings, index, excludeCityIds, { comparisonsAreNotPlaces: true });
+  const plain = readStops(dayHeadings, index, excludeCityIds, { areaUncountedCityIds: statedCityIds });
+  const read = readStops(dayHeadings, index, excludeCityIds, { comparisonsAreNotPlaces: true, areaUncountedCityIds: statedCityIds });
   const outlier = plain.outlier;
   if (outlier !== undefined && read.stops.some(stop => stopKey(stop) === stopKey(outlier))) {
     read.stops = withoutRepeats(read.stops.filter(stop => stopKey(stop) !== stopKey(outlier)));
@@ -519,11 +540,14 @@ export function extractFallbackStops(
   days: number,
   index: PlacesIndex,
   excludeCityIds: string[] = DEFAULT_EXCLUDED_CITY_IDS,
+  statedCityIds: ReadonlySet<string> = new Set(),
 ): FallbackStopsResult {
   const drops = dropList(index);
 
   // The rules applied while reading, each in turn; a place one of them removes is one the text gives without it.
-  const read = (options: ExtractOptions) => readStops([text], index, excludeCityIds, options);
+  // statedCityIds (the tour's stated start and end cities) only keep an area beside them while reading (see
+  // withoutAreasOfListedMembers); normaliseTour decides once the stated ends are removed.
+  const read = (options: ExtractOptions) => readStops([text], index, excludeCityIds, { ...options, areaUncountedCityIds: statedCityIds });
   const plain = read({ passOverExcludedCities: true });
   const withoutComparisons = read({ passOverExcludedCities: true, comparisonsAreNotPlaces: true });
   drops.noteRemoved(plain.stops, withoutComparisons, 'comparison');

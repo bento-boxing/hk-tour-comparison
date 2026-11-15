@@ -553,6 +553,43 @@ describe('extractStops with notPlaces', () => {
   });
 });
 
+describe('an area region adds no stop beside a member (task 40)', () => {
+  // 甲東 is an area of the provinces 甲一 and 甲二, holding no city; 乙 is another province.
+  const index = buildPlacesIndex({
+    countries: [{ id: 'a', nameZh: '甲國', nameEn: 'A', aliases: [], group: 'europe' }],
+    regions: [
+      { id: 'a-one', countryId: 'a', nameZh: '甲一', nameEn: 'One', aliases: [] },
+      { id: 'a-two', countryId: 'a', nameZh: '甲二', nameEn: 'Two', aliases: [] },
+      { id: 'a-other', countryId: 'a', nameZh: '乙省', nameEn: 'Other', aliases: [] },
+      { id: 'a-east', countryId: 'a', nameZh: '甲東', nameEn: 'East', aliases: ['大甲東'], members: ['a-one', 'a-two'] },
+    ],
+    cities: [
+      { id: 'a-one-x', regionId: 'a-one', nameZh: '一城', nameEn: 'X', aliases: [] },
+      { id: 'a-other-y', regionId: 'a-other', nameZh: '乙城', nameEn: 'Y', aliases: [] },
+    ],
+  });
+  const read = (headings: string[]) => names(extractStops(headings, index), index);
+  it('alone, or beside places outside it, the area is a stop', () => {
+    expect(read(['甲東'])).toEqual(['甲東']);
+    expect(read(['乙城', '大甲東'])).toEqual(['乙城', '甲東']);
+    expect(read(['乙省', '甲東'])).toEqual(['乙省', '甲東']);
+  });
+  it('beside a city of a member, before or after it, the area goes', () => {
+    expect(read(['甲東', '一城'])).toEqual(['一城']);
+    expect(read(['一城', '乙城', '甲東'])).toEqual(['一城', '乙城']);
+  });
+  it('beside a member named alone (a province with no city), the area goes too', () => {
+    expect(read(['甲東', '甲二'])).toEqual(['甲二']);
+  });
+  it('the repeat its going leaves side by side is removed', () => {
+    expect(read(['一城', '甲東', '一城'])).toEqual(['一城']);
+  });
+  it('applies to day lines and fallback text alike, with no operator opt-in', () => {
+    expect(names({ stops: extractDayLineStops(['甲東 → 一城'], 8, index).stops, unmatched: [] }, index)).toEqual(['一城']);
+    expect(names({ stops: extractFallbackStops('甲東 一城8天', 8, index).stops, unmatched: [] }, index)).toEqual(['一城']);
+  });
+});
+
 describe('extractFallbackStops (a route read from a title, owner request 2026-11-14)', () => {
   const read = (text: string, days = 8) => {
     const r = extractFallbackStops(text, days, places);
@@ -849,9 +886,16 @@ describe('extractDayLineStops (a route read from day lines, owner decision 2026-
 
   it('lists as a comparison only a place the comparison rule passed over, not a shared name read in another country', () => {
     // plain: 東京 (Japan) makes 東北 Tohoku; without the likeness 東京式, 東北 is north-east China beside 吉林. Only 東京 was
-    // passed over; 東北 changed country, it was not dropped.
+    // passed over; 東北 changed country, it was not dropped. (Task 40: 東北 is now the area 東北, which adds no stop beside
+    // its member 吉林, so the route is 吉林 alone; the next test shows 東北 read as China.)
     const r = extractDayLineStops(['東京式拉麵', '東北', '吉林'], 8, places);
-    expect(r.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['region:china-northeast', 'china-northeast-jilin']);
+    expect(r.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['china-northeast-jilin']);
+    expect(r.dropped).toEqual([{ name: '東京', rule: 'comparison' }]);
+  });
+
+  it('the same with a Chinese place outside the area 東北: 東北 is read as China and stays a stop (task 40)', () => {
+    const r = extractDayLineStops(['東京式拉麵', '東北', '北京'], 8, places);
+    expect(r.stops.map(s => s.cityId ?? `region:${s.regionId}`)).toEqual(['region:china-area-northeast', 'china-beijing-beijing']);
     expect(r.dropped).toEqual([{ name: '東京', rule: 'comparison' }]);
   });
 

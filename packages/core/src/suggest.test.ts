@@ -71,8 +71,8 @@ it('exact matches come before prefix matches, prefix before contains', () => {
     { destination: { countryId: 'japan', regionId: 'japan-kansai' }, label: '日本 → 關西', via: '京都' },
     { destination: { countryId: 'korea', regionId: 'korea-seoul' }, label: '韓國 → 首爾及京畿', via: null },
     { destination: { countryId: 'japan', regionId: 'japan-kanto' }, label: '日本 → 關東', via: '東京' },
-    { destination: { countryId: 'china', regionId: 'china-beijing' }, label: '中國 → 北京及華北', via: '北京' },
-    { destination: { countryId: 'china', regionId: 'china-shanghai' }, label: '中國 → 上海及華東', via: '南京' },
+    { destination: { countryId: 'china', regionId: 'china-beijing' }, label: '中國 → 北京', via: '北京' },
+    { destination: { countryId: 'china', regionId: 'china-jiangsu' }, label: '中國 → 江蘇', via: '南京' },
   ]);
 });
 it('aliases count in prefix matches for regions and countries', () => {

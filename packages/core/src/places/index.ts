@@ -23,7 +23,15 @@ export type CountryGroupId = (typeof COUNTRY_GROUPS)[number]['id'];
 export interface Country { id: string; nameZh: string; nameEn: string; aliases: string[]; group: CountryGroupId }
 /** A part of the world with its countries, in the order they were given. */
 export interface CountryGroup { id: CountryGroupId; nameZh: string; countries: Country[] }
-export interface Region { id: string; countryId: string; nameZh: string; nameEn: string; aliases: string[] }
+export interface Region {
+  id: string; countryId: string; nameZh: string; nameEn: string; aliases: string[];
+  /**
+   * Set on an area region only (task 40): a group word operators write as a place (華東, 東北) that is no single
+   * province. It names the regions it covers, holds no cities, and a stop in it adds nothing beside a stop in one of
+   * them (withoutAreasOfListedMembers in stops.ts). The search bar offers these regions when the area's name is typed.
+   */
+  members?: string[];
+}
 export interface City { id: string; regionId: string; nameZh: string; nameEn: string; aliases: string[] }
 export interface PlacesData {
   countries: Country[]; regions: Region[]; cities: City[];

@@ -25,5 +25,15 @@
   "usa-east-new-york": ["NYC"],
   "china-hubei": ["華中", "华中"],
   "china-henan": ["華中", "华中"],
-  "china-jiangxi": ["華中", "华中"]
+  "china-jiangxi": ["華中", "华中"],
+  "china-beijing": ["華北", "华北", "NorthChina"],
+  "china-tianjin": ["華北", "华北", "NorthChina"],
+  "china-shanxi": ["華北", "华北", "NorthChina"],
+  "china-hebei": ["華北", "华北", "NorthChina"],
+  "china-sichuan": ["川渝"],
+  "china-chongqing": ["川渝"],
+  "china-shaanxi": ["西北", "大西北", "NorthwestChina"],
+  "china-gansu": ["西北", "大西北", "NorthwestChina"],
+  "china-qinghai": ["西北", "大西北", "NorthwestChina"],
+  "china-ningxia": ["西北", "大西北", "NorthwestChina"]
 }

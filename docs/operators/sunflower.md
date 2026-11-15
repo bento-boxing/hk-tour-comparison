@@ -250,6 +250,8 @@ Fixtures (`packages/scraper/src/operators/sunflower/fixtures/`), each a `<name>.
 
 **Still failing (17 `no-stops`):** the Central Asia tours (`哈薩克斯坦`, `烏茲別克斯坦` are country names, which give no stop), Australia and New Zealand tours naming only the country, a Malaysia tour, Taiwan's `環島遊`, and European titles whose country names are inside longer words (`葡萄牙、西班牙精選遊`, `德國、瑞士悠閒超值抵玩團`). **Unsure (owner):** LXGG06SS and LXZA06SS: their subarea says `山西．陝西` (華北 → 西北) but their title names only 西安. The area `山西、陝西、中原古都` is a grouping, like the Guangdong subarea; it is read only when the subarea gives nothing.
 
+**Grouped Chinese regions become provinces (task 40, 2026-11-15):** the subarea `山西．陝西` now reads 山西 → 陝西 (LXAA08SS, LXGG06SS, LXZA06SS, LOZA08SS; it was 北京及華北 → 西北), `山西` alone reads 山西 (LBZA08SS, LBZB06SS, LBZT08SS; it was 北京及華北), and the subarea `華東` reads the area 華東 (LWZC05AM, LWZC05X1; it was 上海及華東). `川西` is a name of 四川. The area `東北三省` names the area 東北 and `華東` the area 華東, read only when the subarea gives nothing (none today). Counts unchanged (320 / 47 / 2 / 48 of 370 in the offline replay).
+
 ## Not verified
 
 - Whether the booking page always shows the first month that has departures (five samples now: all did).

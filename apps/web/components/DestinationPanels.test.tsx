@@ -53,6 +53,17 @@ it('choosing a country then a region selects it', async () => {
   expect(screen.getByRole('button', { name: '按國家選擇' })).toHaveAttribute('aria-expanded', 'false');
 });
 
+it('offers no area region (華東, 東北) as a chip, only the provinces (task 40 fix round 1, review I1)', async () => {
+  renderPanels();
+  await open();
+  await user.click(screen.getByRole('button', { name: '中國' }));
+  const labels = within(screen.getByRole('list')).getAllByRole('button').map(b => b.textContent);
+  expect(labels).toEqual(expect.arrayContaining(['上海', '浙江', '江蘇', '安徽', '黑龍江', '吉林', '遼寧']));
+  expect(labels).not.toContain('華東');
+  expect(labels).not.toContain('東北');
+  expect(labels).toHaveLength(1 + places.regionsOf('china').filter(r => r.members === undefined).length);
+});
+
 it('offers all regions first', async () => {
   renderPanels();
   await open();

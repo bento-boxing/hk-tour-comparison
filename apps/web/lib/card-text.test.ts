@@ -82,6 +82,46 @@ describe('a stop saved under the retired region 華中 (china-central) reads as 
   });
 });
 
+describe('stops saved before the five grouped regions became provinces (task 40)', () => {
+  // Saved stops keep their old region id until the operator's next good run rewrites them.
+  const savedHarbin: Stop = { countryId: 'china', regionId: 'china-northeast', cityId: 'china-northeast-harbin' };
+  const savedNortheast: Stop = { countryId: 'china', regionId: 'china-northeast', cityId: null };
+  const savedNorthwest: Stop = { countryId: 'china', regionId: 'china-northwest', cityId: null };
+  const savedHangzhou: Stop = { countryId: 'china', regionId: 'china-shanghai', cityId: 'china-shanghai-hangzhou' };
+  const savedShanghai: Stop = { countryId: 'china', regionId: 'china-shanghai', cityId: 'china-shanghai-shanghai' };
+  const savedChongqing: Stop = { countryId: 'china', regionId: 'china-sichuan', cityId: 'china-sichuan-chongqing' };
+  it('a city stop under a kept id (上海及華東 is now 上海) counts in its city\'s province', () => {
+    expect(regionLabel([savedHangzhou], places)).toBe('中國 · 浙江');
+    expect(regionLabel([savedShanghai, savedHangzhou], places, tEn)).toBe('China · Shanghai +1');
+    expect(regionLabel([savedChongqing], places, makeT('zh-Hans'))).toBe('中国 · 重庆');
+    expect(routeNames([savedHangzhou, savedChongqing], places)).toEqual(['杭州', '重慶']);
+  });
+  it('a city stop under a retired id counts in its city\'s province', () => {
+    expect(regionLabel([savedHarbin], places)).toBe('中國 · 黑龍江');
+    expect(routeNames([savedHarbin], places, 'en')).toEqual(['Harbin']);
+  });
+  it.each([
+    ['zh-Hant', tZh, '東北三省', '西北'],
+    ['zh-Hans', makeT('zh-Hans'), '东北三省', '西北'],
+    ['en', tEn, 'Northeast China', 'Northwest China'],
+  ] as const)('a region-only stop under a retired id reads its old name in %s, never the id', (locale, t, northeast, northwest) => {
+    expect(routeNames([savedNortheast, savedNorthwest], places, locale)).toEqual([northeast, northwest]);
+    expect(regionLabel([savedNorthwest], places, t)).toContain(northwest);
+    for (const text of [...routeNames([savedNortheast, savedNorthwest], places, locale), regionLabel([savedNortheast, savedNorthwest], places, t)]) {
+      expect(text).not.toMatch(/china-/);
+    }
+  });
+  it('a stop in an area (華東) still shows its name on the card, though the area is not offered as a destination', () => {
+    const area: Stop = { countryId: 'china', regionId: 'china-area-east', cityId: null };
+    expect(routeNames([area], places)).toEqual(['華東']);
+    expect(routeNames([area], places, 'en')).toEqual(['East China']);
+    expect(regionLabel([area], places)).toBe('中國 · 華東');
+  });
+  it('an old region-only 東北三省 beside an old city of it adds no +1', () => {
+    expect(regionLabel([savedHarbin, savedNortheast], places)).toBe('中國 · 黑龍江');
+  });
+});
+
 it('regionLabel names a country once when its region has the same name', () => {
   const paris: Stop = { countryId: 'france', regionId: 'france-france', cityId: 'france-france-paris' };
   const zurich: Stop = { countryId: 'switzerland', regionId: 'switzerland-switzerland', cityId: 'switzerland-switzerland-zurich' };

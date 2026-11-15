@@ -33,14 +33,14 @@ function firstCountryName(stops: Stop[], places: PlacesIndex, locale: Locale): s
  * The first `country · region` of the route, e.g. '日本 · 關西', and '日本 · 關西 +2' when two more
  * regions follow; just '法國' when the region's name is the country's. Empty for a tour without stops.
  * Names are in `t`'s language; `t` defaults to the zh-Hant text.
- * A stop saved under a region the places list no longer has (`china-central`, split into provinces in task 37)
- * counts in its city's current region. Without a known city, a retired region (retiredRegion) counts under the name
- * it had, unless a region that replaced it is already on the card; any other unknown region is not counted. When
- * nothing is counted, the label is the first known country alone. No id is ever shown.
+ * A stop with a known city counts in its city's current region, so a stop saved before a region was split (task 37:
+ * `china-central`; task 40: `china-northeast` and `china-northwest`, and a Hangzhou stop still saved under
+ * `china-shanghai`, now 上海 alone) names the province. Without a known city, a retired region (retiredRegion) counts
+ * under the name it had, unless a region that replaced it is already on the card; any other unknown region is not
+ * counted. When nothing is counted, the label is the first known country alone. No id is ever shown.
  */
 export function regionLabel(stops: Stop[], places: PlacesIndex, t: T = makeT(DEFAULT_LOCALE)): string {
-  const current = stops.map(s => (places.region(s.regionId) || s.cityId === null ? s
-    : { ...s, regionId: places.city(s.cityId)?.regionId ?? s.regionId }));
+  const current = stops.map(s => (s.cityId === null ? s : { ...s, regionId: places.city(s.cityId)?.regionId ?? s.regionId }));
   const onCard = new Set(current.map(s => s.regionId));
   const counted = current.filter(s => places.region(s.regionId) !== undefined
     || retiredRegion(s.regionId)?.replacedBy.every(id => !onCard.has(id)) === true);

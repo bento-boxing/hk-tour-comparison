@@ -1,6 +1,6 @@
 import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
 import { normaliseName, type PlacesIndex } from './places/index';
-import { extractDayLineStops, extractFallbackStops, withoutRegionsOfListedCities, type RouteDrop } from './stops';
+import { extractDayLineStops, extractFallbackStops, withoutAreasOfListedMembers, withoutRegionsOfListedCities, type RouteDrop } from './stops';
 import { normaliseStartPoint } from './start-point';
 
 /**
@@ -93,13 +93,17 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   // end place, that one of them removes is listed as dropped by it.
   const namedByStart = citiesNamedBy(start, index);
   const namedByEnd = citiesNamedBy(end, index);
-  // A place the stated start or end names is a gateway: the day-line too-far rule neither counts nor drops it.
-  const extracted = extractDayLineStops(scraped.dayHeadings, scraped.days, index, excluded, new Set([...namedByStart, ...namedByEnd]));
+  // A place the stated start or end names is a gateway: the day-line too-far rule neither counts nor drops it, and while
+  // reading it does not make an area (華東) beside it go, since the stated-ends step may yet remove it from the route.
+  const statedCityIds = new Set([...namedByStart, ...namedByEnd]);
+  const extracted = extractDayLineStops(scraped.dayHeadings, scraped.days, index, excluded, statedCityIds);
   const { unmatched } = extracted;
   let drops: RouteDrops = extracted.dropped.length > 0 ? { dayHeadingsDropped: extracted.dropped } : {};
   // Opt-in (ScrapedTour.dropRegionWithListedCity): a province given only as a tag beside its own cities is not a stop.
   const listed = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(extracted.stops) : extracted.stops;
-  let stops = withoutStatedEnds(listed, namedByStart, namedByEnd);
+  // The area rule once more on what the stated ends leave: an area goes only beside a member still on the route (task 40
+  // fix round 1), so a tour whose only member was its stated start or end keeps the area instead of losing its route.
+  let stops = withoutAreasOfListedMembers(withoutStatedEnds(listed, namedByStart, namedByEnd), index);
 
   // A tour with nothing to book is skipped whatever its route: no-departures comes before no-stops.
   const departures = upcomingDepartures(scraped.departures, today);
@@ -113,10 +117,10 @@ export function normaliseTour(scraped: ScrapedTour, index: PlacesIndex, today: I
   if (stops.length === 0 && scraped.fallbackRoute !== undefined) {
     const dropped: RouteDrop[] = [];
     for (const text of typeof scraped.fallbackRoute === 'string' ? [scraped.fallbackRoute] : scraped.fallbackRoute) {
-      const fallback = extractFallbackStops(text, scraped.days, index, excluded);
+      const fallback = extractFallbackStops(text, scraped.days, index, excluded, statedCityIds);
       for (const drop of fallback.dropped) if (!dropped.some(d => d.name === drop.name && d.rule === drop.rule)) dropped.push(drop);
       const listedOnly = scraped.dropRegionWithListedCity === true ? withoutRegionsOfListedCities(fallback.stops) : fallback.stops;
-      stops = withoutStatedEnds(listedOnly, namedByStart, namedByEnd);
+      stops = withoutAreasOfListedMembers(withoutStatedEnds(listedOnly, namedByStart, namedByEnd), index);
       if (stops.length === 0 && excluded.includes(SHENZHEN_CITY_ID)) stops = shenzhenAlone(text, scraped.days, index);
       if (stops.length > 0) break;
     }

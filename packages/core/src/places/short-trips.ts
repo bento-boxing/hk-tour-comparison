@@ -17,6 +17,11 @@
  * days with a stop in any of the three is a 3-day Jiangxi tour (Yummy BL-J-ZC03, tagged 江西). At 4 days there are four
  * more, all Jiangxi (Big Line CKOW04W 贛州, Sunflower LNHK04MY, Yummy CL-F-CE04 and CL-J-TC04); Hubei and Henan appear
  * only on tours of 5 days or more. So Jiangxi stays and Hubei and Henan are out of reach.
+ *
+ * Checked again on 2026-11-15 (task 40), when 北京及華北, 上海及華東, 四川重慶, 東北三省 and 西北 became their provinces
+ * and municipalities: read without this rule, the one logged tour of 1 to 3 days with a stop in any of them is a wrong
+ * match (Big Line C25326, 2 days: 臨海 from a hotel's description, which the rule drops); the shortest real one is a
+ * 4-day Hangzhou tour (Charming GCEB). So none of the new regions is within reach.
  */
 export const SHORT_TRIP_MAX_DAYS = 3;
 

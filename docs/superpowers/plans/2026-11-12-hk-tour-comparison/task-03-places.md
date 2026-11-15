@@ -53,6 +53,8 @@ Ids are lower-case English slugs: country `japan`, region `japan-kansai`, city `
 
 香港 and 澳門 exist so headings and start points can be recognised; Task 4 excludes Hong Kong from routes.
 
+Later change (task 40, 2026-11-15): the grouped Chinese regions 北京及華北, 上海及華東 and 四川重慶 of this table (and the later 東北三省 and 西北) were split into their provinces and municipalities; `china-beijing`, `china-shanghai` and `china-sichuan` are now 北京, 上海 and 四川 alone. See `packages/core/src/places/data.json`.
+
 ## Steps
 
 - [ ] **Step 1: Write the failing tests** in `index.test.ts`:

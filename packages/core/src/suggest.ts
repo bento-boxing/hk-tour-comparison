@@ -17,9 +17,13 @@ type NameTest = (name: string) => boolean;
 
 // English names a visitor may type that are not the place's own (UK, USA, Holland…). Search only: they are
 // not data.json aliases, which the scraper's place index also reads, so operator text saying 'UK' or 'US'
-// never resolves to a stop through them. The one Chinese entry: 華中 / 华中 on 湖北, 河南 and 江西, the provinces the
-// vague region 華中 was split into (task 37), so a visitor typing it is offered all three while operator text
-// saying 華中 gives no stop.
+// never resolves to a stop through them. The Chinese entries are group words of provinces that are no place of
+// their own: 華中 / 华中 on 湖北, 河南 and 江西 (task 37), 華北 / 华北 on 北京, 天津, 山西 and 河北, 川渝 on 四川 and
+// 重慶, 西北 and 大西北 on 陝西, 甘肅, 青海 and 寧夏 (task 40), so a visitor typing one is offered its provinces while
+// operator text saying it gives no stop. The English entries NorthChina and NorthwestChina are the old groups'
+// English names, kept findable (task 40 fix round 1): written as one word so that `chin…` does not find them through
+// a later word `China`; a query `North China` is normalised to `northchina` and matches them. 華東 and 東北 are not here: they are area regions
+// (Region.members), whose names offer their provinces (see addRegion).
 const englishSearchAliases: Record<string, string[]> = searchAliasesEn;
 const englishAliasesOf = (p: Place) => (Object.hasOwn(englishSearchAliases, p.id) ? englishSearchAliases[p.id] : []);
 
@@ -77,8 +81,11 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
     seen.add(key);
     results.push(s);
   };
-  // A country with one region gets its 全部地區 row instead: the two would find the same tours.
+  // A country with one region gets its 全部地區 row instead: the two would find the same tours. An area region (華東,
+  // 東北; Region.members) is never a row of its own (task 40 fix round 1, review I1): it holds only the few tours whose
+  // only place it is, so a match on its name offers the provinces it covers instead.
   const addRegion = (region: Region | undefined, via: string | null = null) => {
+    if (region?.members !== undefined) return region.members.forEach(id => addRegion(index.region(id), via));
     const country = region && index.country(region.countryId);
     if (!region || !country) return;
     if (index.regionsOf(country.id).length === 1) return add(allRegionsRow(country, via));
@@ -103,12 +110,17 @@ export function suggestRegions(query: string, index: PlacesIndex, limit = 8): Su
   }
   // 4–5: city, region, then country starts with the query; an English name also from any of its words
   // ('korea' finds South Korea).
+  // An area's own names count from their start only (`Northeast` finds 東北's provinces, `chin` does not through
+  // `East China`), and never by containing the query, so its provinces do not crowd out other rows.
+  const areas = regions.filter(r => r.members !== undefined);
+  const notAreas = regions.filter(r => r.members === undefined);
   matching(cities, startsWith, true).forEach(addCity);
-  matching(regions, startsWith, true).forEach(r => addRegion(r));
+  matching(notAreas, startsWith, true).forEach(r => addRegion(r));
+  matching(areas, startsWith).forEach(r => addRegion(r));
   matching(countries, startsWith, true).forEach(addAllRegions);
   // 6: city, then region, contains the query.
   matching(cities, contains).forEach(addCity);
-  matching(regions, contains).forEach(r => addRegion(r));
+  matching(notAreas, contains).forEach(r => addRegion(r));
 
   return withAllRegionsAfterExact(results, exactRegionRows, index).slice(0, limit);
 }
