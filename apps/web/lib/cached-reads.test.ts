@@ -7,7 +7,7 @@ import { createTestDb } from '@hktours/db/test';
 import type { SortKey } from '@hktours/db/read';
 import type { Locale } from './i18n';
 import {
-  ageLimited, buildId, CLOCK_TOLERANCE_SECONDS, createReads, nextCache, nextStore, READ_CACHE_SECONDS, READ_CACHE_TAG,
+  ageLimited, buildId, CLOCK_TOLERANCE_SECONDS, createReads, nextCache, nextStore, READ_CACHE_SECONDS, READ_CACHE_TAG, STORED_READ_SOURCE,
   usesDestinationOrder,
   type CacheFn, type SearchQuery,
 } from './cached-reads';
@@ -540,11 +540,28 @@ describe('the real cache function', () => {
     const load = async () => 'value';
 
     expect(await nextStore('{"read":"getOperators","onlyWithGoodRun":false}', load)).toBe('value');
-    expect(unstableCache).toHaveBeenCalledWith(load, ['{"read":"getOperators","onlyWithGoodRun":false}'], {
+    expect(unstableCache).toHaveBeenCalledWith(expect.any(Function), ['{"read":"getOperators","onlyWithGoodRun":false}'], {
       revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG],
     });
     expect(cached).toHaveBeenCalledWith();
     expect(READ_CACHE_SECONDS).toBe(3600);
+    // The function handed over runs the load itself.
+    const stored = unstableCache.mock.calls.at(-1)![0] as () => Promise<string>;
+    expect(await stored()).toBe('value');
+  });
+
+  it('the stored function always reads as the same source text, whatever the load\'s own text, so every route shares an entry', async () => {
+    // Next.js keys an entry by `${cb.toString()}-${keyParts}`; the bundler writes the load's closure differently in
+    // each route's bundle (`async()=>{let e=await n();…}` in one, `async()=>{let a=await d();…}` in another).
+    unstableCache.mockReset().mockReturnValue(async () => 'value');
+    const loadInOneBundle = async () => { const e = await Promise.resolve(1); return e; };
+    const loadInAnother = async () => { const a = await Promise.resolve(1); return a; };
+    expect(loadInOneBundle.toString()).not.toBe(loadInAnother.toString());
+    await nextStore('k', loadInOneBundle);
+    await nextStore('k', loadInAnother);
+    const [one, two] = unstableCache.mock.calls.map(call => (call[0] as () => unknown).toString());
+    expect(one).toBe(STORED_READ_SOURCE);
+    expect(two).toBe(STORED_READ_SOURCE);
   });
 
   it('the pages\' cache is that store with the age limit: a stored entry over the hour is not used', async () => {

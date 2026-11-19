@@ -58,12 +58,24 @@ export function buildId(env: Record<string, string | undefined>): string {
 export const BUILD_ID = buildId(process.env);
 
 /**
- * Next.js's data cache (unstable_cache), as a plain store. The key is the only key part, and the cached
- * function is called with no arguments, so no Db handle and no raw address becomes part of the stored key
- * (Next adds only the cached function's own source text).
+ * What the stored function's source text reads as, for every read. unstable_cache puts the cached function's
+ * `toString()` into every key, before our key part (`${cb.toString()}-${keyParts}`, as its docs say: "the
+ * stringified version of your function"). Our key part already names the read completely, and the bundler writes
+ * the same closure with different variable names in different bundles (the pages' and the sitemap's), which made
+ * each kind of route keep its own copy of the same result. So the stored function always reads as this one text.
  */
-export const nextStore: CacheFn = (key, load) =>
-  unstable_cache(load, [key], { revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG] })();
+export const STORED_READ_SOURCE = 'hktours cached read';
+
+/**
+ * Next.js's data cache (unstable_cache), as a plain store. The key is the only key part, and the cached
+ * function is called with no arguments, so no Db handle and no raw address becomes part of the stored key.
+ * The function's own source text, which Next also puts in the key, is the fixed STORED_READ_SOURCE.
+ */
+export const nextStore: CacheFn = (key, load) => {
+  const stored = () => load();
+  Object.defineProperty(stored, 'toString', { value: () => STORED_READ_SOURCE });
+  return unstable_cache(stored, [key], { revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG] })();
+};
 
 /**
  * How far ahead of this server's clock a stored time may be and still count: clocks of different servers
