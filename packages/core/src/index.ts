@@ -12,3 +12,4 @@ export * from './price';
 export * from './chain-url';
 export * from './destination';
 export * from './suggest';
+export * from './site';

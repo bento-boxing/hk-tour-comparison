@@ -1,7 +1,9 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
 import { getT } from '../lib/i18n-server';
+import { pageMetadata } from '../lib/site-metadata';
 import { requestDb } from '../lib/db';
 import { cachedReads, loadSearchPage, type SearchPageData } from '../lib/search-page-data';
 import { DestinationPanelsConnected, DestinationSearchConnected } from '../components/DestinationConnected';
@@ -11,6 +13,11 @@ import { Pager } from '../components/Pager';
 import styles from './page.module.css';
 
 type SearchParams = Record<string, string | string[] | undefined>;
+
+/** Titled with the site name (the layout's); canonical without the query string, which it deliberately never reads. */
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getT(), '/');
+}
 
 /**
  * The search page: destination picker, filter bar, count, cards and paging, all read from the address.

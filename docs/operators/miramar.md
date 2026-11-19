@@ -72,6 +72,7 @@ What would lift the HOLD:
 
 - **Ask Miramar Travel (the only route that stays within the rules).** A request for permission or a feed would need to cover:
   - letting `tour-comparison-bot/0.1` through their CloudFront rule (from the address the nightly job runs on), or giving a feed instead;
+    - **2026-11-19:** the User-Agent is now `tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)`, with the same product token `tour-comparison-bot`.
   - reading robots.txt, the sitemap (if any), the tour listing pages and each tour's page every night, one request at a time, at least 3 s apart;
   - for every group tour: tour code, title, days, cities, gathering point, "from" price, departure dates, per-date price and full/closed status;
   - publishing those facts on a personal, non-commercial comparison site with a link back to each tour page, copying no descriptions or images;

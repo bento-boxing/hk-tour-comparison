@@ -44,11 +44,17 @@ it.each([
   expect(html).toContain(disclaimer); // server: the footer
 });
 
-it('the page title is the site name in every language', async () => {
-  for (const value of [undefined, 'zh-Hans', 'en']) {
-    cookie.value = value;
-    expect((await generateMetadata()).title).toBe('跟邊團');
-  }
+it.each([
+  [undefined, '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。'],
+  ['zh-Hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。'],
+  ['en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website."],
+])('cookie %j: the site address as the base of every address, the site name as the title and its pattern for pages, and the description in that language', async (value, description) => {
+  cookie.value = value;
+  expect(await generateMetadata()).toEqual({
+    metadataBase: new URL('https://ganbintuen.com'),
+    title: { default: '跟邊團', template: '%s | 跟邊團' },
+    description,
+  });
 });
 
 it('in zh-Hant there is no notice and no space kept for it', async () => {

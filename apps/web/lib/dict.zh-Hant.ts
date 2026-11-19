@@ -2,6 +2,8 @@
 // each with the same {placeholders} (pinned by a test).
 const zh = {
   'site.name': '跟邊團',
+  // What search engines and link previews show under the title (<meta name="description">, og:description).
+  'site.description': '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。',
   'lang.label': '語言', // the language switch's accessible name
   'theme.toDark': '切換至深色模式', // the theme switch's accessible name while the page is light
   'theme.toLight': '切換至淺色模式', // … and while it is dark
@@ -9,6 +11,7 @@ const zh = {
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
+  'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
   'length.daysNights': '{days}日{nights}夜',
   'length.days': '{days}日',
   'updated.today': '更新：今日 {time}',

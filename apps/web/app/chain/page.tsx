@@ -1,7 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
 import { getT } from '../../lib/i18n-server';
+import { pageMetadata } from '../../lib/site-metadata';
 import { requestDb } from '../../lib/db';
 import { formatChipDate } from '../../lib/format';
 import { chainPageHref, withPage } from '../../lib/chain-href';
@@ -14,6 +16,15 @@ import { Pager } from '../../components/Pager';
 import styles from './page.module.css';
 
 type SearchParams = Record<string, string | string[] | undefined>;
+
+/**
+ * Titled with the nav bar's name for this page (the layout's pattern adds the site name); canonical without the
+ * query string (the chain and filters), which it deliberately never reads.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return pageMetadata(t, '/chain', t('nav.chain'));
+}
 
 /**
  * The chaining page: the chosen legs with their gaps and total, the gap selector, and the tours from any

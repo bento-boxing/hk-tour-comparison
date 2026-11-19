@@ -28,7 +28,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { default: SearchPage } = await import('./page');
+const { default: SearchPage, generateMetadata } = await import('./page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
@@ -203,4 +203,25 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
   const css = readFileSync(join(__dirname, 'page.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
+});
+
+it.each([
+  ['zh-Hant', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
+] as const)('in %s: the page names itself canonical without the query string (it reads no address), with Open Graph in that language, and reads no database', async (locale, description, ogLocale) => {
+  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
+  // generateMetadata takes no searchParams, so a filtered or paged address (/?dest=japan&page=2) gets this same answer.
+  expect(generateMetadata.length).toBe(0);
+  expect(await generateMetadata()).toEqual({
+    alternates: { canonical: '/' },
+    openGraph: { title: '跟邊團', description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
+  });
+  expect(mocks.requestDb).not.toHaveBeenCalled();
+});
+
+it('gives no og:url, so a shared filtered search (/?dest=japan) keeps its own address on Facebook and LinkedIn', async () => {
+  const { openGraph } = await generateMetadata();
+  expect(openGraph).toBeDefined();
+  expect(openGraph).not.toHaveProperty('url');
 });

@@ -30,7 +30,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(mocks.query.value),
 }));
 
-const { default: ChainPage } = await import('./page');
+const { default: ChainPage, generateMetadata } = await import('./page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
@@ -315,4 +315,26 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
   const css = readFileSync(join(__dirname, 'page.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
+});
+
+it.each([
+  ['zh-Hant', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', '连续行程', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', 'Plan a trip', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
+] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical without the query string, Open Graph in that language, no database read', async (locale, name, description, ogLocale) => {
+  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
+  // generateMetadata takes no searchParams, so every chain address (?legs=…&gap=…) gets this same answer.
+  expect(generateMetadata.length).toBe(0);
+  expect(await generateMetadata()).toEqual({
+    title: name,
+    alternates: { canonical: '/chain' },
+    openGraph: { title: `${name} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
+  });
+  expect(mocks.requestDb).not.toHaveBeenCalled();
+});
+
+it('gives no og:url, so a shared chain plan (/chain?legs=…) keeps its own address on Facebook and LinkedIn', async () => {
+  const { openGraph } = await generateMetadata();
+  expect(openGraph).toBeDefined();
+  expect(openGraph).not.toHaveProperty('url');
 });

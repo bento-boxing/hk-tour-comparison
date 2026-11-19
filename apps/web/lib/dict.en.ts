@@ -4,6 +4,7 @@ import type { DictKey } from './i18n';
 // [name:one|other] picks a word by the value of {name}: 'one' for 1, 'other' for anything else.
 const en = {
   'site.name': '跟邊團', // the brand: the same in every language
+  'site.description': "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.",
   'lang.label': 'Language',
   'theme.toDark': 'Switch to dark theme',
   'theme.toLight': 'Switch to light theme',
@@ -11,6 +12,7 @@ const en = {
   'nav.search': 'Find tours',
   'nav.chain': 'Plan a trip',
   'footer.disclaimer': "This site is not affiliated with any tour operator. Prices and departure dates on the operator's own website take precedence.",
+  'footer.contact': 'Questions or feedback, or a tour operator wanting a listing corrected or removed? Write to {email}.',
   'length.daysNights': '{days} [days:day|days], {nights} [nights:night|nights]',
   'length.days': '{days} [days:day|days]',
   'updated.today': 'Updated today at {time}',

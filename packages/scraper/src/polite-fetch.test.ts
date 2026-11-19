@@ -7,6 +7,7 @@ import {
   type PoliteFetcher,
 } from './polite-fetch';
 import { addressRef, DRY_RUN_LOG, logRef, type LogView } from './public-log';
+import { CONTACT_EMAIL, SITE_URL } from '@hktours/core';
 
 interface RecordedRequest {
   path: string; userAgent: string | undefined; start: number; end: number;
@@ -959,11 +960,87 @@ describe('a logged address that may carry a title is shown as the log view allow
   });
 });
 
-it('USER_AGENT is generic', () => { expect(USER_AGENT).toBe('tour-comparison-bot/0.1'); });
+it('USER_AGENT names the bot, then the site and the contact (since 2026-11-19)', () => {
+  expect(USER_AGENT).toBe('tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)');
+});
+
+it('USER_AGENT is built from the site constants the website uses, so the two cannot disagree', () => {
+  expect(USER_AGENT).toBe(`tour-comparison-bot/0.1 (+${SITE_URL}; ${CONTACT_EMAIL})`);
+});
 
 it('uses USER_AGENT by default', async () => {
   const plain = createFetcher({ log: () => {} });
   expect(await plain.fetchText(url('/a'))).toBe('ok-a');
   expect(main.requests.length).toBeGreaterThan(0);
-  for (const r of main.requests) expect(r.userAgent).toBe('tour-comparison-bot/0.1');
+  for (const r of main.requests) expect(r.userAgent).toBe('tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)');
 }, 10_000); // robots.txt, then the page after the default 3 s delay
+
+/**
+ * robots.txt groups are matched on the product token `tour-comparison-bot` (robots-parser lower-cases the
+ * User-Agent and drops everything from its first `/`). The site and contact added to USER_AGENT on 2026-11-19
+ * come after that `/`, so every group form must decide exactly as it did for the User-Agent sent before then.
+ * fetch is replaced (no local server: these run wherever `localhost` resolves), and robots.txt disallows or
+ * allows `/a` only; `/b` is always allowed, to show the group did not refuse the whole site.
+ */
+describe('robots.txt group matching is unchanged by the site and contact in the User-Agent', () => {
+  const OLD_USER_AGENT = 'tour-comparison-bot/0.1';
+  const ownDisallowsA = (group: string) => `User-agent: ${group}\nDisallow: /a\n\nUser-agent: *\nDisallow:`;
+  const cases: Array<[string, string, boolean]> = [
+    ['only a * group, disallowing /a', 'User-agent: *\nDisallow: /a', false],
+    ['only a * group, allowing everything', 'User-agent: *\nDisallow:', true],
+    ['the exact token', ownDisallowsA('tour-comparison-bot'), false],
+    ['the token in other letter cases', ownDisallowsA('Tour-Comparison-Bot'), false],
+    ['the token with our version', ownDisallowsA('tour-comparison-bot/0.1'), false],
+    ['the token with another version', ownDisallowsA('tour-comparison-bot/2.0'), false],
+    ['our own group allowing what * disallows', 'User-agent: tour-comparison-bot\nDisallow:\n\nUser-agent: *\nDisallow: /a', true],
+    ['another bot only (no * group)', 'User-agent: Googlebot\nDisallow: /a', true],
+    ['another bot, and * allowing', ownDisallowsA('Googlebot'), true],
+    ['a shorter name that is not our token', ownDisallowsA('tour-comparison'), true],
+    ['a longer name that only starts with our token', ownDisallowsA('tour-comparison-bot-extra'), true],
+    ['the site name from the comment, which is not a product token', ownDisallowsA('ganbintuen.com'), true],
+    ['the whole new User-Agent as a group name (cut at its first /, as ours is)', ownDisallowsA(USER_AGENT), false],
+  ];
+
+  async function allowedA(userAgent: string, robots: string): Promise<{ a: boolean; b: boolean; sentAs: string[] }> {
+    const sentAs: string[] = [];
+    vi.stubGlobal('fetch', async (input: URL | string, init?: RequestInit) => {
+      sentAs.push(new Headers(init?.headers).get('user-agent') ?? '');
+      return String(input).endsWith('/robots.txt') ? new Response(robots, { status: 200 }) : new Response('page', { status: 200 });
+    });
+    try {
+      const g = createFetcher({ userAgent, delayMs: 0, log: () => {} });
+      return { a: await g.fetchText('https://shop.test/a') !== null, b: await g.fetchText('https://shop.test/b') !== null, sentAs };
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+
+  it.each(cases)('%s: the same answer for the old and the new User-Agent', async (_name, robots, expected) => {
+    const before = await allowedA(OLD_USER_AGENT, robots);
+    const after = await allowedA(USER_AGENT, robots);
+    expect(after.a).toBe(expected);
+    expect(before.a).toBe(expected);
+    expect(after.b).toBe(true);
+    expect(before.b).toBe(true);
+    expect(after.sentAs.every(ua => ua === USER_AGENT)).toBe(true); // what is matched is what is sent
+  });
+
+  it.each([
+    ['our own group', 'User-agent: tour-comparison-bot\nCrawl-delay: 99\n\nUser-agent: *\nCrawl-delay: 1'],
+    ['the * group', 'User-agent: Googlebot\nCrawl-delay: 1\n\nUser-agent: *\nCrawl-delay: 99'],
+  ])('a Crawl-delay over the cap in %s refuses the site for the old and the new User-Agent alike', async (_name, robots) => {
+    for (const userAgent of [OLD_USER_AGENT, USER_AGENT]) {
+      const lines: string[] = [];
+      vi.stubGlobal('fetch', async (input: URL | string) =>
+        (String(input).endsWith('/robots.txt') ? new Response(robots, { status: 200 }) : new Response('page', { status: 200 })));
+      try {
+        const g = createFetcher({ userAgent, delayMs: 0, log: line => lines.push(line) });
+        expect(await g.fetchText('https://shop.test/a'), userAgent).toBeNull();
+        expect(lines[0], userAgent).toBe(
+          'not crawling site shop.test: robots.txt at https://shop.test asks for Crawl-delay 99 s, over the 30 s cap');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  });
+});

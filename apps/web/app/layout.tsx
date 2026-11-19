@@ -4,14 +4,16 @@ import '../lib/theme.css';
 import { HTML_LANG, makeT } from '../lib/i18n';
 import { getLocale, getT } from '../lib/i18n-server';
 import { getTheme } from '../lib/theme-server';
+import { siteMetadata } from '../lib/site-metadata';
 import { I18nProvider } from '../lib/i18n-client';
 import { LanguageNotice } from '../components/LanguageNotice';
 import { SiteNav } from '../components/SiteNav';
 import { Footer } from '../components/Footer';
 import styles from './layout.module.css';
 
+/** The site address, title pattern and description; each page adds its title, canonical address and Open Graph. */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getT())('site.name') };
+  return siteMetadata(await getT());
 }
 
 /**

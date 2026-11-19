@@ -1,12 +1,18 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import robotsParser from 'robots-parser';
+import { CONTACT_EMAIL, SITE_URL } from '@hktours/core';
 import { PUBLIC_LOG, type LogView } from './public-log';
 import type { FetchOptions, Fetcher } from './types';
 
 export const REQUEST_DELAY_MS = 3000;
 export const REQUEST_TIMEOUT_MS = 30_000;
-export const USER_AGENT = 'tour-comparison-bot/0.1';
+/**
+ * The product token and version, then who runs the bot (the site and its contact, from core, which the website
+ * also uses; since 2026-11-19). robots.txt groups are still matched on the product token alone: robots-parser
+ * lower-cases the User-Agent and drops everything from its first `/` (pinned by the tests).
+ */
+export const USER_AGENT = `tour-comparison-bot/0.1 (+${SITE_URL}; ${CONTACT_EMAIL})`;
 /** A robots.txt Crawl-delay above this means "do not crawl": that origin gets no page requests at all. */
 export const MAX_CRAWL_DELAY_MS = 30_000;
 

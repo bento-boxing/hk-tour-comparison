@@ -4,6 +4,7 @@ import type { DictKey } from './i18n';
 // 价格, 散团…). Keys and {placeholders} must match dict.zh-Hant.ts (pinned by a test).
 const zhHans = {
   'site.name': '跟邊團', // the brand: the same in every language
+  'site.description': '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。',
   'lang.label': '语言',
   'theme.toDark': '切换至深色模式',
   'theme.toLight': '切换至浅色模式',
@@ -11,6 +12,7 @@ const zhHans = {
   'nav.search': '搜索旅行团',
   'nav.chain': '连续行程',
   'footer.disclaimer': '本网站与各旅行社没有任何关联。价格及出发日期以旅行社网站为准。',
+  'footer.contact': '如有意见或疑问，或旅行社需要更正或删除旅行团信息，请发邮件至 {email}。',
   'length.daysNights': '{days}天{nights}晚',
   'length.days': '{days}天',
   'updated.today': '更新：今天 {time}',
