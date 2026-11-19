@@ -4,6 +4,31 @@ A website that gathers package-tour listings from Hong Kong tour operators into 
 
 This project is **not affiliated with any tour operator**. It stores and shows facts only (operator, tour code, link, title, length, the cities visited, start and end point, departure dates and prices) and links to the operator's own page for everything else. It stores no itinerary text and no photos. Prices and dates must always be confirmed on the operator's site.
 
+## 給旅行社的說明
+
+「跟邊團」（<https://ganbintuen.com>）是一個由個人製作的非牟利網站，把香港多間旅行社的旅行團放在一起，方便用戶按出發日期、日數、目的地和價錢比較。網站不設廣告、不收佣金、不代售任何產品；所有報名均經連結返回旅行社自己的網頁進行。本網站與各旅行社並無任何關連。
+
+**網站顯示甚麼**
+
+- 只顯示事實資料：旅行社名稱、團號、旅行團名稱、日數、途經城市、集合及解散地點、出發日期、團費，以及額滿狀態（如旅行社網站有顯示）。
+- 每個旅行團均連結到旅行社網站上的該團頁面。
+- 不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。
+- 價錢及出發日期以旅行社網站為準。
+
+**程式如何讀取資料**
+
+- 程式每晚運行一次，並以 `tour-comparison-bot` 表明身分，同時附上本網站的網址和聯絡電郵。
+- 讀取任何網頁前，先讀取該網站的 `robots.txt`，並遵守當中的限制；讀不到 `robots.txt` 的網站不會讀取。
+- 對每個網站每次只發出一個請求，每個請求之間最少相隔三秒。
+- 不會登入，不會繞過任何防止自動讀取的措施；如網站拒絕，程式當晚即停止讀取該網站。
+- 各旅行社的讀取方式及所作的決定，記錄在 [`docs/operators/`](docs/operators/)（英文）。
+
+**更正或移除資料**
+
+如貴公司的資料有誤，或不希望被列出，請電郵至 <hello@ganbintuen.com>，或在本頁上方的 **Issues** 提出。我們會更正或移除有關資料，並停止讀取貴公司的網站。
+
+（以下內容為英文，供開發者參考。）
+
 ## Operators included
 
 | Operator | Site |
