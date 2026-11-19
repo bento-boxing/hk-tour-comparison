@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe } from 'vitest';
 import { places, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
-import { saveOperatorRun, PAGE_SIZE, type Db } from '@hktours/db';
+import { countToursByDestination, saveOperatorRun, PAGE_SIZE, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import { createReads, type CacheFn } from './cached-reads';
@@ -55,6 +55,14 @@ it('an empty address lists every tour by price, with the operators', async () =>
   expect(data.total).toBe(4);
   expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower']);
   expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // the four that have run here
+  // The heading's line: every listed tour, whatever the filters.
+  expect(data.counts.all).toEqual({ tours: 4, operators: 4 });
+});
+
+it('the counts do not follow the filters: a destination page shows its own count above its filtered results', async () => {
+  const data = await loadSearchPage(db, { dest: 'japan', dmin: '30' }, today);
+  expect(data.total).toBe(0);
+  expect(data.counts).toEqual(await countToursByDestination(db, today));
 });
 
 it('the nonsense address page=-1&sort=x&dest=<b> gives the default list', async () => {
@@ -268,6 +276,6 @@ describe('through a cache (the pages pass cachedReads; see cached-reads.ts)', ()
     down = false;
     expect(keys(await loadSearchPage(flaky, {}, today, 'zh-Hant', reads)))
       .toEqual(['bigline:SEL5', 'texpert:LAST4', 'egl:KIX5', 'jetour:MID6']);
-    expect(store.entries.size).toBe(3); // the search and the two operator lists
+    expect(store.entries.size).toBe(4); // the search, the two operator lists and the counts
   });
 });

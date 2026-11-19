@@ -1,69 +1,72 @@
 import { it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { places } from '@hktours/core';
 import { I18nProvider } from '../lib/i18n-client';
+import { parseSearchParams } from '../lib/search-params';
 import { DestinationSearchConnected, DestinationPanelsConnected } from './DestinationConnected';
 
 const push = vi.fn<(href: string) => void>();
-let currentQuery = '';
-let currentPath = '/';
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
-  usePathname: () => currentPath,
-  useSearchParams: () => new URLSearchParams(currentQuery),
-}));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
-beforeEach(() => { push.mockReset(); currentPath = '/'; currentQuery = 'sort=days&page=3&dest=korea'; });
+beforeEach(() => { push.mockReset(); });
 
-it('the connected search bar puts the chosen region in the address and resets the page', async () => {
+/** The page's validated state, as the server hands it over. */
+const state = (query: string) => parseSearchParams(Object.fromEntries(new URLSearchParams(query)), places);
+
+it('the connected search bar goes to the chosen region\'s page, keeping the other filters, back on page 1', async () => {
   const user = userEvent.setup();
-  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected value={null} /></I18nProvider>);
+  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected state={state('sort=days&page=3&dmin=5')} /></I18nProvider>);
   await user.type(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }), '大阪');
   await user.keyboard('{Enter}');
-  expect(push).toHaveBeenCalledWith('/?sort=days&dest=japan-kansai');
+  expect(push).toHaveBeenCalledWith('/tours/japan-kansai?dmin=5&sort=days');
 });
 
-it('clearing removes the destination from the address', async () => {
+it('changing the destination on a destination\'s page goes to the other one\'s page with the same filters', async () => {
   const user = userEvent.setup();
-  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected value={{ countryId: 'korea', regionId: null }} /></I18nProvider>);
+  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected state={state('dest=korea&pmax=9000&page=2')} /></I18nProvider>);
+  await user.clear(screen.getByRole('combobox'));
+  await user.type(screen.getByRole('combobox'), '大阪');
+  await user.keyboard('{Enter}');
+  expect(push).toHaveBeenCalledWith('/tours/japan-kansai?pmax=9000');
+});
+
+it('clearing goes back to the search page with the other filters', async () => {
+  const user = userEvent.setup();
+  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected state={state('dest=korea&sort=days&page=3')} /></I18nProvider>);
+  expect(screen.getByRole('combobox')).toHaveValue('韓國 → 全部地區');
   await user.click(screen.getByRole('button', { name: '清除' }));
   expect(push).toHaveBeenCalledWith('/?sort=days');
 });
 
-it('the connected panels put a whole country in the address as its id', async () => {
+it('the connected panels go to a whole country\'s page', async () => {
   const user = userEvent.setup();
-  currentQuery = '';
-  render(<I18nProvider locale="zh-Hant"><DestinationPanelsConnected value={null} /></I18nProvider>);
+  render(<I18nProvider locale="zh-Hant"><DestinationPanelsConnected state={state('')} /></I18nProvider>);
   await user.click(screen.getByRole('button', { name: '按國家選擇' }));
   await user.click(screen.getByRole('button', { name: '日本' }));
   await user.click(screen.getByRole('button', { name: '全部地區' }));
-  expect(push).toHaveBeenCalledWith('/?dest=japan');
-});
-
-it('on the chaining page a choice keeps the legs, gap and exclusions', async () => {
-  const user = userEvent.setup();
-  currentPath = '/chain';
-  currentQuery = 'legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=korea&page=2';
-  render(<I18nProvider locale="zh-Hant"><DestinationSearchConnected value={null} /></I18nProvider>);
-  await user.type(screen.getByRole('combobox'), '大阪');
-  await user.keyboard('{Enter}');
-  expect(push).toHaveBeenCalledTimes(1);
-  const url = new URL(push.mock.calls[0][0], 'http://localhost');
-  expect(url.pathname).toBe('/chain');
-  expect(Object.fromEntries(url.searchParams)).toEqual({
-    legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'korea', dest: 'japan-kansai',
-  });
+  expect(push).toHaveBeenCalledWith('/tours/japan');
 });
 
 it.each([
-  ['en', '/en', '/en?sort=days&dest=japan-kansai'],
-  ['zh-Hans', '/zh-hans', '/zh-hans?sort=days&dest=japan-kansai'],
-  ['en', '/en/chain', '/en/chain?sort=days&dest=japan-kansai'],
-] as const)('in %s at %s the choice stays on the same page in the same language: %s', async (locale, path, href) => {
+  ['en', 'dmin=5', '/en/tours/japan-kansai?dmin=5'],
+  ['zh-Hans', 'dmin=5', '/zh-hans/tours/japan-kansai?dmin=5'],
+  ['zh-Hant', 'dmin=5', '/tours/japan-kansai?dmin=5'],
+] as const)('in %s the choice stays in the page\'s language: %s → %s', async (locale, query, href) => {
   const user = userEvent.setup();
-  currentPath = path;
-  render(<I18nProvider locale={locale}><DestinationSearchConnected value={null} /></I18nProvider>);
+  render(<I18nProvider locale={locale}><DestinationSearchConnected state={state(query)} /></I18nProvider>);
   await user.type(screen.getByRole('combobox'), 'Osaka');
   await user.keyboard('{Enter}');
+  expect(push).toHaveBeenCalledWith(href);
+});
+
+it.each([
+  ['en', '/en?sort=days'],
+  ['zh-Hans', '/zh-hans?sort=days'],
+  ['zh-Hant', '/?sort=days'],
+] as const)('in %s clearing goes to that language\'s search page: %s', async (locale, href) => {
+  const user = userEvent.setup();
+  render(<I18nProvider locale={locale}><DestinationSearchConnected state={state('dest=japan&sort=days')} /></I18nProvider>);
+  await user.click(screen.getByRole('button', { name: /^(清除|Clear)$/ }));
   expect(push).toHaveBeenCalledWith(href);
 });

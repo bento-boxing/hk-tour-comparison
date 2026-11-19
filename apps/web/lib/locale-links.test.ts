@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 //      - useRouter() kept under any name but `router` (`const nav = useRouter()`, `const { push } = useRouter()`,
 //        `useRouter().push(…)`), so that every navigation is a visible `router.push/replace(…)`;
 //      - a router.push / router.replace whose address is not built by localeHref(…);
-//      - any redirect() / permanentRedirect() call, and importing either from next/navigation under any name;
+//      - a redirect() / permanentRedirect() call whose address is not built by localeHref(…), and importing either
+//        from next/navigation under another name;
 //      - window.open(…), history.pushState / replaceState(…), `location = …`, `location.href = …`,
 //        location.assign / replace(…);
 //      - a form `action` or `formAction` that is not a server action (a bare function name) or localeHref(…);
@@ -32,6 +33,7 @@ const FOLDERS = ['app', 'components', 'lib'];
 const EXTERNAL_HREFS: Record<string, string[]> = {
   'components/Footer.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
   'components/TourCard.tsx': ['href: tour.url'], // the operator's own page
+  'app/_site/about-page.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);
@@ -80,8 +82,8 @@ export function problems(path: string, text: string): string[] {
     if (!m[2].startsWith('localeHref(')) found.push(`${path}: router.${m[1]}(${m[2]}`);
   }
   const navigation = new RegExp([
-    /\b(redirect|permanentRedirect)\s*\(/,
-    /\bimport\s*\{[^}]*\b(redirect|permanentRedirect)\b[^}]*\}\s*from\s*['"]next\/navigation['"]/,
+    /\b(redirect|permanentRedirect)\s*\((?!\s*localeHref\()/,
+    /\bimport\s*\{[^}]*\b(redirect|permanentRedirect)\s+as\b[^}]*\}\s*from\s*['"]next\/navigation['"]/,
     /\bwindow\.open\s*\(/,
     /\bhistory\.(pushState|replaceState)\s*\(/,
     /\blocation(\.href)?\s*=(?!=)/,
@@ -156,6 +158,9 @@ describe('it catches', () => {
     ['components/X.tsx', 'location.assign("/chain");'],
     ['components/X.tsx', 'location.replace(next);'],
     ['app/x/page.tsx', 'import { redirect as go } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'import { notFound, permanentRedirect as move } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'permanentRedirect(`/tours/${id}`);'],
+    ['app/x/page.tsx', 'permanentRedirect(localeHref(\'en\', moved));'],
   ])('%s: %s', (path, line) => {
     expect(problems(path, line)).not.toEqual([]);
   });
@@ -173,6 +178,8 @@ describe('it catches', () => {
     ['components/X.tsx', '<form action={setTheme} className={styles.form}>'],
     ['components/X.tsx', 'if (location == null) return;'],
     ['lib/x.ts', 'return href === \'/\' ? SITE_URL : `${SITE_URL}${href}`;'],
+    ['app/x/page.tsx', 'import { permanentRedirect } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'if (moved !== null) permanentRedirect(localeHref(t.locale, moved));'],
   ])('and lets pass %s: %s', (path, line) => {
     expect(problems(path, line)).toEqual([]);
   });

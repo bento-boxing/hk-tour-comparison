@@ -1,31 +1,26 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { unstable_rethrow } from 'next/navigation';
-import { todayInHongKong } from '@hktours/core';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
-import { requestDb } from '../../lib/db';
 import { formatChipDate } from '../../lib/format';
 import { chainPageHref, withPage } from '../../lib/chain-href';
-import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
-import { cachedReads } from '../../lib/search-page-data';
+import { loadChain, queryOf, type SearchParams } from './page-data';
 import {
   ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
 import { Pager } from '../../components/Pager';
 import styles from './chain-page.module.css';
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
 /**
  * Titled with the nav bar's name for this page (the layout's pattern adds the site name); canonical: this
- * language's address without the query string (the chain and filters), which it deliberately never reads; the
- * page in the other languages as alternates.
+ * language's address without the query string (the chain and filters); the page in the other languages as
+ * alternates. Marked noindex when the tours could not be read (the page's own load, made once: see page-data.ts).
  */
-export function chainPageMetadata(locale: Locale): Metadata {
+export async function chainPageMetadata(locale: Locale, searchParams: Promise<SearchParams>): Promise<Metadata> {
   const t = makeT(locale);
-  return pageMetadata(t, '/chain', t('nav.chain'));
+  const load = await loadChain(locale, queryOf(await searchParams));
+  return pageMetadata(t, '/chain', { title: t('nav.chain'), noindex: !load.ok });
 }
 
 /**
@@ -37,18 +32,10 @@ export function chainPageMetadata(locale: Locale): Metadata {
  */
 export async function ChainPage({ locale, searchParams }: { locale: Locale; searchParams: Promise<SearchParams> }) {
   const t = makeT(locale);
-  const raw = await searchParams;
-  const today = todayInHongKong();
-
-  let data: ChainPageData;
-  try {
-    data = await loadChainPage(await requestDb(), raw, today, t.locale, cachedReads);
-  } catch (err) {
-    unstable_rethrow(err); // Next.js's own signals (such as "render this per request") must pass through.
-    // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.
-    console.error('chain page: could not load tours:', err);
-    return <p className={styles.error} role="alert">{t('search.error')}</p>;
-  }
+  const load = await loadChain(locale, queryOf(await searchParams));
+  // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.
+  if (!load.ok) return <p className={styles.error} role="alert">{t('search.error')}</p>;
+  const { today, data } = load;
 
   const { address, legs, droppedCount, departWindow, next, full, operators, filterOperators } = data;
   const lastLeg = legs.at(-1);

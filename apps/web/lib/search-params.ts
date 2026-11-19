@@ -1,5 +1,6 @@
 import { isIsoDate, OPERATOR_IDS, type Destination, type OperatorId, type PlacesIndex } from '@hktours/core';
 import type { SortKey, TourFilters } from '@hktours/db/read';
+import { destinationPath } from './destinations';
 
 /** Everything the search address can say. Built only by parseSearchParams, so every value in it is valid. */
 export interface SearchState { filters: TourFilters; sort: SortKey; page: number }
@@ -142,8 +143,28 @@ export function withFilters(state: SearchState, patch: Partial<TourFilters>): Se
   return { ...state, filters, page: 1 };
 }
 
-/** The search page's path plus the query, or '/' alone for the default state. A path without a language: see localeHref. */
+/**
+ * The address of a search state: the destination's page ('/tours/japan', see lib/destinations.ts) or the search
+ * page ('/') for none, plus the query for the other filters, the sort and the page; the path alone for the default
+ * state. The destination is never in the query here (only the chain page keeps `dest` there). A path without a
+ * language: see localeHref.
+ */
 export function searchHref(state: SearchState): string {
-  const query = buildSearchQuery(state).toString();
-  return query ? `/?${query}` : '/';
+  const query = buildSearchQuery(state);
+  query.delete('dest');
+  const path = destinationPath(state.filters.destination);
+  return query.size > 0 ? `${path}?${query}` : path;
+}
+
+/**
+ * Where an old search address that named its destination in the query now is: '/?dest=japan&dmin=5' →
+ * '/tours/japan?dmin=5' (a path without a language). Only what parseSearchParams keeps is carried over, and `ex`
+ * not at all (the search page ignores it). Null when `dest` names no destination (unknown, misspelt or a retired
+ * region): such an address stays where it is and its `dest` is ignored, as before.
+ */
+export function movedSearchHref(raw: RawParams, places: PlacesIndex): string | null {
+  const state = parseSearchParams(raw, places);
+  if (!state.filters.destination) return null;
+  const { excludeCountryIds: _ignored, ...filters } = state.filters;
+  return searchHref({ ...state, filters });
 }

@@ -324,21 +324,31 @@ it.each([
   ['zh-Hant', 'https://ganbintuen.com/chain', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
   ['zh-Hans', 'https://ganbintuen.com/zh-hans/chain', '连续行程', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
   ['en', 'https://ganbintuen.com/en/chain', 'Plan a trip', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
-] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language, no database read', (locale, canonical, name, description, ogLocale) => {
-  // The metadata takes only the language, so every chain address (?legs=…&gap=…) gets this same answer.
-  expect(chainPageMetadata.length).toBe(1);
-  expect(chainPageMetadata(locale)).toEqual({
+] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language', async (locale, canonical, name, description, ogLocale) => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadChainPage.mockResolvedValue(data);
+  // Every chain address (?legs=…&gap=…) gets this same answer: the query only decides the page's own load.
+  expect(await chainPageMetadata(locale, Promise.resolve({ legs: 'egl:KIX5@2026-12-18', gap: '1-3' }))).toEqual({
     title: name,
     alternates: { canonical, languages },
     openGraph: { title: `${name} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
   });
-  expect(mocks.requestDb).not.toHaveBeenCalled();
 });
 
-it('gives no og:url, so a shared chain plan (/chain?legs=…) keeps its own address on Facebook and LinkedIn', () => {
-  const { openGraph } = chainPageMetadata('zh-Hant');
+it('gives no og:url, so a shared chain plan (/chain?legs=…) keeps its own address on Facebook and LinkedIn', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadChainPage.mockResolvedValue(data);
+  const { openGraph } = await chainPageMetadata('zh-Hant', Promise.resolve({}));
   expect(openGraph).toBeDefined();
   expect(openGraph).not.toHaveProperty('url');
+});
+
+it('when the tours cannot be read, the page is marked noindex (the visitor still gets the message, with the usual status)', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadChainPage.mockRejectedValue(new Error('connection refused'));
+  expect(await chainPageMetadata('en', Promise.resolve({}))).toMatchObject({ robots: { index: false } });
+  mocks.loadChainPage.mockResolvedValue(data);
+  expect(await chainPageMetadata('en', Promise.resolve({}))).not.toHaveProperty('robots');
 });
 
 it('in English every address the page makes stays in English: paging, adding a leg, the gap and removing a leg', async () => {
