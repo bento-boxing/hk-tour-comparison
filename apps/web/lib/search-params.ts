@@ -1,6 +1,6 @@
 import { isIsoDate, OPERATOR_IDS, type Destination, type OperatorId, type PlacesIndex } from '@hktours/core';
 import type { SortKey, TourFilters } from '@hktours/db/read';
-import { destinationPath } from './destinations';
+import { destinationPath, isOnlyRegion } from './destinations';
 
 /** Everything the search address can say. Built only by parseSearchParams, so every value in it is valid. */
 export interface SearchState { filters: TourFilters; sort: SortKey; page: number }
@@ -158,13 +158,17 @@ export function searchHref(state: SearchState): string {
 
 /**
  * Where an old search address that named its destination in the query now is: '/?dest=japan&dmin=5' →
- * '/tours/japan?dmin=5' (a path without a language). Only what parseSearchParams keeps is carried over, and `ex`
- * not at all (the search page ignores it). Null when `dest` names no destination (unknown, misspelt or a retired
+ * '/tours/japan?dmin=5' (a path without a language); the only region of a country to the country's page. Only what
+ * parseSearchParams keeps is carried over, and `ex` not at all (the search page ignores it). Null when `dest` names no destination (unknown, misspelt or a retired
  * region): such an address stays where it is and its `dest` is ignored, as before.
  */
 export function movedSearchHref(raw: RawParams, places: PlacesIndex): string | null {
   const state = parseSearchParams(raw, places);
-  if (!state.filters.destination) return null;
+  const { destination } = state.filters;
+  if (!destination) return null;
   const { excludeCountryIds: _ignored, ...filters } = state.filters;
+  // The only region of its country (france-france) moves to the country's page: the same tours, and the page that
+  // search engines are given (the region's own is noindex).
+  if (isOnlyRegion(destination, places)) filters.destination = { countryId: destination.countryId, regionId: null };
   return searchHref({ ...state, filters });
 }

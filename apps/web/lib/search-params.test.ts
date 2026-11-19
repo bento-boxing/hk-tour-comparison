@@ -198,6 +198,9 @@ it('an old address with dest= moves to the destination\'s page, keeping the othe
   expect(movedSearchHref({ dest: 'japan', dmin: '5' }, places)).toBe('/tours/japan?dmin=5');
   expect(movedSearchHref({ dest: 'china-beijing', sort: 'days', page: '2', op: 'egl' }, places)).toBe('/tours/china-beijing?op=egl&sort=days&page=2');
   expect(movedSearchHref({ dest: 'china-area-east' }, places)).toBe('/tours/china-area-east');
+  // The only region of its country goes to the country's page (the region's own page is a noindex copy of it).
+  expect(movedSearchHref({ dest: 'france-france', dmin: '5' }, places)).toBe('/tours/france?dmin=5');
+  expect(movedSearchHref({ dest: 'singapore-singapore' }, places)).toBe('/tours/singapore');
   // Invalid values are dropped as the page drops them; the search page has no exclusions.
   expect(movedSearchHref({ dest: 'japan', dmin: 'x', ex: 'korea', utm_source: 'mail' }, places)).toBe('/tours/japan');
   // A repeated dest uses its first value, as the page always has.

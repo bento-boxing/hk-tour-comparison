@@ -288,6 +288,9 @@ it.each([
   ['zh-Hans', { dest: 'japan', dmin: '5', sort: 'days', page: '2' }, '/zh-hans/tours/japan?dmin=5&sort=days&page=2'],
   ['en', { dest: 'japan' }, '/en/tours/japan'],
   ['en', { dest: 'china-beijing', op: 'egl', ex: 'korea' }, '/en/tours/china-beijing?op=egl'],
+  // The only region of its country: to the country's page, not to the region's noindex copy.
+  ['zh-Hant', { dest: 'france-france', dmin: '5' }, '/tours/france?dmin=5'],
+  ['zh-Hans', { dest: 'france-france' }, '/zh-hans/tours/france'],
 ] as const)('in %s an old address with dest= is moved permanently (308) to the destination\'s page with the other filters, before any read', async (locale, params, href) => {
   const err = await thrown(() => SearchPage({ locale, searchParams: Promise.resolve(params) }));
   expect(err?.digest).toBe(`NEXT_REDIRECT;replace;${href};308;`);

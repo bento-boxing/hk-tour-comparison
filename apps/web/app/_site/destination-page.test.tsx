@@ -131,6 +131,16 @@ it('a destination with no tours now answers as usual, with the no-tours state', 
   expect(screen.getByRole('link', { name: '日本全部旅行團' })).toHaveAttribute('href', '/tours/japan');
 });
 
+it.each([
+  ['zh-Hant', '清除所有篩選', '/tours/japan'],
+  ['zh-Hans', '清除所有筛选条件', '/zh-hans/tours/japan'],
+  ['en', 'Clear all filters', '/en/tours/japan'],
+] as const)('in %s, with no results on a destination\'s page, "clear all filters" keeps the destination', async (locale, clear, href) => {
+  mocks.loadSearchPage.mockImplementation(async (_db, raw) => ({ ...dataFor(raw), tours: [], total: 0 }));
+  await renderPage(locale, 'japan', { dmin: '30', op: 'egl' });
+  expect(screen.getByRole('link', { name: clear })).toHaveAttribute('href', href);
+});
+
 it('the database being down: the heading, then the message in the page\'s language', async () => {
   mocks.loadSearchPage.mockRejectedValue(new Error('connection refused'));
   await renderPage('en', 'japan');

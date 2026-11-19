@@ -81,7 +81,8 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
         <DestinationPanelsConnected state={state} />
       </div>
       <FilterBarConnected state={state} operators={filterOperators} today={load.today} />
-      <ResultsConnected tours={tours} total={total} operators={operators} today={load.today} />
+      {/* On a destination's page, clearing every filter keeps the destination. */}
+      <ResultsConnected tours={tours} total={total} operators={operators} today={load.today} clearPath={destinationPath(destination)} />
       <Pager state={state} total={total} t={t} />
     </>
   );
