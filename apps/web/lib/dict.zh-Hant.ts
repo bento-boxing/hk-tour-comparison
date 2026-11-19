@@ -40,14 +40,14 @@ const zh = {
   'about.show3': '不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。',
   'about.collectHeading': '資料如何收集',
   'about.collect1': '程式每晚運行一次，並以 tour-comparison-bot 表明身分，同時附上本網站的網址和聯絡電郵。', // the scraper's name (pinned by a test)
-  'about.collect2': '讀取任何網頁前，先讀取該網站的 robots.txt，並遵守當中的限制；讀不到 robots.txt 的網站不會讀取。',
+  'about.collect2': '讀取任何網頁前，先讀取該網站的 robots.txt，並遵守當中的限制；如因錯誤而未能取得 robots.txt，程式不會讀取該網站。沒有 robots.txt 檔案的網站則視作沒有限制。',
   'about.collect3': '對每個網站每次只發出一個請求，每個請求之間最少相隔三秒。',
-  'about.collect4': '不會登入，不會繞過任何防止自動讀取的措施；如網站拒絕，程式當晚即停止讀取該網站。',
+  'about.collect4': '不會登入，不會繞過任何防止自動讀取的措施；如網站多次拒絕，程式當晚即停止讀取該網站。',
   'about.pricesHeading': '價錢及出發日期',
-  'about.prices': '資料每晚更新一次，因此可能是最多一天前的資料。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。',
+  'about.prices': '資料每晚更新一次。如某旅行社當晚的資料未能更新，其旅行團會保留之前的資料，並註明最後更新的日期及時間。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。',
   'about.fixHeading': '更正或移除資料',
   'about.fix': '如發現資料有誤，請電郵至 {email}，我們會盡快更正。', // {email} becomes a mailto link
-  'about.remove': '旅行社如不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取貴公司的網站。',
+  'about.remove': '旅行社如不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取該旅行社的網站。',
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
   'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
   'length.daysNights': '{days}日{nights}夜',

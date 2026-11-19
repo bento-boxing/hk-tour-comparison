@@ -28,18 +28,53 @@ it('says what the owner asked for, in Traditional Chinese as in README.md\'s 給
     '由個人製作的非牟利網站', '不設廣告、不收佣金、不代售任何產品', '本網站與各旅行社並無任何關連',
     '只顯示事實資料', '連結到旅行社網站上的該團頁面', '不會儲存或顯示行程描述、圖片或宣傳文字', '不會使用旅行社的標誌',
     '每晚運行一次', 'tour-comparison-bot', 'robots.txt', '每次只發出一個請求', '最少相隔三秒', '不會登入', '不會繞過',
-    '最多一天前', '以旅行社網站為準', 'hello@ganbintuen.com', '移除有關資料',
+    '最後更新的日期及時間', '以旅行社網站為準', 'hello@ganbintuen.com', '移除有關資料', '停止讀取該旅行社的網站',
   ]) expect(text, phrase).toContain(phrase);
-  const readme = readFileSync(join(__dirname, '..', '..', '..', '..', 'README.md'), 'utf8');
-  // The intro is README's first paragraph of that section, word for word.
-  expect(readme).toContain(makeT('zh-Hant')('about.intro').replace('「跟邊團」', '「跟邊團」（<https://ganbintuen.com>）'));
+  // Nothing it cannot keep: no promise of an age limit, no first-refusal stop, no switch to 貴公司 mid-sentence.
+  expect(text).not.toMatch(/最多一天|如網站拒絕|貴公司|讀不到 robots\.txt 的網站不會讀取/);
 });
 
-it('names the program as the scraper names itself, and its pace as the scraper keeps it', () => {
+/** README's 給旅行社的說明 section, with its code marks removed (`robots.txt` → robots.txt). */
+function readmeSection(): string {
+  const readme = readFileSync(join(__dirname, '..', '..', '..', '..', 'README.md'), 'utf8');
+  const start = readme.indexOf('## 給旅行社的說明');
+  const end = readme.indexOf('\n## ', start + 1);
+  expect(start).toBeGreaterThan(-1);
+  return readme.slice(start, end === -1 ? undefined : end).replace(/`/g, '');
+}
+
+it('README\'s 給旅行社的說明 says the same as the about page, sentence for sentence where both address the same reader', () => {
+  const t = makeT('zh-Hant');
+  const section = readmeSection();
+  // The intro, word for word, with the address after the name.
+  expect(section).toContain(t('about.intro').replace('「跟邊團」', '「跟邊團」（<https://ganbintuen.com>）'));
+  // Every fact about what is shown, how it is read and how fresh it is.
+  for (const key of ['about.show1', 'about.show2', 'about.show3', 'about.collect1', 'about.collect2', 'about.collect3', 'about.collect4', 'about.prices'] as const) {
+    expect(section, key).toContain(t(key));
+  }
+  // The correction route: the same address, and only that (the about page names no other route). README speaks to
+  // the operator (貴公司), the about page to anyone, so those two sentences are worded apart on purpose.
+  expect(section).toContain('hello@ganbintuen.com');
+  expect(section).not.toMatch(/Issues|額滿/);
+});
+
+it('names the program as the scraper names itself, its pace, its pushback rule and its robots.txt rule as the scraper keeps them', () => {
   const scraper = readFileSync(join(__dirname, '..', '..', '..', '..', 'packages', 'scraper', 'src', 'polite-fetch.ts'), 'utf8');
   expect(scraper).toMatch(/export const USER_AGENT = `tour-comparison-bot\//);
   expect(scraper).toMatch(/export const REQUEST_DELAY_MS = 3000;/);
+  // "Several refusals in a row" (多次拒絕), not the first.
+  expect(scraper).toMatch(/export const MAX_CONSECUTIVE_PUSHBACK = 3;/);
+  // A missing robots.txt (404, 410) allows everything; any other failure refuses the site.
+  expect(scraper).toMatch(/const NO_ROBOTS_STATUSES = \[404, 410\];/);
   for (const locale of LOCALES) expect(makeT(locale)('about.collect1'), locale).toContain('tour-comparison-bot');
+});
+
+it('in English the site is "non-commercial", not "non-profit" (which can suggest a registered organisation)', () => {
+  const en = makeT('en');
+  for (const key of ['about.intro', 'about.description'] as const) {
+    expect(en(key)).toContain('personal, non-commercial website');
+    expect(en(key)).not.toMatch(/non-profit/);
+  }
 });
 
 it.each([
