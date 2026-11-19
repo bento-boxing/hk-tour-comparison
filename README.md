@@ -1,8 +1,13 @@
 # 跟邊團 · Hong Kong tour comparison
 
-A website that gathers package-tour listings from Hong Kong tour operators into one place, so a traveller can filter and compare them and chain tours one after another with a chosen break in between. A small scraper collects the listings once a night; the website only reads from the database and never contacts the operators.
+A website (<https://ganbintuen.com>) that gathers package-tour listings from Hong Kong tour operators into one place.
 
-This project is **not affiliated with any tour operator**. It stores and shows facts only (operator, tour code, link, title, length, the cities visited, start and end point, departure dates and prices) and links to the operator's own page for everything else. It stores no itinerary text and no photos. Prices and dates must always be confirmed on the operator's site.
+- **For travellers:** filter and compare tours, and chain tours one after another with a chosen break in between.
+- **How it works:** a small scraper collects the listings once a night. The website only reads from the database and never contacts the operators.
+- **Not affiliated with any tour operator.**
+- **Facts only:** operator, tour code, link, title, length, the cities visited, start and end point, departure dates and prices. Everything else is a link to the operator's own page.
+- **Never stored:** itinerary text and photos.
+- **Always confirm** prices and dates on the operator's site.
 
 ## 給旅行社的說明
 
@@ -45,11 +50,62 @@ The findings for each operator are in [`docs/operators/`](docs/operators/).
 
 ## How the scraper treats operators' sites
 
-Every request carries the User-Agent `tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)`, which names the site and an address to write to; `robots.txt` rules are matched on its first word, `tour-comparison-bot`. (Until 2026-11-19 it was `tour-comparison-bot/0.1` alone; the site and contact were added that day, once the site had its own address, so that a site's owner can see who is asking and how to reach us.) Before requesting any page from a site the scraper reads that site's `robots.txt` and never requests a path it disallows; if `robots.txt` cannot be read, the site is not crawled at all. It sends one request at a time to each site and waits at least 3 seconds after each response before the next request (longer if `robots.txt` sets a `Crawl-delay`; a site asking for more than 30 seconds is not crawled). A request that fails with a network error, a timeout or a 5xx answer is retried at most twice; a 4xx answer, or a 503 with a `Retry-After` header, is not retried. If a site answers page requests with HTTP 403, 429 or 503 three times in a row (a successful page in between starts the count again), the scraper requests nothing more from that site for the rest of the run, and a run in which more than 20% of the tour pages found could not be fetched fails its checks and saves nothing. It runs once a night, never logs in, and never works around bot protection. Big Line's tour data comes from its own data address, `api.biglinehk.com`, which answers only requests carrying the site's fixed key `tenantCode: DH` (written in its public pages, the same for every visitor); with the owner's approval the scraper sends that one header, to that address only, and asks for each tour's departures with one POST per month, for at most two months. A POST is never retried. Yummy Holiday's tour data also comes from its own data address, `api.yummyholiday.net`, by plain GETs with no extra headers: one listing of every tour, then each tour's details and its departures. Sunflower Travel's tours come from plain GETs of two of its pages with no extra headers: one listing of every tour, then each tour's booking page; its other months' dates (a POST form), its per-date booking steps and its itinerary PDFs (disallowed by its robots.txt) are never requested. The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/polite-fetch.ts).
+The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/polite-fetch.ts).
+
+**Who it says it is**
+
+- Every request carries the User-Agent `tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)`, which names the site and an address to write to.
+- `robots.txt` rules are matched on its first word, `tour-comparison-bot`.
+- Until 2026-11-19 it was `tour-comparison-bot/0.1` alone. The site and contact were added that day, once the site had its own address, so that a site's owner can see who is asking and how to reach us.
+
+**robots.txt**
+
+- Before requesting any page from a site, the scraper reads that site's `robots.txt` and never requests a path it disallows.
+- If `robots.txt` cannot be read, the site is not crawled at all.
+
+**Pace**
+
+- One request at a time to each site.
+- At least 3 seconds after each response before the next request, or longer if `robots.txt` sets a `Crawl-delay`. A site asking for more than 30 seconds is not crawled.
+- It runs once a night.
+
+**Retries**
+
+- A request that fails with a network error, a timeout or a 5xx answer is retried at most twice.
+- A 4xx answer, or a 503 with a `Retry-After` header, is not retried.
+- A POST is never retried.
+
+**Backing off**
+
+- If a site answers page requests with HTTP 403, 429 or 503 three times in a row, the scraper requests nothing more from that site for the rest of the run. A successful page in between starts the count again.
+- A run in which more than 20% of the tour pages found could not be fetched fails its checks and saves nothing.
+
+**What it never does**
+
+- It never logs in.
+- It never works around bot protection.
+
+**Operators whose data comes from a data address**
+
+- **Big Line** (`api.biglinehk.com`):
+  - The address answers only requests carrying the site's fixed key `tenantCode: DH`, which is written in its public pages and is the same for every visitor.
+  - With the owner's approval the scraper sends that one header, to that address only.
+  - It asks for each tour's departures with one POST per month, for at most two months.
+- **Yummy Holiday** (`api.yummyholiday.net`): plain GETs with no extra headers: one listing of every tour, then each tour's details and its departures.
+- **Sunflower Travel:**
+  - Plain GETs of two of its pages with no extra headers: one listing of every tour, then each tour's booking page.
+  - Never requested: its other months' dates (a POST form), its per-date booking steps, and its itinerary PDFs (disallowed by its robots.txt).
 
 ## Data kept
 
-Each night's successful save of an operator replaces each of its tours' stops and departures, and keeps 8 nights of price history. A tour missing from that save is marked withdrawn and no longer shown; if it is still missing more than 30 days after the night it went missing, it is deleted with its stops, departures and price history (a tour that comes back before then keeps its row and history). The log of scrape runs keeps 90 days, but always keeps each operator's most recent successful run, however old, because the next run's checks compare against it. All of this happens only inside a successful save, for that operator alone: a run that fails its checks deletes nothing. The code is in [`packages/db/src/save-run.ts`](packages/db/src/save-run.ts).
+The code is in [`packages/db/src/save-run.ts`](packages/db/src/save-run.ts).
+
+- **Each night's successful save of an operator** replaces each of its tours' stops and departures, and keeps 8 nights of price history.
+- **A tour missing from that save** is marked withdrawn and no longer shown.
+  - If it is still missing more than 30 days after the night it went missing, it is deleted with its stops, departures and price history.
+  - A tour that comes back before then keeps its row and history.
+- **The log of scrape runs** keeps 90 days. It always keeps each operator's most recent successful run, however old, because the next run's checks compare against it.
+- **Only inside a successful save, for that operator alone.** A run that fails its checks deletes nothing.
 
 ## Removing your listings
 
@@ -65,23 +121,64 @@ pnpm test        # all tests (they use an in-memory database; nothing is contact
 pnpm typecheck
 ```
 
-A dry run of one operator's scrape, which fetches real pages from the operator's site (politely, as above) but writes nothing to any database:
+### A dry run of one operator
+
+A dry run fetches real pages from the operator's site (politely, as above) but writes nothing to any database:
 
 ```sh
 pnpm scrape --operator jetour --dry-run --limit 5
 ```
 
-`--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy` or `sunflower` (the nightly run scrapes all seven). `--limit N` is allowed only with `--dry-run`. A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL` (and uses `DATABASE_CA_CERT` when it is set).
+- `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy` or `sunflower`. The nightly run scrapes all seven.
+- `--limit N` is allowed only with `--dry-run`.
+- A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`, and uses `DATABASE_CA_CERT` when it is set.
 
-The nightly run's logs on GitHub Actions (the migrate job and each scrape job) are public, so they are kept free of the operators' wording as far as a fixed rule can do it. A line about one tour page names it by its tour code (with place names from the places list, and counts). Before the code is known (a page not fetched, or one its parser rejects), the line gives the page's address, but any piece of its path, query or fragment that is not ASCII letters, digits and dots with at most one `-` or `_` (percent-encoded or non-ASCII text, or three or more words joined by hyphens) is shown as `*`, followed by a reference: `https://www.charming-online.com/?tour=* (ref 1a2b3c4d)`. An error message from code the project does not control (a parser, a network error, a database error) is shown as `* (ref …)` when it is not plain ASCII or holds a double quote, a `%` or an address; for a database error, the fields that cannot hold row data (its code, table, column, constraint) are printed, never the row itself. Sunflower's listing labels for the entries it leaves out are printed as a count only.
+### What the public logs show
 
-What such a log can still contain: short plain-ASCII words in an address (one word, or two joined by one `-` or `_`, such as a page name), a plain-ASCII error message from a library, and words that belong to no operator (the scraper's own messages, HTTP statuses, error codes, host names).
+The nightly run's logs on GitHub Actions (the migrate job and each scrape job) are public, so they are kept free of the operators' wording as far as a fixed rule can do it. The code is in [`packages/scraper/src/public-log.ts`](packages/scraper/src/public-log.ts) and [`packages/db/src/public-error.ts`](packages/db/src/public-error.ts).
 
-To find the page behind a reference, run a dry run of that operator (`pnpm scrape --operator <id> --dry-run`, whose output is not public) and search its output for the eight characters: each `page {…}` line carries the page's `ref`, and any line about a page or message the public log hides prints it whole, followed by the same reference. A page that the dry run does not reach (one not fetched again, say) has no `page` line, and a hidden database message is not repeated by a dry run, which uses an in-memory database. The code is in [`packages/scraper/src/public-log.ts`](packages/scraper/src/public-log.ts) and [`packages/db/src/public-error.ts`](packages/db/src/public-error.ts).
+- **A line about one tour page** names it by its tour code, with place names from the places list, and counts.
+- **Before the code is known** (a page not fetched, or one its parser rejects), the line gives the page's address with the risky pieces hidden:
+  - Any piece of its path, query or fragment is shown as `*` unless it is ASCII letters, digits and dots with at most one `-` or `_`. That hides percent-encoded or non-ASCII text, and three or more words joined by hyphens.
+  - A reference follows: `https://www.charming-online.com/?tour=* (ref 1a2b3c4d)`.
+- **An error message from code the project does not control** (a parser, a network error, a database error) is shown as `* (ref …)` when it is not plain ASCII or holds a double quote, a `%` or an address.
+- **For a database error,** the fields that cannot hold row data (its code, table, column, constraint) are printed, never the row itself.
+- **Sunflower's listing labels** for the entries it leaves out are printed as a count only.
 
-To see what a change to places or route rules does to real tours, `pnpm replay --base <commit>` re-reads the saved crawl logs (git-ignored, under `.superpowers/raw-pages/`) offline with the working tree's rules and that commit's, and lists every tour whose route changed (`--save`/`--before` compare with an earlier replay instead; it replays the parser output as logged). A page whose log gives no day count (logged, in the title or in the code) is given one day per day heading, since the too-far rule depends on it; the run prints how many pages per operator are so, and marks them in the list.
+What such a log can still contain:
 
-To run the website locally, create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>` (and, for a hosted database, optionally `DATABASE_CA_CERT=<certificate>`), then `pnpm --filter @hktours/web dev`. In `.env.local` the certificate must be on one line, with the two characters `\n` in place of each line break (`DATABASE_CA_CERT=-----BEGIN CERTIFICATE-----\nMII…\n-----END CERTIFICATE-----`); `awk '{printf "%s\\n", $0}' '<certificate file>'` prints it in that form. Pasted as-is over several lines, it would be read as its first line only. A value that is set but is not a whole certificate does not silently turn verification off: every page that reads the database fails with the error `DATABASE_CA_CERT is not a PEM certificate` in the server's output (the error does not show the value), and the page shows its "could not load" message. To create or update the tables: `pnpm db:migrate` with `DATABASE_URL` set.
+- short plain-ASCII words in an address (one word, or two joined by one `-` or `_`, such as a page name);
+- a plain-ASCII error message from a library;
+- words that belong to no operator: the scraper's own messages, HTTP statuses, error codes, host names.
+
+To find the page behind a reference:
+
+- Run a dry run of that operator (`pnpm scrape --operator <id> --dry-run`, whose output is not public) and search its output for the eight characters.
+- Each `page {…}` line carries the page's `ref`, and any line about a page or message the public log hides prints it whole, followed by the same reference.
+- A page that the dry run does not reach (one not fetched again, say) has no `page` line.
+- A hidden database message is not repeated by a dry run, which uses an in-memory database.
+
+### Replaying saved crawls
+
+`pnpm replay --base <commit>` shows what a change to places or route rules does to real tours.
+
+- It re-reads the saved crawl logs (git-ignored, under `.superpowers/raw-pages/`) offline, with the working tree's rules and that commit's, and lists every tour whose route changed.
+- `--save` and `--before` compare with an earlier replay instead. It replays the parser output as logged.
+- A page whose log gives no day count (logged, in the title or in the code) is given one day per day heading, since the too-far rule depends on it. The run prints how many pages per operator are so, and marks them in the list.
+
+### Running the website locally
+
+1. Create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>`. For a hosted database, optionally add `DATABASE_CA_CERT=<certificate>`.
+2. Run `pnpm --filter @hktours/web dev`.
+
+To create or update the tables, run `pnpm db:migrate` with `DATABASE_URL` set.
+
+The certificate in `.env.local`:
+
+- It must be on one line, with the two characters `\n` in place of each line break: `DATABASE_CA_CERT=-----BEGIN CERTIFICATE-----\nMII…\n-----END CERTIFICATE-----`.
+- `awk '{printf "%s\\n", $0}' '<certificate file>'` prints it in that form.
+- Pasted as-is over several lines, it would be read as its first line only.
+- A value that is set but is not a whole certificate does not silently turn verification off. Every page that reads the database fails with the error `DATABASE_CA_CERT is not a PEM certificate` in the server's output (the error does not show the value), and the page shows its "could not load" message.
 
 ### Environment variables
 
@@ -92,10 +189,15 @@ To run the website locally, create `apps/web/.env.local` (git-ignored) with a li
 
 ## Layout
 
-- `packages/core`: shared types, the places list (`src/places/data.json`, with Simplified Chinese names in `src/places/names.zh-Hans.json`, generated by `python3 scripts/gen-zh-hans-names.py` from `packages/core` after any change to the list; it needs the system OpenCC library, e.g. Debian/Ubuntu `libopencc1.1`), route extraction, search suggestions, chain date maths.
-- `packages/db`: schema (`migrations/`), database access, `pnpm db:migrate`.
-- `packages/scraper`: the polite fetcher, one scraper per operator, the `pnpm scrape` command.
-- `apps/web`: the Next.js website (`/` search, `/chain` chaining), in Traditional Chinese by default; the switch in the nav bar offers Simplified Chinese and English (texts in `lib/dict.*.ts`), remembers the choice in a one-year `locale` cookie, and in those two languages a notice at the top says tours are normally conducted in Cantonese. The pages are rendered per request, but each database result is reused for up to an hour (`lib/cached-reads.ts`): a result shown is at most an hour old, so after the nightly scrape a page may show the previous results for up to an hour. When Vercel gives the functions its system environment variables (the project setting "Enable access to System Environment Variables"), the results are kept per commit and environment (production, preview): a new commit's deployment starts with an empty cache, while a redeploy of the same commit reuses its results. Without them, every deployment shares the results; the one-hour limit still holds.
-- `.github/workflows/`: `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).
+- **`packages/core`:** shared types, the places list, route extraction, search suggestions, chain date maths.
+  - The places list is `src/places/data.json`, with Simplified Chinese names in `src/places/names.zh-Hans.json`.
+  - After any change to the list, regenerate the names with `python3 scripts/gen-zh-hans-names.py` from `packages/core`. It needs the system OpenCC library (on Debian/Ubuntu, `libopencc1.1`).
+- **`packages/db`:** schema (`migrations/`), database access, `pnpm db:migrate`.
+- **`packages/scraper`:** the polite fetcher, one scraper per operator, the `pnpm scrape` command.
+- **`apps/web`:** the Next.js website (`/` search, `/chain` chaining).
+  - **Languages:** Traditional Chinese by default. The switch in the nav bar offers Simplified Chinese and English (texts in `lib/dict.*.ts`) and remembers the choice in a one-year `locale` cookie. In those two languages a notice at the top says tours are normally conducted in Cantonese.
+  - **Freshness:** pages are rendered per request, but each database result is reused for up to an hour (`lib/cached-reads.ts`). A result shown is at most an hour old, so after the nightly scrape a page may show the previous results for up to an hour.
+  - **Per deployment:** when Vercel gives the functions its system environment variables (the project setting "Enable access to System Environment Variables"), the results are kept per commit and environment (production, preview). A new commit's deployment starts with an empty cache, while a redeploy of the same commit reuses its results. Without them, every deployment shares the results; the one-hour limit still holds.
+- **`.github/workflows/`:** `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).
 
 This has not been reviewed by a lawyer.
