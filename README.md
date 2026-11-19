@@ -8,6 +8,7 @@ A website (<https://ganbintuen.com>) that gathers package-tour listings from Hon
 - **Facts only:** operator, tour code, link, title, length, the cities visited, start and end point, departure dates and prices. Everything else is a link to the operator's own page.
 - **Never stored:** itinerary text and photos.
 - **Always confirm** prices and dates on the operator's site.
+- **Not licensed for reuse:** the code is published so that anyone, tour operators included, can see exactly what the site and its scraper do. See [Licence](#licence).
 
 ## 給旅行社的說明
 
@@ -201,5 +202,13 @@ The certificate in `.env.local`:
   - **Freshness:** pages are rendered per request, but each database result is reused for up to an hour (`lib/cached-reads.ts`). A result shown is at most an hour old, so after the nightly scrape a page may show the previous results for up to an hour.
   - **Per deployment:** when Vercel gives the functions its system environment variables (the project setting "Enable access to System Environment Variables"), the results are kept per commit and environment (production, preview). A new commit's deployment starts with an empty cache, while a redeploy of the same commit reuses its results. Without them, every deployment shares the results; the one-hour limit still holds.
 - **`.github/workflows/`:** `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).
+
+## Licence
+
+This repository has no open-source licence. All rights are reserved.
+
+- You are welcome to read the code.
+- It is not licensed to be copied, run, modified or redistributed, in whole or in part.
+- If you want to use any of it, write to hello@ganbintuen.com.
 
 This has not been reviewed by a lawyer.
