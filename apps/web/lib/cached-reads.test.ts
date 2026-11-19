@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe, vi } from 'vitest';
 import type { Destination, NormalisedTour, OperatorId, ScrapedDeparture, Stop } from '@hktours/core';
-import { saveOperatorRun, searchTours, type Db } from '@hktours/db';
+import { countToursByDestination, saveOperatorRun, searchTours, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import type { SortKey } from '@hktours/db/read';
@@ -239,6 +239,30 @@ describe('with the in-process database', () => {
     const cards = [...(await reads.getToursByKeys(db, ['egl:KIX5', 'texpert:SEL5'], today)).values()];
     expect(cards).toHaveLength(2);
     expect(stored(cards)).toStrictEqual(cards);
+
+    const counts = await reads.countToursByDestination(db, today);
+    expect(counts.all).toEqual({ tours: 3, operators: 3 });
+    expect(counts.destinations.some(d => d.regionId === null) && counts.destinations.some(d => d.regionId !== null)).toBe(true);
+    expect(stored(counts)).toStrictEqual(counts);
+  });
+
+  it('countToursByDestination: one key per build and day, the same answer as the database, and a second call makes no query', async () => {
+    const store = jsonStore();
+    const counter = counting(db);
+    const reads = createReads(() => [], store.cache, BUILD);
+    const first = await reads.countToursByDestination(counter.db, today);
+    expect(counter.queries).toBe(1);
+    const second = await reads.countToursByDestination(counter.db, today);
+    expect(counter.queries).toBe(1);
+    expect(second).toStrictEqual(first);
+    expect(first).toStrictEqual(await countToursByDestination(db, today));
+    await reads.countToursByDestination(counter.db, '2026-12-24');
+    expect(counter.queries).toBe(2);
+    expect(store.keys.map(k => JSON.parse(k))).toEqual([
+      { build: BUILD, read: 'countToursByDestination', today },
+      { build: BUILD, read: 'countToursByDestination', today },
+      { build: BUILD, read: 'countToursByDestination', today: '2026-12-24' },
+    ]);
   });
 
   it('getToursByKeys: a stored entry gives back the same Map, in the order the caller asked', async () => {
@@ -375,7 +399,7 @@ describe('the build is in every key, so different builds never share an entry', 
     expect(await keyIn('production')).not.toBe(await keyIn('preview'));
   });
 
-  it('all three reads put it in their key, and two builds give different keys for the same question', async () => {
+  it('all four reads put it in their key, and two builds give different keys for the same question', async () => {
     const keysFor = async (build: string) => {
       const store = jsonStore();
       const reads = createReads(() => [], store.cache, build);
@@ -383,12 +407,13 @@ describe('the build is in every key, so different builds never share an entry', 
       await reads.searchTours(db, base, 'en').catch(() => {});
       await reads.getOperators(db).catch(() => {});
       await reads.getToursByKeys(db, ['egl:KIX5'], today).catch(() => {});
+      await reads.countToursByDestination(db, today).catch(() => {});
       return store.keys;
     };
     const one = await keysFor('build-one');
     const two = await keysFor('build-two');
-    expect(one.map(k => JSON.parse(k).build)).toEqual(['build-one', 'build-one', 'build-one']);
-    expect(two.map(k => JSON.parse(k).build)).toEqual(['build-two', 'build-two', 'build-two']);
+    expect(one.map(k => JSON.parse(k).build)).toEqual(['build-one', 'build-one', 'build-one', 'build-one']);
+    expect(two.map(k => JSON.parse(k).build)).toEqual(['build-two', 'build-two', 'build-two', 'build-two']);
     one.forEach((key, i) => expect(key).not.toBe(two[i]));
     // Apart from the build, the keys are the same question.
     expect(one.map(k => ({ ...JSON.parse(k), build: null }))).toEqual(two.map(k => ({ ...JSON.parse(k), build: null })));

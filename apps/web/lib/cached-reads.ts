@@ -1,13 +1,13 @@
 import { unstable_cache } from 'next/cache';
 import type { Destination, IsoDate } from '@hktours/core';
 import {
-  getOperators, getToursByKeys, searchTours,
-  type Db, type OperatorInfo, type SearchInput, type SortKey, type TourCardData, type TourFilters,
+  countToursByDestination, getOperators, getToursByKeys, searchTours,
+  type DestinationCounts, type Db, type OperatorInfo, type SearchInput, type SortKey, type TourCardData, type TourFilters,
 } from '@hktours/db/read';
 import type { Locale } from './i18n';
 
 /*
- * The website's three database reads, each result kept in Next.js's data cache and reused by every visitor
+ * The website's four database reads, each result kept in Next.js's data cache and reused by every visitor
  * who asks the same question, so most page views make no query (the data changes once a night).
  *
  * A result shown is at most an hour old (READ_CACHE_SECONDS), by the server's clock. Each entry carries the
@@ -108,12 +108,14 @@ export const runUncached: CacheFn = (_key, load) => load();
 /** A search as the loaders ask it: the ranking for the destination sorts comes from the locale instead. */
 export type SearchQuery = Omit<SearchInput, 'destinationOrder'>;
 
-/** The three reads, with the same results as those of `@hktours/db/read`. */
+/** The four reads, with the same results as those of `@hktours/db/read`. */
 export interface Reads {
   /** searchTours, with the destination sorts ranked in `locale`'s order of place names. */
   searchTours(db: Db, query: SearchQuery, locale: Locale): Promise<{ tours: TourCardData[]; total: number }>;
   getOperators(db: Db, opts?: { onlyWithGoodRun?: boolean }): Promise<OperatorInfo[]>;
   getToursByKeys(db: Db, keys: string[], today: IsoDate): Promise<Map<string, TourCardData>>;
+  /** How many tours, from how many operators, are listed now: in all, per country and per region. */
+  countToursByDestination(db: Db, today: IsoDate): Promise<DestinationCounts>;
 }
 
 /**
@@ -171,7 +173,7 @@ function searchInput(key: SearchKey, orderFor: (locale: Locale) => string[]): Se
 }
 
 /**
- * The three reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
+ * The four reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
  * of the places data and the language); it runs inside the cached read, from the key's locale, so the long
  * list is never part of a key and an entry can only hold the order of the language in its key. `build` is the
  * build id every key starts with.
@@ -204,6 +206,12 @@ export function createReads(
         if (card) result.set(k, card);
       }
       return result;
+    },
+
+    countToursByDestination(db, today) {
+      // The only input is today (the server's Hong Kong date), so one entry per build and day serves every page.
+      const key = { build, read: 'countToursByDestination', today };
+      return cache(JSON.stringify(key), () => countToursByDestination(db, key.today));
     },
   };
 }
