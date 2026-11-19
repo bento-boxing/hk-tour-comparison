@@ -5,13 +5,15 @@ import { charmingScraper } from './charming';
 import { eglScraper } from './egl';
 import { jetourScraper } from './jetour';
 import { sunflowerScraper } from './sunflower';
+import { tasteScraper } from './taste';
 import { texpertScraper } from './texpert';
 import { yummyScraper } from './yummy';
 
 /**
  * Every approved, implemented operator, by id. Only these are scraped. To add one, add its
  * line here and, once a measured crawl has set its first-run floor, its id to the operator matrix
- * in .github/workflows/nightly-scrape.yml (every operator below is in the matrix).
+ * in .github/workflows/nightly-scrape.yml (every operator below is in the matrix except taste,
+ * which awaits its measured practice crawl).
  */
 export const SCRAPERS: Partial<Record<OperatorId, OperatorScraper>> = {
   bigline: biglineScraper,
@@ -19,6 +21,7 @@ export const SCRAPERS: Partial<Record<OperatorId, OperatorScraper>> = {
   egl: eglScraper,
   jetour: jetourScraper,
   sunflower: sunflowerScraper,
+  taste: tasteScraper,
   texpert: texpertScraper,
   yummy: yummyScraper,
 };

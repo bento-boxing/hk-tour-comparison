@@ -1,0 +1,65 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/detail/tour_id/1175",
+  "verifiedByOwner": false,
+  "today": "2026-11-20",
+  "notes": [
+    "Tour page from task 45 (request #4, 2026-11-19 21:32:56 UTC); dates answer from the investigation (fetch #12, 21:15:26 UTC). The run's date is 2026-11-20 (Hong Kong), the capture date.",
+    "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
+    "Every date in the dates answer has one of the three bookable statuses (收客中) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
+    "High-speed-rail tour from Hong Kong West Kowloon station (kind hk).",
+    "KNOWN ERROR, NOT INTENDED: the stop 羅馬 (Rome) is wrong. It comes from a phrase describing a hotel's Roman-style architecture (the name 羅馬 followed by the word for architecture), a place name inside a longer word. Pinned here as the shared rules give it today; see docs/operators/taste.md, \"Known route errors\". 東山島 and 雲霄 are not in the places data."
+  ],
+  "scraped": {
+    "operatorId": "taste",
+    "code": "GAF04",
+    "url": "https://tastetravel.com.hk/tour/detail/tour_id/1175",
+    "title": "4天",
+    "days": 4,
+    "nights": null,
+    "dayHeadings": [
+      "漳州 → 漳州 → 南靖",
+      "羅馬"
+    ],
+    "fallbackRoute": "4天",
+    "startPoint": "香港西九龍高鐵站G層團體集合處1號",
+    "endPoint": "香港西九龍高鐵站G層團體集合處1號",
+    "fromPriceHkd": 1999,
+    "departures": [
+      {
+        "date": "2026-12-10",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-14",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-17",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-21",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-28",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-31",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "漳州",
+    "南靖",
+    "羅馬"
+  ],
+  "unmatched": []
+}

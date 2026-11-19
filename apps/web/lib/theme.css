@@ -37,7 +37,7 @@
   --bar-bg: #50514f; --bar-text: #fffcff; --bar-accent: #c3b299;
   /* Operator colours (the database's operators.color) carry their own background, so they are the same in both themes. */
   --op-egl: #d62839; --op-jetour: #ee7b06; --op-texpert: #7d3cc8; --op-bigline: #2a9d4b;
-  --op-charming: #b5179e; --op-yummy: #7a6a00; --op-sunflower: #3949ab;
+  --op-charming: #b5179e; --op-yummy: #7a6a00; --op-sunflower: #3949ab; --op-taste: #007a7a;
   /* A card's tag and border when an operator has no usable colour, and the two tag text colours (lib/contrast.ts picks). */
   --op-fallback: #50514f; --on-operator-light: #ffffff; --on-operator-dark: #1c1d1b;
   /* --notice-maroon: the owner's colour for the language notice (components/LanguageNotice) only; fixed in both themes. */

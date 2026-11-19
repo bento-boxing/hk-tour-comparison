@@ -46,6 +46,7 @@ A website (<https://ganbintuen.com>) that gathers package-tour listings from Hon
 | Yummy Holiday 美味假期 (`yummy`) | yummyholiday.net |
 | Big Line Holiday 大航假期 (`bigline`) | bigline.hk |
 | Sunflower Travel 新華旅遊 (`sunflower`) | sunflower.com.hk |
+| Taste Travel 味力之旅 (`taste`) | tastetravel.com.hk |
 
 The findings for each operator are in [`docs/operators/`](docs/operators/).
 
@@ -86,7 +87,7 @@ The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/pol
 - It never logs in.
 - It never works around bot protection.
 
-**Operators whose data comes from a data address**
+**Operators with their own arrangements**
 
 - **Big Line** (`api.biglinehk.com`):
   - The address answers only requests carrying the site's fixed key `tenantCode: DH`, which is written in its public pages and is the same for every visitor.
@@ -96,6 +97,10 @@ The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/pol
 - **Sunflower Travel:**
   - Plain GETs of two of its pages with no extra headers: one listing of every tour, then each tour's booking page.
   - Never requested: its other months' dates (a POST form), its per-date booking steps, and its itinerary PDFs (disallowed by its robots.txt).
+- **Taste Travel:**
+  - Plain GETs of three kinds of its pages with no extra headers: its list of tours, page by page, then each tour's page and that tour's list of dates.
+  - Never requested: its itinerary PDFs, images, booking forms, and the two addresses its pages call when a visitor clicks to view a PDF or book by WhatsApp (they count clicks).
+  - The cookie it sets is never kept or sent back.
 
 ## Data kept
 
@@ -130,7 +135,7 @@ A dry run fetches real pages from the operator's site (politely, as above) but w
 pnpm scrape --operator jetour --dry-run --limit 5
 ```
 
-- `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy` or `sunflower`. The nightly run scrapes all seven.
+- `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy`, `sunflower` or `taste`. The nightly run scrapes the first seven; `taste` joins it after a measured practice crawl.
 - `--limit N` is allowed only with `--dry-run`.
 - A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`, and uses `DATABASE_CA_CERT` when it is set.
 
@@ -145,6 +150,7 @@ The nightly run's logs on GitHub Actions (the migrate job and each scrape job) a
 - **An error message from code the project does not control** (a parser, a network error, a database error) is shown as `* (ref …)` when it is not plain ASCII or holds a double quote, a `%` or an address.
 - **For a database error,** the fields that cannot hold row data (its code, table, column, constraint) are printed, never the row itself.
 - **Sunflower's listing labels** for the entries it leaves out are printed as a count only.
+- **A Taste Travel date** whose status is not one of the three known is logged with its status by the error-message rule (`* (ref …)` unless plain ASCII). Dates in a malformed format are logged as a count with the tour code.
 
 What such a log can still contain:
 

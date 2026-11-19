@@ -1,0 +1,163 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/detail/tour_id/586",
+  "verifiedByOwner": false,
+  "today": "2026-11-20",
+  "notes": [
+    "Tour page and dates answer from the investigation, 2026-11-19 21:12:50 and 21:12:53 UTC (fetches #9 and #10). The run's date is 2026-11-20 (Hong Kong), the capture date.",
+    "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
+    "Every date in the dates answer has one of the three bookable statuses (已成團, 收客中, 快成團) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
+    "Air tour from Hong Kong airport (kind hk). 洪加達 is the site's name for Hurghada, matched as 赫爾格達 by an alias.",
+    "KNOWN ERROR, NOT INTENDED: the stops 杜拜 (Dubai) and 伊斯坦堡 (Istanbul), three times each, are wrong. They come from `杜拜/多哈/伊斯坦堡`, a choice of transit hub on the first, eighth and last day; the shared rules read each `/` alternative as a stop because the line has no transit word. 多哈 is not in the places data (unmatched). Pinned here as the code gives it today; see docs/operators/taste.md, \"Known route errors\"."
+  ],
+  "scraped": {
+    "operatorId": "taste",
+    "code": "EED09",
+    "url": "https://tastetravel.com.hk/tour/detail/tour_id/586",
+    "title": "埃及 開羅 阿斯旺 艾德夫 樂蜀 洪加達",
+    "days": 9,
+    "nights": null,
+    "dayHeadings": [
+      "香港 → 杜拜/多哈/伊斯坦堡 → 開羅 → 吉薩",
+      "開羅 → 阿斯旺 → 阿斯旺",
+      "阿斯旺 → 阿布辛貝 → 高寶安 → 艾德夫",
+      "艾德夫 → 艾德夫 → 樂蜀 → 樂蜀 → 樂蜀",
+      "樂蜀 → 洪加達",
+      "洪加達 → 洪加達",
+      "洪加達 → 開羅 → 開羅",
+      "開羅 → 杜拜/多哈/伊斯坦堡",
+      "杜拜/多哈/伊斯坦堡 → 香港"
+    ],
+    "fallbackRoute": "埃及 開羅 阿斯旺 艾德夫 樂蜀 洪加達",
+    "startPoint": "香港國際機場",
+    "endPoint": "香港國際機場",
+    "fromPriceHkd": 21998,
+    "departures": [
+      {
+        "date": "2026-12-10",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-07",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-14",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-21",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-28",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-02-04",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-02-11",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-02-18",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-02-25",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-03-04",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-03-11",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-03-18",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-03-25",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-04-01",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-04-08",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-04-15",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-04-22",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-04-29",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-05-06",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-05-13",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-05-20",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-05-27",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-06-03",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-06-10",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-06-17",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-06-24",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "杜拜",
+    "伊斯坦堡",
+    "開羅",
+    "吉薩",
+    "開羅",
+    "亞斯旺",
+    "阿布辛貝",
+    "高寶安",
+    "艾德夫",
+    "樂蜀",
+    "赫爾格達",
+    "開羅",
+    "杜拜",
+    "伊斯坦堡",
+    "杜拜",
+    "伊斯坦堡"
+  ],
+  "unmatched": [
+    "多哈"
+  ]
+}

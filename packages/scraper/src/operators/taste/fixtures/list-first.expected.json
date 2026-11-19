@@ -1,0 +1,32 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/select",
+  "verifiedByOwner": false,
+  "notes": [
+    "Page 1 of 32 (offset 0), fetched as /tour/select in the investigation (2026-11-19 21:11:54 UTC, fetch #5). Cut to its first 4 of 10 cards.",
+    "Trimmed by hand to what discover.ts reads: each card keeps its link, the tour code from its title (the title itself removed) and its day count (span.desc-day); the page keeps the product count and the pager links. Dates, prices, tags, descriptions, images and the footer (contact links) are removed.",
+    "Every card seen on the three list pages read (21 cards) and on the home page (34 cards) has a tour page link, a code and a day count: no entry that is not a group tour was seen.",
+    "The pager marks this page as page 1 (`<a class=\"selected\">1</a>`); discovery checks that against the offset it asked for (fix round 1)."
+  ],
+  "tours": [
+    {
+      "id": "1159",
+      "code": "FYA10"
+    },
+    {
+      "id": "1166",
+      "code": "FXB10"
+    },
+    {
+      "id": "678",
+      "code": "FYB08"
+    },
+    {
+      "id": "1143",
+      "code": "FBB10"
+    }
+  ],
+  "leftOut": {},
+  "next": true,
+  "total": 311,
+  "current": 1
+}

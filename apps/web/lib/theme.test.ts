@@ -38,7 +38,7 @@ const token = (name: string) => hex(light, name);
 const SAME_IN_BOTH = [
   'notice-maroon', 'notice-text', 'bar-text', 'bar-accent', 'on-operator-light', 'on-operator-dark', 'op-fallback',
   'on-latest-accent',
-  'op-egl', 'op-jetour', 'op-texpert', 'op-bigline', 'op-charming', 'op-yummy', 'op-sunflower',
+  'op-egl', 'op-jetour', 'op-texpert', 'op-bigline', 'op-charming', 'op-yummy', 'op-sunflower', 'op-taste',
 ];
 
 it('the dark theme is declared once for a visitor who chose it and once for one whose system is dark, identically', () => {
@@ -92,8 +92,14 @@ it('the Sunflower Travel tag (white text on its colour, as in the operators tabl
   expect(contrast('#ffffff', token('op-sunflower'))).toBeGreaterThanOrEqual(4.5);
 });
 
+it('the Taste Travel tag (white text on its colour, as in the operators table) meets WCAG AA (4.5:1)', () => {
+  expect(token('op-taste')).toBe('#007a7a');
+  expect(contrast('#ffffff', token('op-taste'))).toBeGreaterThanOrEqual(4.5);
+  expect(operatorTextTone(token('op-taste'))).toBe('light');
+});
+
 it('every operator tag gets the text colour that meets WCAG AA on it: dark text on Jetour\'s orange and Big Line\'s green', () => {
-  for (const name of ['op-egl', 'op-jetour', 'op-texpert', 'op-bigline', 'op-charming', 'op-yummy', 'op-sunflower', 'op-fallback']) {
+  for (const name of ['op-egl', 'op-jetour', 'op-texpert', 'op-bigline', 'op-charming', 'op-yummy', 'op-sunflower', 'op-taste', 'op-fallback']) {
     const tone = operatorTextTone(token(name));
     expect(contrast(ON_OPERATOR[tone], token(name)), name).toBeGreaterThanOrEqual(4.5);
   }

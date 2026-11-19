@@ -1,0 +1,20 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/select/page/310",
+  "verifiedByOwner": false,
+  "notes": [
+    "Page 32 of 32 (offset 310), the last, task 45 request #2, 2026-11-19 21:32:27 UTC: its one card, and a pager with no 下一頁 (next page) link, which is how the end of the list shows.",
+    "Trimmed by hand to what discover.ts reads: each card keeps its link, the tour code from its title (the title itself removed) and its day count (span.desc-day); the page keeps the product count and the pager links. Dates, prices, tags, descriptions, images and the footer (contact links) are removed.",
+    "Every card seen on the three list pages read (21 cards) and on the home page (34 cards) has a tour page link, a code and a day count: no entry that is not a group tour was seen.",
+    "The pager marks this page as page 32 (`<a class=\"selected\">32</a>`); discovery checks that against the offset it asked for (fix round 1)."
+  ],
+  "tours": [
+    {
+      "id": "1114",
+      "code": "SJS12"
+    }
+  ],
+  "leftOut": {},
+  "next": false,
+  "total": 311,
+  "current": 32
+}

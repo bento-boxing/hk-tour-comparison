@@ -58,6 +58,9 @@ describe('PUBLIC_LOG.address: an address as the public run log may print it', ()
     'https://www.yummyholiday.net/#/pages/detail/detail?id=6033',
     'https://bigline.hk/tour-group/19259',
     'https://www.texpert.com/zh-hk/tour/',
+    'https://tastetravel.com.hk/tour/select/page/310',
+    'https://tastetravel.com.hk/tour/detail/tour_id/1175',
+    'https://tastetravel.com.hk/tour/event/tour_id/1175',
     'https://www.jetour.com.hk/sitemap.xml',
     'http://127.0.0.1:8080/loop?hop=6',
   ])('keeps %s whole: every piece is plain', (url) => {

@@ -1,0 +1,107 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/detail/tour_id/693",
+  "verifiedByOwner": false,
+  "today": "2026-11-20",
+  "notes": [
+    "Tour page and dates answer from the investigation, 2026-11-19 21:12:14 and 21:12:34 UTC (fetches #6 and #7). The run's date is 2026-11-20 (Hong Kong), the capture date.",
+    "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
+    "Every date in the dates answer has one of the three bookable statuses (已成團, 收客中, 快成團) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
+    "Guangdong coach tour gathering at the Shenzhen border: the two options (their times and the walking directions after the place dropped) are kind sz, as other operators' Shenzhen checkpoints are, so 深圳 is not a stop.",
+    "Route from the title (fix round 1, owner ruling: the title is the fallback route). Every place this tour visits is named in its day lines only inside 【】 (attraction and restaurant names), which the shared rules drop with their text, so the day lines give no stop. Its title names 江門•開平•新會 outside brackets; the shared rules read that as one word and match one city in it (of names equally long, the first), 江門. The fixture title keeps only that place (the real title gives the same route)."
+  ],
+  "scraped": {
+    "operatorId": "taste",
+    "code": "CAK03",
+    "url": "https://tastetravel.com.hk/tour/detail/tour_id/693",
+    "title": "江門",
+    "days": 3,
+    "nights": null,
+    "dayHeadings": [
+      "深圳",
+      "深圳"
+    ],
+    "fallbackRoute": "江門",
+    "startPoint": "落馬洲火車站(福田口岸1號門) / 深圳灣口岸",
+    "endPoint": "落馬洲火車站(福田口岸1號門) / 深圳灣口岸",
+    "fromPriceHkd": 699,
+    "departures": [
+      {
+        "date": "2026-11-21",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-11-27",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-11-29",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-01",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-04",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-06",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-08",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-11",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-13",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-15",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-22",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-24",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-25",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-27",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-29",
+        "priceHkd": null
+      },
+      {
+        "date": "2027-01-01",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "江門"
+  ],
+  "unmatched": []
+}

@@ -1,0 +1,96 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/detail/tour_id/1170",
+  "verifiedByOwner": false,
+  "today": "2026-11-20",
+  "notes": [
+    "Tour page and dates answer from task 45 (requests #6 and #8, 2026-11-19 21:33:04 and 21:33:37 UTC). A two-day coach trip with a hotel stay, from the middle of the list (offset 150). The run's date is 2026-11-20 (Hong Kong), the capture date.",
+    "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
+    "Every date in the dates answer has one of the three bookable statuses (收客中) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
+    "Two-day coach trip with a hotel stay, gathering at the Shenzhen border (kind sz). Treated as a group tour: it has a code, days, a \"from\" price, a day-by-day route and dates, as every list card seen does.",
+    "NO STOPS, even with the title fallback: its one town named outside brackets, 博羅 (Boluo, Huizhou), is not in the places data, its other places sit inside 【】, and its title names no place (the fixture title is `2天`). Not added (places are for a separate task with the replay sweep)."
+  ],
+  "scraped": {
+    "operatorId": "taste",
+    "code": "LHA02",
+    "url": "https://tastetravel.com.hk/tour/detail/tour_id/1170",
+    "title": "2天",
+    "days": 2,
+    "nights": null,
+    "dayHeadings": [
+      "深圳",
+      "深圳"
+    ],
+    "fallbackRoute": "2天",
+    "startPoint": "落馬洲火車站(福田口岸1號門) / 深圳灣口岸",
+    "endPoint": "落馬洲火車站(福田口岸1號門) / 深圳灣口岸",
+    "fromPriceHkd": 599,
+    "departures": [
+      {
+        "date": "2026-11-27",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-11-29",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-02",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-04",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-06",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-09",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-11",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-13",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-16",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-18",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-20",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-25",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-26",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-28",
+        "priceHkd": null
+      },
+      {
+        "date": "2026-12-30",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "no-stops",
+  "stopNames": [],
+  "unmatched": [
+    "深圳",
+    "深圳"
+  ]
+}

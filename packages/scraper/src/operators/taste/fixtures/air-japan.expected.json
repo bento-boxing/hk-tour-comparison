@@ -1,0 +1,66 @@
+{
+  "sourceUrl": "https://tastetravel.com.hk/tour/detail/tour_id/1114",
+  "verifiedByOwner": false,
+  "today": "2026-11-20",
+  "notes": [
+    "Tour page and dates answer from task 45 (requests #5 and #7, 2026-11-19 21:33:00 and 21:33:33 UTC). The last tour of the list (offset 310); its list card has an empty title. The run's date is 2026-11-20 (Hong Kong), the capture date.",
+    "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
+    "Every date in the dates answer has one of the three bookable statuses (已成團) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
+    "Air tour from Hong Kong airport (kind hk). The last tour of the list; its dates answer had one date (2026-11-23, 已成團), the real title naming a second (8 November) already gone from the answer: the site seems to drop past dates itself.",
+    "The site joins places with ⇨, often with no space (香港⇨大阪); the parser reads ⇨ as →, so 大阪 is a stop on day 1.",
+    "KNOWN ERROR, NOT INTENDED: the stop 雲林 (Yunlin, Taiwan) is wrong. It comes from the name of a Japanese temple (雲林 followed by the word for temple) written in angle brackets; angle brackets are not dropped by the shared rules (they also carry real places on this site). Pinned here as the shared rules give it today; see docs/operators/taste.md, \"Known route errors\"."
+  ],
+  "scraped": {
+    "operatorId": "taste",
+    "code": "SJS12",
+    "url": "https://tastetravel.com.hk/tour/detail/tour_id/1114",
+    "title": "12天",
+    "days": 12,
+    "nights": null,
+    "dayHeadings": [
+      "香港 → 大阪 → 神戶",
+      "神戶 → 姫路",
+      "廣島 → 廣島 → 嚴島",
+      "長門 → 雲林",
+      "出雲",
+      "鳥取",
+      "鳥取 → 京都 → 伊根",
+      "天橋立",
+      "奈良 → 大阪",
+      "京都 → 箕面",
+      "和歌山 → 和歌山",
+      "香港"
+    ],
+    "fallbackRoute": "12天",
+    "startPoint": "香港國際機場",
+    "endPoint": "香港國際機場",
+    "fromPriceHkd": 22888,
+    "departures": [
+      {
+        "date": "2026-11-23",
+        "priceHkd": null
+      }
+    ]
+  },
+  "normalised": "ok",
+  "stopNames": [
+    "大阪",
+    "神戶",
+    "姬路",
+    "廣島",
+    "宮島",
+    "長門",
+    "雲林",
+    "出雲",
+    "鳥取",
+    "京都",
+    "伊根",
+    "天橋立",
+    "奈良",
+    "大阪",
+    "京都",
+    "箕面",
+    "和歌山"
+  ],
+  "unmatched": []
+}

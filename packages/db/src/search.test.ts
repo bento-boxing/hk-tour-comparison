@@ -407,6 +407,7 @@ describe('on the seed table', () => {
       { id: 'charming', nameZh: '翠明假期', nameEn: 'Charming Holidays', color: '#b5179e', lastGoodRunAt: null },
       { id: 'yummy', nameZh: '美味假期', nameEn: 'Yummy Holiday', color: '#7a6a00', lastGoodRunAt: null },
       { id: 'sunflower', nameZh: '新華旅遊', nameEn: 'Sunflower Travel', color: '#3949ab', lastGoodRunAt: null },
+      { id: 'taste', nameZh: '味力之旅', nameEn: 'Taste Travel', color: '#007a7a', lastGoodRunAt: null },
     ]);
   });
 });
@@ -567,7 +568,7 @@ describe('before any run', () => {
     try {
       const ops = await getOperators(db);
       expect(ops.map(o => [o.id, o.lastGoodRunAt])).toEqual([
-        ['egl', null], ['jetour', null], ['texpert', null], ['bigline', null], ['charming', null], ['yummy', null], ['sunflower', null],
+        ['egl', null], ['jetour', null], ['texpert', null], ['bigline', null], ['charming', null], ['yummy', null], ['sunflower', null], ['taste', null],
       ]);
       expect(await getOperators(db, { onlyWithGoodRun: true })).toEqual([]);
     } finally {
@@ -596,8 +597,8 @@ describe('operators with a good run', () => {
 
   it('without the option, every operator is still listed', async () => {
     expect((await getOperators(db)).map(o => [o.id, o.lastGoodRunAt])).toEqual([
-      ['egl', null], ['jetour', RUN_FINISHED], ['texpert', RUN_FINISHED], ['bigline', null], ['charming', null], ['yummy', null], ['sunflower', null],
+      ['egl', null], ['jetour', RUN_FINISHED], ['texpert', RUN_FINISHED], ['bigline', null], ['charming', null], ['yummy', null], ['sunflower', null], ['taste', null],
     ]);
-    expect((await getOperators(db, { onlyWithGoodRun: false })).map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower']);
+    expect((await getOperators(db, { onlyWithGoodRun: false })).map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower', 'taste']);
   });
 });
