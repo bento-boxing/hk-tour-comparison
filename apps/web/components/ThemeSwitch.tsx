@@ -28,11 +28,11 @@ function Sun() {
 }
 
 /**
- * The theme switch in the nav bar: a form whose action stores the choice in a cookie, as the language switch
- * does, so the server renders <html data-theme> from then on and no page ever paints in the wrong theme. Two
- * submit buttons, "switch to dark" and "switch to light"; theme.css shows only the one for the theme the page is
- * not in (whether that came from the cookie or from the system setting), so the server need not know the system
- * setting. A click also sets data-theme at once, so the page changes before the server answers.
+ * The theme switch in the nav bar: a form whose action stores the choice in a cookie, so the server renders
+ * <html data-theme> from then on and no page ever paints in the wrong theme. Two submit buttons, "switch to dark"
+ * and "switch to light"; theme.css shows only the one for the theme the page is not in (whether that came from
+ * the cookie or from the system setting), so the server need not know the system setting. A click also sets
+ * data-theme at once, so the page changes before the server answers.
  */
 export function ThemeSwitch({ t }: { t: T }) {
   const choose = (theme: Theme) => () => { document.documentElement.setAttribute('data-theme', theme); };

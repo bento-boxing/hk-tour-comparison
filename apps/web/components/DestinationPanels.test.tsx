@@ -286,7 +286,7 @@ describe('the panel never reaches past the viewport sideways', () => {
   });
 
   it('both pages position their search row, so the panel has the row to hang off', () => {
-    for (const page of ['../app/page.module.css', '../app/chain/page.module.css']) {
+    for (const page of ['../app/_site/search-page.module.css', '../app/_site/chain-page.module.css']) {
       const pageCss = readFileSync(join(__dirname, page), 'utf8').replace(/\s+/g, ' ');
       expect(pageCss, page).toMatch(/\.searchRow \{[^}]*position: relative;/);
     }

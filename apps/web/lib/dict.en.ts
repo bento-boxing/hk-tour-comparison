@@ -11,6 +11,7 @@ const en = {
   'notice.cantonese': 'Tours are normally conducted in Cantonese. Check with the operator.',
   'nav.search': 'Find tours',
   'nav.chain': 'Plan a trip',
+  'notFound.title': 'Page not found',
   'footer.disclaimer': "This site is not affiliated with any tour operator. Prices and departure dates on the operator's own website take precedence.",
   'footer.contact': 'Questions or feedback, or a tour operator wanting a listing corrected or removed? Write to {email}.',
   'length.daysNights': '{days} [days:day|days], {nights} [nights:night|nights]',

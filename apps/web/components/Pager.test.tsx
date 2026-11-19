@@ -63,3 +63,18 @@ it('the builder is used for the back-to-page-1 link too', () => {
   render(<Pager state={state(9)} total={total} t={t} hrefFor={page => `/chain?gap=1-3&page=${page}`} />);
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/chain?gap=1-3&page=1');
 });
+
+it.each([
+  ['zh-Hans', '/zh-hans?dmin=4&sort=days', '/zh-hans?dmin=4&sort=days&page=3'],
+  ['en', '/en?dmin=4&sort=days', '/en?dmin=4&sort=days&page=3'],
+] as const)('in %s the links stay in the language', (locale, prev, next) => {
+  render(<Pager state={state(2)} total={total} t={makeT(locale)} />);
+  const [prevLink, nextLink] = screen.getAllByRole('link');
+  expect(prevLink).toHaveAttribute('href', prev);
+  expect(nextLink).toHaveAttribute('href', next);
+});
+
+it('a page address from hrefFor (the chain page\'s) gets the language too', () => {
+  render(<Pager state={state(2)} total={total} t={makeT('en')} hrefFor={page => `/chain?gap=1-3&page=${page}`} />);
+  expect(screen.getAllByRole('link').map(a => a.getAttribute('href'))).toEqual(['/en/chain?gap=1-3&page=1', '/en/chain?gap=1-3&page=3']);
+});

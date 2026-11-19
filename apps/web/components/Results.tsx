@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { IsoDate, OperatorId, PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
+import { localeHref } from '../lib/locale-path';
 import { TourCard } from './TourCard';
 import styles from './Results.module.css';
 
@@ -40,7 +41,7 @@ export function Results({ tours, total, operators, places, today, t, onAdd, foot
             {empty ?? (
               <>
                 <p className={styles.emptyText}>{t('search.empty')}</p>
-                <Link href="/" className={styles.clearAll}>{t('search.clearAll')}</Link>
+                <Link href={localeHref(t.locale, '/')} className={styles.clearAll}>{t('search.clearAll')}</Link>
               </>
             )}
           </div>

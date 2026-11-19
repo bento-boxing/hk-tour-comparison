@@ -54,3 +54,16 @@ it('on the chaining page a choice keeps the legs, gap and exclusions', async () 
     legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'korea', dest: 'japan-kansai',
   });
 });
+
+it.each([
+  ['en', '/en', '/en?sort=days&dest=japan-kansai'],
+  ['zh-Hans', '/zh-hans', '/zh-hans?sort=days&dest=japan-kansai'],
+  ['en', '/en/chain', '/en/chain?sort=days&dest=japan-kansai'],
+] as const)('in %s at %s the choice stays on the same page in the same language: %s', async (locale, path, href) => {
+  const user = userEvent.setup();
+  currentPath = path;
+  render(<I18nProvider locale={locale}><DestinationSearchConnected value={null} /></I18nProvider>);
+  await user.type(screen.getByRole('combobox'), 'Osaka');
+  await user.keyboard('{Enter}');
+  expect(push).toHaveBeenCalledWith(href);
+});

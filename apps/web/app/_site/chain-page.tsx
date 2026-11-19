@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
-import { getT } from '../../lib/i18n-server';
+import { makeT, type Locale } from '../../lib/i18n';
+import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { requestDb } from '../../lib/db';
 import { formatChipDate } from '../../lib/format';
@@ -13,27 +14,29 @@ import {
   ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
 import { Pager } from '../../components/Pager';
-import styles from './page.module.css';
+import styles from './chain-page.module.css';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
- * Titled with the nav bar's name for this page (the layout's pattern adds the site name); canonical without the
- * query string (the chain and filters), which it deliberately never reads.
+ * Titled with the nav bar's name for this page (the layout's pattern adds the site name); canonical: this
+ * language's address without the query string (the chain and filters), which it deliberately never reads; the
+ * page in the other languages as alternates.
  */
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getT();
+export function chainPageMetadata(locale: Locale): Metadata {
+  const t = makeT(locale);
   return pageMetadata(t, '/chain', t('nav.chain'));
 }
 
 /**
- * The chaining page: the chosen legs with their gaps and total, the gap selector, and the tours from any
+ * The chaining page in `locale` (from the address: app/(zh-hant)/chain/page.tsx, app/zh-hans/chain/page.tsx,
+ * app/en/chain/page.tsx): the chosen legs with their gaps and total, the gap selector, and the tours from any
  * operator that can follow, all read from the address (`legs`, `gap` and the search filters except dates).
  * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
  * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  */
-export default async function ChainPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const t = await getT();
+export async function ChainPage({ locale, searchParams }: { locale: Locale; searchParams: Promise<SearchParams> }) {
+  const t = makeT(locale);
   const raw = await searchParams;
   const today = todayInHongKong();
 
@@ -58,7 +61,7 @@ export default async function ChainPage({ searchParams }: { searchParams: Promis
       {!lastLeg ? (
         <div className={styles.empty}>
           <p className={styles.emptyText}>{t('chain.empty')}</p>
-          <Link href="/" className={styles.link}>{t('nav.search')}</Link>
+          <Link href={localeHref(t.locale, '/')} className={styles.link}>{t('nav.search')}</Link>
         </div>
       ) : (
         <>

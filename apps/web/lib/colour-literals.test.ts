@@ -87,7 +87,7 @@ it('no file under apps/web writes a colour literally: every colour is a theme to
 
 it('walks every folder: nested CSS modules, lib components, and the exceptions exist', () => {
   const files = sourceFiles();
-  for (const path of ['app/chain/page.module.css', 'app/chain/page.tsx', 'lib/i18n-client.tsx', 'components/TourCard.tsx', 'lib/theme.css']) {
+  for (const path of ['app/_site/chain-page.module.css', 'app/en/chain/page.tsx', 'lib/i18n-client.tsx', 'components/TourCard.tsx', 'lib/theme.css']) {
     expect(files, path).toContain(path);
   }
   for (const path of Object.keys(EXCEPTIONS)) expect(files, path).toContain(path);
@@ -97,7 +97,7 @@ it('walks every folder: nested CSS modules, lib components, and the exceptions e
 describe('it catches', () => {
   // The review's four cases (each passed the old check), then the other forms.
   it.each([
-    ['app/chain/page.module.css', '.title { color: #fff; }'],
+    ['app/_site/chain-page.module.css', '.title { color: #fff; }'],
     ['components/TourCard.module.css', '.op { color: teal; }'],
     ['components/TourCard.tsx', '      <span style={{ color: \'red\' }}>x</span>'],
     ['lib/i18n-client.tsx', 'const c = \'rgb(1,2,3)\';'],

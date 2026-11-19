@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PAGE_SIZE } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
+import { localeHref } from '../lib/locale-path';
 import { searchHref, type SearchState } from '../lib/search-params';
 import styles from './Pager.module.css';
 
@@ -10,17 +11,21 @@ import styles from './Pager.module.css';
  */
 export function Pager({ state, total, t, hrefFor }: {
   state: SearchState; total: number; t: T;
-  /** The address of a page; the search page's by default. The chain page passes its own, which keeps the chain. */
+  /**
+   * The address of a page, without the language (the pager adds `t`'s); the search page's by default. The chain
+   * page passes its own, which keeps the chain.
+   */
   hrefFor?: (page: number) => string;
 }) {
   if (total === 0) return null; // the empty state already links to a fresh search
   const pages = Math.ceil(total / PAGE_SIZE);
-  const href = hrefFor ?? ((page: number) => searchHref({ ...state, page }));
+  // The path of a page, without a language; each link puts it in the page's language.
+  const path = hrefFor ?? ((page: number) => searchHref({ ...state, page }));
 
   if (state.page > pages) {
     return (
       <nav className={styles.pager} aria-label={t('pager.label')}>
-        <Link className={styles.link} href={href(1)}>{t('pager.first')}</Link>
+        <Link className={styles.link} href={localeHref(t.locale, path(1))}>{t('pager.first')}</Link>
       </nav>
     );
   }
@@ -28,9 +33,9 @@ export function Pager({ state, total, t, hrefFor }: {
 
   return (
     <nav className={styles.pager} aria-label={t('pager.label')}>
-      {state.page > 1 && <Link className={styles.link} rel="prev" href={href(state.page - 1)}>{t('pager.prev')}</Link>}
+      {state.page > 1 && <Link className={styles.link} rel="prev" href={localeHref(t.locale, path(state.page - 1))}>{t('pager.prev')}</Link>}
       <span className={styles.page}>{t('pager.page', { page: state.page, pages })}</span>
-      {state.page < pages && <Link className={styles.link} rel="next" href={href(state.page + 1)}>{t('pager.next')}</Link>}
+      {state.page < pages && <Link className={styles.link} rel="next" href={localeHref(t.locale, path(state.page + 1))}>{t('pager.next')}</Link>}
     </nav>
   );
 }

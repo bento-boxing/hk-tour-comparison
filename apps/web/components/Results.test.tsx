@@ -116,3 +116,11 @@ it('no cards but matches on other pages (a page past the last): a neutral line, 
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
   expect(screen.queryByText('共 30 個旅行團')).toBeNull();
 });
+
+it.each([
+  ['zh-Hans', '清除所有筛选条件', '/zh-hans'],
+  ['en', 'Clear all filters', '/en'],
+] as const)('in %s the clear link goes to the bare search page in the same language', (locale, name, href) => {
+  render(<Results {...props} tours={[]} total={0} t={makeT(locale)} />);
+  expect(screen.getByRole('link', { name })).toHaveAttribute('href', href);
+});

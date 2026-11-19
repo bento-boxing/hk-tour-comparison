@@ -115,9 +115,9 @@ it('withFilters applies a change, removes cleared filters and goes back to page 
   expect(s.filters).toEqual({ daysMin: 4, daysMax: 6, operators: ['egl'] }); // not changed in place
 });
 
-it('searchHref is the bare path for the default state', () => {
+it('searchHref is the bare path for the default state, else the search page with the query', () => {
   expect(searchHref({ filters: {}, sort: 'price', page: 1 })).toBe('/');
-  expect(searchHref({ filters: { daysMin: 4 }, sort: 'price', page: 2 }, '/chain')).toBe('/chain?dmin=4&page=2');
+  expect(searchHref({ filters: { daysMin: 4 }, sort: 'price', page: 2 })).toBe('/?dmin=4&page=2');
 });
 
 it('buildSearchQuery leaves out empty lists', () => {

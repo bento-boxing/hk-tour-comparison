@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 import { isTheme, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from './theme';
 
 /**
- * The theme switch's form action: remembers the chosen theme (`theme` in the form) for a year on this device, as
- * the language switch does. Setting the cookie makes Next.js re-render the current page, at the same address,
+ * The theme switch's form action: remembers the chosen theme (`theme` in the form) for a year on this device.
+ * Setting the cookie makes Next.js re-render the current page, at the same address,
  * with <html data-theme> set. Anything but 'light' or 'dark' is ignored. The cookie holds the theme name only.
  */
 export async function setTheme(formData: FormData): Promise<void> {

@@ -12,6 +12,9 @@ function chainQuery(chain: ChainState): URLSearchParams {
   return query;
 }
 
+// Every address here is the chaining page's path without a language ('/chain?…'); whoever links or navigates to
+// it puts it in the page's language with localeHref (lib/locale-path.ts): '/en/chain?…' in English.
+
 /** `/chain?legs=…&gap=…` for this chain (`legs` left out when there are none). */
 export function chainHref(chain: ChainState): string {
   return `/chain?${chainQuery(chain)}`;

@@ -3,16 +3,18 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { places, type Destination } from '@hktours/core';
 import { useT } from '../lib/i18n-client';
+import { localeHref, splitLocalePath } from '../lib/locale-path';
 import { DestinationSearch } from './DestinationSearch';
 import { DestinationPanels } from './DestinationPanels';
 
 // Server pages cannot pass functions (t, onSelect) to client components, so these wrappers take
 // only the current destination and record a choice in the address instead.
 
-/** Sets `dest` (region id, or country id for all regions; removed when null) and drops `page`. */
+/** Sets `dest` (region id, or country id for all regions; removed when null) and drops `page`, on the same page and language. */
 function useSelectDestinationInAddress(): (dest: Destination | null) => void {
   const router = useRouter();
-  const pathname = usePathname();
+  const { locale } = useT();
+  const { path } = splitLocalePath(usePathname());
   const params = useSearchParams();
   return dest => {
     const next = new URLSearchParams(params.toString());
@@ -20,7 +22,7 @@ function useSelectDestinationInAddress(): (dest: Destination | null) => void {
     else next.delete('dest');
     next.delete('page');
     const query = next.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    router.push(localeHref(locale, query ? `${path}?${query}` : path));
   };
 }
 

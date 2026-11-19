@@ -11,6 +11,7 @@ const zhHans = {
   'notice.cantonese': '旅行团一般以粤语进行，详情请向旅行社查询。',
   'nav.search': '搜索旅行团',
   'nav.chain': '连续行程',
+  'notFound.title': '找不到这一页',
   'footer.disclaimer': '本网站与各旅行社没有任何关联。价格及出发日期以旅行社网站为准。',
   'footer.contact': '如有意见或疑问，或旅行社需要更正或删除旅行团信息，请发邮件至 {email}。',
   'length.daysNights': '{days}天{nights}晚',

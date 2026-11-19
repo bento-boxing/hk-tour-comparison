@@ -1,5 +1,5 @@
 .bar { background: var(--bar-bg); color: var(--bar-text); margin-bottom: 18px; }
-/* The language switch's 44px buttons set the bar's height, so the bar has little padding of its own. */
+/* The language switch's 44px links set the bar's height, so the bar has little padding of its own. */
 .inner {
   max-width: 1100px; margin: 0 auto; padding: 2px 20px; min-height: 48px;
   display: flex; flex-wrap: wrap; column-gap: 22px; align-items: center; font-size: 14px;

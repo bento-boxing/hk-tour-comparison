@@ -142,8 +142,8 @@ export function withFilters(state: SearchState, patch: Partial<TourFilters>): Se
   return { ...state, filters, page: 1 };
 }
 
-/** The path plus the query, or the path alone for the default state. */
-export function searchHref(state: SearchState, pathname = '/'): string {
+/** The search page's path plus the query, or '/' alone for the default state. A path without a language: see localeHref. */
+export function searchHref(state: SearchState): string {
   const query = buildSearchQuery(state).toString();
-  return query ? `${pathname}?${query}` : pathname;
+  return query ? `/?${query}` : '/';
 }

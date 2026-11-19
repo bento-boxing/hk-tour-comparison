@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { places, type Destination, type IsoDate } from '@hktours/core';
 import type { OperatorInfo, TourCardData } from '@hktours/db/read';
 import { useT } from '../lib/i18n-client';
+import { localeHref } from '../lib/locale-path';
 import { restRange, type ResolvedLeg } from '../lib/chain';
 import {
   chainPageHref, withDestination, withGap, withLegAdded, withoutLastLeg, withSearch, type ChainAddress,
@@ -17,12 +18,14 @@ import styles from './ChainConnected.module.css';
 
 // The server page cannot pass t or callbacks (functions) to client components, so these wrappers take
 // plain data (the validated address, the resolved legs) and record every change in the address; the page
-// then renders the new chain and list. Every address comes from lib/chain-href, never from the raw query.
+// then renders the new chain and list. Every address comes from lib/chain-href, never from the raw query, in the
+// page's language (localeHref).
 
-/** Navigates without jumping to the top, so the strip and the bar stay where they are. */
+/** Navigates, in the page's language, without jumping to the top, so the strip and the bar stay where they are. */
 function useGoTo(): (address: ChainAddress) => void {
   const router = useRouter();
-  return address => router.push(chainPageHref(address), { scroll: false });
+  const { locale } = useT();
+  return address => router.push(localeHref(locale, chainPageHref(address)), { scroll: false });
 }
 
 /** The strip, where changing the gap or removing the last leg changes the address (page reset to 1). */
@@ -94,7 +97,7 @@ export function ChainResultsConnected({ address, lastEndDate, tours, total, oper
       tours={tours} total={total} operators={operators} places={places} today={today} t={t}
       footNote={footNote}
       empty={<p className={styles.noNext}>{t('chain.noNext')}</p>}
-      onAdd={(tour, departure) => router.push(chainPageHref(withLegAdded(address, { tourKey: tour.key, departure })))}
+      onAdd={(tour, departure) => router.push(localeHref(t.locale, chainPageHref(withLegAdded(address, { tourKey: tour.key, departure }))))}
     />
   );
 }

@@ -2,30 +2,34 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong } from '@hktours/core';
-import { getT } from '../lib/i18n-server';
-import { pageMetadata } from '../lib/site-metadata';
-import { requestDb } from '../lib/db';
-import { cachedReads, loadSearchPage, type SearchPageData } from '../lib/search-page-data';
-import { DestinationPanelsConnected, DestinationSearchConnected } from '../components/DestinationConnected';
-import { FilterBarConnected } from '../components/FilterBarConnected';
-import { ResultsConnected } from '../components/ResultsConnected';
-import { Pager } from '../components/Pager';
-import styles from './page.module.css';
+import { makeT, type Locale } from '../../lib/i18n';
+import { pageMetadata } from '../../lib/site-metadata';
+import { requestDb } from '../../lib/db';
+import { cachedReads, loadSearchPage, type SearchPageData } from '../../lib/search-page-data';
+import { DestinationPanelsConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
+import { FilterBarConnected } from '../../components/FilterBarConnected';
+import { ResultsConnected } from '../../components/ResultsConnected';
+import { Pager } from '../../components/Pager';
+import styles from './search-page.module.css';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-/** Titled with the site name (the layout's); canonical without the query string, which it deliberately never reads. */
-export async function generateMetadata(): Promise<Metadata> {
-  return pageMetadata(await getT(), '/');
+/**
+ * Titled with the site name (the layout's); canonical: this language's address without the query string, which
+ * it deliberately never reads; the page in the other languages as alternates.
+ */
+export function searchPageMetadata(locale: Locale): Metadata {
+  return pageMetadata(makeT(locale), '/');
 }
 
 /**
- * The search page: destination picker, filter bar, count, cards and paging, all read from the address.
- * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
- * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
+ * The search page in `locale` (from the address: app/(zh-hant)/page.tsx, app/zh-hans/page.tsx, app/en/page.tsx):
+ * destination picker, filter bar, count, cards and paging, all read from the address. The root layout supplies
+ * the nav bar and footer. Rendered per request (requestDb), but the database results are reused (cachedReads):
+ * a result shown is at most an hour old (see cached-reads.ts).
  */
-export default async function SearchPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const t = await getT();
+export async function SearchPage({ locale, searchParams }: { locale: Locale; searchParams: Promise<SearchParams> }) {
+  const t = makeT(locale);
   const raw = await searchParams;
   const today = todayInHongKong();
 

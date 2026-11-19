@@ -2,14 +2,13 @@ import zhHant from './dict.zh-Hant';
 import zhHans from './dict.zh-Hans';
 import en from './dict.en';
 
-/** The site's languages, in the order the switch shows them. Traditional Chinese is the default. */
+/**
+ * The site's languages, in the order the switch shows them. Traditional Chinese is the default. Each page's
+ * language comes from its address alone (lib/locale-path.ts).
+ */
 export const LOCALES = ['zh-Hant', 'zh-Hans', 'en'] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = 'zh-Hant';
-
-/** The cookie that remembers the visitor's choice on this device (read on the server, so the first paint is right). */
-export const LOCALE_COOKIE = 'locale';
-export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // one year, in seconds
 
 /** `<html lang>` for each language. */
 export const HTML_LANG: Record<Locale, string> = { 'zh-Hant': 'zh-Hant-HK', 'zh-Hans': 'zh-Hans', en: 'en' };
@@ -23,15 +22,6 @@ export interface T {
 }
 
 const dictionaries: Record<Locale, Record<DictKey, string>> = { 'zh-Hant': zhHant, 'zh-Hans': zhHans, en };
-
-export function isLocale(value: unknown): value is Locale {
-  return typeof value === 'string' && (LOCALES as readonly string[]).includes(value);
-}
-
-/** The language a cookie value names, exactly; no cookie or anything else is Traditional Chinese. */
-export function localeFromCookie(value: string | undefined): Locale {
-  return isLocale(value) ? value : DEFAULT_LOCALE;
-}
 
 /**
  * Replaces {name} placeholders, and [name:one|other] with `one` when the value of `name` is 1, else `other`
@@ -47,7 +37,7 @@ export function translate(locale: Locale, key: DictKey, vars?: TranslateVars): s
 }
 
 /**
- * A translator bound to one locale. Server code gets one from getT() in i18n-server; client code from
+ * A translator bound to one locale. Server code makes one from the page's locale; client code gets one from
  * useT() in i18n-client.
  */
 export function makeT(locale: Locale): T {

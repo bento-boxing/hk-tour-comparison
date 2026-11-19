@@ -1,0 +1,15 @@
+/* The 404 page: the nav bar's dark band with the mark and name, then the message in each language. */
+.bar { background: var(--bar-bg); color: var(--bar-text); margin-bottom: 18px; padding: 10px 20px; }
+.name { font-size: 17px; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 0.35em; white-space: nowrap; }
+.mark { --mark-primary: var(--bar-text); --mark-accent: var(--bar-accent); height: 1.3em; width: 1.3em; flex: none; }
+
+.content { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.block { margin: 0 0 12px; padding: 20px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; }
+.heading { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+.link { color: var(--cerulean); font-size: 14px; font-weight: 600; }
+.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+
+@media (max-width: 639px) {
+  .bar { padding: 10px 16px; }
+  .content { padding: 0 16px; }
+}

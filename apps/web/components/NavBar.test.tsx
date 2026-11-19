@@ -1,11 +1,18 @@
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { NavBar } from './NavBar';
 import { makeT } from '../lib/i18n';
 
+// The language switch inside reads the address.
+const address = vi.hoisted(() => ({ pathname: '/', search: '' }));
+vi.mock('next/navigation', () => ({ usePathname: () => address.pathname, useSearchParams: () => new URLSearchParams(address.search) }));
+vi.mock('../lib/theme-action', () => ({ setTheme: vi.fn() }));
+
 const tZh = makeT('zh-Hant');
+/** The two page links (the language switch's links are in their own group). */
+const pageLinks = () => screen.getAllByRole('link').filter(link => !link.closest('[role="group"]'));
 const css = () => readFileSync(join(__dirname, 'NavBar.module.css'), 'utf8').replace(/\s+/g, ' ');
 
 it('shows the site name and both links', () => {
@@ -13,6 +20,14 @@ it('shows the site name and both links', () => {
   expect(screen.getByText('跟邊團')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '搜尋旅行團' })).toHaveAttribute('href', '/');
   expect(screen.getByRole('link', { name: '連續行程' })).toHaveAttribute('href', '/chain');
+});
+
+it.each([
+  ['zh-Hans', '/zh-hans', '/zh-hans/chain'],
+  ['en', '/en', '/en/chain'],
+] as const)('in %s, both links stay in the language: %s and %s', (locale, search, chain) => {
+  render(<NavBar current="search" t={makeT(locale)} />);
+  expect(pageLinks().map(l => l.getAttribute('href'))).toEqual([search, chain]);
 });
 
 it('marks the current page', () => {
@@ -36,7 +51,7 @@ it('shows the mark immediately before the site name, hidden from assistive techn
   expect(name.textContent).toBe('跟邊團');
   expect(screen.queryByRole('img')).toBeNull();
   // The links' accessible names are unchanged.
-  expect(screen.getAllByRole('link').map(l => l.textContent)).toEqual(['搜尋旅行團', '連續行程']);
+  expect(pageLinks().map(l => l.textContent)).toEqual(['搜尋旅行團', '連續行程']);
 });
 
 it('draws the mark in the nav bar\'s fixed colouring from the theme (dark bar in both themes), sized to the name\'s line', () => {
@@ -52,10 +67,10 @@ it('ends with the language switch, labelled in the current language', () => {
   const nav = screen.getByRole('navigation');
   const group = screen.getByRole('group', { name: 'Language' });
   expect(nav).toContainElement(group);
-  const links = screen.getAllByRole('link');
+  const links = pageLinks();
   expect(links.map(l => l.textContent)).toEqual(['Find tours', 'Plan a trip']);
   expect(links[1].compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
+  expect(within(group).getByRole('link', { name: 'English' })).toHaveAttribute('aria-current', 'true');
   expect(screen.getByText('跟邊團')).toBeInTheDocument(); // the brand stays 跟邊團 in English
 });
 

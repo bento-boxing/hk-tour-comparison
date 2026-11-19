@@ -35,3 +35,18 @@ it('clearing the last filter goes back to the bare address', async () => {
   await user.click(screen.getByRole('checkbox', { name: '東瀛遊' }));
   expect(push).toHaveBeenCalledWith('/', { scroll: false });
 });
+
+it.each([
+  ['zh-Hans', '/zh-hans?dest=japan-kansai&dmin=4&dmax=6&sort=days', '天数：不限', '4–6天'],
+  ['en', '/en?dest=japan-kansai&dmin=4&dmax=6&sort=days', 'Length: Any', '4–6 days'],
+] as const)('in %s the new address stays in the language: %s', async (locale, href, pill, option) => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider locale={locale}>
+      <FilterBarConnected state={{ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'days', page: 3 }} operators={operators} today="2026-11-12" />
+    </I18nProvider>,
+  );
+  await user.click(screen.getByRole('button', { name: pill }));
+  await user.click(screen.getByRole('button', { name: option }));
+  expect(push).toHaveBeenCalledWith(href, { scroll: false });
+});

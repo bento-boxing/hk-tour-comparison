@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate, MAX_CHAIN_LEGS, type ChainState } from '@hktours/core';
 import type { Db, TourCardData } from '@hktours/db/read';
-import styles from './page.module.css';
+import styles from './chain-page.module.css';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { I18nProvider } from '../../lib/i18n-client';
@@ -12,7 +12,6 @@ import type { ChainPageData } from '../../lib/chain-page-data';
 import { cachedReads } from '../../lib/search-page-data';
 
 const mocks = vi.hoisted(() => ({
-  locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
   loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<ChainPageData>>(),
   push: vi.fn<(href: string, opts?: { scroll?: boolean }) => void>(),
@@ -20,8 +19,6 @@ const mocks = vi.hoisted(() => ({
   query: { value: '' },
 }));
 vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
-// The language cookie: none, so Traditional Chinese, unless a test sets it.
-vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'locale' && mocks.locale.value ? { name, value: mocks.locale.value } : undefined) }) }));
 vi.mock('../../lib/chain-page-data', () => ({ loadChainPage: mocks.loadChainPage }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
@@ -30,7 +27,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(mocks.query.value),
 }));
 
-const { default: ChainPage, generateMetadata } = await import('./page');
+const { ChainPage, chainPageMetadata } = await import('./chain-page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
@@ -69,8 +66,7 @@ const data: ChainPageData = {
 };
 
 async function renderPage(params: Record<string, string | string[] | undefined>, locale: 'zh-Hant' | 'zh-Hans' | 'en' = 'zh-Hant') {
-  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
-  const element = await ChainPage({ searchParams: Promise.resolve(params) });
+  const element = await ChainPage({ locale, searchParams: Promise.resolve(params) });
   return render(<I18nProvider locale={locale}>{element}</I18nProvider>);
 }
 
@@ -313,28 +309,57 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   const row = screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.searchRow}`);
   expect(row).not.toBeNull();
   expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
-  const css = readFileSync(join(__dirname, 'page.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const css = readFileSync(join(__dirname, 'chain-page.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
 });
 
+const languages = {
+  'zh-Hant': 'https://ganbintuen.com/chain',
+  'zh-Hans': 'https://ganbintuen.com/zh-hans/chain',
+  en: 'https://ganbintuen.com/en/chain',
+  'x-default': 'https://ganbintuen.com/chain',
+};
+
 it.each([
-  ['zh-Hant', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
-  ['zh-Hans', '连续行程', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
-  ['en', 'Plan a trip', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
-] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical without the query string, Open Graph in that language, no database read', async (locale, name, description, ogLocale) => {
-  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
-  // generateMetadata takes no searchParams, so every chain address (?legs=…&gap=…) gets this same answer.
-  expect(generateMetadata.length).toBe(0);
-  expect(await generateMetadata()).toEqual({
+  ['zh-Hant', 'https://ganbintuen.com/chain', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', 'https://ganbintuen.com/zh-hans/chain', '连续行程', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', 'https://ganbintuen.com/en/chain', 'Plan a trip', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
+] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language, no database read', (locale, canonical, name, description, ogLocale) => {
+  // The metadata takes only the language, so every chain address (?legs=…&gap=…) gets this same answer.
+  expect(chainPageMetadata.length).toBe(1);
+  expect(chainPageMetadata(locale)).toEqual({
     title: name,
-    alternates: { canonical: '/chain' },
+    alternates: { canonical, languages },
     openGraph: { title: `${name} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
   });
   expect(mocks.requestDb).not.toHaveBeenCalled();
 });
 
-it('gives no og:url, so a shared chain plan (/chain?legs=…) keeps its own address on Facebook and LinkedIn', async () => {
-  const { openGraph } = await generateMetadata();
+it('gives no og:url, so a shared chain plan (/chain?legs=…) keeps its own address on Facebook and LinkedIn', () => {
+  const { openGraph } = chainPageMetadata('zh-Hant');
   expect(openGraph).toBeDefined();
   expect(openGraph).not.toHaveProperty('url');
+});
+
+it('in English every address the page makes stays in English: paging, adding a leg, the gap and removing a leg', async () => {
+  mocks.loadChainPage.mockResolvedValue({ ...data, address: { ...data.address, search: { ...data.address.search, page: 2 } } });
+  await renderPage({}, 'en');
+  const user = userEvent.setup();
+  expect(screen.getByRole('link', { name: 'Previous' })).toHaveAttribute('href', '/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
+  const [sel] = screen.getAllByRole('article');
+  await user.click(within(sel).getByRole('button', { name: '+ Add to trip' }));
+  await user.click(screen.getByRole('button', { name: /25 Dec\w* 2026/ }));
+  expect(mocks.push).toHaveBeenLastCalledWith('/en/chain?legs=egl%3AKIX5%402026-12-18%2Ctexpert%3ASEL5%402026-12-25&gap=1-3&ex=japan');
+  const gapMax = screen.getByRole('textbox', { name: 'At most' });
+  await user.clear(gapMax);
+  await user.type(gapMax, '5{Enter}');
+  expect(mocks.push).toHaveBeenLastCalledWith('/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-5&ex=japan', { scroll: false });
+  await user.click(screen.getByRole('button', { name: 'Remove the last tour' }));
+  expect(mocks.push).toHaveBeenLastCalledWith('/en/chain?gap=1-3&ex=japan', { scroll: false });
+});
+
+it('in English, no legs: the link to the search page is the English one', async () => {
+  mocks.loadChainPage.mockResolvedValue({ ...data, address: { ...data.address, chain: { ...chain, legs: [] } }, legs: [], departWindow: null, next: null });
+  await renderPage({}, 'en');
+  expect(screen.getByRole('link', { name: 'Find tours' })).toHaveAttribute('href', '/en');
 });

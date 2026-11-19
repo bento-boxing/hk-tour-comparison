@@ -194,8 +194,10 @@ The certificate in `.env.local`:
   - After any change to the list, regenerate the names with `python3 scripts/gen-zh-hans-names.py` from `packages/core`. It needs the system OpenCC library (on Debian/Ubuntu, `libopencc1.1`).
 - **`packages/db`:** schema (`migrations/`), database access, `pnpm db:migrate`.
 - **`packages/scraper`:** the polite fetcher, one scraper per operator, the `pnpm scrape` command.
-- **`apps/web`:** the Next.js website (`/` search, `/chain` chaining).
-  - **Languages:** Traditional Chinese by default. The switch in the nav bar offers Simplified Chinese and English (texts in `lib/dict.*.ts`) and remembers the choice in a one-year `locale` cookie. In those two languages a notice at the top says tours are normally conducted in Cantonese.
+- **`apps/web`:** the Next.js website (search and chaining pages), in three languages.
+  - **Languages:** each language has its own addresses: Traditional Chinese without a prefix (`/`, `/chain`), Simplified Chinese under `/zh-hans` and English under `/en`. The language comes from the address alone, never from a cookie or the browser's settings. Texts are in `lib/dict.*.ts`, and every address is made by `localeHref` in `lib/locale-path.ts`.
+  - **Language switch:** three links in the nav bar to the same page and query string in each language. In Simplified Chinese and English a notice at the top says tours are normally conducted in Cantonese.
+  - **For search engines:** each page names its own address as canonical and the other two as its language versions (hreflang), and `/sitemap.xml` lists all six addresses.
   - **Freshness:** pages are rendered per request, but each database result is reused for up to an hour (`lib/cached-reads.ts`). A result shown is at most an hour old, so after the nightly scrape a page may show the previous results for up to an hour.
   - **Per deployment:** when Vercel gives the functions its system environment variables (the project setting "Enable access to System Environment Variables"), the results are kept per commit and environment (production, preview). A new commit's deployment starts with an empty cache, while a redeploy of the same commit reuses its results. Without them, every deployment shares the results; the one-hour limit still holds.
 - **`.github/workflows/`:** `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).

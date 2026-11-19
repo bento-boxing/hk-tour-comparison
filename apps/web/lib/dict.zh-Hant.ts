@@ -10,6 +10,7 @@ const zh = {
   'notice.cantonese': '旅行團一般以粵語進行，詳情請向旅行社查詢。', // shown only in the other languages
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
+  'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
   'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
   'length.daysNights': '{days}日{nights}夜',

@@ -3,24 +3,21 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate } from '@hktours/core';
 import type { Db, TourCardData } from '@hktours/db/read';
-import styles from './page.module.css';
+import styles from './search-page.module.css';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { I18nProvider } from '../lib/i18n-client';
-import type { Locale } from '../lib/i18n';
-import type { SearchPageData } from '../lib/search-page-data';
+import { I18nProvider } from '../../lib/i18n-client';
+import type { Locale } from '../../lib/i18n';
+import type { SearchPageData } from '../../lib/search-page-data';
 
 const mocks = vi.hoisted(() => ({
-  locale: { value: undefined as string | undefined },
   requestDb: vi.fn<() => Promise<Db>>(),
   loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<SearchPageData>>(),
   /** Stands in for the reads through Next's data cache (lib/cached-reads.ts). */
   cachedReads: { name: 'cachedReads' },
 }));
-vi.mock('../lib/db', () => ({ requestDb: mocks.requestDb }));
-// The language cookie: none, so Traditional Chinese, unless a test sets it.
-vi.mock('next/headers', () => ({ cookies: async () => ({ get: (name: string) => (name === 'locale' && mocks.locale.value ? { name, value: mocks.locale.value } : undefined) }) }));
-vi.mock('../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage, cachedReads: mocks.cachedReads }));
+vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
+vi.mock('../../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage, cachedReads: mocks.cachedReads }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
   useRouter: () => ({ push: vi.fn() }),
@@ -28,7 +25,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { default: SearchPage, generateMetadata } = await import('./page');
+const { SearchPage, searchPageMetadata } = await import('./search-page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
@@ -52,10 +49,9 @@ const data: SearchPageData = {
   filterOperators: [{ id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06', lastGoodRunAt: '2026-11-11T19:10:00Z' }],
 };
 
-/** The layout gives the client components the same locale as the cookie the server page reads. */
+/** The layout gives the client components the same locale (the address's) as the server page gets. */
 async function renderPage(params: Record<string, string | string[] | undefined>, locale: Locale = 'zh-Hant') {
-  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
-  const element = await SearchPage({ searchParams: Promise.resolve(params) });
+  const element = await SearchPage({ locale, searchParams: Promise.resolve(params) });
   return render(<I18nProvider locale={locale}>{element}</I18nProvider>);
 }
 
@@ -97,16 +93,17 @@ it('loads the page from the address and lays it out top to bottom', async () => 
 });
 
 it.each([
-  ['en', 'Japan → Kansai', 'Clear destination: Japan → Kansai', '30 tours', 'Next', '東瀛遊 (EGL Tours)', 'Osaka'],
-  ['zh-Hans', '日本 → 关西', '清除目的地：日本 → 关西', '共 30 个旅行团', '下一页', '東瀛遊', '大阪'],
-] as const)('in %s, the server text, the client text and the place names all follow the language cookie', async (locale, dest, destPill, count, next, operator, city) => {
+  ['en', 'Japan → Kansai', 'Clear destination: Japan → Kansai', '30 tours', 'Next', '東瀛遊 (EGL Tours)', 'Osaka', '/en'],
+  ['zh-Hans', '日本 → 关西', '清除目的地：日本 → 关西', '共 30 个旅行团', '下一页', '東瀛遊', '大阪', '/zh-hans'],
+] as const)('in %s, the server text, the client text and the place names all follow the page\'s language', async (locale, dest, destPill, count, next, operator, city, home) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(data);
   const { container } = await renderPage({ dest: 'japan-kansai', sort: 'days' }, locale);
   expect(screen.getByRole('combobox')).toHaveValue(dest);
   expect(screen.getByRole('button', { name: destPill })).toBeInTheDocument();
   expect(screen.getByText(count)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: next })).toHaveAttribute('href', '/?dest=japan-kansai&sort=days&page=2'); // the Pager: server text
+  // The Pager: server text, and its link in the page's language.
+  expect(screen.getByRole('link', { name: next })).toHaveAttribute('href', `${home}?dest=japan-kansai&sort=days&page=2`);
   const card = screen.getByRole('article');
   expect(within(card).getByText(operator)).toBeInTheDocument();
   expect(within(card).getByRole('heading')).toHaveTextContent(city);
@@ -127,7 +124,7 @@ it('reads the database through the cached reads', async () => {
   expect(mocks.loadSearchPage.mock.calls[0][4]).toBe(mocks.cachedReads);
 });
 
-it('the server text is in English when the cookie says so (the error message)', async () => {
+it('the server text is in English on an English page (the error message)', async () => {
   mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set'));
   await renderPage({}, 'en');
   expect(screen.getByRole('alert')).toHaveTextContent("Tours can't be loaded right now. Please try again later.");
@@ -201,27 +198,33 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   const row = screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.searchRow}`);
   expect(row).not.toBeNull();
   expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
-  const css = readFileSync(join(__dirname, 'page.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const css = readFileSync(join(__dirname, 'search-page.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
 });
 
+const languages = {
+  'zh-Hant': 'https://ganbintuen.com',
+  'zh-Hans': 'https://ganbintuen.com/zh-hans',
+  en: 'https://ganbintuen.com/en',
+  'x-default': 'https://ganbintuen.com',
+};
+
 it.each([
-  ['zh-Hant', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
-  ['zh-Hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
-  ['en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
-] as const)('in %s: the page names itself canonical without the query string (it reads no address), with Open Graph in that language, and reads no database', async (locale, description, ogLocale) => {
-  mocks.locale.value = locale === 'zh-Hant' ? undefined : locale;
-  // generateMetadata takes no searchParams, so a filtered or paged address (/?dest=japan&page=2) gets this same answer.
-  expect(generateMetadata.length).toBe(0);
-  expect(await generateMetadata()).toEqual({
-    alternates: { canonical: '/' },
+  ['zh-Hant', 'https://ganbintuen.com', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', 'https://ganbintuen.com/zh-hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', 'https://ganbintuen.com/en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
+] as const)('in %s: the page names its own language\'s address canonical, without the query string (it reads no address), lists the three languages and x-default, with Open Graph in that language, and reads no database', (locale, canonical, description, ogLocale) => {
+  // The metadata takes only the language, so a filtered or paged address (/en?dest=japan&page=2) gets this same answer.
+  expect(searchPageMetadata.length).toBe(1);
+  expect(searchPageMetadata(locale)).toEqual({
+    alternates: { canonical, languages },
     openGraph: { title: '跟邊團', description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
   });
   expect(mocks.requestDb).not.toHaveBeenCalled();
 });
 
-it('gives no og:url, so a shared filtered search (/?dest=japan) keeps its own address on Facebook and LinkedIn', async () => {
-  const { openGraph } = await generateMetadata();
+it('gives no og:url, so a shared filtered search (/?dest=japan) keeps its own address on Facebook and LinkedIn', () => {
+  const { openGraph } = searchPageMetadata('zh-Hant');
   expect(openGraph).toBeDefined();
   expect(openGraph).not.toHaveProperty('url');
 });

@@ -1,25 +1,10 @@
 import { it, expect } from 'vitest';
-import { HTML_LANG, LOCALES, localeFromCookie, makeT, translate, type DictKey, type Locale } from './i18n';
+import { HTML_LANG, LOCALES, makeT, translate, type DictKey, type Locale } from './i18n';
 import zhHant from './dict.zh-Hant';
 import zhHans from './dict.zh-Hans';
 import en from './dict.en';
 
 const dictionaries: Record<Locale, Record<string, string>> = { 'zh-Hant': zhHant, 'zh-Hans': zhHans, en };
-
-it.each([
-  ['zh-Hant', 'zh-Hant'],
-  ['zh-Hans', 'zh-Hans'],
-  ['en', 'en'],
-  [undefined, 'zh-Hant'], // no cookie: always Traditional Chinese, whatever the browser's language
-  ['', 'zh-Hant'],
-  ['fr', 'zh-Hant'],
-  ['EN', 'zh-Hant'],
-  ['zh-hant', 'zh-Hant'],
-  ['zh-Hans ', 'zh-Hant'],
-  ['constructor', 'zh-Hant'],
-] as const)('localeFromCookie(%j) → %s', (value, locale) => {
-  expect(localeFromCookie(value)).toBe(locale);
-});
 
 it('offers the three languages, Traditional Chinese first', () => {
   expect(LOCALES).toEqual(['zh-Hant', 'zh-Hans', 'en']);
