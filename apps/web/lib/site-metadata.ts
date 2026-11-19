@@ -20,29 +20,46 @@ export function siteMetadata(t: T): Metadata {
   };
 }
 
+/** A page's path without a language: the fixed pages, and each destination's ('/tours/japan'). */
+export type SitePath = '/' | '/chain' | '/tours' | '/about' | `/tours/${string}`;
+
+export interface PageMetadataOptions {
+  /** The page's own title, before the site name; none for the home page, which is titled with the site name. */
+  title?: string;
+  /** The page's own description; the site's (the layout's) when not given. */
+  description?: string;
+  /**
+   * Keep the page out of search results (<meta name="robots" content="noindex">): a destination without a page of
+   * its own for search engines (lib/destinations.ts isListed), and any page whose tours could not be read.
+   */
+  noindex?: boolean;
+}
+
 /**
- * One page's metadata, in the page's language (`t`): its own title (`name`; none for the home page, which is
- * titled with the site name), its canonical address, the same page in each language, and its Open Graph fields.
- * The canonical address is this language's address of the path alone ('/en/chain'): a filtered, sorted or paged
- * address is the same page, and search engines are kept off query strings (app/robots.ts) because every such
- * address is a function run on Vercel. The alternates (hreflang) are the path in all three languages plus
- * x-default, the unprefixed Traditional Chinese one. All absolute.
+ * One page's metadata, in the page's language (`t`): its own title and description, its canonical address, the
+ * same page in each language, its Open Graph fields, and noindex when asked.
+ * The canonical address is this language's address of the path alone ('/en/chain', '/en/tours/japan'): a
+ * filtered, sorted or paged address is the same page, and search engines are kept off query strings
+ * (app/robots.ts) because every such address is a function run on Vercel. The alternates (hreflang) are the path
+ * in all three languages plus x-default, the unprefixed Traditional Chinese one. All absolute.
  */
-export function pageMetadata(t: T, path: '/' | '/chain', name?: string): Metadata {
+export function pageMetadata(t: T, path: SitePath, { title, description, noindex = false }: PageMetadataOptions = {}): Metadata {
   const siteName = t('site.name');
   return {
-    ...(name !== undefined && { title: name }),
+    ...(title !== undefined && { title }),
+    ...(description !== undefined && { description }),
     alternates: { canonical: siteUrl(localeHref(t.locale, path)), languages: languageAlternates(path) },
     // Next.js replaces the layout's openGraph as a whole, so each page gives every field. The title's pattern
     // does not apply to og:title, so it is spelled out. Deliberately no `url` (og:url): Facebook and LinkedIn
     // link a shared post to og:url, so a shared search or chain plan (its state is in the query string) would
     // open as the bare page. Without it, each service keeps the address that was shared.
     openGraph: {
-      title: name === undefined ? siteName : `${name} | ${siteName}`,
-      description: t('site.description'),
+      title: title === undefined ? siteName : `${title} | ${siteName}`,
+      description: description ?? t('site.description'),
       siteName,
       locale: OG_LOCALE[t.locale],
       type: 'website',
     },
+    ...(noindex && { robots: { index: false } }),
   };
 }

@@ -1,5 +1,5 @@
 import { places, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
-import type { Db, OperatorInfo, TourCardData } from '@hktours/db/read';
+import type { Db, DestinationCounts, OperatorInfo, TourCardData } from '@hktours/db/read';
 import { createReads, runUncached, type Reads } from './cached-reads';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { placeName } from './place-names';
@@ -14,6 +14,8 @@ export interface SearchPageData {
   operators: OperatorInfo[];
   /** The operators the filter bar offers: see filterBarOperators. */
   filterOperators: OperatorInfo[];
+  /** How many tours are listed now, before any filter: in all, per country and per region (the heading's line). */
+  counts: DestinationCounts;
 }
 
 /**
@@ -67,7 +69,8 @@ export const uncachedReads: Reads = createReads(placesOrder, runUncached);
 
 /**
  * Everything the search page renders, from the raw address. Database errors are passed on to the caller.
- * The address is untrusted: only what parseSearchParams validated reaches the database.
+ * The address is untrusted: only what parseSearchParams validated reaches the database. Its `dest` is the
+ * destination: the pages put the one from the path there (/tours/<id>), and leave it out on '/'.
  * `locale` decides the destination sorts' order (see destinationOrder). `reads` is how the database is read:
  * the pages pass cachedReads.
  */
@@ -81,11 +84,12 @@ export async function loadSearchPage(
   const { excludeCountryIds: _ignored, ...filters } = parsed.filters;
   const state: SearchState = { ...parsed, filters };
 
-  const [{ tours, total }, operators, withGoodRun] = await Promise.all([
+  const [{ tours, total }, operators, withGoodRun, counts] = await Promise.all([
     reads.searchTours(db, { filters, sort: state.sort, page: state.page, today }, locale),
     reads.getOperators(db),
     reads.getOperators(db, { onlyWithGoodRun: true }),
+    reads.countToursByDestination(db, today),
   ]);
   const filterOperators = filterBarOperators(operators, withGoodRun, filters.operators);
-  return { state, tours, total, operators, filterOperators };
+  return { state, tours, total, operators, filterOperators, counts };
 }

@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url';
 // localeHref adds a language prefix. This test reads the source of every .ts and .tsx file under app/,
 // components/ and lib/ (tests aside), comments removed, and fails on:
 //   1. an href (JSX attribute `href=` / `href = …`, or object property `href: …`) that is not built by
-//      localeHref(…), unless it is one of the external links listed below;
+//      localeHref(…) (in JSX, one whole call: href={localeHref(…)}), unless it is one of the external links below;
 //   2. navigation:
 //      - useRouter() kept under any name but `router` (`const nav = useRouter()`, `const { push } = useRouter()`,
 //        `useRouter().push(…)`), so that every navigation is a visible `router.push/replace(…)`;
-//      - a router.push / router.replace whose address is not built by localeHref(…);
-//      - any redirect() / permanentRedirect() call, and importing either from next/navigation under any name;
+//      - a router.push / router.replace, redirect() or permanentRedirect() whose address is not one whole
+//        localeHref(…) call (nothing added after it), and importing redirect or permanentRedirect from
+//        next/navigation under another name;
 //      - window.open(…), history.pushState / replaceState(…), `location = …`, `location.href = …`,
 //        location.assign / replace(…);
 //      - a form `action` or `formAction` that is not a server action (a bare function name) or localeHref(…);
@@ -32,6 +33,7 @@ const FOLDERS = ['app', 'components', 'lib'];
 const EXTERNAL_HREFS: Record<string, string[]> = {
   'components/Footer.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
   'components/TourCard.tsx': ['href: tour.url'], // the operator's own page
+  'app/_site/about-page.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);
@@ -58,6 +60,29 @@ function code(text: string): string {
     .replace(/\b(PageProps|LayoutProps)<'[^']*'>/g, '$1');
 }
 
+/**
+ * True when the code at `at` is a whole `localeHref(…)` call followed by one of `ends` (after any spaces): the address
+ * is that call's result, not something more added to it (`localeHref(l, '/') + text`). Parentheses inside the call
+ * are balanced; quoted strings are skipped, so a ')' inside one does not count.
+ */
+function wholeLocaleHref(src: string, at: number, ends: string): boolean {
+  if (!src.startsWith('localeHref(', at)) return false;
+  let depth = 0;
+  for (let i = at + 'localeHref'.length; i < src.length; i++) {
+    const c = src[i];
+    if (c === '\'' || c === '"' || c === '`') {
+      const close = src.indexOf(c, i + 1);
+      if (close === -1) return false;
+      i = close;
+    } else if (c === '(') depth++;
+    else if (c === ')' && --depth === 0) {
+      const next = src.slice(i + 1).match(/^\s*(\S)/);
+      return next !== null && ends.includes(next[1]);
+    }
+  }
+  return false;
+}
+
 /** Everything wrong with one file's code (`path` is from apps/web). */
 export function problems(path: string, text: string): string[] {
   const src = code(text);
@@ -67,7 +92,9 @@ export function problems(path: string, text: string): string[] {
   // 1. hrefs: JSX attributes (href=…, href = …) and object properties (href: …). Not hrefLang, nor names like hrefFor.
   for (const m of src.matchAll(/\bhref\s*([=:])(?!=)\s*(\S+)/g)) {
     const whole = m[1] === '=' ? `href=${m[2]}` : `href: ${m[2]}`;
-    if (m[2].startsWith('{localeHref(') || m[2].startsWith('localeHref(')) continue;
+    const value = m.index + m[0].length - m[2].length;
+    if (m[2].startsWith('{localeHref(') && wholeLocaleHref(src, value + 1, '}')) continue;
+    if (m[2].startsWith('localeHref(')) continue; // an object property: href: localeHref(…)
     if (m[1] === ':' && /^string\b/.test(m[2])) continue; // a type annotation (href: string)
     if (external.some(e => e.startsWith(whole) || whole.startsWith(e))) continue;
     found.push(`${path}: ${whole}`);
@@ -76,12 +103,12 @@ export function problems(path: string, text: string): string[] {
   for (const m of src.matchAll(/(.{0,20})\buseRouter\(\)/g)) {
     if (!/\bconst router = $/.test(m[1])) found.push(`${path}: ${m[0].trim()} (keep it as \`const router = useRouter()\`)`);
   }
-  for (const m of src.matchAll(/\brouter\.(push|replace)\(\s*([^\s,)]+)/g)) {
-    if (!m[2].startsWith('localeHref(')) found.push(`${path}: router.${m[1]}(${m[2]}`);
+  // The address must be one whole localeHref(…) call: the call's end, or its options after a comma, comes next.
+  for (const m of src.matchAll(/\b(router\.(?:push|replace)|redirect|permanentRedirect)\s*\(\s*/g)) {
+    if (!wholeLocaleHref(src, m.index + m[0].length, '),')) found.push(`${path}: ${m[0]}${src.slice(m.index + m[0].length, m.index + m[0].length + 40).split('\n')[0]}`);
   }
   const navigation = new RegExp([
-    /\b(redirect|permanentRedirect)\s*\(/,
-    /\bimport\s*\{[^}]*\b(redirect|permanentRedirect)\b[^}]*\}\s*from\s*['"]next\/navigation['"]/,
+    /\bimport\s*\{[^}]*\b(redirect|permanentRedirect)\s+as\b[^}]*\}\s*from\s*['"]next\/navigation['"]/,
     /\bwindow\.open\s*\(/,
     /\bhistory\.(pushState|replaceState)\s*\(/,
     /\blocation(\.href)?\s*=(?!=)/,
@@ -156,6 +183,15 @@ describe('it catches', () => {
     ['components/X.tsx', 'location.assign("/chain");'],
     ['components/X.tsx', 'location.replace(next);'],
     ['app/x/page.tsx', 'import { redirect as go } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'import { notFound, permanentRedirect as move } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'permanentRedirect(`/tours/${id}`);'],
+    ['app/x/page.tsx', 'permanentRedirect(localeHref(\'en\', moved));'],
+    // Something added to a localised address (fix round 1).
+    ['app/x/page.tsx', 'permanentRedirect(localeHref(t.locale, \'/\') + text);'],
+    ['app/x/page.tsx', 'redirect(localeHref(locale, path) + `?${query}`);'],
+    ['components/X.tsx', 'router.push(localeHref(locale, \'/\') + x);'],
+    ['components/X.tsx', 'router.replace(localeHref(t.locale, a) + b, { scroll: false });'],
+    ['components/X.tsx', '<Link href={localeHref(t.locale, \'/\') + q}>x</Link>'],
   ])('%s: %s', (path, line) => {
     expect(problems(path, line)).not.toEqual([]);
   });
@@ -173,6 +209,10 @@ describe('it catches', () => {
     ['components/X.tsx', '<form action={setTheme} className={styles.form}>'],
     ['components/X.tsx', 'if (location == null) return;'],
     ['lib/x.ts', 'return href === \'/\' ? SITE_URL : `${SITE_URL}${href}`;'],
+    ['app/x/page.tsx', 'import { permanentRedirect } from \'next/navigation\';'],
+    ['app/x/page.tsx', 'if (moved !== null) permanentRedirect(localeHref(t.locale, moved));'],
+    ['components/X.tsx', 'router.push(localeHref(t.locale, f(a, \')\')), { scroll: false });'],
+    ['components/X.tsx', 'router.push(\n  localeHref(locale, searchHref(next)),\n);'],
   ])('and lets pass %s: %s', (path, line) => {
     expect(problems(path, line)).toEqual([]);
   });

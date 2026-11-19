@@ -18,6 +18,11 @@ export interface ResultsProps {
   footNote?: (tour: TourCardData) => string | undefined;
   /** When given, shown instead of the default empty message and its clear-all link (only when total is 0). */
   empty?: ReactNode;
+  /**
+   * Where the clear-all link goes, without a language: the search page ('/', the default), or on a destination's
+   * page that destination's page ('/tours/japan'), so clearing the filters keeps the destination.
+   */
+  clearPath?: string;
 }
 
 /** An operator missing from the operators list still gets a card: its id as the name, and the fallback grey (--op-fallback). */
@@ -28,7 +33,7 @@ const unknownOperator = (id: OperatorId): OperatorInfo => ({ id, nameZh: id, nam
  * clears every filter. A page past the last (matches, but none on this page) gets a neutral line instead:
  * the Pager below it links back to page 1.
  */
-export function Results({ tours, total, operators, places, today, t, onAdd, footNote, empty }: ResultsProps) {
+export function Results({ tours, total, operators, places, today, t, onAdd, footNote, empty, clearPath = '/' }: ResultsProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   return (
     <>
@@ -41,7 +46,7 @@ export function Results({ tours, total, operators, places, today, t, onAdd, foot
             {empty ?? (
               <>
                 <p className={styles.emptyText}>{t('search.empty')}</p>
-                <Link href={localeHref(t.locale, '/')} className={styles.clearAll}>{t('search.clearAll')}</Link>
+                <Link href={localeHref(t.locale, clearPath)} className={styles.clearAll}>{t('search.clearAll')}</Link>
               </>
             )}
           </div>

@@ -11,6 +11,43 @@ const zh = {
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
+  'notFound.text': '這個地址沒有頁面。', // the 404 inside a language's pages (an unknown /tours/<id>), under notFound.title
+  // A destination's page (/tours/<id>). {place} is the country ('日本') or the region with its country (dest.regionOf).
+  'dest.regionOf': '{country}{region}',
+  'dest.heading': '{place}旅行團', // the page's <h1>
+  'dest.title': '{place}旅行團比較', // the page's <title>, before ' | 跟邊團'
+  'dest.description': '比較香港多間旅行社的{place}旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。',
+  'dest.count': '現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // under the <h1>, before any filter
+  'dest.countNone': '現時沒有列出旅行團。',
+  'dest.regions': '地區：', // before the links to a country's regions
+  'dest.allOf': '{country}全部旅行團', // a region's link to its country
+  'dest.tours': '{n} 團', // a destination's count beside its link
+  'home.heading': '比較香港旅行團', // the search page's <h1>
+  'home.browse': '按目的地瀏覽', // the search page's link to the destinations index
+  // The destinations index (/tours).
+  'tours.title': '旅行團目的地',
+  'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
+  'footer.links': '網站資訊', // the footer's links' accessible name
+  'footer.destinations': '所有目的地',
+  'footer.about': '關於本網站',
+  // The about page (/about). The wording follows 給旅行社的說明 in README.md.
+  'about.title': '關於本網站',
+  'about.description': '跟邊團是一個由個人製作的非牟利網站。本頁說明網站顯示甚麼、資料如何收集，以及如何更正或移除資料。',
+  'about.intro': '「跟邊團」是一個由個人製作的非牟利網站，把香港多間旅行社的旅行團放在一起，方便用戶按出發日期、日數、目的地和價錢比較。網站不設廣告、不收佣金、不代售任何產品；所有報名均經連結返回旅行社自己的網頁進行。本網站與各旅行社並無任何關連。',
+  'about.showHeading': '網站顯示甚麼',
+  'about.show1': '只顯示事實資料：旅行社名稱、團號、旅行團名稱、日數、途經城市、集合及解散地點、出發日期及團費。',
+  'about.show2': '每個旅行團均連結到旅行社網站上的該團頁面。',
+  'about.show3': '不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。',
+  'about.collectHeading': '資料如何收集',
+  'about.collect1': '程式每晚運行一次，並以 tour-comparison-bot 表明身分，同時附上本網站的網址和聯絡電郵。', // the scraper's name (pinned by a test)
+  'about.collect2': '讀取任何網頁前，先讀取該網站的 robots.txt，並遵守當中的限制；如因錯誤而未能取得 robots.txt，程式不會讀取該網站。沒有 robots.txt 檔案的網站則視作沒有限制。',
+  'about.collect3': '對每個網站每次只發出一個請求，每個請求之間最少相隔三秒。',
+  'about.collect4': '不會登入，不會繞過任何防止自動讀取的措施；如網站多次拒絕，程式當晚即停止讀取該網站。',
+  'about.pricesHeading': '價錢及出發日期',
+  'about.prices': '資料每晚更新一次。如某旅行社當晚的資料未能更新，其旅行團會保留之前的資料，並註明最後更新的日期及時間。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。',
+  'about.fixHeading': '更正或移除資料',
+  'about.fix': '如發現資料有誤，請電郵至 {email}，我們會盡快更正。', // {email} becomes a mailto link
+  'about.remove': '旅行社如不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取該旅行社的網站。',
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
   'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
   'length.daysNights': '{days}日{nights}夜',

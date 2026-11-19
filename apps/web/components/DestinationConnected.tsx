@@ -1,39 +1,38 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { places, type Destination } from '@hktours/core';
 import { useT } from '../lib/i18n-client';
-import { localeHref, splitLocalePath } from '../lib/locale-path';
+import { localeHref } from '../lib/locale-path';
+import { searchHref, withFilters, type SearchState } from '../lib/search-params';
 import { DestinationSearch } from './DestinationSearch';
 import { DestinationPanels } from './DestinationPanels';
 
-// Server pages cannot pass functions (t, onSelect) to client components, so these wrappers take
-// only the current destination and record a choice in the address instead.
+// Server pages cannot pass functions (t, onSelect) to client components, so these wrappers take the page's
+// search state (validated on the server) and record a choice in the address instead.
 
-/** Sets `dest` (region id, or country id for all regions; removed when null) and drops `page`, on the same page and language. */
-function useSelectDestinationInAddress(): (dest: Destination | null) => void {
+/**
+ * Goes to the chosen destination's page ('/tours/<id>'), or to the search page ('/') when cleared, in the page's
+ * language, with the other filters and the sort kept and back on page 1 (searchHref).
+ */
+function useSelectDestinationInAddress(state: SearchState): (dest: Destination | null) => void {
   const router = useRouter();
   const { locale } = useT();
-  const { path } = splitLocalePath(usePathname());
-  const params = useSearchParams();
-  return dest => {
-    const next = new URLSearchParams(params.toString());
-    if (dest) next.set('dest', dest.regionId ?? dest.countryId);
-    else next.delete('dest');
-    next.delete('page');
-    const query = next.toString();
-    router.push(localeHref(locale, query ? `${path}?${query}` : path));
-  };
+  return dest => router.push(localeHref(locale, searchHref(withFilters(state, { destination: dest ?? undefined }))));
 }
 
-export function DestinationSearchConnected({ value }: { value: Destination | null }) {
+export function DestinationSearchConnected({ state }: { state: SearchState }) {
   const t = useT();
-  const onSelect = useSelectDestinationInAddress();
-  return <DestinationSearch places={places} t={t} value={value} onSelect={onSelect} />;
+  const onSelect = useSelectDestinationInAddress(state);
+  return <DestinationSearch places={places} t={t} value={state.filters.destination ?? null} onSelect={onSelect} />;
 }
 
-export function DestinationPanelsConnected({ value, hiddenCountryIds }: { value: Destination | null; hiddenCountryIds?: string[] }) {
+export function DestinationPanelsConnected({ state, hiddenCountryIds }: { state: SearchState; hiddenCountryIds?: string[] }) {
   const t = useT();
-  const onSelect = useSelectDestinationInAddress();
-  return <DestinationPanels places={places} t={t} value={value} onSelect={onSelect} hiddenCountryIds={hiddenCountryIds} />;
+  const onSelect = useSelectDestinationInAddress(state);
+  return (
+    <DestinationPanels
+      places={places} t={t} value={state.filters.destination ?? null} onSelect={onSelect} hiddenCountryIds={hiddenCountryIds}
+    />
+  );
 }

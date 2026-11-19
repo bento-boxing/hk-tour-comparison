@@ -23,7 +23,7 @@ it.each([
   expect(link).toHaveAttribute('href', 'mailto:hello@ganbintuen.com');
   expect(link).toHaveClass(styles.link);
   expect(line).toContainElement(link);
-  expect(screen.getAllByRole('link')).toHaveLength(1);
+  expect(screen.getAllByRole('link')).toHaveLength(3);
   // The disclaimer comes first; the contact line follows it.
   const paragraphs = [...container.querySelectorAll('footer > p')];
   expect(paragraphs).toHaveLength(2);
@@ -35,4 +35,15 @@ it('the contact line is in the footer\'s small faint text, below the disclaimer 
   expect(text).toMatch(/\.contact \{ padding-top: 4px; border-top: 0; \}/);
   expect(text).toMatch(/\.link \{ color: inherit; text-decoration: underline; \}/);
   expect(text).toMatch(/\.link:focus-visible \{ outline: 2px solid var\(--cerulean\); outline-offset: 2px; \}/);
+});
+
+it.each([
+  ['zh-Hant', '網站資訊', [['所有目的地', '/tours'], ['關於本網站', '/about']]],
+  ['zh-Hans', '网站信息', [['所有目的地', '/zh-hans/tours'], ['关于本网站', '/zh-hans/about']]],
+  ['en', 'Site links', [['All destinations', '/en/tours'], ['About this site', '/en/about']]],
+] as const)('in %s: after the contact line, links to the destinations index and the about page in that language', (locale, label, links) => {
+  const { container } = render(<Footer t={makeT(locale)} />);
+  const nav = screen.getByRole('navigation', { name: label });
+  expect([...nav.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href')])).toEqual(links);
+  expect(container.querySelector('footer')?.lastElementChild).toBe(nav);
 });

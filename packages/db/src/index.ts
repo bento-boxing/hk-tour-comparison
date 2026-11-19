@@ -8,3 +8,4 @@ export {
   searchTours, getToursByKeys, getOperators, PAGE_SIZE,
   type TourFilters, type SortKey, type TourCardData, type SearchInput, type OperatorInfo,
 } from './search';
+export { countToursByDestination, type DestinationCount, type DestinationCounts, type ListedCount } from './destinations';

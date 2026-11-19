@@ -1,0 +1,7 @@
+/* Not in the mockup: the 404 inside a language's pages, in the search page's empty-state panel style. */
+.notFound { margin: 24px 0; padding: 28px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; }
+.heading { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+.text { margin: 0 0 12px; font-size: 14px; color: var(--text-muted); }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 0; }
+.link { color: var(--cerulean); font-size: 14px; font-weight: 600; }
+.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }

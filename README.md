@@ -16,22 +16,22 @@ A website (<https://ganbintuen.com>) that gathers package-tour listings from Hon
 
 **網站顯示甚麼**
 
-- 只顯示事實資料：旅行社名稱、團號、旅行團名稱、日數、途經城市、集合及解散地點、出發日期、團費，以及額滿狀態（如旅行社網站有顯示）。
+- 只顯示事實資料：旅行社名稱、團號、旅行團名稱、日數、途經城市、集合及解散地點、出發日期及團費。
 - 每個旅行團均連結到旅行社網站上的該團頁面。
 - 不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。
-- 價錢及出發日期以旅行社網站為準。
+- 資料每晚更新一次。如某旅行社當晚的資料未能更新，其旅行團會保留之前的資料，並註明最後更新的日期及時間。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。
 
 **程式如何讀取資料**
 
 - 程式每晚運行一次，並以 `tour-comparison-bot` 表明身分，同時附上本網站的網址和聯絡電郵。
-- 讀取任何網頁前，先讀取該網站的 `robots.txt`，並遵守當中的限制；讀不到 `robots.txt` 的網站不會讀取。
+- 讀取任何網頁前，先讀取該網站的 `robots.txt`，並遵守當中的限制；如因錯誤而未能取得 `robots.txt`，程式不會讀取該網站。沒有 `robots.txt` 檔案的網站則視作沒有限制。
 - 對每個網站每次只發出一個請求，每個請求之間最少相隔三秒。
-- 不會登入，不會繞過任何防止自動讀取的措施；如網站拒絕，程式當晚即停止讀取該網站。
+- 不會登入，不會繞過任何防止自動讀取的措施；如網站多次拒絕，程式當晚即停止讀取該網站。
 - 各旅行社的讀取方式及所作的決定，記錄在 [`docs/operators/`](docs/operators/)（英文）。
 
 **更正或移除資料**
 
-如貴公司的資料有誤，或不希望被列出，請電郵至 <hello@ganbintuen.com>，或在本頁上方的 **Issues** 提出。我們會更正或移除有關資料，並停止讀取貴公司的網站。
+如貴公司的資料有誤，請電郵至 <hello@ganbintuen.com>，我們會盡快更正。如貴公司不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取貴公司的網站。
 
 （以下內容為英文，供開發者參考。）
 
@@ -201,10 +201,11 @@ The certificate in `.env.local`:
   - After any change to the list, regenerate the names with `python3 scripts/gen-zh-hans-names.py` from `packages/core`. It needs the system OpenCC library (on Debian/Ubuntu, `libopencc1.1`).
 - **`packages/db`:** schema (`migrations/`), database access, `pnpm db:migrate`.
 - **`packages/scraper`:** the polite fetcher, one scraper per operator, the `pnpm scrape` command.
-- **`apps/web`:** the Next.js website (search and chaining pages), in three languages.
+- **`apps/web`:** the Next.js website (search and chaining pages, a page per destination, a destinations index and an about page), in three languages.
+  - **Destinations:** each country and region has its own page, `/tours/<id>` (`/tours/japan`, `/en/tours/china-beijing`): the search page with the destination fixed by the path and the other filters in the query string. `/tours` lists every destination that has tours. An old address with `?dest=` is moved permanently (308) to the destination's page. The chaining page still takes `dest` in its query string.
   - **Languages:** each language has its own addresses: Traditional Chinese without a prefix (`/`, `/chain`), Simplified Chinese under `/zh-hans` and English under `/en`. The language comes from the address alone, never from a cookie or the browser's settings. Texts are in `lib/dict.*.ts`, and every address is made by `localeHref` in `lib/locale-path.ts`.
   - **Language switch:** three links in the nav bar to the same page and query string in each language. In Simplified Chinese and English a notice at the top says tours are normally conducted in Cantonese.
-  - **For search engines:** each page names its own address as canonical and the other two as its language versions (hreflang), and `/sitemap.xml` lists all six addresses.
+  - **For search engines:** each page names its own address as canonical and the other two as its language versions (hreflang). `/sitemap.xml` lists the fixed pages and every destination page that has tours, in all three languages. A destination without tours (or an area region such as 華東, or a country's only region) still has a page, marked `noindex`. A page whose tours cannot be read shows a short message and is marked `noindex`; the sitemap then answers 500.
   - **Freshness:** pages are rendered per request, but each database result is reused for up to an hour (`lib/cached-reads.ts`). A result shown is at most an hour old, so after the nightly scrape a page may show the previous results for up to an hour.
   - **Per deployment:** when Vercel gives the functions its system environment variables (the project setting "Enable access to System Environment Variables"), the results are kept per commit and environment (production, preview). A new commit's deployment starts with an empty cache, while a redeploy of the same commit reuses its results. Without them, every deployment shares the results; the one-hour limit still holds.
 - **`.github/workflows/`:** `ci.yml` (tests, typecheck, build) and `nightly-scrape.yml` (the nightly run).

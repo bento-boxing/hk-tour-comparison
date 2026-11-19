@@ -1,6 +1,6 @@
 import { it, expect } from 'vitest';
 import { places } from '@hktours/core';
-import { parseSearchParams, buildSearchQuery, withFilters, searchHref, DEFAULT_SORT, SORT_KEYS } from './search-params';
+import { parseSearchParams, buildSearchQuery, withFilters, searchHref, movedSearchHref, DEFAULT_SORT, SORT_KEYS } from './search-params';
 
 it('parses a full address', () => {
   const s = parseSearchParams({ dest: 'japan-kansai', from: '2026-12-01', to: '2026-12-31', dmin: '4', dmax: '6',
@@ -120,6 +120,22 @@ it('searchHref is the bare path for the default state, else the search page with
   expect(searchHref({ filters: { daysMin: 4 }, sort: 'price', page: 2 })).toBe('/?dmin=4&page=2');
 });
 
+it('searchHref puts the destination in the path, never in the query, and keeps everything else', () => {
+  const japan = { countryId: 'japan', regionId: null };
+  const kansai = { countryId: 'japan', regionId: 'japan-kansai' };
+  expect(searchHref({ filters: { destination: japan }, sort: 'price', page: 1 })).toBe('/tours/japan');
+  expect(searchHref({ filters: { destination: kansai }, sort: 'price', page: 1 })).toBe('/tours/japan-kansai');
+  expect(searchHref({ filters: { destination: japan, daysMin: 5, operators: ['egl'] }, sort: 'days', page: 3 }))
+    .toBe('/tours/japan?dmin=5&op=egl&sort=days&page=3');
+  // Changing and clearing the destination, as the pickers and the pill do: the other filters stay, back on page 1.
+  const state = parseSearchParams({ dest: 'japan', dmin: '5', pmax: '9000', sort: 'days', page: '4' }, places);
+  expect(searchHref(withFilters(state, { destination: { countryId: 'korea', regionId: 'korea-seoul' } })))
+    .toBe('/tours/korea-seoul?dmin=5&pmax=9000&sort=days');
+  expect(searchHref(withFilters(state, { destination: undefined }))).toBe('/?dmin=5&pmax=9000&sort=days');
+  // The state still reads and writes `dest` itself (the filter bar's typed values and the chain page round-trip it).
+  expect(buildSearchQuery(state).get('dest')).toBe('japan');
+});
+
 it('buildSearchQuery leaves out empty lists', () => {
   expect(buildSearchQuery({ filters: { operators: [], excludeCountryIds: [] }, sort: 'price', page: 1 }).toString()).toBe('');
 });
@@ -177,3 +193,25 @@ it('offers eight sort orders, each bare name keeping its old meaning', () => {
   expect(parseSearchParams({ sort: 'DAYS-DESC' }, places).sort).toBe('price');
   expect(parseSearchParams({ sort: '-price' }, places).sort).toBe('price');
 });
+
+it('an old address with dest= moves to the destination\'s page, keeping the other filters', () => {
+  expect(movedSearchHref({ dest: 'japan', dmin: '5' }, places)).toBe('/tours/japan?dmin=5');
+  expect(movedSearchHref({ dest: 'china-beijing', sort: 'days', page: '2', op: 'egl' }, places)).toBe('/tours/china-beijing?op=egl&sort=days&page=2');
+  expect(movedSearchHref({ dest: 'china-area-east' }, places)).toBe('/tours/china-area-east');
+  // The only region of its country goes to the country's page (the region's own page is a noindex copy of it).
+  expect(movedSearchHref({ dest: 'france-france', dmin: '5' }, places)).toBe('/tours/france?dmin=5');
+  expect(movedSearchHref({ dest: 'singapore-singapore' }, places)).toBe('/tours/singapore');
+  // Invalid values are dropped as the page drops them; the search page has no exclusions.
+  expect(movedSearchHref({ dest: 'japan', dmin: 'x', ex: 'korea', utm_source: 'mail' }, places)).toBe('/tours/japan');
+  // A repeated dest uses its first value, as the page always has.
+  expect(movedSearchHref({ dest: ['korea', 'japan'] }, places)).toBe('/tours/korea');
+});
+
+it('an old address whose dest names no destination stays where it is (its dest ignored, as before)', () => {
+  for (const dest of ['nonsense', 'Japan', 'china-central', 'japan-kansai-osaka', '', '//evil.example', '../en']) {
+    expect(movedSearchHref({ dest, dmin: '5' }, places), dest).toBeNull();
+  }
+  expect(movedSearchHref({ dmin: '5' }, places)).toBeNull();
+  expect(movedSearchHref({}, places)).toBeNull();
+});
+

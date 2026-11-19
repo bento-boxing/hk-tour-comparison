@@ -1,13 +1,13 @@
 import { unstable_cache } from 'next/cache';
 import type { Destination, IsoDate } from '@hktours/core';
 import {
-  getOperators, getToursByKeys, searchTours,
-  type Db, type OperatorInfo, type SearchInput, type SortKey, type TourCardData, type TourFilters,
+  countToursByDestination, getOperators, getToursByKeys, searchTours,
+  type DestinationCounts, type Db, type OperatorInfo, type SearchInput, type SortKey, type TourCardData, type TourFilters,
 } from '@hktours/db/read';
 import type { Locale } from './i18n';
 
 /*
- * The website's three database reads, each result kept in Next.js's data cache and reused by every visitor
+ * The website's four database reads, each result kept in Next.js's data cache and reused by every visitor
  * who asks the same question, so most page views make no query (the data changes once a night).
  *
  * A result shown is at most an hour old (READ_CACHE_SECONDS), by the server's clock. Each entry carries the
@@ -58,12 +58,24 @@ export function buildId(env: Record<string, string | undefined>): string {
 export const BUILD_ID = buildId(process.env);
 
 /**
- * Next.js's data cache (unstable_cache), as a plain store. The key is the only key part, and the cached
- * function is called with no arguments, so no Db handle and no raw address becomes part of the stored key
- * (Next adds only the cached function's own source text).
+ * What the stored function's source text reads as, for every read. unstable_cache puts the cached function's
+ * `toString()` into every key, before our key part (`${cb.toString()}-${keyParts}`, as its docs say: "the
+ * stringified version of your function"). Our key part already names the read completely, and the bundler writes
+ * the same closure with different variable names in different bundles (the pages' and the sitemap's), which made
+ * each kind of route keep its own copy of the same result. So the stored function always reads as this one text.
  */
-export const nextStore: CacheFn = (key, load) =>
-  unstable_cache(load, [key], { revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG] })();
+export const STORED_READ_SOURCE = 'hktours cached read';
+
+/**
+ * Next.js's data cache (unstable_cache), as a plain store. The key is the only key part, and the cached
+ * function is called with no arguments, so no Db handle and no raw address becomes part of the stored key.
+ * The function's own source text, which Next also puts in the key, is the fixed STORED_READ_SOURCE.
+ */
+export const nextStore: CacheFn = (key, load) => {
+  const stored = () => load();
+  Object.defineProperty(stored, 'toString', { value: () => STORED_READ_SOURCE });
+  return unstable_cache(stored, [key], { revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG] })();
+};
 
 /**
  * How far ahead of this server's clock a stored time may be and still count: clocks of different servers
@@ -108,12 +120,14 @@ export const runUncached: CacheFn = (_key, load) => load();
 /** A search as the loaders ask it: the ranking for the destination sorts comes from the locale instead. */
 export type SearchQuery = Omit<SearchInput, 'destinationOrder'>;
 
-/** The three reads, with the same results as those of `@hktours/db/read`. */
+/** The four reads, with the same results as those of `@hktours/db/read`. */
 export interface Reads {
   /** searchTours, with the destination sorts ranked in `locale`'s order of place names. */
   searchTours(db: Db, query: SearchQuery, locale: Locale): Promise<{ tours: TourCardData[]; total: number }>;
   getOperators(db: Db, opts?: { onlyWithGoodRun?: boolean }): Promise<OperatorInfo[]>;
   getToursByKeys(db: Db, keys: string[], today: IsoDate): Promise<Map<string, TourCardData>>;
+  /** How many tours, from how many operators, are listed now: in all, per country and per region. */
+  countToursByDestination(db: Db, today: IsoDate): Promise<DestinationCounts>;
 }
 
 /**
@@ -171,7 +185,7 @@ function searchInput(key: SearchKey, orderFor: (locale: Locale) => string[]): Se
 }
 
 /**
- * The three reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
+ * The four reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
  * of the places data and the language); it runs inside the cached read, from the key's locale, so the long
  * list is never part of a key and an entry can only hold the order of the language in its key. `build` is the
  * build id every key starts with.
@@ -204,6 +218,12 @@ export function createReads(
         if (card) result.set(k, card);
       }
       return result;
+    },
+
+    countToursByDestination(db, today) {
+      // The only input is today (the server's Hong Kong date), so one entry per build and day serves every page.
+      const key = { build, read: 'countToursByDestination', today };
+      return cache(JSON.stringify(key), () => countToursByDestination(db, key.today));
     },
   };
 }

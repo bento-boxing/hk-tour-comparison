@@ -78,3 +78,13 @@ it('a page address from hrefFor (the chain page\'s) gets the language too', () =
   render(<Pager state={state(2)} total={total} t={makeT('en')} hrefFor={page => `/chain?gap=1-3&page=${page}`} />);
   expect(screen.getAllByRole('link').map(a => a.getAttribute('href'))).toEqual(['/en/chain?gap=1-3&page=1', '/en/chain?gap=1-3&page=3']);
 });
+
+it.each([
+  ['zh-Hant', '/tours/japan?dmin=4&sort=days', '/tours/japan?dmin=4&sort=days&page=3'],
+  ['zh-Hans', '/zh-hans/tours/japan?dmin=4&sort=days', '/zh-hans/tours/japan?dmin=4&sort=days&page=3'],
+  ['en', '/en/tours/japan?dmin=4&sort=days', '/en/tours/japan?dmin=4&sort=days&page=3'],
+] as const)('in %s on a destination\'s page the links stay on that page, the destination in the path', (locale, prev, next) => {
+  const onJapan: SearchState = { filters: { destination: { countryId: 'japan', regionId: null }, daysMin: 4 }, sort: 'days', page: 2 };
+  render(<Pager state={onJapan} total={total} t={makeT(locale)} />);
+  expect(screen.getAllByRole('link').map(a => a.getAttribute('href'))).toEqual([prev, next]);
+});
