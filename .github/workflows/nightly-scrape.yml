@@ -1,11 +1,11 @@
 name: nightly-scrape
 
-# Each night between 02:00 and 05:00 Hong Kong time: apply pending migrations, then scrape
+# Each night, aiming for 02:00 to 05:00 Hong Kong time (see the cron line): apply pending migrations, then scrape
 # every approved operator. A job killed by its timeout has saved nothing (saving is one
 # transaction at the end), so last night's data stays. A failed job makes GitHub email the owner.
 on:
   schedule:
-    - cron: '17 18 * * *'   # 18:17 UTC = 02:17 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
+    - cron: '17 12 * * *'   # 12:17 UTC, six hours early on purpose: GitHub has started this job about six hours late every night, and the aim is 02:00-05:00 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
   workflow_dispatch:
 
 permissions:
