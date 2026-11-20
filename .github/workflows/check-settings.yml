@@ -1,0 +1,31 @@
+name: check-settings
+
+# Says whether the site's two identity settings exist and have the right shape. It prints only yes or no,
+# never a value, and makes no request to any site. Run it from the Actions tab after changing a setting.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/check-settings.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Site identity settings
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+        run: |
+          yn() { if "$@"; then echo yes; else echo no; fi; }
+          url_ok() { [[ "$SITE_URL" =~ ^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]+)?$ ]]; }
+          mail_ok() { [[ "$CONTACT_EMAIL" =~ ^[A-Za-z0-9._+-]+@[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]]; }
+          echo "SITE_URL set: $(yn test -n "$SITE_URL")"
+          echo "SITE_URL is https://host with nothing after (no slash, no spaces): $(yn url_ok)"
+          echo "CONTACT_EMAIL set: $(yn test -n "$CONTACT_EMAIL")"
+          echo "CONTACT_EMAIL looks like an address (no spaces): $(yn mail_ok)"
+          url_ok && mail_ok
