@@ -197,6 +197,13 @@ describe('the route', () => {
     expect(result.ok && stopNames(result.tour.stops)).toEqual(['大阪', '神戶', '京都']);
   });
 
+  it('takes the connections a day line offers as a choice, or passes, out of it (route.ts, task 48)', () => {
+    const tour = tourOf({ dayLines: ['香港 ⇨ 杜拜/伊斯坦堡 ⇨ 開羅', '開羅 ⇨ 樂蜀', '樂蜀 → 途經深圳北站 → 香港'], days: '行程天數：3天' });
+    expect(tour.dayHeadings).toEqual(['香港 →   → 開羅', '開羅 → 樂蜀', '樂蜀 →   → 香港']);
+    const result = normaliseTour(tour, places, TODAY);
+    expect(result.ok && stopNames(result.tour.stops)).toEqual(['開羅', '樂蜀']);
+  });
+
   it('a place only inside 【】 is not read: the shared rules drop bracketed notes with their text', () => {
     const tour = tourOf({ title: '兩天', dayLines: ['深圳關口集合 → 【江門虛構街】', '深圳解散'], days: '行程天數：2天' });
     expect(normaliseTour(tour, places, TODAY)).toMatchObject({ ok: false, reason: 'no-stops' });

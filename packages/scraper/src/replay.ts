@@ -1,4 +1,4 @@
-import type { IsoDate, NormaliseResult, OperatorId, PlacesIndex, ScrapedTour, Stop } from '@hktours/core';
+import { isIsoDate, type IsoDate, type NormaliseResult, type OperatorId, type PlacesIndex, type ScrapedTour, type Stop } from '@hktours/core';
 
 /**
  * Replaying saved crawl logs (scripts/replay-logs.ts): each `page {…}` line a dry run printed (dry-run-report.ts) is
@@ -39,6 +39,27 @@ export interface ReplayedPage {
 const DROP_REGION_WITH_LISTED_CITY: readonly string[] = ['yummy', 'sunflower'];
 const TODAY = '2026-01-01';
 const FUTURE = '2026-02-01';
+
+/**
+ * The newest of an operator directory's dry-run logs, by file name: `dry-run-<n>.log` (the highest n), or
+ * `dry-run-<YYYY-MM-DD>.log` (the latest date; Taste's practice crawl, task 48), which counts as newer than any
+ * numbered log. Undefined when there is none.
+ */
+export function newestLogName(names: string[]): string | undefined {
+  const rank = (name: string): [dated: number, order: string] | undefined => {
+    const numbered = /^dry-run-(\d+)\.log$/.exec(name);
+    if (numbered) return [0, numbered[1].padStart(12, '0')];
+    const dated = /^dry-run-(\d{4}-\d{2}-\d{2})\.log$/.exec(name);
+    return dated && isIsoDate(dated[1]) ? [1, dated[1]] : undefined;
+  };
+  let newest: { name: string; rank: [number, string] } | undefined;
+  for (const name of names) {
+    const r = rank(name);
+    if (r === undefined) continue;
+    if (newest === undefined || r[0] > newest.rank[0] || (r[0] === newest.rank[0] && r[1] > newest.rank[1])) newest = { name, rank: r };
+  }
+  return newest?.name;
+}
 
 /** The `page {…}` lines of a dry-run log. */
 export function logPages(text: string): LoggedPage[] {

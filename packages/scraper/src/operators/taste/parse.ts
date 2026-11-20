@@ -5,6 +5,7 @@ import { splitPage } from './fetch-page';
 import {
   codeOf, DAY_LINE, FROM_PRICE, gatheringOptions, isBookable, NOTICE, noticeLines, PRODUCT_INFO, textOf, TITLE,
 } from './public';
+import { withoutConnections } from './route';
 
 // Sources: docs/operators/taste.md, "Where each fact comes from". The text is fetchPage's join of the run's date, the
 // tour's trimmed page and its dates answer's dates and statuses. Owner decision 2026-11-19 (a reduced listing): every
@@ -67,8 +68,9 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     days: Number(days[1]),
     nights: null,
     // Each day's line (`深圳關口集合 → … 江門 …`) through the shared place matching, the site's other
-    // arrow (`香港⇨大阪`) as →, which the shared rules split at.
-    dayHeadings: $(DAY_LINE).toArray().map(line => textOf($, $(line)).replace(OTHER_ARROW, '→')).filter(line => line !== ''),
+    // arrow (`香港⇨大阪`) as →, which the shared rules split at, and without the flight hubs and stations it offers as
+    // a choice (`杜拜/多哈/伊斯坦堡`, `經深圳北/廣州南站`) or passes (`途經深圳北站`): route.ts (task 48).
+    dayHeadings: withoutConnections($(DAY_LINE).toArray().map(line => textOf($, $(line)).replace(OTHER_ARROW, '→')).filter(line => line !== '')),
     // The title, read only when the day lines give no stop (owner ruling 2026-11-19, task 45 fix round 1, as Big Line
     // and Sunflower have it): many Guangdong short trips name their places only inside 【】 in their day lines, which the
     // shared rules drop with their text. The title is read as it is, by the same shared rules, so 【】 in it are dropped

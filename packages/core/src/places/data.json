@@ -570,7 +570,7 @@
     { "id": "china-guangdong-taishan", "regionId": "china-guangdong", "nameZh": "台山", "nameEn": "Taishan", "aliases": [] },
     { "id": "china-guangdong-xinhui", "regionId": "china-guangdong", "nameZh": "新會", "nameEn": "Xinhui", "aliases": [] },
     { "id": "china-guangdong-huizhou", "regionId": "china-guangdong", "nameZh": "惠州", "nameEn": "Huizhou", "aliases": [] },
-    { "id": "china-guangdong-huidong", "regionId": "china-guangdong", "nameZh": "惠東", "nameEn": "Huidong", "aliases": [] },
+    { "id": "china-guangdong-huidong", "regionId": "china-guangdong", "nameZh": "惠東", "nameEn": "Huidong", "aliases": ["平海古城"] },
     { "id": "china-guangdong-shanwei", "regionId": "china-guangdong", "nameZh": "汕尾", "nameEn": "Shanwei", "aliases": [] },
     { "id": "china-guangdong-heyuan", "regionId": "china-guangdong", "nameZh": "河源", "nameEn": "Heyuan", "aliases": [] },
     { "id": "china-guangdong-yangjiang", "regionId": "china-guangdong", "nameZh": "陽江", "nameEn": "Yangjiang", "aliases": [] },
@@ -829,6 +829,7 @@
 
     { "id": "vietnam-central-da-nang", "regionId": "vietnam-central", "nameZh": "峴港", "nameEn": "Da Nang", "aliases": ["巴拿山"] },
     { "id": "vietnam-central-hoi-an", "regionId": "vietnam-central", "nameZh": "會安", "nameEn": "Hoi An", "aliases": [] },
+    { "id": "vietnam-central-nha-trang", "regionId": "vietnam-central", "nameZh": "芽莊", "nameEn": "Nha Trang", "aliases": [] },
 
     { "id": "vietnam-south-ho-chi-minh-city", "regionId": "vietnam-south", "nameZh": "胡志明市", "nameEn": "Ho Chi Minh City", "aliases": ["胡志明"] },
     { "id": "vietnam-south-phu-quoc", "regionId": "vietnam-south", "nameZh": "富國島", "nameEn": "Phu Quoc", "aliases": [] },
@@ -1225,7 +1226,7 @@
     { "id": "portugal-portugal-porto", "regionId": "portugal-portugal", "nameZh": "波爾圖", "nameEn": "Porto", "aliases": ["波圖"] },
     { "id": "portugal-portugal-sintra", "regionId": "portugal-portugal", "nameZh": "辛特拉", "nameEn": "Sintra", "aliases": ["新特拉"] },
     { "id": "portugal-portugal-fatima", "regionId": "portugal-portugal", "nameZh": "花地瑪", "nameEn": "Fátima", "aliases": ["法蒂瑪"] },
-    { "id": "portugal-portugal-evora", "regionId": "portugal-portugal", "nameZh": "埃武拉", "nameEn": "Évora", "aliases": [] },
+    { "id": "portugal-portugal-evora", "regionId": "portugal-portugal", "nameZh": "埃武拉", "nameEn": "Évora", "aliases": ["艾芙拉"] },
     { "id": "portugal-portugal-aveiro", "regionId": "portugal-portugal", "nameZh": "阿威羅", "nameEn": "Aveiro", "aliases": ["亞威羅", "阿維羅"] },
     { "id": "portugal-portugal-cascais", "regionId": "portugal-portugal", "nameZh": "卡斯凱什", "nameEn": "Cascais", "aliases": [] },
     { "id": "portugal-portugal-obidos", "regionId": "portugal-portugal", "nameZh": "歐比多斯", "nameEn": "Óbidos", "aliases": ["奧比都斯", "奥比都斯"] },
@@ -1883,6 +1884,8 @@
     { "id": "china-sichuan-luding", "regionId": "china-sichuan", "nameZh": "瀘定", "nameEn": "Luding", "aliases": [] },
     { "id": "china-sichuan-seda", "regionId": "china-sichuan", "nameZh": "色達", "nameEn": "Sêrtar", "aliases": [] },
     { "id": "china-sichuan-bamei", "regionId": "china-sichuan", "nameZh": "八美", "nameEn": "Bamei", "aliases": [] },
+    { "id": "china-sichuan-maoxian", "regionId": "china-sichuan", "nameZh": "茂縣", "nameEn": "Maoxian", "aliases": [] },
+    { "id": "china-sichuan-lixian", "regionId": "china-sichuan", "nameZh": "理縣", "nameEn": "Lixian", "aliases": [] },
     { "id": "china-sichuan-pengshui", "regionId": "china-chongqing", "nameZh": "彭水", "nameEn": "Pengshui", "aliases": [] },
     { "id": "china-sichuan-three-gorges", "regionId": "china-chongqing", "nameZh": "長江三峽", "nameEn": "Three Gorges", "aliases": [] },
     { "id": "china-tibet-damxung", "regionId": "china-tibet", "nameZh": "當雄", "nameEn": "Damxung", "aliases": [] },
@@ -1890,6 +1893,7 @@
     { "id": "china-hunan-yizhang", "regionId": "china-hunan", "nameZh": "宜章", "nameEn": "Yizhang", "aliases": [] },
     { "id": "china-hunan-rucheng", "regionId": "china-hunan", "nameZh": "汝城", "nameEn": "Rucheng", "aliases": [] },
     { "id": "china-hunan-changde", "regionId": "china-hunan", "nameZh": "常德", "nameEn": "Changde", "aliases": [] },
+    { "id": "china-hunan-wugang", "regionId": "china-hunan", "nameZh": "武岡", "nameEn": "Wugang", "aliases": [] },
     { "id": "china-central-xuanen", "regionId": "china-hubei", "nameZh": "宣恩", "nameEn": "Xuan'en", "aliases": [] },
     { "id": "china-central-jian", "regionId": "china-jiangxi", "nameZh": "吉安", "nameEn": "Ji'an", "aliases": [] },
     { "id": "china-central-yichun", "regionId": "china-jiangxi", "nameZh": "宜春", "nameEn": "Yichun", "aliases": [] },
@@ -1897,6 +1901,7 @@
     { "id": "china-central-shangyou", "regionId": "china-jiangxi", "nameZh": "上猶", "nameEn": "Shangyou", "aliases": [] },
     { "id": "china-central-longnan", "regionId": "china-jiangxi", "nameZh": "龍南", "nameEn": "Longnan", "aliases": [] },
     { "id": "china-central-jinggangshan", "regionId": "china-jiangxi", "nameZh": "井岡山", "nameEn": "Jinggangshan", "aliases": [] },
+    { "id": "china-central-xingguo", "regionId": "china-jiangxi", "nameZh": "興國", "nameEn": "Xingguo", "aliases": [] },
     { "id": "china-guangxi-baise", "regionId": "china-guangxi", "nameZh": "百色", "nameEn": "Baise", "aliases": [] },
     { "id": "china-guangxi-pingnan", "regionId": "china-guangxi", "nameZh": "平南", "nameEn": "Pingnan", "aliases": [] },
     { "id": "china-guangxi-jinxiu", "regionId": "china-guangxi", "nameZh": "金秀", "nameEn": "Jinxiu", "aliases": [] },
@@ -1918,9 +1923,12 @@
     { "id": "china-guangdong-xuwen", "regionId": "china-guangdong", "nameZh": "徐聞", "nameEn": "Xuwen", "aliases": [] },
     { "id": "china-guangdong-nanao", "regionId": "china-guangdong", "nameZh": "南澳島", "nameEn": "Nan'ao Island", "aliases": [] },
     { "id": "china-guangdong-fogang", "regionId": "china-guangdong", "nameZh": "佛岡", "nameEn": "Fogang", "aliases": [] },
+    { "id": "china-guangdong-boluo", "regionId": "china-guangdong", "nameZh": "博羅", "nameEn": "Boluo", "aliases": [] },
+    { "id": "china-guangdong-huiyang", "regionId": "china-guangdong", "nameZh": "惠陽", "nameEn": "Huiyang", "aliases": [] },
+    { "id": "china-guangdong-doumen", "regionId": "china-guangdong", "nameZh": "斗門", "nameEn": "Doumen", "aliases": [] },
 
     { "id": "norway-norway-narvik", "regionId": "norway-norway", "nameZh": "納爾維克", "nameEn": "Narvik", "aliases": ["那維克"] }
   ],
-  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾", "聖保羅大教堂", "聖保羅教堂", "聖保羅醫院", "聖保羅舊城", "加勒菲斯", "孟菲斯", "臥龍潭", "臥龍灣", "臥龍峽谷", "臥龍書院", "臥龍崗", "臥龍寺", "普洱茶", "新北海賓館", "高山流水", "高山綠洲", "高山草原", "高山紅楓", "高山動物園", "最高山", "高山牧場", "高山平原", "高山冰雪", "高山中心", "埃沃內斯機場", "馬里安曼", "眾多佛", "利瑪竇", "馬賽克", "恩尼斯", "米爾頓凱恩斯", "尤里加加林", "比約克", "香格里拉下午茶", "清邁小鎮", "台山滋味", "正宗順德", "中山特色", "順德粥", "深圳往返", "阿格拉比", "西江花", "泰山島", "巴馬臣", "恩平韓屋", "潮汕特產", "潮汕牛肉", "潮汕站", "富士見", "阿爾泰山", "阿尔泰山", "文成公主", "文成城堡", "彌勒佛", "弥勒佛", "彌勒大佛", "弥勒大佛", "彌勒殿", "青松觀", "青松观", "廣南省", "广南省", "奧巴馬", "奥巴马", "太平南", "平南路", "金華火腿", "金华火腿", "富士蘋果", "富士苹果", "富士電視", "富士电视", "吉安慶修院", "吉安庆修院", "吉安鄉", "吉安乡", "感恩平安", "非常德", "九龍南", "九龙南", "廣西江", "广西江", "江西江", "金秀賢", "金秀贤", "威尼斯水城", "威尼斯河", "臨江門", "淡水湖", "五台山國立公園", "馬賽人", "馬賽族", "馬賽傳統", "理想邦·聖托里尼", "理想邦聖托里尼", "理聖托里尼", "南聖托里尼", "巨柏林", "米蘭古城", "版棉花堡", "巴黎式", "羅馬圓形", "莎拉曼卡", "莎拉哥莎", "庫庫爾康", "巴斯卡", "努維克", "埃蒙頓", "聖路加", "華沙號", "波爾圖托雷斯", "迪利馬", "劍橋葡萄園", "默瓦爾德", "特施泰騰", "斯霍芬", "莫斯科維茨", "雲頂觀景", "南昆山", "小烏鎮", "版《麗江古城", "上海風情街", "桂林之山", "小烏來", "威尼斯城為", "河源頭", "北京路", "北京道", "北京填鴨", "北京填鸭", "天津街", "上海菜", "夜上海", "上海拔", "重慶大廈", "重庆大厦", "重慶火鍋", "重庆火锅"],
-  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖", "聖保羅", "高山", "丹陽", "全州", "廣南", "吉安", "青松", "聖托里尼"]
+  "notPlaces": ["松山湖", "小威尼斯", "羅馬尼亞", "羅馬廣場", "古羅馬", "羅馬競技場", "羅馬水道", "聖索菲亞", "科隆劇場", "中山公園", "中山路", "中山四路", "中山紀念", "中山鐵橋", "茨中山居", "一碧湖", "伯爾尼納", "普拉卡", "普拉多", "南普拉薩", "高山火車", "高山觀景", "高山隧道", "庫庫爾坎", "庫爾德寧", "格萊迪維克", "巴里拉灣", "巴里斯川德", "巴斯泰", "易北河畔的佛羅倫斯", "吉尼斯", "溫尼斯", "普雷吉薩", "波伊卡揚", "大佛山", "金佛山", "珍珠海", "登上海達路德", "雲上海天", "小莫斯科", "羅馬橋", "羅馬浴池", "羅馬鬥獸", "聖彼得堡山洞", "小麗江", "小周莊", "小上海", "版鳳凰古城", "南京路", "聖‧索菲亞", "聖・索菲亞", "索菲亞教堂", "威靈頓山", "東莞臘鴨", "庫巴清真寺", "普諾菲提斯", "雅典娜", "拉巴特城堡", "列維盧", "洛陽橋", "臨海線", "北海道", "突尼斯", "北海濕地", "北海景區", "達爾文研究", "凱里之環", "江門海邊", "廣州起義", "蘇州河", "艾佛德神學院", "小阿勒泰", "伊勢丹", "昭和新山", "桃園機場", "桃園國際機場", "青井阿蘇", "卡薩布蘭卡山谷", "鹹淡水", "復活節島巨石像", "松山文創", "中山南西", "羅馬大浴池", "小京都", "版聖托里尼", "大理石", "小桂林", "莎羅馬", "色彩威尼斯", "北海小漁村", "何維克", "華沙戰船", "倫敦閣", "麥地那市集", "龐貝石柱", "高山綠州", "雅典人書店", "塔瓦雷斯巴斯托斯", "羅馬神廟", "雅拉河", "萬雅拉", "雅拉雪山", "樂天水", "熱海景區", "黃龍溪", "黃龍洞", "天童寺", "加勒比", "新山口", "安平橋", "北角館", "沙溪堡", "雅拉谷", "圓滿歸", "崇禮雲頂", "雲頂夢號", "雲頂美景", "臥龍湖", "巴塞爾頓", "吉利馬札羅", "卡薩布蘭卡山", "里維埃拉", "卡斯特羅馬諾", "聖保羅大教堂", "聖保羅教堂", "聖保羅醫院", "聖保羅舊城", "加勒菲斯", "孟菲斯", "臥龍潭", "臥龍灣", "臥龍峽谷", "臥龍書院", "臥龍崗", "臥龍寺", "普洱茶", "新北海賓館", "高山流水", "高山綠洲", "高山草原", "高山紅楓", "高山動物園", "最高山", "高山牧場", "高山平原", "高山冰雪", "高山中心", "埃沃內斯機場", "馬里安曼", "眾多佛", "利瑪竇", "馬賽克", "恩尼斯", "米爾頓凱恩斯", "尤里加加林", "比約克", "香格里拉下午茶", "清邁小鎮", "台山滋味", "正宗順德", "中山特色", "順德粥", "深圳往返", "阿格拉比", "西江花", "泰山島", "巴馬臣", "恩平韓屋", "潮汕特產", "潮汕牛肉", "潮汕站", "富士見", "阿爾泰山", "阿尔泰山", "文成公主", "文成城堡", "彌勒佛", "弥勒佛", "彌勒大佛", "弥勒大佛", "彌勒殿", "青松觀", "青松观", "廣南省", "广南省", "奧巴馬", "奥巴马", "太平南", "平南路", "金華火腿", "金华火腿", "富士蘋果", "富士苹果", "富士電視", "富士电视", "吉安慶修院", "吉安庆修院", "吉安鄉", "吉安乡", "感恩平安", "非常德", "九龍南", "九龙南", "廣西江", "广西江", "江西江", "金秀賢", "金秀贤", "威尼斯水城", "威尼斯河", "臨江門", "淡水湖", "五台山國立公園", "馬賽人", "馬賽族", "馬賽傳統", "理想邦·聖托里尼", "理想邦聖托里尼", "理聖托里尼", "南聖托里尼", "巨柏林", "米蘭古城", "版棉花堡", "巴黎式", "羅馬圓形", "莎拉曼卡", "莎拉哥莎", "庫庫爾康", "巴斯卡", "努維克", "埃蒙頓", "聖路加", "華沙號", "波爾圖托雷斯", "迪利馬", "劍橋葡萄園", "默瓦爾德", "特施泰騰", "斯霍芬", "莫斯科維茨", "雲頂觀景", "南昆山", "小烏鎮", "版《麗江古城", "上海風情街", "桂林之山", "小烏來", "威尼斯城為", "河源頭", "北京路", "北京道", "北京填鴨", "北京填鸭", "天津街", "上海菜", "夜上海", "上海拔", "重慶大廈", "重庆大厦", "重慶火鍋", "重庆火锅", "羅馬建築", "羅馬城牆", "羅馬浴場", "羅馬帝國", "羅馬神殿", "雲林寺", "松江河", "中山廣場", "中山橋", "中山陵", "會安排", "桃園居", "世外桃園", "天童話", "淡水堰塞湖", "長春科爾", "雅拉山口", "丹尼斯", "雲台山", "基尼斯", "胡志明亭", "胡志明陵", "胡志明故居", "文昌宮", "雲頂天梯", "漢堡雜錦", "上海生煎", "福州世祖", "長泰山", "高山蘭花", "高山下午茶", "廣東香格里拉", "侗族香格里拉", "上海的威尼斯", "上海威尼斯", "水上威尼斯", "海上威尼斯", "威尼斯泳道", "威尼斯超長水道", "海南杜拜", "南島敦煌", "海上桂林", "杭州之水", "高原九寨溝", "團聚和順", "昆明湖", "蓬萊三島", "黃山歸來", "黃山之奇", "張家界之險", "大連片", "長沙炮台", "湘南的鳳凰古城", "和田園", "東興國門", "磐羊湖", "东兴国门", "興國寺", "兴国寺"],
+  "collisionNames": ["塔林", "黃金海岸", "雅拉", "熱海", "千島湖", "聖保羅", "高山", "丹陽", "全州", "廣南", "吉安", "青松", "聖托里尼", "竹山", "興國"]
 }

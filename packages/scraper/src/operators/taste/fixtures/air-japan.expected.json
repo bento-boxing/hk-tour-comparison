@@ -8,7 +8,7 @@
     "Every date in the dates answer has one of the three bookable statuses (已成團) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
     "Air tour from Hong Kong airport (kind hk). The last tour of the list; its dates answer had one date (2026-11-23, 已成團), the real title naming a second (8 November) already gone from the answer: the site seems to drop past dates itself.",
     "The site joins places with ⇨, often with no space (香港⇨大阪); the parser reads ⇨ as →, so 大阪 is a stop on day 1.",
-    "KNOWN ERROR, NOT INTENDED: the stop 雲林 (Yunlin, Taiwan) is wrong. It comes from the name of a Japanese temple (雲林 followed by the word for temple) written in angle brackets; angle brackets are not dropped by the shared rules (they also carry real places on this site). Pinned here as the shared rules give it today; see docs/operators/taste.md, \"Known route errors\"."
+    "Fixed in task 48: the temple's name (雲林 followed by the word for temple, in angle brackets on the page) is kept whole here, 雲林寺, and no longer reads as 雲林 (Yunlin, Taiwan): 雲林寺 is a notPlaces guard. Unlike the other pieces it names no place; it is kept to pin the guard. It is reported as unmatched, as any words that name no place."
   ],
   "scraped": {
     "operatorId": "taste",
@@ -21,7 +21,7 @@
       "香港 → 大阪 → 神戶",
       "神戶 → 姫路",
       "廣島 → 廣島 → 嚴島",
-      "長門 → 雲林",
+      "長門 → 雲林寺",
       "出雲",
       "鳥取",
       "鳥取 → 京都 → 伊根",
@@ -50,7 +50,6 @@
     "廣島",
     "宮島",
     "長門",
-    "雲林",
     "出雲",
     "鳥取",
     "京都",
@@ -62,5 +61,7 @@
     "箕面",
     "和歌山"
   ],
-  "unmatched": []
+  "unmatched": [
+    "雲林寺"
+  ]
 }

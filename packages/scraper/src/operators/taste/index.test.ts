@@ -11,12 +11,12 @@ import { rawDate, rawDates, rawListPage, rawTourPage, SECRETS } from './test-res
 
 const TODAY = '2026-11-20';
 
-it('is registered as taste, with a provisional first-run floor and no extra request headers', () => {
+it('is registered as taste, with a first-run floor of a third of its measured crawl and no extra request headers', () => {
   expect(tasteScraper.id).toBe('taste');
   expect(tasteScraper.requestHeaders).toBeUndefined();
   expect(tasteScraper.fetchPage).toBeDefined();
-  // Provisional (no measured crawl yet): 60% of the 311 products the list held on 2026-11-20, every one a group tour.
-  expect(tasteScraper.minExpectedTours).toBe(186);
+  // A third of the 279 tours the 2026-11-20 practice crawl would save with the task 48 changes (274 as crawled).
+  expect(tasteScraper.minExpectedTours).toBe(93);
 });
 
 it('throws its reason for a page it rejects, so the run\'s log says why', () => {

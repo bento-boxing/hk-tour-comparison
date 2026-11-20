@@ -7,7 +7,7 @@
     "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
     "Every date in the dates answer has one of the three bookable statuses (已成團, 收客中, 快成團) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
     "Air tour from Hong Kong airport (kind hk). 洪加達 is the site's name for Hurghada, matched as 赫爾格達 by an alias.",
-    "KNOWN ERROR, NOT INTENDED: the stops 杜拜 (Dubai) and 伊斯坦堡 (Istanbul), three times each, are wrong. They come from `杜拜/多哈/伊斯坦堡`, a choice of transit hub on the first, eighth and last day; the shared rules read each `/` alternative as a stop because the line has no transit word. 多哈 is not in the places data (unmatched). Pinned here as the code gives it today; see docs/operators/taste.md, \"Known route errors\"."
+    "Fixed in task 48: `杜拜/多哈/伊斯坦堡`, a choice of transit hub on the first, eighth and last day, is taken out of the day lines by the Taste-only rule (route.ts: a chunk whose `/` alternatives name two or more different places is a choice of connection), so 杜拜 (Dubai) and 伊斯坦堡 (Istanbul) are no longer stops, and 多哈 is no longer reported as unmatched. The fixture page keeps the choice as the site writes it; the parsed day lines show it replaced by a space."
   ],
   "scraped": {
     "operatorId": "taste",
@@ -17,15 +17,15 @@
     "days": 9,
     "nights": null,
     "dayHeadings": [
-      "香港 → 杜拜/多哈/伊斯坦堡 → 開羅 → 吉薩",
+      "香港 →   → 開羅 → 吉薩",
       "開羅 → 阿斯旺 → 阿斯旺",
       "阿斯旺 → 阿布辛貝 → 高寶安 → 艾德夫",
       "艾德夫 → 艾德夫 → 樂蜀 → 樂蜀 → 樂蜀",
       "樂蜀 → 洪加達",
       "洪加達 → 洪加達",
       "洪加達 → 開羅 → 開羅",
-      "開羅 → 杜拜/多哈/伊斯坦堡",
-      "杜拜/多哈/伊斯坦堡 → 香港"
+      "開羅 →  ",
+      "  → 香港"
     ],
     "fallbackRoute": "埃及 開羅 阿斯旺 艾德夫 樂蜀 洪加達",
     "startPoint": "香港國際機場",
@@ -140,8 +140,6 @@
   },
   "normalised": "ok",
   "stopNames": [
-    "杜拜",
-    "伊斯坦堡",
     "開羅",
     "吉薩",
     "開羅",
@@ -151,13 +149,7 @@
     "艾德夫",
     "樂蜀",
     "赫爾格達",
-    "開羅",
-    "杜拜",
-    "伊斯坦堡",
-    "杜拜",
-    "伊斯坦堡"
+    "開羅"
   ],
-  "unmatched": [
-    "多哈"
-  ]
+  "unmatched": []
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normaliseTour, places, type NormaliseResult } from '@hktours/core';
-import { changedRoutes, countsOf, logPages, replayPage, type LoggedPage } from './replay';
+import { changedRoutes, countsOf, logPages, newestLogName, replayPage, type LoggedPage } from './replay';
 
 const core = { normaliseTour, places };
 const page = (fields: Partial<LoggedPage>): LoggedPage => ({
@@ -87,5 +87,14 @@ describe('replaying saved crawl logs', () => {
     expect(changedRoutes(before, after).map(c => [c.code, c.before, c.after, c.days, c.daysFrom])).toEqual([
       ['A06', [], ['japan-kansai-osaka'], 6, 'code'], ['C06', [], ['japan-kansai-kyoto'], 6, 'code'],
     ]);
+  });
+
+  it('picks an operator\'s newest log: the highest number, and a dated log (Taste\'s) over any numbered one', () => {
+    expect(newestLogName(['dry-run-1.log', 'dry-run-2.log', 'dry-run-10.log', 'fixture.json'])).toBe('dry-run-10.log');
+    expect(newestLogName(['dry-run-2026-11-20.log', 'robots.txt', 'ledger.tsv'])).toBe('dry-run-2026-11-20.log');
+    expect(newestLogName(['dry-run-2.log', 'dry-run-2026-11-20.log', 'dry-run-2026-12-01.log'])).toBe('dry-run-2026-12-01.log');
+    // Neither a date that is not one nor another name counts.
+    expect(newestLogName(['dry-run-2026-13-01.log', 'dry-run-2026-11-20.log.bak', 'dry-run-.log', 'dry-run-x.log'])).toBeUndefined();
+    expect(newestLogName([])).toBeUndefined();
   });
 });

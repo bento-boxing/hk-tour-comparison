@@ -8,7 +8,8 @@
  *   pnpm replay --before <file>       compares with a replay saved earlier instead of a commit
  *   --logs <dir>                      where the logs are (default .superpowers/raw-pages, git-ignored)
  *
- * For each operator directory the newest `dry-run-<n>.log` is read. Nothing is fetched. A page whose log gives no days
+ * For each operator directory the newest `dry-run-<n>.log` or `dry-run-<YYYY-MM-DD>.log` is read (newestLogName: a
+ * dated log is newer than any numbered one). Nothing is fetched. A page whose log gives no days
  * (logged, stated in the fallback text or in the code) is given one per day heading, counted per operator and marked
  * in the changed-route list: the too-far rule depends on the days. --base copies that commit's
  * packages/core with `git archive` into a temporary directory and loads it from there.
@@ -19,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as head from '@hktours/core';
-import { changedRoutes, countsOf, logPages, replayPage, type ReplayCore, type ReplayedPage } from '../src/replay';
+import { changedRoutes, countsOf, logPages, newestLogName, replayPage, type ReplayCore, type ReplayedPage } from '../src/replay';
 
 const REPO = resolve(import.meta.dirname, '../../..');
 const USAGE = 'usage: pnpm replay [--base <commit> | --before <file>] [--save <file>] [--logs <dir>]';
@@ -39,12 +40,9 @@ function newestLogs(dir: string): Map<string, { file: string; text: string }> {
   if (!existsSync(dir)) return logs;
   for (const operator of readdirSync(dir).sort()) {
     if (!existsSync(join(dir, operator)) || !/^[a-z]+$/.test(operator)) continue;
-    const numbered = readdirSync(join(dir, operator))
-      .map(name => /^dry-run-(\d+)\.log$/.exec(name))
-      .filter((match): match is RegExpExecArray => match !== null)
-      .sort((a, b) => Number(b[1]) - Number(a[1]));
-    if (numbered.length === 0) continue;
-    const file = join(dir, operator, numbered[0][0]);
+    const newest = newestLogName(readdirSync(join(dir, operator)));
+    if (newest === undefined) continue;
+    const file = join(dir, operator, newest);
     logs.set(operator, { file, text: readFileSync(file, 'utf8') });
   }
   return logs;
@@ -88,7 +86,7 @@ async function main(args: string[]): Promise<number> {
 
   const logs = newestLogs(logsDir);
   if (logs.size === 0) {
-    console.log(`no saved crawl logs (<operator>/dry-run-<n>.log) found under ${logsDir}`);
+    console.log(`no saved crawl logs (<operator>/dry-run-<n>.log or dry-run-<YYYY-MM-DD>.log) found under ${logsDir}`);
     return 0;
   }
   for (const [operator, { file }] of logs) console.log(`${operator}: ${file}`);

@@ -8,6 +8,10 @@ import { zhHansName } from './zh-hans';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/** Cities added to the provinces of tasks 37 and 40 later (task 48: Taste's practice crawl), left out of their lists. */
+const ADDED_LATER = new Set(['china-central-xingguo', 'china-sichuan-maoxian', 'china-sichuan-lixian']);
+const firstCitiesOf = (regionId: string) => places.citiesOf(regionId).filter(city => !ADDED_LATER.has(city.id));
+
 /**
  * Regions whose cities keep the id prefix of the region they were split from, because tours already saved in the
  * database hold those city ids. A city added to one of these regions later takes the same prefix.
@@ -190,6 +194,58 @@ describe('places added for Yummy and Sunflower (task 34)', () => {
   });
 });
 
+describe('places and guards from Taste Travel\'s practice crawl (task 48)', () => {
+  const route = (headings: string[]) => extractStops(headings, places).stops.map(s => s.cityId ?? `region:${s.regionId}`);
+  it('reads the new towns where they are', () => {
+    expect(route(['博羅', '惠陽', '斗門', '武岡縣', '興國'])).toEqual([
+      'china-guangdong-boluo', 'china-guangdong-huiyang', 'china-guangdong-doumen', 'china-hunan-wugang', 'china-central-xingguo',
+    ]);
+    expect(route(['茂縣', '理縣'])).toEqual(['china-sichuan-maoxian', 'china-sichuan-lixian']);
+    expect(route(['胡志明市 → 美奈 → 芽莊'])).toEqual(['vietnam-south-ho-chi-minh-city', 'vietnam-south-mui-ne', 'vietnam-central-nha-trang']);
+    // 艾芙拉 is Évora, not Edfu (艾芙, an alias of 艾德夫); 平海古城 is in Huidong.
+    expect(route(['里斯本 → 艾芙拉', '艾德夫'])).toEqual(['portugal-portugal-lisbon', 'portugal-portugal-evora', 'egypt-egypt-edfu']);
+    expect(route(['平海古城'])).toEqual(['china-guangdong-huidong']);
+    expect(route(['珠海斗門'])).toEqual(['china-guangdong-zhuhai']); // the earliest of two names of one length, as before
+  });
+  it('does not read a place name inside the longer words found in the crawl log', () => {
+    const cases: [string, string[]][] = [
+      ['漳州 → 羅馬建築', ['china-fujian-zhangzhou']], ['羅馬城牆', []], ['倫敦 → 羅馬浴場 → 羅馬帝國', ['uk-uk-london']], ['羅馬神殿', []],
+      ['長門 → <雲林寺', ['japan-chugoku-nagato']], ['松江河 → 長白山', ['china-northeast-changbaishan']],
+      ['大連 → 中山廣場', ['china-northeast-dalian']], ['蘭州 → 中山橋', ['china-northwest-lanzhou']], ['南京 → 中山陵', ['china-shanghai-nanjing']],
+      ['青島 → 將會安排', ['china-shandong-qingdao']], ['桃園居', []], ['世外桃園', []], ['冬天童話', []], ['淡水堰塞湖', []],
+      ['長春科爾寺', []], ['雅拉山口', []], ['丹尼斯廣場', []], ['焦作 → 雲台山', ['china-central-jiaozuo']], ['雲臺山', []], ['基尼斯紀錄', []],
+      ['河內 → 胡志明陵 → 胡志明故居', ['vietnam-north-hanoi']], ['胡志明亭', []], ['文昌宮', []], ['雲頂天梯', []], ['漢堡雜錦', []],
+      ['上海生煎', []], ['福州世祖', []], ['長泰山', []], ['高山蘭花', []], ['高山下午茶', []], 
+      ['侗族香格里拉', []], ['上海的威尼斯', []], ['上海威尼斯', []], ['水上威尼斯', []], ['海上威尼斯', []], ['威尼斯泳道', []],
+      ['威尼斯超長水道', []], ['海南杜拜', []], ['南島敦煌', []], ['海上桂林', []], ['桂林之山、杭州之水', []], ['高原九寨溝', []],
+      ['團聚和順', []], ['昆明湖', []], ['蓬萊三島', []], ['黃山歸來', []], ['黃山之奇', []], ['張家界之險', []], ['最大連片', []],
+      ['長沙炮台', []], ['湘南的鳳凰古城', []], ['和田園', []], ['東興國門', []], ['磐羊湖', []],
+    ];
+    for (const [heading, ids] of cases) expect(route([heading]), heading).toEqual(ids);
+    // The likeness in the two forms Taste writes (fix round 1): PLB03's `「新豐」` reads the town; KYZ02's and KYZ03's
+    // `【新豐】` is a bracketed note, dropped, so that chunk names nothing.
+    expect(route(['深圳 → 廣東香格里拉「新豐」→ 午餐'])).toEqual(['china-guangdong-shenzhen', 'china-guangdong-xinfeng']);
+    expect(route(['深圳 → 廣東香格里拉【新豐】 → 午餐'])).toEqual(['china-guangdong-shenzhen']);
+  });
+  it('興國 (Xingguo) is not a temple named 興國寺, in either script, nor a lone stop amid another country (fix round 1)', () => {
+    expect(route(['贛州 → 興國'])).toEqual(['china-central-ganzhou', 'china-central-xingguo']);
+    expect(route(['赣州 → 兴国'])).toEqual(['china-central-ganzhou', 'china-central-xingguo']);
+    for (const heading of ['興國寺', '兴国寺', '東興國門', '东兴国门']) expect(route([heading]), heading).toEqual([]);
+    expect(places.data.collisionNames).toContain('興國');
+    expect(route(['東京', '日光', '興國', '箱根', '東京'])).toEqual(['japan-kanto-tokyo', 'japan-kanto-nikko', 'japan-kanto-hakone', 'japan-kanto-tokyo']);
+  });
+  it('the real places beside them stay: Rome, Venice, Dubai, Ho Chi Minh City, Guilin, Kunming, Zhongshan, Hamburg', () => {
+    expect(route(['羅馬 → 威尼斯'])).toEqual(['italy-italy-rome', 'italy-italy-venice']);
+    expect(route(['杜拜', '胡志明市', '桂林', '昆明', '中山', '漢堡'])).toEqual([
+      'uae-uae-dubai', 'vietnam-south-ho-chi-minh-city', 'china-guangxi-guilin', 'china-yunnan-kunming', 'china-guangdong-zhongshan', 'germany-germany-hamburg',
+    ]);
+  });
+  it('竹山 (Zhushan, Taiwan) alone amid a Chinese route is a collision name; a Taiwan tour keeps it', () => {
+    expect(route(['開平', '湛江', '竹山', '北海', '湛江'])).toEqual(['china-guangdong-kaiping', 'china-guangdong-zhanjiang', 'china-guangxi-beihai', 'china-guangdong-zhanjiang']);
+    expect(route(['台中', '竹山', '日月潭'])).toContain('taiwan-central-zhushan');
+  });
+});
+
 describe('華中 is replaced by the provinces 湖北, 河南 and 江西 (task 37)', () => {
   const route = (headings: string[]) => extractStops(headings, places).stops.map(s => s.cityId ?? `region:${s.regionId}`);
   const PROVINCE_CITIES: Record<string, string[]> = {
@@ -206,7 +262,7 @@ describe('華中 is replaced by the provinces 湖北, 河南 and 江西 (task 37
   });
   it('each of the 34 cities of 華中 is in its own province, with its id unchanged', () => {
     for (const [regionId, names] of Object.entries(PROVINCE_CITIES)) {
-      expect(places.citiesOf(regionId).map(c => c.nameZh).sort(), regionId).toEqual([...names].sort());
+      expect(firstCitiesOf(regionId).map(c => c.nameZh).sort(), regionId).toEqual([...names].sort());
       for (const city of places.citiesOf(regionId)) expect(city.id, city.nameZh).toMatch(/^china-central-/);
     }
     expect(places.city('china-central-wuhan')?.regionId).toBe('china-hubei');
@@ -292,7 +348,7 @@ describe('the grouped Chinese regions become provinces and municipalities (task 
   });
   it('each of the 142 cities of the five old groups is in its own province, with its id unchanged', () => {
     for (const [id, { cities }] of Object.entries(PROVINCES)) {
-      expect(places.citiesOf(id).map(c => c.nameZh).sort(), id).toEqual([...cities].sort());
+      expect(firstCitiesOf(id).map(c => c.nameZh).sort(), id).toEqual([...cities].sort());
       for (const city of places.citiesOf(id)) expect(city.id, city.nameZh).toMatch(new RegExp(`^${OLD_PREFIX[id]}-`));
     }
     expect(Object.values(PROVINCES).flatMap(p => p.cities)).toHaveLength(142);
@@ -535,6 +591,46 @@ describe('places', () => {
       '威尼斯城為', '河源頭',
     ];
     expect(task34.filter(entry => !notPlaces.includes(entry))).toEqual([]);
+  }, 30_000);
+  it('no notPlaces entry holds another place name than the one it blocks, except those reviewed (task 48 fix round 1)', () => {
+    // A guard stops every city name lying wholly inside it. The name it is for is the city the phrase reads as without
+    // the guard; any other country, region or city name inside it is listed here, reviewed, with what the guard blocks.
+    // A place added to the data later whose name lies inside a guard (長泰 in 長泰山, 東興 in 東興國門) fails here.
+    const reviewed: Record<string, { blocks: string; alsoHolds: string[] }> = {
+      '羅馬尼亞': { blocks: '羅馬', alsoHolds: ['羅馬尼亞'] }, // the country itself
+      '南普拉薩': { blocks: '普拉', alsoHolds: ['拉薩'] },
+      '巴里拉灣': { blocks: '巴里', alsoHolds: ['里拉'] },
+      '北海道': { blocks: '北海', alsoHolds: ['北海道'] }, // the region itself
+      '突尼斯': { blocks: '尼斯', alsoHolds: ['突尼斯'] }, // the country itself
+      '卡薩布蘭卡山谷': { blocks: '', alsoHolds: ['卡薩布蘭卡'] }, // covered by 卡薩布蘭卡山, which blocks it
+      '中山南西': { blocks: '中山', alsoHolds: ['山南'] },
+      '卡斯特羅馬諾': { blocks: '卡斯特羅', alsoHolds: ['羅馬'] },
+      '加勒菲斯': { blocks: '加勒', alsoHolds: ['菲斯'] },
+      '新北海賓館': { blocks: '新北', alsoHolds: ['北海'] }, // a hotel in Beihai: Beihai is named elsewhere on its tours
+      '廣西江': { blocks: '西江千戶苗寨', alsoHolds: ['廣西'] },
+      '广西江': { blocks: '西江千戶苗寨', alsoHolds: ['广西'] },
+      '江西江': { blocks: '西江千戶苗寨', alsoHolds: ['江西'] },
+      '廣東香格里拉': { blocks: '香格里拉', alsoHolds: ['廣東'] },
+      '上海的威尼斯': { blocks: '威尼斯', alsoHolds: ['上海'] }, // Shanghai is named elsewhere on its tours
+      '上海威尼斯': { blocks: '威尼斯', alsoHolds: ['上海'] },
+      '海南杜拜': { blocks: '杜拜', alsoHolds: ['海南'] },
+      '南島敦煌': { blocks: '敦煌', alsoHolds: ['南島'] },
+    };
+    const names = new Set([
+      ...places.data.countries.flatMap(c => [c.nameZh, ...c.aliases]),
+      ...[...places.data.regions, ...places.data.cities].flatMap(p => places.matchNames(p)),
+    ].map(normaliseName).filter(name => [...name].length >= 2));
+    const notPlaces = places.data.notPlaces ?? [];
+    const found: typeof reviewed = {};
+    for (const entry of notPlaces) {
+      const key = normaliseName(entry);
+      const without = { ...places, data: { ...places.data, notPlaces: notPlaces.filter(e => e !== entry) } };
+      const blocked = extractStops([entry], without, []).stops.flatMap(s => (s.cityId !== null ? [places.city(s.cityId)!] : []));
+      const blockedNames = blocked.flatMap(c => places.matchNames(c).map(normaliseName)).filter(name => key.includes(name));
+      const alsoHolds = [...names].filter(name => key.includes(name) && !blockedNames.some(b => b.includes(name)));
+      if (alsoHolds.length > 0) found[entry] = { blocks: blocked.map(c => c.nameZh).join('+'), alsoHolds: alsoHolds.sort() };
+    }
+    expect(found).toEqual(reviewed);
   }, 30_000);
   it('every collisionNames entry is a city name or alias', () => {
     // 塔林 (Tallinn; the Shaolin Pagoda Forest, Travel Expert TZZA06R/TZZB08R) and 黃金海岸 (Gold Coast; a beach in Quanzhou, TXXF04R)

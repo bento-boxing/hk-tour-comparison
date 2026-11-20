@@ -7,7 +7,7 @@
     "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
     "Every date in the dates answer has one of the three bookable statuses (收客中) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
     "Two-day coach trip with a hotel stay, gathering at the Shenzhen border (kind sz). Treated as a group tour: it has a code, days, a \"from\" price, a day-by-day route and dates, as every list card seen does.",
-    "NO STOPS, even with the title fallback: its one town named outside brackets, 博羅 (Boluo, Huizhou), is not in the places data, its other places sit inside 【】, and its title names no place (the fixture title is `2天`). Not added (places are for a separate task with the replay sweep)."
+    "Route 博羅 (Boluo, Huizhou), its one town named outside brackets, in the places data since task 48 (Taste's practice crawl, 6 tours name it). Before, this tour had no stops even with the title fallback (its other places sit inside 【】 and its title names none; the fixture title is `2天`)."
   ],
   "scraped": {
     "operatorId": "taste",
@@ -17,7 +17,7 @@
     "days": 2,
     "nights": null,
     "dayHeadings": [
-      "深圳",
+      "深圳 → 博羅",
       "深圳"
     ],
     "fallbackRoute": "2天",
@@ -87,10 +87,9 @@
       }
     ]
   },
-  "normalised": "no-stops",
-  "stopNames": [],
-  "unmatched": [
-    "深圳",
-    "深圳"
-  ]
+  "normalised": "ok",
+  "stopNames": [
+    "博羅"
+  ],
+  "unmatched": []
 }

@@ -171,7 +171,7 @@ A reduced listing: (1) prices: every date is listed with no price of its own and
 
 ## Scraper and fixtures (task 45, 2026-11-19)
 
-The scraper is `packages/scraper/src/operators/taste/`. It is registered with a **provisional** first-run floor of **186** (60% of the 311 products the list held on 2026-11-20, all of them group tours as far as seen) and is **not** in the nightly matrix (`.github/workflows/nightly-scrape.yml`) until a measured practice crawl has set its floor (`awaitingMeasuredCrawl` in `cli.test.ts`). The operator row is migration `0006_taste_operator.sql` (tag colour `#007a7a`, a teal).
+The scraper is `packages/scraper/src/operators/taste/`. It was registered with a provisional first-run floor of 186 (60% of the 311 products the list held on 2026-11-20); since task 48 the floor is **93**, measured by the practice crawl (see "Practice crawl (2026-11-20) and task 48"). It is **not** in the nightly matrix (`.github/workflows/nightly-scrape.yml`) until it is added there by a change of its own (`awaitingMeasuredCrawl` in `cli.test.ts` keeps the two in step). The operator row is migration `0006_taste_operator.sql` (tag colour `#007a7a`, a teal).
 
 **Requests.** Only three path shapes on `https://tastetravel.com.hk`, plain GETs through the run's polite fetcher with no extra headers, each following a redirect only within that origin (`sameOriginRedirectsOnly`): `/tour/select/page/<offset>` with offset 0, 10, 20, … until the last list page; then, per tour, `/tour/detail/tour_id/<n>` once and `/tour/event/tour_id/<n>` once (the dates are not asked for when the tour page got no answer). Never `/tour/download/…` or `/tour/whatsapp/…` (click counters), a PDF, an image, a search or a booking step. A test pins that a run requests nothing else. The `ci_session` cookie every answer sets is never kept or sent back: the fetcher (Node's `fetch`) has no cookie store and sends only its User-Agent (the task 45 ledger records the headers sent on every request: the User-Agent alone).
 
@@ -184,7 +184,7 @@ What the parser reads, and its rules:
 - **Code**: `.detail-number` (`團號：CAK03`), letters, digits, `_` and `-`. **Days**: `行程天數：N天`, 1 to 60. **"From" price**: the number in `.detail-price .tig span` (`HKD<span>699</span> 起`), HK$100 or more. A page without any of the three is a parse failure, with a fixed reason; none is ever taken from the title, the code or the list card.
 - **Title**: `.detail-name` as text (any HTML removed; `<全包價>` is not a tag and stays). It may be empty.
 - **Link back and identity**: `https://tastetravel.com.hk/tour/detail/tour_id/<n>`.
-- **Route**: each day's line, the site's `⇨` read as `→` (the long-haul lines often join places with `⇨` and no space, `香港⇨大阪`, which the shared rules would read as one word), through the shared place matching. Places named only inside `【】` (attraction and restaurant names) are not read, as for every operator (see "Places" below). **The title is the fallback route** (`fallbackRoute`, owner ruling in task 45 fix round 1, as Big Line and Sunflower have it): read, by the shared fallback rules, only when the day lines give no stop. It is read as it is, so `【】` in it are dropped too: reading inside them was tried and gives wrong places (a Foshan town's distillery museum read as the Jiangxi city 九江). The site gives no region or category to fall back on instead.
+- **Route**: each day's line, the site's `⇨` read as `→` (the long-haul lines often join places with `⇨` and no space, `香港⇨大阪`, which the shared rules would read as one word), through the shared place matching. Places named only inside `【】` (attraction and restaurant names) are not read, as for every operator (see "Places" below). **The title is the fallback route** (`fallbackRoute`, owner ruling in task 45 fix round 1, as Big Line and Sunflower have it): read, by the shared fallback rules, only when the day lines give no stop. It is read as it is, so `【】` in it are dropped too: reading inside them was tried and gives wrong places (a Foshan town's distillery museum read as the Jiangxi city 九江). The site gives no region or category to fall back on instead. **Connections are not stops** (task 48, `route.ts`, Taste only): before the shared rules read the day lines, a chunk whose `/` alternatives name two or more different places is a choice of connection and is taken out (`杜拜/多哈/伊斯坦堡`, `經深圳北/廣州南站`), unless the tour visits every place it names anyway (a chunk of its own elsewhere names it: `峴港/會安` on a tour of both stays); a hub Taste offers that the places data lacks counts as a place (`HUBS_NOT_IN_DATA`: 多哈, so `杜拜/多哈` is a choice). A lone alternative right beside a choice that goes is the same connection, and goes too, unless another chunk names that place: the chunk just before the choice on its line (`香港 → 杜拜 → 杜拜/赫爾辛基/伊斯坦堡`), or the first chunk of the next line when the choice ends its line (`杜拜` the morning after `杜拜/赫爾辛基`). A hub named anywhere else is a visit and stays (fix round 1: a day in Zurich on a tour flown in by `杜拜/蘇黎世/法蘭克福`, an Istanbul stopover day). A chunk naming a place right after 經, via (`途經深圳北站`), goes; the spaces around a `/` are closed up first (`廣州南站 / 深圳北站`). Hong Kong never counts. A choice naming one place or none stays as it is (`懷化南/鳳凰古城站`, `桂林北/桂林西站`, a choice of pastimes).
 - **Gathering point** (start and end alike): in the booking notes (the first `#tour_notice .detail-desc-text`; two elements share that id), the text after `集合時間地點` on its own line (`集合時間地點 : 香港國際機場`), else each option line right after it (`A: <time> <place>`, `B: …`), each cut to its place (the letter, the time, and anything from `【`, `出門` (directions), a comma or a full stop on dropped), joined with ` / `. The shared rules then read it as the other operators' gathering points are: a Shenzhen checkpoint (`福田`, `深圳灣`, `羅湖`, …) is kind `sz`, so Shenzhen is not a stop; Hong Kong (`香港國際機場`, `香港西九龍高鐵站…`) is kind `hk`. Examples: CAK03 and LHA02 `落馬洲火車站(福田口岸1號門) / 深圳灣口岸` → `sz` (`落馬洲` is the Hong Kong side of the Futian crossing; the option names 福田口岸, and the tours start at the Shenzhen border); EED09 and SJS12 `香港國際機場` → `hk`; GAF04 `香港西九龍高鐵站G層團體集合處1號` → `hk`. No label or nothing after it: none (read as Hong Kong). No free text that fits no kind was seen.
 - **Departures**: every date of the dates answer on or after the run's date (Hong Kong) whose status is `已成團`, `快成團` or `收客中`, once each, sorted, each with **no price of its own** (`priceHkd` null). The website already shows such a date at the tour's stored "from" price followed by 起, counts it at that price in the window price, the price filter and sorting, and chains it with 起 (built for Sunflower, task 31): nothing was changed for Taste. A date with any other status (or none) is skipped and logged with its date and status value (`taste: CAK03: date 2026-12-25 has the status * (ref …), skipped`: the status by the error-message rule, so a Chinese word shows by its reference in the public log and whole in a dry run), so a full or cancelled marker, should the site add one, is never shown as bookable. A bookable date not in `YYYY-MM-DD` form is skipped too, and counted in a log line with the tour code (fix round 1: `taste: CAK03: 2 bookable dates not in YYYY-MM-DD form, skipped`), so a change in the format shows in the run log. A tour with no date left is skipped as `no-departures`.
 - **已成團 (confirmed to depart)**: the data model has no "confirmed to depart" marker (`ScrapedDeparture` is a date and a price; the `departures` table has no status), and no other operator keeps one (Yummy Holiday reads the same three statuses and keeps them all as plain dates; Sunflower's `保證成團` cells likewise). None was added: 已成團 dates are listed like the others.
@@ -213,17 +213,27 @@ What the parser reads, and its rules:
 
 **Places** (the 5 tour pages read, real titles and full day lines, offline, `places/data.json` as of `bb9e504`): **3 with stops** from their day lines (EED09 Egypt, GAF04 Fujian, SJS12 Japan), **1 from the title fallback** (CAK03 Jiangmen: 江門), **1 with no stops** (LHA02 Boluo). Both Guangdong coach trips name their places in their day lines only inside `【】` (attraction and restaurant names); CAK03's title names 江門, 開平 and 新會 outside brackets, written as one word joined by `•`, which the shared rules read as 江門 alone. LHA02's one town named outside brackets, `博羅`, is not in the data, and its title names no place. Unmatched place names: 多哈 (EED09, a transit hub), 博羅 (LHA02), 東山島 (GAF04); the rest of the unmatched words are sightseeing and meal phrases. Three tours carry wrong stops (see "Known route errors"). **No place was added** (none is a clear, frequent city on this sample), so no replay was needed. Short trips, mostly Guangdong, are a large part of the list (page 16 is ten short trips, nine of them in Guangdong), and their places often sit only inside `【】`; the review estimated 25–45% of all tours `no-stops` without a fallback, and the title fallback found a place on only 3 of page 16's 10 card titles. A run with more than 20% parse failures (`no-stops` counts as one) fails its checks: the practice crawl must measure this.
 
-## Known route errors (task 45 fix round 1)
+## Known route errors
 
-Wrong stops the shared rules give on the five Taste tours read. They are pinned in the fixtures as the code gives them today and marked there as known errors, **not intended**. None is fixed in this task: the shared place rules (`packages/core/src/stops.ts`) and the places data serve every operator, and a change needs the replay sweep over every operator's saved logs (a separate task, driven by the practice crawl).
+The three wrong stops task 45 found on its five sample tours are **fixed in task 48**, with the rest of the practice crawl's (next section):
 
-1. **羅馬 (Rome) on GAF04 (Fujian, fixture `rail-fujian`).** A day line describes a hotel's Roman-style architecture: the name 羅馬 followed by the word for architecture, in one chunk. The shared rules match a city name anywhere inside a longer chunk.
-2. **雲林 (Yunlin, Taiwan) on SJS12 (Japan, fixture `air-japan`).** From a Japanese temple's name (雲林 followed by the word for temple), written in angle brackets. The shared rules do not drop angle brackets, and on this site they also carry real places (`<開羅>`), so they cannot simply be dropped.
-3. **杜拜 (Dubai) and 伊斯坦堡 (Istanbul) on EED09 (Egypt, fixture `air-egypt`), three times each.** From `杜拜/多哈/伊斯坦堡`, a choice of transit hub on the first, eighth and last day. The shared rules read each `/` alternative as a stop when the line has no transit word (`轉機`, `中轉`, …). Every Taste long-haul tour written this way will do the same. No transit-hub rule was built (coordinator's ruling, fix round 1).
+1. **羅馬 (Rome) on GAF04** (fixture `rail-fujian`), from a hotel's Roman-style architecture: the guard `羅馬建築`.
+2. **雲林 (Yunlin, Taiwan) on SJS12** (fixture `air-japan`), from a Japanese temple's name in angle brackets: the guard `雲林寺`.
+3. **杜拜 (Dubai) and 伊斯坦堡 (Istanbul) on EED09** (fixture `air-egypt`), from `杜拜/多哈/伊斯坦堡`, a choice of transit hub: the Taste-only connections rule (`route.ts`).
+
+What remains known-wrong after task 48, on the practice crawl's 311 tours (each left on purpose; see "What was left"):
+
+- **GFM03 (Meizhou, Pingyuan): 佛山 (Foshan).** From the name of a hill with a reclining Buddha, which holds 佛山; its real towns are only inside `【】`. A guard for the hill's name could fix it, after a replay.
+- **CAP03 (Zhanjiang): 廣州 (Guangzhou), and 湛江 missing.** 廣州 from the old name of Zhanjiang (廣州 followed by the word for bay), in a guild hall's name; 湛江 is named only inside `【】`.
+- **NTN03: 湛江 (Zhanjiang).** From the name of a chicken dish, in `《》`, which the shared rules read.
+- **CBC02: 順德 (Shunde).** Most likely from a congee shop's name, inside a quoted name.
+- **FSB12 (Sichuan): 香格里拉 (Shangri-La, Yunnan) four times.** From `香格里拉鎮`, the town in Daocheng county (Sichuan). Not aliased to 稻城: in Charming's log `香格里拉鎮` also stands for the Yunnan city (beside 飛來寺, near Deqin).
+- **SKE05, SKH05 (Korea): 松島 read as Busan's Songdo.** They mean Incheon's Songdo (a water taxi, an outlet mall). Same country; left as it was.
+- **KKW03 (Jiangmen and Zhongshan): the route is 斗門 only.** Right but short: its other places are named only inside `【】`. Before task 48 the title fallback gave 江門 alone.
 
 ## What the practice crawl must check
 
-(The review's eight points, task 45.)
+(The review's eight points, task 45. The crawl of 2026-11-20 answers each: see "Practice crawl (2026-11-20) and task 48" below.)
 
 1. That the first request, `/tour/select/page/0`, returns page 1: the pager marks page 1 (discovery now fails otherwise), and the first card is the same as on `/tour/select`.
 2. That discovery reads 32 pages, finds about 311 tours, and logs no "left out" or "listed twice" lines (or few).
@@ -239,11 +249,65 @@ Fixtures (`packages/scraper/src/operators/taste/fixtures/`): each tour fixture i
 | Fixture | Tour or page | Why |
 |---|---|---|
 | `coach-jiangmen` | CAK03 (693), Jiangmen 3 days | Shenzhen-border gathering (two options), all three statuses, route from the title (day-line places only in `【】`) |
-| `air-egypt` | EED09 (586), Egypt 9 days | Air tour from Hong Kong airport, `⇨` day lines, 26 dates into 2027; the known wrong stops 杜拜 and 伊斯坦堡 |
-| `rail-fujian` | GAF04 (1175), Fujian 4 days | High-speed rail from West Kowloon; the known wrong stop 羅馬 |
-| `air-japan` | SJS12 (1114), Japan 12 days | The last tour of the list, one date, `香港⇨大阪`; the known wrong stop 雲林 |
-| `coach-huizhou` | LHA02 (1170), Boluo 2 days | A 2-day hotel-stay trip, Shenzhen-border gathering, no stops even with the title (`博羅` not in the data) |
+| `air-egypt` | EED09 (586), Egypt 9 days | Air tour from Hong Kong airport, `⇨` day lines, 26 dates into 2027; the transit-hub choice `杜拜/多哈/伊斯坦堡`, no stop since task 48 |
+| `rail-fujian` | GAF04 (1175), Fujian 4 days | High-speed rail from West Kowloon; the guard `羅馬建築` (task 48; before, a wrong stop 羅馬) |
+| `air-japan` | SJS12 (1114), Japan 12 days | The last tour of the list, one date, `香港⇨大阪`; the guard `雲林寺` (task 48; before, a wrong stop 雲林) |
+| `coach-huizhou` | LHA02 (1170), Boluo 2 days | A 2-day hotel-stay trip, Shenzhen-border gathering; route 博羅, in the places data since task 48 (before, no stops even with the title) |
 | `list-first`, `list-middle`, `list-last` | list pages 1, 16, 32, cut to 4, 4 and 1 cards | Discovery, and how the last page shows |
+
+## Practice crawl (2026-11-20) and task 48
+
+**The crawl.** `pnpm scrape --operator taste --dry-run`, 2026-11-19 23:01 to 23:37 UTC (07:01 to 07:37 on 20 November in Hong Kong): **about 36 minutes**, read from the log file's creation and last-write times (the log itself has no clock). Log: `.superpowers/raw-pages/taste/dry-run-2026-11-20.log` (git-ignored). 32 list pages; the list stated 311 products and 311 entries were found, none left out, none listed twice; 311 tour pages and dates answers fetched; no refusal, block or page not fetched; run checks ok. As crawled: **274 tours would be saved**, 30 skipped with no departures, **7 parse failures (2.3%), all `no-stops`**. No date had a status other than 已成團, 快成團 and 收客中, and no bookable date was in another format. Every tour states its gathering point: 161 are kind `hk` (Hong Kong airport 99, West Kowloon station 61, Kai Tak cruise terminal 1), 150 kind `sz` (the Shenzhen checkpoints), none `other`.
+
+The review's estimate of 25 to 45% `no-stops` did not hold: most short trips name their first town outside `【】`, right after the Shenzhen gathering (LHA02, NCA03: 博羅).
+
+**Read by program, not by eye** (task 48; the scripts read every `page` line of the log and normalise it again with the core, offline). Where each tour's route came from, by the first letter of its code (all 311 tours, those with no departures given a date so that their route counts too):
+
+| Codes | Tours | Day lines | Title | None | As crawled → after task 48 |
+|---|---|---|---|---|---|
+| C (coach from the Shenzhen border, 2-3 days) | 29 | 27 | 1 | 1 | 28 / 1 / 0 |
+| K (coach, 2-3 days) | 33 | 30 | 1 | 2 | 32 / 0 / 1 |
+| L (coach, 2-3 days) | 28 | 26 | 1 | 1 | 27 / 1 / 0 |
+| N (coach, 2-4 days) | 40 | 38 | 0 | 2 | 40 / 0 / 0 |
+| P (coach, 3-5 days, Guangdong and its neighbours) | 14 | 14 | 0 | 0 | 14 / 0 / 0 |
+| G (high-speed rail, 3-12 days) | 67 | 66 | 0 | 1 | 66 / 0 / 1 |
+| F (China by air) | 45 | 45 | 0 | 0 | 45 / 0 / 0 |
+| S (South-East Asia, Japan, Korea, Taiwan) | 43 | 43 | 0 | 0 | 43 / 0 / 0 |
+| E (long-haul) | 12 | 12 | 0 | 0 | 12 / 0 / 0 |
+| All | 311 | 301 | 3 | 7 | 307 / 2 / 2 |
+
+The title routes as crawled: CAK03 and KKW03 江門, LMP02 深圳 (a Shenzhen trip; right). After task 48 KKW03's day lines give 斗門.
+
+**The 7 `no-stops` tours, and the places their pages name.** NCA03 and LHA02: 博羅, outside brackets (now a place: route 博羅). NKW03: 斗門 (now a place); 江門 and 中山 only inside `【】`. KYT03: 惠陽 (now a place); 惠東 only inside `【】`. CTL02: 平海古城, the old town in Huidong (now an alias of 惠東). GFC05, a cruise: 芽莊 (Nha Trang, now a place) in a phrase outside brackets. KAN03: none outside `【】` (南昆山, 東莞 inside): **left**. One tour became `no-stops`: GBM03, whose two stops were both wrong (威尼斯 from a pool named after Venice, 文昌 from a temple hall); every place it names (興國, 贛州) is inside `【】`: **left**. So **2 `no-stops` (0.6%)** after task 48.
+
+**The 9 `too-far` drops: all right.** NFB03 and NSH03 lose 西江千戶苗寨 (Guizhou) read from 西江 in a Zhongshan flower park's name and a West River dish: both are 3-day coach trips in Guangdong (N codes), not a rail tour to Guizhou. NYA03 and KPC03 lose 高山 (Takayama: a dish, a village's name), KKN03 威尼斯 (a pool), KYZ03 香格里拉 (a likeness, `廣東香格里拉`), NLH03 雲頂高原 (a hotel's villa area), CBE02 阿勒泰 (a lawn nicknamed so), GCD03 和田 (inside `和田園`). The rule assumes that a tour of at most 3 days leaving by road or rail stays within Guangdong, Guangxi, Hunan, Fujian, Jiangxi, Macau (and Seoul or Busan by air). Taste's seven rail tours of 3 days go to Guangdong, Hunan and Jiangxi: the assumption holds, and the rule was not changed. Three of the drops are no longer needed: guards now stop the wrong reading (`威尼斯泳道`, `廣東香格里拉`, `和田園`).
+
+**Stops in a country the tour does not visit: 41 tours as crawled** (35 of them with dates), of the 44 whose stops span more than one country (the 3 right ones: ECCA09 Central Asia, SKJ06 Shanghai and Jeju, GDE05 Guangxi and northern Vietnam). Their shapes:
+
+- *A choice of transit hub*, `A/B/C` (11 long-haul tours: EED09, EEB10, EEF10, EEE10, EEG12, ETA13, EEA10, EBA15, EUA08, EEC09, EMA09): Dubai, Istanbul, Helsinki, Frankfurt, Zurich or Paris at both ends of a tour of Egypt, Morocco, Europe or the Balkans. Also, inside China, `經深圳北/廣州南站` or `途經深圳北站` on 25 rail tours, which gave 深圳 and 廣州 at both ends of a tour of Yunnan, Guizhou, Guangxi, Hunan, Fujian, Sichuan or Shanghai (wrong places, not a wrong country).
+- *A likeness*: 水上威尼斯, 海上威尼斯, 上海的威尼斯 (Venice), 海南杜拜 (Dubai), 南島敦煌 (Dunhuang, on a Malaysia tour), 海上桂林 (Guilin, on Ha Long Bay tours), 廣東香格里拉, 侗族香格里拉, 世外桃園 (Taoyuan, Taiwan).
+- *A building, dish or name after another place*: 羅馬建築, 羅馬城牆, 羅馬浴場 (in Bath), 羅馬神殿 (in Évora), 雲林寺 (Japan), 胡志明陵, 胡志明故居 and 胡志明亭 (in Hanoi and Dongxing), 丹尼斯 (a hotel in Zhengzhou: Nice), 基尼斯 (a record: Nice), 雲頂天梯 (Genting), 漢堡雜錦 (a dish: Hamburg), 上海生煎 and 福州世祖 (snacks in Taipei), 高山蘭花 and 高山下午茶 (Takayama), 松江河 (Matsue), 長泰山 (in Korea: Tai'an).
+- *A city name inside a longer word*: 會安排 (Hoi An, on a Shandong tour), 天童話 (Tendo), 桃園居 (Taoyuan), 艾芙拉 (Évora, read as Edfu through the alias 艾芙), 雅拉山口 (Yala), 尊勝塔林 and a 塔林 beside 少林寺 (Tallinn, now dropped as a lone collision name once 雅拉 and 尼斯 no longer stand beside it), 竹山 in a Dongxing village (Zhushan, Taiwan; now a collision name).
+
+After task 48: **none** (EMA09's 杜拜 went in fix round 1, with `HUBS_NOT_IN_DATA`). The same guards also fixed wrong places inside China: 台山 from 雲台山 (Henan), 中山 from 中山廣場, 中山橋 and 中山陵 (Dalian, Lanzhou, Nanjing), 昆明 from 昆明湖 (Beijing), 蓬萊 from 蓬萊三島 (Huangshan), 黃山 and 張家界 in comparisons, 大連 from `最大連片`, 杭州 from `杭州之水`, 長沙 from `長沙炮台` (on a Huizhou and Shanwei coach trip), 淡水 from a lake in Tibet, 長春 from a monastery in Litang, 和順 from a phrase, 九寨溝 from `高原九寨溝`, 羊卓雍措 from a lake in Sichuan, 鳳凰古城 from `湘南的鳳凰古城`.
+
+**Unmatched names that are real places**, by the number of tours naming them, after task 48 (the log's frequency list is mostly sightseeing, meal and hotel words): 關西空港 4 (an airport), 新都橋 3, 海螺溝 3, 灌縣古城 3, and on 2 tours each 理塘, 廣元, 南江, 楊淩, 太白縣, 額濟納旗, 酒泉, 海東, 新興, 陽春, 陽西, 龍門, 興安, 鳳凰縣, 原州, 巴拉格宗, 光霧山, 白帝城, 成田 (an airport). 博羅 (6 tours), 斗門 (4), 茂縣 (4), 理縣 (4), 惠陽 (2), 興國 (5, outside brackets on 4) and 武岡 (2) were added.
+
+**What task 48 changed.**
+
+1. `pnpm replay` read only `dry-run-<n>.log`, so it silently left out Taste's dated log: it now also reads `dry-run-<YYYY-MM-DD>.log`.
+2. **The connections rule** (`route.ts`, Taste only; see "Route" above). On the crawl's day lines it changes 36 routes (the 11 long-haul tours above and 25 rail tours), each read and right. Fix round 1 narrowed the lone-hub step (EEE10 kept two chunks naming its Zurich and Frankfurt days; its route was the same) and added 多哈 (EMA09).
+3. **The places data** (shared by every operator): eight towns (博羅, 惠陽, 斗門, 武岡, 興國, 茂縣, 理縣, 芽莊), two aliases (艾芙拉 for Évora, 平海古城 for Huidong), 56 `notPlaces` guards and the collision name 竹山 (fix round 1: 興國 a collision name too, and the guards 興國寺, 兴国寺, 东兴国门; the replay's 92 changes unchanged). `pnpm replay --base ecb7b98` over every saved log (Big Line, Charming, EGL, Sunflower, Yummy, Taste; Jetour and Travel Expert have no saved crawl log, only their fixtures, whose tests pass): 92 tours change route, 76 of Taste and 16 of the others, every one right. Big Line CPEK05BCA and CPEK05BD lose 昆明 (from 昆明湖), SGNSP05, SGHON05 and SGHDS08 a 胡志明市 read from the mausoleum in Hanoi (SGHDS08 keeps the real one), CTXN06W 蓬萊; Charming PCMSD loses 台山 (from 雲臺山), PCCGR and PCMSB 中山 (中山陵, 中山橋), PMJZE gains 茂縣; EGL HTVHDS07, HTVHCX05, HTVHLX05, HTVHEX05 and MTV3HB05 lose the mausoleum's 胡志明市 (HTVHDS07 keeps the real one), HTGSPP03 gains 斗門.
+
+Together, as Taste's crawl would run with them (the replay re-reads the logged day lines and cannot apply a parser change, so the connections rule was applied to them by a script calling `withoutConnections`): **279 tours saved** (274 as crawled), **2 `no-stops`** (7), **no tour with a wrong country** (41), 103 of the 311 routes changed.
+
+**The replay and Taste.** `pnpm replay` re-reads the logged day lines and cannot apply the Taste-only connections rule, so a replay shows Taste's routes with the hub stops (杜拜, 伊斯坦堡, …) and the 深圳 and 廣州 stations that the site no longer has, and its Taste counts are not what a run gives. Its before-and-after comparison of a places-data change stays valid.
+
+**The floor: 93**, a third of the 279 tours the crawl would save with these changes, as for the other operators (Big Line 169 of 507, Yummy 104 of 312, Sunflower 116 of 350: a third of what the measured crawl would save). The provisional 186 was 60% of the listed products.
+
+**The nightly run.** Each operator is its own job of the matrix, run side by side, each with the 170-minute limit. Taste's job would take about 36 to 40 minutes (the crawl's 36, plus installing), well inside it; the night's longest job stays Big Line's (132 to 152 minutes measured).
+
+**What was left, on purpose.** Doha (多哈) is not added to the places data: EGL's day lines name it alone as a hub (Taste's rule lists it instead). `香格里拉鎮` is not aliased to Daocheng. The unmatched towns above are not added: their tours already have stops nearby, and several are risky short names (興安 is in `大興安嶺` and is a panda's name in Big Line's log; 陽春 is a noodle; 新興 is a common word; 龍門 is a gate). KAN03 and GBM03 stay `no-stops`: their places are only inside `【】`, which the shared rules drop for every operator. A general rule for likenesses (`水上X`, `X之奇`) was not made: each guard is a phrase seen in the log.
 
 ## Not verified
 
@@ -251,11 +315,11 @@ Fixtures (`packages/scraper/src/operators/taste/fixtures/`): each tour fixture i
 - Whether the dates data ever carries a price, or other statuses than the three seen (none in 67 dates).
 - Whether every itinerary PDF has a weekday price table, and whether holiday dates have their own prices (one PDF read).
 - Whether the "all tours" listing holds every tour of every category, including category 103 and `特色團隊`, without duplicates (pages 1, 16 and 32 read; the count 311 is the site's own, and consistent with 32 pages).
-- Whether `/tour/select/page/0` answers as the first page: the investigation read page 1 as `/tour/select`, and the site's own pager links it as `/tour/select/page`. The scraper asks for `/page/0` (the brief's shape); discovery now fails if the pager does not mark it page 1, and the practice crawl must check it.
+- (Answered.) Whether `/tour/select/page/0` answers as the first page: yes, by the practice crawl of 2026-11-20. Discovery, which fails unless the pager marks the page its offset asks for, read all 32 pages and 311 entries, the product count the site states.
 - A list short enough for one page: assumed to show no pager at all (the missing current-page marker is then accepted on the first page); not seen.
 - What a list offset past the end answers (not requested: the scraper stops at the page with no next link).
 - Whether listing prices and dates always match the tour page and dates data (not compared).
 - Whether `/sitemap.xml` exists.
 - The `惡劣天氣安排` and `付款方法` pages, and any website terms of use not linked from the footer.
-- Whether the code's last two digits always equal the days (23 tours agree; not used).
-- A cruise's page (GFC05, `tour_id` 1201, not fetched): assumed to have the same layout as the other tour pages.
+- Whether the code's last two digits always equal the days: they do on all 311 tours of the practice crawl (still not used).
+- (Answered.) A cruise's page: GFC05 was read in the practice crawl with the same layout as any tour (code, days, price, day lines, dates).

@@ -405,7 +405,7 @@ describe('SCRAPERS', () => {
     expect(SCRAPERS.charming?.minExpectedTours).toBe(51);
     expect(SCRAPERS.yummy?.minExpectedTours).toBe(104); // a third of the 312 tours its practice crawl would have saved
     expect(SCRAPERS.sunflower?.minExpectedTours).toBe(116); // a third of the 350 tours its measured crawl would save (task 34)
-    expect(SCRAPERS.taste?.minExpectedTours).toBe(186); // provisional: 60% of the 311 products listed on 2026-11-20
+    expect(SCRAPERS.taste?.minExpectedTours).toBe(93); // a third of the 279 tours its practice crawl would save (task 48)
   });
 
   it('only Big Line declares extra request headers, and only its one approved header for its API host', () => {

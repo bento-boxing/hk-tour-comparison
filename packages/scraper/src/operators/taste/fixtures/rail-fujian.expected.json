@@ -7,7 +7,7 @@
     "Trimmed with public.ts (the title, code, days line, \"from\" price, each day's line and the gathering options' places; the dates answer's date and status only), then cut further by a script for the public repository: the title and each day line keep only the pieces the shared place matching reads (the text without its bracketed notes, split at arrows, list marks and spaces as stops.ts in core splits it) that name a place on their own, each cut to its shortest part that gives the same stop (the place name without the words around it); a title naming no place becomes `N天`. The route of the full page (real title and day lines, the title read only as the fallback) was checked to be the same.",
     "Every date in the dates answer has one of the three bookable statuses (收客中) and none has a price: each departure has priceHkd null, shown at the \"from\" price marked 起.",
     "High-speed-rail tour from Hong Kong West Kowloon station (kind hk).",
-    "KNOWN ERROR, NOT INTENDED: the stop 羅馬 (Rome) is wrong. It comes from a phrase describing a hotel's Roman-style architecture (the name 羅馬 followed by the word for architecture), a place name inside a longer word. Pinned here as the shared rules give it today; see docs/operators/taste.md, \"Known route errors\". 東山島 and 雲霄 are not in the places data."
+    "Fixed in task 48: the phrase describing the hotel's Roman-style architecture is kept as 羅馬建築 (the name 羅馬 and the word for architecture) and no longer reads as 羅馬 (Rome): 羅馬建築 is a notPlaces guard. Unlike the other pieces it names no place; it is kept to pin the guard. It is reported as unmatched, as any words that name no place."
   ],
   "scraped": {
     "operatorId": "taste",
@@ -18,7 +18,7 @@
     "nights": null,
     "dayHeadings": [
       "漳州 → 漳州 → 南靖",
-      "羅馬"
+      "羅馬建築"
     ],
     "fallbackRoute": "4天",
     "startPoint": "香港西九龍高鐵站G層團體集合處1號",
@@ -58,8 +58,9 @@
   "normalised": "ok",
   "stopNames": [
     "漳州",
-    "南靖",
-    "羅馬"
+    "南靖"
   ],
-  "unmatched": []
+  "unmatched": [
+    "羅馬建築"
+  ]
 }

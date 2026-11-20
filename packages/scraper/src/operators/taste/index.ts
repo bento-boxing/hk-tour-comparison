@@ -33,9 +33,10 @@ export function createTasteScraper(opts: { log?: (line: string) => void } = {}):
       if ('why' in tour) throw new Error(tour.why);
       return tour;
     },
-    // PROVISIONAL first-run floor, until a measured practice crawl: 60% of the 311 products the list held on
-    // 2026-11-20, all of them group tours as far as seen (55 cards on three list pages and the home page).
-    minExpectedTours: 186,
+    // First-run floor: a third of the 279 tours the 2026-11-20 practice crawl would save with the task 48 changes
+    // (311 pages fetched; 274 saved as crawled, re-processed offline; 30 with no departures, 2 with no stops).
+    // docs/operators/taste.md, "Practice crawl (2026-11-20) and task 48".
+    minExpectedTours: 93,
   };
 }
 
