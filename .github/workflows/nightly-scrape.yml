@@ -40,6 +40,16 @@ jobs:
           # Optional: verifies the database server. An unset secret is an empty string, which means "not supplied".
           DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
 
+      # Reports only whether the two settings exist (never their values) and cannot fail the job. The scraper
+      # will soon take the site's address and contact from them instead of from the code.
+      - name: Site identity settings present?
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+        run: |
+          echo "SITE_URL set: $([ -n "$SITE_URL" ] && echo yes || echo no)"
+          echo "CONTACT_EMAIL set: $([ -n "$CONTACT_EMAIL" ] && echo yes || echo no)"
+
   scrape:
     needs: migrate
     runs-on: ubuntu-latest
