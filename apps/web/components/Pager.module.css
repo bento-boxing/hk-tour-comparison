@@ -1,9 +1,24 @@
-/* Not in the mockup: paging links styled as the filter pills (.f). */
-.pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 24px 0 8px; font-size: 13px; }
-.link {
-  padding: 6px 13px; border: 1px solid var(--line-control); border-radius: var(--radius-pill); background: var(--surface);
-  color: var(--charcoal); text-decoration: none;
+/* Mock-up Rows: page numbers as 44px outlined boxes, the current one filled; ‹ 上一頁 and 下一頁 › with a stronger outline. */
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; }
+.numbers { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.number, .step {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px;
+  border: 1px solid var(--line-control); border-radius: var(--radius-control); background: var(--surface);
+  color: var(--ink); text-decoration: none;
 }
-.link:hover { background: var(--hit); }
-.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
-.page { color: var(--text-muted); }
+.number { min-width: 44px; padding: 0 6px; }
+.number[aria-current='page'] { background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
+.step { padding: 0 14px; font-weight: 700; border-color: var(--ink); }
+.number:hover, .step:hover { background: var(--hit); }
+.number[aria-current='page']:hover { background: var(--selected-bg); }
+.number:focus-visible, .step:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.gap { padding: 0 4px; color: var(--text-muted); }
+.where { display: none; color: var(--text-muted); }
+
+/* Phones: ‹ 上一頁 · 第 3 / 89 頁 · 下一頁 ›, on one line from 320px. */
+@media (max-width: 639px) {
+  .pager { width: 100%; justify-content: space-between; flex-wrap: nowrap; }
+  .numbers { display: none; }
+  .where { display: inline; white-space: nowrap; }
+  .step { padding: 0 12px; white-space: nowrap; }
+}

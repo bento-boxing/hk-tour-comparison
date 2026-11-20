@@ -21,10 +21,10 @@ function useSelectDestinationInAddress(state: SearchState): (dest: Destination |
   return dest => router.push(localeHref(locale, searchHref(withFilters(state, { destination: dest ?? undefined }))));
 }
 
-export function DestinationSearchConnected({ state }: { state: SearchState }) {
+export function DestinationSearchConnected({ state, placeholder }: { state: SearchState; placeholder?: string }) {
   const t = useT();
   const onSelect = useSelectDestinationInAddress(state);
-  return <DestinationSearch places={places} t={t} value={state.filters.destination ?? null} onSelect={onSelect} />;
+  return <DestinationSearch places={places} t={t} value={state.filters.destination ?? null} onSelect={onSelect} placeholder={placeholder} />;
 }
 
 export function DestinationPanelsConnected({ state, hiddenCountryIds }: { state: SearchState; hiddenCountryIds?: string[] }) {

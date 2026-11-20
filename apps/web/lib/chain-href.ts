@@ -70,8 +70,3 @@ export function withDestination(address: ChainAddress, destination: Destination 
   // withFilters drops a key whose value is undefined, so clearing leaves no `destination` behind.
   return withSearch(address, withFilters(address.search, { destination: destination ?? undefined }));
 }
-
-/** Another page of the next-leg list. Everything else stays. */
-export function withPage(address: ChainAddress, page: number): ChainAddress {
-  return { chain: address.chain, search: { ...address.search, page } };
-}

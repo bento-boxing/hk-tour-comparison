@@ -1,6 +1,6 @@
 import {
-  OPERATOR_IDS, comparePrice,
-  type Destination, type IsoDate, type OperatorId, type PriceChange,
+  OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, comparePrice, isPageSize,
+  type Destination, type PageSize, type IsoDate, type OperatorId, type PriceChange,
   type ScrapedDeparture, type StartKind, type Stop, type TourPoint,
 } from '@hktours/core';
 import type { Db } from './db';
@@ -23,7 +23,8 @@ export interface TourFilters {
 /** Each order and its reverse. A bare name is the original direction (cheapest, shortest, soonest, first name). */
 export type SortKey =
   | 'price' | 'price-desc' | 'days' | 'days-desc' | 'date' | 'date-desc' | 'destination' | 'destination-desc';
-export const PAGE_SIZE = 24;
+// The page sizes live in @hktours/core (browser code needs them); re-exported here for the database's callers.
+export { PAGE_SIZE, PAGE_SIZES, isPageSize, type PageSize };
 
 export interface TourCardData {
   key: string;                        // 'egl:HTBKOK06'
@@ -40,6 +41,8 @@ export interface TourCardData {
 
 export interface SearchInput {
   filters: TourFilters; sort: SortKey; page: number; today: IsoDate;
+  /** Tours per page: one of PAGE_SIZES; PAGE_SIZE when left out or anything else. */
+  pageSize?: PageSize;
   /**
    * Region ids in the order the visitor reads their names (country name, then region name), for the
    * destination sorts. A tour sorts by its first region, the one its card names first; a region missing
@@ -173,12 +176,12 @@ const INT4_MAX = 2 ** 31 - 1;
 const int4OrNull = (n: number | undefined): number | null =>
   n !== undefined && Number.isInteger(n) && n >= INT4_MIN && n <= INT4_MAX ? n : null;
 
-/** The last page whose offset still fits an SQL `int`; any later page is past the end anyway. */
-const MAX_PAGE = Math.floor(INT4_MAX / PAGE_SIZE) + 1;
+/** The last page of `size` rows whose offset still fits an SQL `int`; any later page is past the end anyway. */
+const maxPage = (size: PageSize): number => Math.floor(INT4_MAX / size) + 1;
 
-/** Pages below 1, fractions and non-finite values become a whole page in 1 … MAX_PAGE. */
-const cleanPage = (page: number): number =>
-  Number.isFinite(page) ? Math.min(MAX_PAGE, Math.max(1, Math.floor(page))) : 1;
+/** Pages below 1, fractions and non-finite values become a whole page in 1 … the last whose offset fits. */
+const cleanPage = (page: number, size: PageSize): number =>
+  Number.isFinite(page) ? Math.min(maxPage(size), Math.max(1, Math.floor(page))) : 1;
 
 function searchParams(filters: TourFilters, today: IsoDate): Params {
   return [
@@ -194,13 +197,14 @@ function searchParams(filters: TourFilters, today: IsoDate): Params {
 /** Filtered, sorted, paged search. `total` counts every match before paging. */
 export async function searchTours(db: Db, input: SearchInput): Promise<{ tours: TourCardData[]; total: number }> {
   const params = searchParams(input.filters, input.today);
-  const page = cleanPage(input.page);
+  const size = isPageSize(input.pageSize) ? input.pageSize : PAGE_SIZE;
+  const page = cleanPage(input.page, size);
 
   const [{ total }] = await db.query<{ total: number }>(`${MATCHED_CTE} select count(*)::int as total from matched`, params);
   if (total === 0) return { tours: [], total };
 
   const rows = await db.query<TourRow>(
-    selectPage(input.sort), [...params, nonEmpty(input.destinationOrder), PAGE_SIZE, (page - 1) * PAGE_SIZE],
+    selectPage(input.sort), [...params, nonEmpty(input.destinationOrder), size, (page - 1) * size],
   );
   return { tours: await toCards(db, rows, params), total };
 }

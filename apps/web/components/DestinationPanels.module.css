@@ -1,19 +1,25 @@
-/* No mockup screen for the panels: the toggle matches the search field's height, choices use the mockup's .f pills. */
 /*
+ * The 按國家選擇 button and its panel. On the gold band the button reads the band's hooks (--toggle-*: the header's
+ * colours, see search-band.module.css) and is as tall as the search box; elsewhere (the chain page) an outlined box.
+ * The panel keeps the page's colours. Choices are outlined boxes like the filters; the current one is filled.
+ *
  * From 640px the button sits beside the search box, so the panel is right-aligned under it and opens leftwards.
- * The button ends inside the page's 20px gutter, and the search box (280–520px, growing to fill the row) puts it
- * at least ~600px from the page's left edge, so a 480px panel stays on screen. Below 640px see the end of the file.
+ * The search box (at least 320px, growing to fill the row) puts the button at least ~600px from the page's left
+ * edge, so a 480px panel stays on screen. Below 640px see the end of the file.
  */
 .panels { position: relative; }
 
 .toggle {
-  padding: 12px 16px; border: 1px solid var(--line-control); border-radius: 8px; background: var(--surface);
-  font: inherit; font-size: 14px; color: var(--charcoal); cursor: pointer; white-space: nowrap;
+  height: var(--search-height, 46px); padding: 0 22px;
+  border: 2px solid var(--toggle-border, var(--line-control)); border-radius: var(--radius-card);
+  background: var(--toggle-bg, var(--surface)); color: var(--toggle-text, var(--ink));
+  font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap;
 }
-.toggle[aria-expanded='true'] { border-color: var(--cerulean); color: var(--cerulean); }
+.toggle:hover { text-decoration: underline; text-underline-offset: 4px; }
+.toggle[aria-expanded='true'] { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 
 .panel {
-  position: absolute; top: calc(100% + 4px); right: 0; z-index: 10;
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 10;
   width: 480px; max-width: calc(100vw - 32px); padding: 12px 14px;
   /*
    * The grouped country list is taller than a phone screen: the panel scrolls itself, up and down only,
@@ -21,37 +27,40 @@
    */
   max-height: min(70vh, 32rem); max-height: min(70dvh, 32rem);
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-  background: var(--surface); border: 1px solid var(--ash); border-radius: 8px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line-control); border-radius: var(--radius-card);
   box-shadow: 0 6px 18px var(--shadow);
 }
 .head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 14px; }
 .back {
-  padding: 4px 8px; border: 0; border-radius: 4px; background: none;
-  font: inherit; color: var(--cerulean); cursor: pointer;
+  min-height: 36px; padding: 0 10px; border: 0; border-radius: var(--radius-control); background: none;
+  font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer;
 }
 .back:hover { background: var(--hit); }
 .country { font-weight: 700; }
 
-/* Step one: a small muted label per part of the world, its countries' pills under it. */
+/* Step one: a small muted label per part of the world, its countries under it. */
 .group + .group { margin-top: 12px; }
 .groupLabel { margin-bottom: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 
 .list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .chip {
-  padding: 7px 14px; border: 1px solid var(--line-control); border-radius: var(--radius-pill); background: var(--surface);
-  font: inherit; font-size: 14px; color: var(--charcoal); cursor: pointer;
+  min-height: 36px; padding: 0 14px; border: 1px solid var(--line-control); border-radius: var(--radius-control); background: var(--surface);
+  font: inherit; font-size: 14px; color: var(--ink); cursor: pointer;
 }
 .chip:hover { background: var(--hit); }
-.current, .current:hover { background: var(--cerulean); border-color: var(--cerulean); color: var(--snow); }
+.current, .current:hover { background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
 
-.toggle:focus-visible, .back:focus-visible, .chip:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.toggle:focus-visible { outline: 2px solid var(--band-focus, var(--focus)); outline-offset: 2px; }
+.back:focus-visible, .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /*
  * Phones and narrow windows: the button may sit beside the search box or wrap below it, so the panel hangs off
  * the search row instead (each page's .searchRow is position: relative), from its left edge, as the filter
  * popovers hang off the filter bar. With max-width calc(100vw - 32px) it ends 16px from the right edge.
+ * Choices are 44px tall for touch.
  */
 @media (max-width: 639px) {
   .panels { position: static; }
   .panel { left: 0; right: auto; }
+  .chip, .back { min-height: 44px; }
 }

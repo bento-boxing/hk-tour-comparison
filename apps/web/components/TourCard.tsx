@@ -5,11 +5,14 @@ import {
   type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent,
 } from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
-import type { OperatorInfo, TourCardData } from '@hktours/db';
+import type { OperatorInfo } from '@hktours/db';
+import type { TourRow } from '../lib/tour-row';
 import type { T } from '../lib/i18n';
 import { operatorTextTone } from '../lib/contrast';
-import { formatChipDate, formatLength, formatPrice, formatUpdated } from '../lib/format';
-import { departurePrice, priceChangeText, regionLabel, routeNames, startNote } from '../lib/card-text';
+import { chipDay, formatLength, formatPrice } from '../lib/format';
+import {
+  departureDateText, departurePrice, priceChangeText, regionParts, routeNames, staleSince, startNote,
+} from '../lib/card-text';
 import { getNoOpenedTours, getOpenedTours, recordOpened, subscribeOpened } from '../lib/opened-tours';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
@@ -17,13 +20,19 @@ import { PriceWithFrom } from './PriceWithFrom';
 import styles from './TourCard.module.css';
 
 export interface TourCardProps {
-  tour: TourCardData; operator: OperatorInfo; places: PlacesIndex; today: IsoDate; t: T;
+  tour: TourRow; operator: OperatorInfo; places: PlacesIndex; today: IsoDate; t: T;
+  /**
+   * The server's time of this render (ISO): a row is marked when its operator's data is older than 36 hours
+   * (lib/card-text.ts staleSince). Without it, nothing is marked.
+   */
+  now?: string;
   /** When given, the 加入行程 button is shown and calls this with the chosen date. */
   onAdd?: (departure: IsoDate) => void;
-  footNote?: string;   // shown above the 'updated' text in the footer, e.g. '休息 1–2 日後出發'
+  footNote?: string;   // shown under the region, e.g. '休息 1–2 日後出發' on the chain page
 }
 
-export const MAX_DATE_CHIPS = 4;
+/** The date cells: three by two. A tour with more dates shows the first five and counts the rest in the sixth. */
+export const DATE_CELLS = 6;
 
 /** Only an absolute https address becomes a link; anything else (javascript:, data:, http:, relative) does not. */
 const LINKABLE_URL = /^https:\/\//i;
@@ -79,20 +88,32 @@ function hideTip(event: PointerEvent<HTMLElement>) {
 }
 
 /**
- * One tour (mockup `.card`). The card is one link to the operator's page, opened in a new tab: the link holds the
- * top of the card and stretches over the whole card (CSS), so a press anywhere on it opens the page. Each departure
- * date is a link to the same page of its own, which shows that date's price above it for a mouse and on keyboard
- * focus (never for a finger); the dates are one tab stop, moved through with the arrow keys. A plain block instead
- * of links when the address is not https: its dates are then plain text (price for a mouse only, no tab stop). The operator colour comes from `operator.color` through the `--c` custom property; the
- * tag's text is light or dark, whichever reads better on it. The link's name is short; the start/end note,
- * the price change and the opened mark are attached to it as its description.
+ * One tour as a row of the list (the owner's final row, mock-up RowsB13). On a wide screen (Chinese pages) every row
+ * has the same seven columns, so each starts at the same x down the page: the operator's tag | the days | the region (the country,
+ * then its regions; or the countries) | the route, after a thin line, every stop, wrapping and never cut | the dates,
+ * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程. No tour code
+ * and no tour name. On a phone the row becomes a stacked block in the same order of importance; from 640px (and on
+ * English pages at every width from there) a two-column block.
  *
- * Opening the operator's page from the card (a click, a middle click or Enter on any of its links; not 加入行程)
- * records the tour for this tab (lib/opened-tours). Cards opened earlier are tinted, the most recent one more
- * strongly, each with a small text cue. The click is only observed, never prevented or delayed. The marks are
- * read in the browser after hydration (the server renders none), and appear without moving anything.
+ * The list is an ARIA table (Results): each row is a `row`, each column a `cell`, and the column names are in a
+ * visually hidden header row.
+ *
+ * The gold button is the row's link to the operator's page, opened in a new tab; it stretches over the whole row
+ * (CSS), so a press anywhere on the row opens the page. Each departure date is a link to the same page of its own,
+ * which shows that date's price above it for a mouse and on keyboard focus (never for a finger); the dates are one
+ * tab stop, moved through with the arrow keys. With an address that is not https there is no link: no gold button,
+ * and the dates are plain text (price for a mouse only, no tab stop). The operator colour comes from
+ * `operator.color` through `--c`; the tag's text is light or dark, whichever reads better on it. The link's name is
+ * short; the start/end note, the price change, the old-data warning and the opened mark are its description.
+ *
+ * Opening the operator's page from the row (a click, a middle click or Enter on any of its links; not 加入行程)
+ * records the tour for this tab (lib/opened-tours). A row opened before is tinted light ink, the one opened most
+ * recently pale gold (the only gold row); both turn their date chips to the surface colour and offer 再看一次 ↗ in an
+ * outlined button. No tag is drawn: screen readers get the mark as the link's description. The click is only
+ * observed, never prevented or delayed. The marks are read in the browser after hydration (the server renders none);
+ * they change no row's height.
  */
-export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: TourCardProps) {
+export function TourCard({ tour, operator, places, today, t, now, onAdd, footNote }: TourCardProps) {
   const [picking, setPicking] = useState(false);
   const [activeDate, setActiveDate] = useState(0);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -100,27 +121,31 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
   const id = useId();
   const noteId = `${id}-note`;
   const changeId = `${id}-change`;
+  const staleId = `${id}-stale`;
   const openedId = `${id}-opened`;
   const opened = useSyncExternalStore(subscribeOpened, getOpenedTours, getNoOpenedTours);
   const openedState = opened.at(-1) === tour.key ? 'latest' : opened.includes(tour.key) ? 'earlier' : undefined;
 
   const route = routeNames(tour.stops, places, t.locale);
   const operatorText = operatorName(operator, t.locale);
-  const region = regionLabel(tour.stops, places, t);
+  const region = regionParts(tour.stops, places, t);
+  const days = formatLength(tour.days, null, t);
   const length = formatLength(tour.days, tour.nights, t);
   const price = formatPrice(tour.windowPriceHkd);
+  // Only a change is noted (priceChangeText gives nothing for an unchanged price).
   const change = tour.windowPriceHkd === tour.fromPriceHkd ? priceChangeText(tour.priceChange, today, t) : null;
   const note = startNote(tour.start, tour.end, t);
-  const updated = attempt(() => formatUpdated(tour.lastUpdated, today, t));
+  const staleDay = now === undefined ? null : attempt(() => staleSince(tour.lastUpdated, now, t));
+  const staleText = staleDay && t('row.stale', { date: staleDay });
   const departures = tour.departures.filter(d => isIsoDate(d.date));
-  const chips = departures.slice(0, MAX_DATE_CHIPS);
-  const moreDates = departures.length - chips.length;
+  const shown = departures.length <= DATE_CELLS ? departures : departures.slice(0, DATE_CELLS - 1);
+  const moreDates = departures.length - shown.length;
   const linkable = LINKABLE_URL.test(tour.url);
   const safeColor = SAFE_COLOR.test(operator.color);
   const color = safeColor ? operator.color : FALLBACK_COLOR;
   const tagDark = safeColor && operatorTextTone(operator.color) === 'dark';
-  const describedBy = [note && noteId, change && changeId, openedState && openedId].filter(Boolean).join(' ');
-  const active = Math.min(activeDate, Math.max(chips.length - 1, 0));
+  const describedBy = [note && noteId, change && changeId, staleText && staleId, openedState && openedId].filter(Boolean).join(' ');
+  const active = Math.min(activeDate, Math.max(shown.length - 1, 0));
 
   // After a press outside, focus stays where the visitor pressed; every other close returns it to the button.
   const closePicker = (reason?: PickerCloseReason) => {
@@ -134,7 +159,7 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
 
   // The dates are one tab stop: the arrow keys, Home and End move between them (roving tabindex).
   const moveDate = (e: KeyboardEvent) => {
-    const last = chips.length - 1;
+    const last = shown.length - 1;
     const next = { ArrowRight: active + 1, ArrowLeft: active - 1, Home: 0, End: last }[e.key];
     if (next === undefined) return;
     e.preventDefault();
@@ -145,132 +170,162 @@ export function TourCard({ tour, operator, places, today, t, onAdd, footNote }: 
 
   const linkProps = { href: tour.url, target: '_blank', rel: 'noopener noreferrer' };
 
-  // Any link in the card opens the operator's page: a primary click (also Enter, which clicks) or a middle click.
+  // Any link in the row opens the operator's page: a primary click (also Enter, which clicks) or a middle click.
   const noteOpened = (e: MouseEvent) => {
     if (e.button > 1 || !(e.target instanceof Element) || !e.target.closest('a[href]')) return;
     recordOpened(tour.key);
   };
 
-  const head = (
-    <>
-      <div className={styles.top}>
-        <span className={tagDark ? `${styles.op} ${styles.opDark}` : styles.op}>{operatorText}</span>
-        {region && <span className={styles.reg}>{region}</span>}
-      </div>
-      <h3 className={styles.route}>
-        {route.map((name, i) => (
-          <Fragment key={i}>
-            {i > 0 && <span className={styles.arrow}>→</span>}
-            {name}
-          </Fragment>
-        ))}
-      </h3>
-      {note && <span id={noteId} className={styles.note}>{note}</span>}
-      <div className={styles.meta}>
-        <div className={styles.days}>{length}</div>
-        <div>
-          <div className={styles.price}><PriceWithFrom price={price} t={t} fromClassName={styles.from} /></div>
-          {change && <div id={changeId} className={`${styles.delta} ${styles[change.tone]}`}>{change.text}</div>}
-        </div>
-      </div>
-    </>
-  );
-
   return (
-    <article
-      className={styles.card}
+    <div
+      role="row"
+      className={styles.row}
       style={{ '--c': color } as CSSProperties}
       data-opened={openedState}
       onClick={noteOpened}
       onAuxClick={noteOpened}
     >
-      {linkable ? (
-        <a
-          className={`${styles.body} ${styles.link}`}
-          {...linkProps}
-          aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
-          aria-describedby={describedBy || undefined}
-        >
-          {head}
-        </a>
-      ) : (
-        <div className={styles.body}>{head}</div>
-      )}
-      {openedState && (
-        <span id={openedId} className={styles.cue}>
-          {t(openedState === 'latest' ? 'card.openedLatest' : 'card.openedEarlier')}
-        </span>
-      )}
-      {chips.length > 0 && (
-        <div role="group" aria-label={t('card.dates')} className={styles.dates} onKeyDown={moveDate}>
-          {chips.map((d, i) => {
-            const { hkd, from } = departurePrice(d, tour.fallbackPriceHkd);
-            const content = (
-              <>
-                <span>{formatChipDate(d.date, today, t)}</span>
-                {/* The space separates date and price in the accessible name; at the end of the line, it is not drawn. */}
-                {' '}
-                <span className={styles.tip}>
-                  {from ? <PriceWithFrom price={formatPrice(hkd)} t={t} fromClassName={styles.tipFrom} /> : formatPrice(hkd)}
-                </span>
-              </>
-            );
-            const pointer = { className: styles.d, onPointerEnter: showTip, onPointerLeave: hideTip };
-            return linkable ? (
-              <a
-                key={d.date}
-                {...linkProps}
-                {...pointer}
-                ref={el => { dateRefs.current[i] = el; }}
-                tabIndex={i === active ? 0 : -1}
-                onFocus={e => { setActiveDate(i); placeTip(e.currentTarget); }}
-              >
-                {content}
-              </a>
-            ) : (
-              // Not a link: nothing to open, so not a tab stop either.
-              <span key={d.date} {...pointer}>{content}</span>
-            );
-          })}
-          {moreDates > 0 && <span className={`${styles.d} ${styles.more}`}>{t('card.moreDates', { n: moreDates })}</span>}
-        </div>
-      )}
-      <div className={styles.foot}>
-        {footNote === undefined ? <span>{updated}</span> : (
-          <span className={styles.footLeft}>
-            <span>{footNote}</span>
-            {updated && <span>{updated}</span>}
+      <div role="cell" className={styles.tagCell}>
+        <span className={tagDark ? `${styles.op} ${styles.opDark}` : styles.op}>{operatorText}</span>
+        {/* Its operator's data is old: shown here in the block layouts (one of the two is shown; see the CSS). */}
+        {staleText && <span className={`${styles.stale} ${styles.staleInTag}`}>{staleText}</span>}
+      </div>
+
+      <div role="cell" className={styles.days}>{days}</div>
+
+      <div role="cell" className={styles.region}>
+        {/*
+          Each name is one unit, its dot glued to it (a no-break space), so lines break between names; a name made of
+          several words may wrap between its own words when it alone is wider than the column (English), never inside
+          a word, and a Chinese name never. The count of the rest goes inside the last unit, with no dot: '南極洲 +3'.
+        */}
+        {region.names.map((name, i) => (
+          <Fragment key={i}>
+            {i > 0 && ' '}
+            <span className={styles.place}>
+              {name}
+              {i < region.names.length - 1 ? '\u00a0·' : region.more > 0 ? `\u00a0${t('card.moreRegions', { n: region.more })}` : ''}
+            </span>
+          </Fragment>
+        ))}
+        {note && <span id={noteId} className={styles.note}>{note}</span>}
+        {footNote !== undefined && <span className={styles.footNote}>{footNote}</span>}
+      </div>
+
+      <div role="cell" className={styles.routeCell}>
+        {/*
+          Each stop's name is one unit, and the arrows sit between them with a space on each side, so a line breaks
+          only beside an arrow (after it; or before it, when the name fits the line but its arrow does not). Only a
+          single name wider than the whole column breaks inside itself.
+        */}
+        <h3 className={styles.route}>
+          {route.map((name, i) => (
+            <Fragment key={i}>
+              {i > 0 && <span className={styles.arrow}>{' → '}</span>}
+              <span className={styles.stop}>{name}</span>
+            </Fragment>
+          ))}
+        </h3>
+        {openedState && (
+          <span id={openedId} className={styles.visuallyHidden}>
+            {t(openedState === 'latest' ? 'card.openedLatest' : 'card.openedEarlier')}
           </span>
         )}
-        {linkable && <span className={styles.go}>{t('card.goTo', { operator: operatorText })}</span>}
       </div>
-      {onAdd && (
-        <div className={styles.addArea}>
-          <button
-            ref={addRef}
-            type="button"
-            className={styles.add}
-            aria-expanded={picking}
-            aria-haspopup="dialog"
-            // While the picker is open, a press here must not count as "outside" (which would close it
-            // only for this click to reopen it): the click below closes it instead.
-            onPointerDown={e => { if (picking) e.stopPropagation(); }}
-            onClick={() => (picking ? closePicker() : setPicking(true))}
+
+      <div role="cell" className={styles.datesCell}>
+        {shown.length > 0 && (
+          <div role="group" aria-label={t('card.dates')} className={styles.dates} onKeyDown={moveDate}>
+            {shown.map((d, i) => {
+              const { hkd, from } = departurePrice(d, tour.fallbackPriceHkd);
+              const { day, weekday } = chipDay(d.date, t);
+              const priceText = from ? t('card.priceFrom', { price: formatPrice(hkd) }) : formatPrice(hkd);
+              const content = (
+                <>
+                  <span className={styles.chip}>{day} <span className={styles.weekday}>{weekday}</span></span>
+                  {/* The space separates date and price in the text that is read; it is not drawn. */}
+                  {' '}
+                  <span className={styles.tip}>
+                    {from ? <PriceWithFrom price={formatPrice(hkd)} t={t} fromClassName={styles.tipFrom} /> : formatPrice(hkd)}
+                  </span>
+                </>
+              );
+              // Named by the full date (with its year, which the chip leaves out) and that date's price.
+              const name = `${departureDateText(d.date, t) ?? day} ${priceText}`;
+              const pointer = { className: styles.d, onPointerEnter: showTip, onPointerLeave: hideTip };
+              return linkable ? (
+                <a
+                  key={d.date}
+                  {...linkProps}
+                  {...pointer}
+                  aria-label={name}
+                  ref={el => { dateRefs.current[i] = el; }}
+                  tabIndex={i === active ? 0 : -1}
+                  onFocus={e => { setActiveDate(i); placeTip(e.currentTarget); }}
+                >
+                  {content}
+                </a>
+              ) : (
+                // Not a link: nothing to open, so not a tab stop either.
+                <span key={d.date} {...pointer}>{content}</span>
+              );
+            })}
+            {moreDates > 0 && (
+              <span className={styles.more}>
+                <span aria-hidden="true">{t('card.moreDatesCell', { n: moreDates })}</span>
+                <span className={styles.visuallyHidden}>{t('card.moreDates', { n: moreDates })}</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div role="cell" className={styles.priceCell}>
+        <div className={styles.price}><PriceWithFrom price={price} t={t} fromClassName={styles.from} /></div>
+        {change && <div id={changeId} className={`${styles.delta} ${styles[change.tone]}`}>{change.text}</div>}
+        {/* … and here, under the price and its note, in the seven columns. The link's description points here. */}
+        {staleText && <span id={staleId} className={`${styles.stale} ${styles.staleInPrice}`}>{staleText}</span>}
+      </div>
+
+      <div role="cell" className={styles.actions}>
+        {linkable && (
+          <a
+            className={styles.go}
+            {...linkProps}
+            aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
+            aria-describedby={describedBy || undefined}
           >
-            {t('card.add')}
-          </button>
-          {picking && (
-            <DeparturePicker
-              departures={departures}
-              fallbackPriceHkd={tour.fallbackPriceHkd}
-              today={today}
-              t={t}
-              onPick={pick}
-              onClose={closePicker}
-            />
-          )}
-        </div>
-      )}
-    </article>
+            {t(openedState ? 'row.again' : 'row.goTo')}
+          </a>
+        )}
+        {onAdd && (
+          <div className={styles.addArea} data-open={picking ? '' : undefined}>
+            <button
+              ref={addRef}
+              type="button"
+              className={styles.add}
+              aria-expanded={picking}
+              aria-haspopup="dialog"
+              // While the picker is open, a press here must not count as "outside" (which would close it
+              // only for this click to reopen it): the click below closes it instead.
+              onPointerDown={e => { if (picking) e.stopPropagation(); }}
+              onClick={() => (picking ? closePicker() : setPicking(true))}
+            >
+              {t('card.add')}
+            </button>
+            {picking && (
+              <DeparturePicker
+                departures={departures}
+                fallbackPriceHkd={tour.fallbackPriceHkd}
+                today={today}
+                t={t}
+                onPick={pick}
+                onClose={closePicker}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

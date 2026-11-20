@@ -285,8 +285,8 @@ describe('the panel never reaches past the viewport sideways', () => {
     expect(css()).toContain('max-width: calc(100vw - 32px);');
   });
 
-  it('both pages position their search row, so the panel has the row to hang off', () => {
-    for (const page of ['../app/_site/search-page.module.css', '../app/_site/chain-page.module.css']) {
+  it('both search rows (the gold band\'s and the chain page\'s) are positioned, so the panel has the row to hang off', () => {
+    for (const page of ['../app/_site/search-band.module.css', '../app/_site/chain-page.module.css']) {
       const pageCss = readFileSync(join(__dirname, page), 'utf8').replace(/\s+/g, ' ');
       expect(pageCss, page).toMatch(/\.searchRow \{[^}]*position: relative;/);
     }

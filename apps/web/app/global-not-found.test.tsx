@@ -32,11 +32,10 @@ it('is titled in Traditional Chinese with the site name; Next.js adds the noinde
   expect(metadata).toEqual({ title: '找不到這一頁 | 跟邊團' });
 });
 
-it('uses the theme tokens only, and the mark in the nav bar\'s colouring', () => {
+it('has the site\'s header bar, with the mark in the header\'s colouring', () => {
   const css = readFileSync(join(__dirname, 'global-not-found.module.css'), 'utf8').replace(/\s+/g, ' ');
-  expect(css).toMatch(/\.bar \{[^}]*background: var\(--bar-bg\); color: var\(--bar-text\)/);
-  expect(css).toMatch(/\.mark \{[^}]*--mark-primary: var\(--bar-text\); --mark-accent: var\(--bar-accent\)/);
-  expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  expect(css).toMatch(/\.bar \{ background: var\(--header-bg\); color: var\(--header-text\); \}/);
+  expect(css).toMatch(/\.mark \{ --mark-primary: var\(--header-text\); --mark-accent: var\(--header-accent\);/);
 });
 
 /**

@@ -77,6 +77,8 @@ it('a valid two-leg chain resolves, with the tours that can follow it', async ()
   const earlier = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18,texpert:SEL5@2026-12-24&gap=1-3'), today);
   expect(earlier.departWindow).toEqual({ from: '2026-12-30', to: '2027-01-01' });
   expect(nextKeys(earlier)).toEqual(['jetour:FAR4']);
+  // No tour name in the legs or the list: no row shows it, so it is never sent to the browser.
+  for (const tour of [...earlier.legs.map(l => l.tour), ...earlier.next!.tours]) expect(tour).not.toHaveProperty('title');
 });
 
 it('the window for the next leg follows the gap definition: a tour ending on the 22nd with gap 1–3 gives the 24th to the 26th', async () => {

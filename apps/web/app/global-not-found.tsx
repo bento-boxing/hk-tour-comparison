@@ -22,7 +22,7 @@ export default function GlobalNotFound() {
     <html lang={HTML_LANG['zh-Hant']}>
       <body>
         <header className={styles.bar}>
-          <b className={styles.name}><Mark className={styles.mark} />{zh('site.name')}</b>
+          <div className={styles.barInner}><b className={styles.name}><Mark className={styles.mark} />{zh('site.name')}</b></div>
         </header>
         <main className={styles.content}>
           {LOCALES.map((locale, i) => {

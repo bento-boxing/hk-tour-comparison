@@ -1,11 +1,7 @@
 import { it, expect } from 'vitest';
 import {
-  HREFLANG, LOCALE_SEGMENT, languageAlternates, localeFromSegment, localeHref, siteUrl, splitLocalePath,
+  languageAlternates, localeFromSegment, localeHref, siteUrl, splitLocalePath,
 } from './locale-path';
-
-it('Traditional Chinese has no prefix; Simplified Chinese is /zh-hans and English /en, in lower case', () => {
-  expect(LOCALE_SEGMENT).toEqual({ 'zh-Hant': null, 'zh-Hans': 'zh-hans', en: 'en' });
-});
 
 it.each([
   ['zh-hans', 'zh-Hans'],
@@ -28,14 +24,14 @@ it.each([
 it.each([
   ['zh-Hant', '/', '/'],
   ['zh-Hant', '/chain', '/chain'],
-  ['zh-Hant', '/?dest=japan&page=2', '/?dest=japan&page=2'],
+  ['zh-Hant', '/?dmin=5&page=2', '/?dmin=5&page=2'],
   ['zh-Hant', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
   ['zh-Hans', '/', '/zh-hans'],
   ['zh-Hans', '/chain', '/zh-hans/chain'],
-  ['zh-Hans', '/?dest=japan', '/zh-hans?dest=japan'],
+  ['zh-Hans', '/?sort=days', '/zh-hans?sort=days'],
   ['en', '/', '/en'],
   ['en', '/chain', '/en/chain'],
-  ['en', '/?dest=japan&dmin=5', '/en?dest=japan&dmin=5'],
+  ['en', '/tours/japan?dmin=5&size=48', '/en/tours/japan?dmin=5&size=48'],
   ['en', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3', '/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
   ['en', '/#top', '/en#top'],
   ['en', '/tours/japan-kansai', '/en/tours/japan-kansai'], // part 2's pages work the same way
@@ -43,7 +39,7 @@ it.each([
   expect(localeHref(locale, path)).toBe(href);
 });
 
-it.each(['', 'chain', 'https://example.test/', '//example.test/x', '?dest=japan'])('refuses %j: only a site path starting with one / can get a language', path => {
+it.each(['', 'chain', 'https://example.test/', '//example.test/x', '?dmin=5'])('refuses %j: only a site path starting with one / can get a language', path => {
   expect(() => localeHref('en', path)).toThrow();
 });
 
@@ -77,10 +73,6 @@ it('siteUrl: the absolute address, the home page without a trailing slash (as Ne
   expect(siteUrl('/')).toBe('https://ganbintuen.com');
   expect(siteUrl('/chain')).toBe('https://ganbintuen.com/chain');
   expect(siteUrl('/en')).toBe('https://ganbintuen.com/en');
-});
-
-it('hreflang names: zh-Hant, zh-Hans, en', () => {
-  expect(HREFLANG).toEqual({ 'zh-Hant': 'zh-Hant', 'zh-Hans': 'zh-Hans', en: 'en' });
 });
 
 it.each([

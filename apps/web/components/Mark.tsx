@@ -16,7 +16,7 @@ const line = { fill: 'none', strokeWidth: markShapes.strokeWidth, strokeLinecap:
 
 /**
  * Decorative: always beside visible text that names the site. Colours come from the parent's
- * `--mark-primary` / `--mark-accent`, defaulting to the light colouring (charcoal + cerulean).
+ * `--mark-primary` / `--mark-accent`, defaulting to the page's ink with a gold next leg.
  */
 export function Mark({ className }: { className?: string }) {
   return (

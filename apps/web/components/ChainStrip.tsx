@@ -27,7 +27,7 @@ export interface ChainStripProps {
 const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
 /**
- * The chosen legs (mockup Screen 2 `.chain`): each leg in its operator colour with its route, operator,
+ * The chosen legs (mockup Screen 2 `.chain`): each leg with a dot in its operator colour, its route, operator,
  * dates and price; `休息 n 日` between legs; after the last, the gap selector and the dashed placeholder
  * with the next window; on the right the running total and the remove-last button.
  */
@@ -55,7 +55,10 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
               </div>
             )}
             <div className={styles.leg} data-leg="" style={{ '--c': color } as CSSProperties}>
-              <span className={styles.route}>{routeNames(leg.tour.stops, places, t.locale).join(' → ')}</span>
+              <span className={styles.route}>
+                <span className={styles.dot} aria-hidden="true" />
+                {routeNames(leg.tour.stops, places, t.locale).join(' → ')}
+              </span>
               <small className={styles.facts}>{facts}</small>
             </div>
           </Fragment>

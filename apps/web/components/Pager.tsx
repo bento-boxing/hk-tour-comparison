@@ -1,31 +1,39 @@
 import Link from 'next/link';
-import { PAGE_SIZE } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
-import { searchHref, type SearchState } from '../lib/search-params';
+import { pageSizeOf, searchHref, type SearchState } from '../lib/search-params';
 import styles from './Pager.module.css';
 
+/** A state's address without a language: the search page's (searchHref) unless the page gives its own. */
+export type StateHref = (state: SearchState) => string;
+
 /**
- * 上一頁 / 第 n / m 頁 / 下一頁 as real links, so paging works without JavaScript. Nothing when every match
- * fits on one page; a page beyond the last offers a link back to page 1 instead.
+ * The page numbers to show around `page` of `pages`: the first, the last, and the current one with its neighbours;
+ * null where numbers are left out ('…'). [1, 2, 3, null, 89] on page 2 of 89.
  */
-export function Pager({ state, total, t, hrefFor }: {
+export function pageNumbers(page: number, pages: number): (number | null)[] {
+  const shown = [...new Set([1, page - 1, page, page + 1, pages])].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+  return shown.flatMap((n, i) => (i > 0 && n - shown[i - 1] > 1 ? [null, n] : [n]));
+}
+
+/**
+ * ‹ 上一頁 / 1 2 3 … 89 / 下一頁 › as real links, so paging works without JavaScript; on a phone the numbers give
+ * way to 第 n / m 頁. Nothing when every match fits on one page; a page beyond the last offers a link back to page 1
+ * instead. The rows per page come from the state.
+ */
+export function Pager({ state, total, t, hrefFor = searchHref }: {
   state: SearchState; total: number; t: T;
-  /**
-   * The address of a page, without the language (the pager adds `t`'s); the search page's by default. The chain
-   * page passes its own, which keeps the chain.
-   */
-  hrefFor?: (page: number) => string;
+  /** The address of a state (another page), without the language (the pager adds `t`'s). The chain page keeps its chain. */
+  hrefFor?: StateHref;
 }) {
   if (total === 0) return null; // the empty state already links to a fresh search
-  const pages = Math.ceil(total / PAGE_SIZE);
-  // The path of a page, without a language; each link puts it in the page's language.
-  const path = hrefFor ?? ((page: number) => searchHref({ ...state, page }));
+  const pages = Math.ceil(total / pageSizeOf(state));
+  const at = (page: number): SearchState => ({ ...state, page });
 
   if (state.page > pages) {
     return (
       <nav className={styles.pager} aria-label={t('pager.label')}>
-        <Link className={styles.link} href={localeHref(t.locale, path(1))}>{t('pager.first')}</Link>
+        <Link className={styles.step} href={localeHref(t.locale, hrefFor(at(1)))}>{t('pager.first')}</Link>
       </nav>
     );
   }
@@ -33,9 +41,28 @@ export function Pager({ state, total, t, hrefFor }: {
 
   return (
     <nav className={styles.pager} aria-label={t('pager.label')}>
-      {state.page > 1 && <Link className={styles.link} rel="prev" href={localeHref(t.locale, path(state.page - 1))}>{t('pager.prev')}</Link>}
-      <span className={styles.page}>{t('pager.page', { page: state.page, pages })}</span>
-      {state.page < pages && <Link className={styles.link} rel="next" href={localeHref(t.locale, path(state.page + 1))}>{t('pager.next')}</Link>}
+      {state.page > 1 && (
+        <Link className={styles.step} rel="prev" href={localeHref(t.locale, hrefFor(at(state.page - 1)))}><span aria-hidden="true">{'‹\u00a0'}</span>{t('pager.prev')}</Link>
+      )}
+      <ul className={styles.numbers}>
+        {pageNumbers(state.page, pages).map((n, i) => (n === null ? (
+          <li key={`gap-${i}`} className={styles.gap} aria-hidden="true">…</li>
+        ) : (
+          <li key={n}>
+            <Link
+              className={styles.number} href={localeHref(t.locale, hrefFor(at(n)))} aria-label={t('pager.goTo', { page: n })}
+              aria-current={n === state.page ? 'page' : undefined}
+            >
+              {n}
+            </Link>
+          </li>
+        )))}
+      </ul>
+      {/* Shown instead of the numbers on a phone (CSS hides one or the other, for every reader alike). */}
+      <span className={styles.where}>{t('pager.page', { page: state.page, pages })}</span>
+      {state.page < pages && (
+        <Link className={styles.step} rel="next" href={localeHref(t.locale, hrefFor(at(state.page + 1)))}>{t('pager.next')}<span aria-hidden="true">{'\u00a0›'}</span></Link>
+      )}
     </nav>
   );
 }

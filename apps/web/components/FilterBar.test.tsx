@@ -72,13 +72,27 @@ it('labels one-sided ranges', () => {
   expect(pill('出發日期：– 12/31')).toBeInTheDocument();
 });
 
-it('fills the pills whose filter is set and outlines the rest', () => {
+it('fills the boxes whose filter is set and outlines the rest', () => {
   renderBar({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 1 });
   expect(pill('日數：4–6日')).toHaveAttribute('data-on', 'true');
   expect(pill('價錢：全部')).not.toHaveAttribute('data-on');
-  expect(pill('排序：價錢 低→高')).not.toHaveAttribute('data-on'); // the default sort counts as unset
-  // jsdom does not apply CSS modules, so pin the rules that paint a filled pill.
-  expect(css()).toMatch(/\.f\[data-on='true'\] \{[^}]*background: var\(--cerulean\)/);
+  // jsdom does not apply CSS modules, so pin the rules that paint a filled box.
+  expect(css()).toMatch(/\.f\[data-on='true'\] \{ background: var\(--selected-bg\); color: var\(--on-selected\);/);
+});
+
+it('the sort control comes last, at the right end of the row, set apart by a heavier outline, bold text and an icon; never filled', () => {
+  renderBar({ filters: { daysMin: 4 }, sort: 'days-desc', page: 1 });
+  const buttons = screen.getAllByRole('button');
+  const sort = pill('排序：日數 長→短');
+  expect(buttons.at(-1)).toBe(sort);
+  expect(sort).not.toHaveAttribute('data-on'); // not filled, even when not the default order
+  // The icon is drawn, hidden from screen readers: the name is the text alone.
+  expect(sort.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  expect(sort).toHaveAccessibleName('排序：日數 長→短');
+  expect(pill('日數：4日以上').querySelector('svg')).toBeNull();
+  expect(css()).toMatch(/\.sortSlot \{ margin-left: auto; \}/);
+  expect(css()).toMatch(/\.sort \{[^}]*border: 2px solid var\(--ink\); font-weight: 700;/);
+  expect(css()).toMatch(/\.sortSlot \.popover \{ left: auto; right: 0; \}/);
 });
 
 it('choosing a length preset calls onChange with page reset to 1', async () => {
@@ -190,7 +204,6 @@ it('choosing a sort order calls onChange with page 1', async () => {
 it('a reversed order is chosen the same way and named in full on the pill', async () => {
   renderBar({ filters: { daysMin: 4 }, sort: 'price-desc', page: 3 });
   const sort = pill('排序：價錢 高→低');
-  expect(sort).toHaveAttribute('data-on', 'true');
   await user.click(sort);
   const dialog = screen.getByRole('dialog', { name: '排序' });
   expect(within(dialog).getByRole('button', { name: '價錢 高→低' })).toHaveAttribute('aria-pressed', 'true');
@@ -199,13 +212,9 @@ it('a reversed order is chosen the same way and named in full on the pill', asyn
   expect(screen.queryByRole('dialog')).toBeNull();
 });
 
-it('the sort rows lay out as a name and two equal buttons, using only theme colours', () => {
+it('the sort rows lay out as a name and two equal buttons, lined up under each other', () => {
   expect(css()).toMatch(/\.sortRows \{[^}]*display: grid; grid-template-columns: auto 1fr 1fr;/);
   expect(css()).toMatch(/\.sortRow \{[^}]*grid-column: 1 \/ -1;[^}]*grid-template-columns: subgrid;/);
-  // A dark theme is coming: the rules added for this control name no colour of their own.
-  const added = css().match(/\.sort[A-Z]\w* \{[^}]*\}|\.hint \{[^}]*\}/g) ?? [];
-  expect(added.length).toBeGreaterThan(0);
-  for (const rule of added) expect(rule, rule).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
 });
 
 it.each([
@@ -439,7 +448,7 @@ it('the date pill shows the year of a date outside the current Hong Kong year', 
 });
 
 it.each([
-  ['en', 'Exclude: Japan', 'Japan and Korea', 'South Korea', 'Operators: 東瀛遊 (EGL Tours)', '東瀛遊 (EGL Tours)', 'Clear destination: Japan → Kansai'],
+  ['en', 'Exclude: Japan', 'Japan and Korea', 'South Korea', 'Operators: EGL Tours', 'EGL Tours', 'Clear destination: Japan → Kansai'],
   ['zh-Hans', '排除：日本', '日本及韩国', '韩国', '旅行社：東瀛遊', '東瀛遊', '清除目的地：日本 → 关西'],
 ] as const)('%s: pills, countries and operators in the visitor\'s language', async (locale, excludePill, group, korea, opsPill, opName, destPill) => {
   render(

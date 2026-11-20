@@ -54,12 +54,11 @@ it('is reachable and usable by keyboard', async () => {
   expect(action.setTheme.mock.calls[0][0].get('theme')).toBe('dark');
 });
 
-it('CSS: each button shows only in the theme it leaves (theme tokens), 44px for touch, with a visible focus ring', () => {
+it('CSS: each button shows only in the theme it leaves (theme tokens), 44 × 44px for touch at every width, with a visible focus ring', () => {
   expect(css()).toMatch(/\.toDark \{ display: var\(--when-light\); \}/);
   expect(css()).toMatch(/\.toLight \{ display: var\(--when-dark\); \}/);
-  expect(css()).toMatch(/\.option \{[^}]*min-height: 44px[^}]*min-width: 44px/);
-  expect(css()).toMatch(/\.option:focus-visible \{[^}]*outline: 2px solid var\(--bar-accent\)/);
-  expect(css()).toMatch(/\.option \{[^}]*color: var\(--bar-text\)/);
-  // Phones: 26 × 44px (above the 24px minimum touch target).
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.option \{ min-width: 26px; \}/);
+  expect(css()).toMatch(/\.option \{[^}]*min-height: 44px; min-width: 44px/);
+  expect(css()).not.toMatch(/@media/);
+  expect(css()).toMatch(/\.option:focus-visible \{ outline: 2px solid var\(--header-accent\)/);
+  expect(css()).toMatch(/\.option \{[^}]*color: var\(--header-text\)/);
 });

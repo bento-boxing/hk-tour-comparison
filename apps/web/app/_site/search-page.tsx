@@ -8,13 +8,16 @@ import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { movedSearchHref } from '../../lib/search-params';
 import type { SearchPageData } from '../../lib/search-page-data';
-import { TOURS_PATH, countOf, destinationName, destinationPath, isListed } from '../../lib/destinations';
+import { countOf, destinationName, destinationPath, isListed, topDestinations } from '../../lib/destinations';
+import { formatCount, headlineCount } from '../../lib/format';
 import { placeName } from '../../lib/place-names';
-import { DestinationPanelsConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
 import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
-import { Pager } from '../../components/Pager';
+import { ListFooter, UpdatedNote } from '../../components/ListFooter';
 import { loadSearch, queryOf, type Loaded, type SearchParams } from './page-data';
+import { SearchBand } from './search-band';
+import frame from './site-frame.module.css';
+import band from './search-band.module.css';
 import styles from './search-page.module.css';
 
 /**
@@ -46,44 +49,52 @@ export async function SearchPage({ locale, searchParams }: { locale: Locale; sea
 }
 
 /**
- * The search page's body, on '/' (destination null) and on a destination's page: the heading and its line of
- * counts, the destination picker, filter bar, count, cards and paging. The root layout supplies the nav bar and
- * footer. Rendered per request (requestDb), but the database results are reused (cachedReads): a result shown is at
- * most an hour old (see cached-reads.ts).
+ * The search page's body, on '/' (destination null) and on a destination's page: the gold band (the heading with its
+ * line of numbers, the destination search and the shortcuts), then the filter row, the tours and, under them, the
+ * rows-per-page choice, the count and the pager. The root layout supplies the header and footer. Rendered per
+ * request (requestDb), but the database results are reused (cachedReads): a result shown is at most an hour old (see
+ * cached-reads.ts).
+ *
+ * The home page's heading counts the operators that list tours now and its line the tours (counts.all, from the
+ * cached countToursByDestination read the page already makes: no extra statement); the shortcuts come from the same
+ * counts.
  */
 export function SearchView({ t, destination, load }: { t: T; destination: Destination | null; load: Loaded<SearchPageData> }) {
-  const heading = destination ? t('dest.heading', { place: destinationName(destination, places, t) }) : t('home.heading');
+  const place = destination ? destinationName(destination, places, t) : null;
   if (!load.ok) {
     return (
       <>
-        <h1 className={styles.heading}>{heading}</h1>
-        <p className={styles.error} role="alert">{t('search.error')}</p>
+        <SearchBand t={t} heading={place ? t('dest.heading', { place }) : t('home.heading')} />
+        <div className={`${frame.wrap} ${frame.page}`}>
+          <p className={styles.error} role="alert">{t('search.error')}</p>
+        </div>
       </>
     );
   }
 
   const { state, tours, total, operators, filterOperators, counts } = load.data;
-  const listed = destination ? countOf(destination, counts) : counts.all;
+  const { all } = counts;
+  const listed = destination ? countOf(destination, counts) : all;
+  const [heading, line] = place !== null
+    ? [t('dest.heading', { place }), listed.tours > 0 ? t('dest.count', { tours: listed.tours, operators: listed.operators }) : t('dest.countNone')]
+    : all.tours > 0
+      ? [t('band.headline', { n: headlineCount(all.operators, t.locale), count: all.operators }), t('band.subline', { tours: formatCount(all.tours) })]
+      : [t('home.heading'), t('dest.countNone')];
   return (
     <>
-      <div className={styles.head}>
-        <h1 className={styles.heading}>{heading}</h1>
-        <p className={styles.summary}>
-          {listed.tours > 0 ? t('dest.count', { tours: listed.tours, operators: listed.operators }) : t('dest.countNone')}
-          {destination === null && (
-            <> <Link className={styles.link} href={localeHref(t.locale, TOURS_PATH)}>{t('home.browse')}</Link></>
-          )}
-        </p>
-        {destination && <Related t={t} destination={destination} data={load.data} />}
+      <SearchBand
+        t={t} heading={heading} line={line} state={state} shortcuts={topDestinations(places, counts)}
+        related={destination && <Related t={t} destination={destination} data={load.data} />}
+      />
+      <div className={`${frame.wrap} ${frame.page}`}>
+        <FilterBarConnected state={state} operators={filterOperators} today={load.today} />
+        {/* On a destination's page, clearing every filter keeps the destination. */}
+        <ResultsConnected
+          tours={tours} total={total} operators={operators} today={load.today} now={load.now} clearPath={destinationPath(destination)}
+        />
+        <ListFooter state={state} total={total} t={t} />
+        <UpdatedNote operators={operators} t={t} />
       </div>
-      <div className={styles.searchRow}>
-        <div className={styles.searchBox}><DestinationSearchConnected state={state} /></div>
-        <DestinationPanelsConnected state={state} />
-      </div>
-      <FilterBarConnected state={state} operators={filterOperators} today={load.today} />
-      {/* On a destination's page, clearing every filter keeps the destination. */}
-      <ResultsConnected tours={tours} total={total} operators={operators} today={load.today} clearPath={destinationPath(destination)} />
-      <Pager state={state} total={total} t={t} />
     </>
   );
 }
@@ -95,19 +106,19 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
 function Related({ t, destination, data }: { t: T; destination: Destination; data: SearchPageData }) {
   const { counts } = data;
   const link = (d: Destination, text: string): ReactNode => (
-    <Link key={destinationPath(d)} className={styles.link} href={localeHref(t.locale, destinationPath(d))}>{text}</Link>
+    <Link key={destinationPath(d)} className={band.relatedLink} href={localeHref(t.locale, destinationPath(d))}>{text}</Link>
   );
   if (destination.regionId !== null) {
     const country: Destination = { countryId: destination.countryId, regionId: null };
     if (!isListed(country, places, counts)) return null;
-    return <p className={styles.related}>{link(country, t('dest.allOf', { country: destinationName(country, places, t) }))}</p>;
+    return <p className={band.related}>{link(country, t('dest.allOf', { country: destinationName(country, places, t) }))}</p>;
   }
   const regions = places.regionsOf(destination.countryId)
     .map(r => ({ countryId: r.countryId, regionId: r.id }))
     .filter(d => isListed(d, places, counts));
   if (regions.length === 0) return null;
   return (
-    <p className={styles.related}>
+    <p className={band.related}>
       {t('dest.regions')}
       {regions.map((d, i) => [
         i > 0 && <span key={`sep-${i}`} aria-hidden="true"> · </span>,

@@ -1,6 +1,6 @@
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setTheme } from './theme-action';
-import { THEMES, themeFromCookie } from './theme';
+import { themeFromCookie } from './theme';
 
 const jar = vi.hoisted(() => ({ set: vi.fn() }));
 vi.mock('next/headers', () => ({ cookies: async () => ({ set: jar.set }) }));
@@ -13,10 +13,6 @@ const form = (theme: string | null) => {
   if (theme !== null) data.set('theme', theme);
   return data;
 };
-
-it('offers two themes, light first', () => {
-  expect(THEMES).toEqual(['light', 'dark']);
-});
 
 it.each([
   ['light', 'light'], ['dark', 'dark'],

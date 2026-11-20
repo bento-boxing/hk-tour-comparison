@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import { decodeChain, places, DEFAULT_GAP, MAX_CHAIN_LEGS } from '@hktours/core';
 import { parseSearchParams } from './search-params';
 import {
-  chainHref, chainPageHref, chainStartHref, withDestination, withGap, withLegAdded, withoutLastLeg, withPage, withSearch,
+  chainHref, chainPageHref, chainStartHref, withDestination, withGap, withLegAdded, withoutLastLeg, withSearch,
   type ChainAddress,
 } from './chain-href';
 
@@ -88,9 +88,11 @@ it('changing a filter or the sort keeps the legs and gap and goes back to page 1
   expect(chainPageHref(next)).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan%2Ckorea');
 });
 
-it('paging keeps everything else', () => {
-  expect(chainPageHref(withPage(address, 4))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}&page=4`);
-  expect(chainPageHref(withPage(address, 1))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}`);
+it('paging and the rows per page keep everything else (the chain page\'s list footer builds its links this way)', () => {
+  const at = (search: ChainAddress['search']) => chainPageHref({ chain: address.chain, search });
+  expect(at({ ...address.search, page: 4 })).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}&page=4`);
+  expect(at({ ...address.search, page: 1 })).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}`);
+  expect(at({ ...address.search, page: 2, size: 96 })).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}&size=96&page=2`);
 });
 
 it('choosing a destination replaces it, keeps the legs, gap and other filters, and goes back to page 1', () => {

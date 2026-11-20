@@ -1,25 +1,24 @@
-/* The language switch, at the right of the nav bar (on the dark bar). Each link is 44px tall for touch. */
-.switch { margin: 0 0 0 auto; }
-.group { display: flex; align-items: center; }
+/* The language switch, at the right of the header (on the ink bar). Each link is 44px tall for touch. */
+.switch { margin: 0; }
+.group { display: flex; align-items: center; column-gap: 4px; }
 
 .option {
   display: inline-flex; align-items: center; justify-content: center;
-  min-height: 44px; padding: 0 8px;
-  font-size: 13px; color: var(--bar-text); text-decoration: none; opacity: 0.75; white-space: nowrap;
+  min-height: 44px; padding: 0 6px;
+  font-size: 14px; color: var(--header-text); text-decoration: none; white-space: nowrap;
+  border-bottom: 3px solid transparent; border-top: 3px solid transparent;
 }
-.option:hover { opacity: 1; }
-/* The current language: full strength with the khaki underline the current nav link has. */
-.option[aria-current='true'] { opacity: 1; text-decoration: underline; text-decoration-color: var(--bar-accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
-.option:focus-visible { outline: 2px solid var(--bar-accent); outline-offset: -4px; opacity: 1; }
+.option:hover { border-bottom-color: var(--header-text); }
+/* The current language: bold (mock-up Rows), with the gold underline the current page link has. */
+.option[aria-current='true'] { font-weight: 700; border-bottom-color: var(--header-accent); }
+.option:focus-visible { outline: 2px solid var(--header-accent); outline-offset: -4px; }
 
 .short { display: none; }
 
-/*
- * Phones: 繁 / 简 / EN, 26px wide each (44px tall), so this switch and the theme switch fit beside the mark, the
- * name and the two links at 375px in every language (English has the widest links; see NavBar.module.css).
- */
+/* Phones: 繁 / 简 / EN, 30px wide each (44px tall), beside the name on the header's first row. */
 @media (max-width: 639px) {
-  .option { min-width: 26px; padding: 0 3px; }
+  .group { column-gap: 0; }
+  .option { min-width: 30px; padding: 0 4px; }
   .long { display: none; }
   .short { display: inline; }
 }

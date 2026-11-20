@@ -11,6 +11,12 @@ import { resolveChain } from '../../lib/chain';
 import type { ChainPageData } from '../../lib/chain-page-data';
 import { cachedReads } from '../../lib/search-page-data';
 
+/** The tour rows of the list (an ARIA table): the rows with cells, not its visually hidden header row. */
+const tourRows = () => screen.queryAllByRole('row').filter(row => within(row).queryAllByRole('cell').length > 0);
+/** The one tour row on the page. */
+const oneRow = () => { const rows = tourRows(); expect(rows).toHaveLength(1); return rows[0]; };
+
+
 const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
   loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<ChainPageData>>(),
@@ -95,7 +101,7 @@ it('reads the database through the cached reads', async () => {
 
 it.each([
   ['zh-Hans', '可接续的旅行团（12/24 – 12/26 出发）', '東瀛遊 · 12/18 – 12/22 · HK$7,999', '可出发日期：12/24 – 12/26'],
-  ['en', 'Tours that can follow (departing 24 Dec – 26 Dec)', '東瀛遊 (EGL Tours) · 18 Dec – 22 Dec · HK$7,999', 'Departing 24 Dec – 26 Dec'],
+  ['en', 'Tours that can follow (departing 24 Dec – 26 Dec)', 'EGL Tours · 18 Dec – 22 Dec · HK$7,999', 'Departing 24 Dec – 26 Dec'],
 ] as const)('in %s, the server heading and the strip give dates the language\'s way', async (locale, heading, leg, window) => {
   mocks.loadChainPage.mockResolvedValue(data);
   await renderPage({ legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'japan' }, locale);
@@ -104,7 +110,7 @@ it.each([
   expect(screen.getByText(window)).toBeInTheDocument();
 });
 
-it('loads the page from the address and lays it out: strip, then the next-leg heading, filters, cards and paging', async () => {
+it('loads the page from the address and lays it out: strip, then the next-leg heading, filters, rows, the count and paging', async () => {
   mocks.loadChainPage.mockResolvedValue(data);
   const { container } = await renderPage({ legs: 'egl:KIX5@2026-12-18', gap: '1-3', ex: 'japan' });
 
@@ -121,10 +127,11 @@ it('loads the page from the address and lays it out: strip, then the next-leg he
   const heading = screen.getByRole('heading', { name: '可接續的旅行團（12/24 – 12/26 出發）' });
   const search = screen.getByRole('combobox', { name: '輸入國家、地區或城市' });
   const exclude = screen.getByRole('button', { name: '排除：日本' });
-  const count = screen.getByText('共 30 個旅行團');
-  const cards = screen.getAllByRole('article');
+  const count = screen.getByText('第 1–24 個，共 30 個旅行團');
+  const cards = tourRows();
   const next = screen.getByRole('link', { name: '下一頁' });
-  const inOrder = [yours, leg, gapMin, placeholder, heading, search, exclude, count, cards[0], next];
+  // The count is under the rows now, with the rows-per-page choice and the pager.
+  const inOrder = [yours, leg, gapMin, placeholder, heading, search, exclude, cards[0], count, next];
   for (let i = 1; i < inOrder.length; i++) {
     expect(inOrder[i - 1].compareDocumentPosition(inOrder[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }
@@ -144,7 +151,7 @@ it('paging links keep the chain and the filters', async () => {
 it('each card says how many days of rest come before it', async () => {
   mocks.loadChainPage.mockResolvedValue(data);
   await renderPage({});
-  const [sel, tpe] = screen.getAllByRole('article');
+  const [sel, tpe] = tourRows();
   expect(within(sel).getByText('休息 1–2 日後出發')).toBeInTheDocument(); // 12/24 and 12/25 after a tour ending 12/22
   expect(within(tpe).getByText('休息 1 日後出發')).toBeInTheDocument();
 });
@@ -153,7 +160,7 @@ it('adding a card appends the leg and navigates, keeping the gap and filters', a
   mocks.loadChainPage.mockResolvedValue(data);
   await renderPage({});
   const user = userEvent.setup();
-  const [sel] = screen.getAllByRole('article');
+  const [sel] = tourRows();
   await user.click(within(sel).getByRole('button', { name: '加入行程 ＋' }));
   await user.click(screen.getByRole('button', { name: /2026年12月25日/ }));
   expect(mocks.push).toHaveBeenCalledWith('/chain?legs=egl%3AKIX5%402026-12-18%2Ctexpert%3ASEL5%402026-12-25&gap=1-3&ex=japan');
@@ -185,7 +192,7 @@ it('no legs: the message with a link to the search page, and no list', async () 
   await renderPage({});
   expect(screen.getByText('先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '搜尋旅行團' })).toHaveAttribute('href', '/');
-  expect(screen.queryByRole('article')).toBeNull();
+  expect(tourRows()).toHaveLength(0);
   expect(screen.queryByRole('heading', { name: '你的行程' })).toBeNull();
   expect(screen.queryByText('部分旅行團已下架或日期已不適用，已從行程中移除。')).toBeNull();
 });
@@ -196,7 +203,7 @@ it('dropped legs: the notice above the strip, and the page goes on with the legs
   const notice = screen.getByText('部分旅行團已下架或日期已不適用，已從行程中移除。');
   const yours = screen.getByRole('heading', { name: '你的行程' });
   expect(notice.compareDocumentPosition(yours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(screen.getAllByRole('article')).toHaveLength(2);
+  expect(tourRows()).toHaveLength(2);
 });
 
 it('every leg dropped: the notice and the no-legs message', async () => {
@@ -211,7 +218,7 @@ it(`a full chain (${MAX_CHAIN_LEGS} legs) shows the limit message instead of the
   await renderPage({});
   expect(MAX_CHAIN_LEGS).toBe(8); // the message spells the limit out
   expect(screen.getByText('行程已達上限（8 程）。')).toBeInTheDocument();
-  expect(screen.queryByRole('article')).toBeNull();
+  expect(tourRows()).toHaveLength(0);
   expect(screen.queryByRole('heading', { name: /可接續的旅行團/ })).toBeNull();
   expect(screen.queryByRole('textbox', { name: '最少' })).toBeNull();
   expect(screen.getByRole('button', { name: '移除最後一程' })).toBeInTheDocument();
@@ -290,11 +297,11 @@ it('a page past the last says so neutrally, with the link back to page 1 that ke
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
 });
 
-it('the filter bar offers filterOperators; the strip and cards look operators up in the full list', async () => {
+it('the filter bar offers filterOperators; the strip and rows look operators up in the full list', async () => {
   mocks.loadChainPage.mockResolvedValue(data);
   await renderPage({});
   expect(screen.getByText('東瀛遊 · 12/18 – 12/22 · HK$7,999')).toBeInTheDocument(); // egl's leg, from `operators`
-  const [, tpe] = screen.getAllByRole('article');
+  const [, tpe] = tourRows();
   expect(within(tpe).getByText('大航假期')).toBeInTheDocument(); // bigline's card, from `operators`
   await userEvent.setup().click(screen.getByRole('button', { name: '旅行社：全部' }));
   const dialog = screen.getByRole('dialog', { name: '旅行社' });
@@ -356,7 +363,7 @@ it('in English every address the page makes stays in English: paging, adding a l
   await renderPage({}, 'en');
   const user = userEvent.setup();
   expect(screen.getByRole('link', { name: 'Previous' })).toHaveAttribute('href', '/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
-  const [sel] = screen.getAllByRole('article');
+  const [sel] = tourRows();
   await user.click(within(sel).getByRole('button', { name: '+ Add to trip' }));
   await user.click(screen.getByRole('button', { name: /25 Dec\w* 2026/ }));
   expect(mocks.push).toHaveBeenLastCalledWith('/en/chain?legs=egl%3AKIX5%402026-12-18%2Ctexpert%3ASEL5%402026-12-25&gap=1-3&ex=japan');

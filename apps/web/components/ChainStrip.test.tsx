@@ -65,7 +65,7 @@ it('shows each leg with operator, dates and price', () => {
   expect(within(second).getByText('專業旅運 · 12/25 – 12/29 · HK$5,699 起')).toBeInTheDocument();
 });
 
-it('a leg in another year shows the year, as on the cards', () => {
+it('a leg in another year shows the year, as the date chips in the rows do', () => {
   const C = card('egl:NY3', 3, [kansai('osaka')], [{ date: '2026-12-30', priceHkd: 4000 }], 4000);
   const legs = resolveChain({ legs: [{ tourKey: C.key, departure: '2026-12-30' }], gap: { min: 1, max: 3 } }, new Map([[C.key, C]]), today).legs;
   renderStrip(legs, { departWindow: { from: '2027-01-02', to: '2027-01-04' } });
@@ -139,12 +139,15 @@ it('remove-last calls back', async () => {
   expect(onRemoveLast).toHaveBeenCalledTimes(2);
 });
 
-it('uses the operator colour on each leg', () => {
+it('marks each leg with its operator colour: a dot before the route, no stripe down the edge', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']));
   const [first, second] = legBoxes();
   expect(first.style.getPropertyValue('--c')).toBe('#d62839');
   expect(second.style.getPropertyValue('--c')).toBe('#7d3cc8');
-  expect(css()).toMatch(/\.leg \{[^}]*border-left: 5px solid var\(--c\)/);
+  const dot = first.querySelector('[aria-hidden="true"]')!;
+  expect(dot.parentElement).toHaveTextContent('大阪');
+  expect(css()).toMatch(/\.dot \{[^}]*background: var\(--c\);/);
+  expect(css()).not.toMatch(/border-left/);
 });
 
 it('an unsafe colour falls back to the operator fallback grey (--op-fallback, the same in both themes)', () => {
@@ -158,28 +161,20 @@ it('an operator missing from the list shows its id', () => {
   expect(screen.getByText('texpert · 12/24 – 12/28 · HK$5,699')).toBeInTheDocument();
 });
 
-it('follows the mockup: panel strip, dashed khaki connector, dashed placeholder, cerulean total', () => {
-  const rules = css();
-  expect(rules).toMatch(/\.chain \{[^}]*background: var\(--panel\)[^}]*border-radius: var\(--radius-card\)[^}]*padding: 14px/);
-  expect(rules).toMatch(/\.line \{[^}]*width: 70px[^}]*border-top: 2px dashed var\(--khaki\)/);
-  expect(rules).toMatch(/\.gapbox \{[^}]*border: 2px solid var\(--cerulean\)/);
-  expect(rules).toMatch(/\.leg\.next \{[^}]*border: 2px dashed var\(--khaki\)/);
-  expect(rules).toMatch(/\.totalPrice \{[^}]*font-size: 20px[^}]*color: var\(--cerulean\)/);
-});
-
 it('names the route and the operator in the visitor\'s language', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('en') });
   const [first, second] = legBoxes();
   expect(first).toHaveTextContent('Osaka → Kyoto → Nara → Kobe');
-  expect(first).toHaveTextContent('東瀛遊 (EGL Tours)');
+  expect(first).toHaveTextContent('EGL Tours');
+  expect(first).not.toHaveTextContent('東瀛遊');
   expect(second).toHaveTextContent('Seoul');
-  expect(second).toHaveTextContent('專業旅運 (Travel Expert)');
+  expect(second).toHaveTextContent('Travel Expert');
 });
 
 it('in English: day-first dates and "from" before an inexact price, in the legs and the total', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('en') });
   const [, second] = legBoxes();
-  expect(second).toHaveTextContent('專業旅運 (Travel Expert) · 25 Dec – 29 Dec · from HK$5,699');
+  expect(second).toHaveTextContent('Travel Expert · 25 Dec – 29 Dec · from HK$5,699');
   const total = screen.getByText('Total so far', { exact: false });
   expect(total).toHaveTextContent('from HK$13,698');
   expect(total).toHaveTextContent('10 days (12 including rest)');

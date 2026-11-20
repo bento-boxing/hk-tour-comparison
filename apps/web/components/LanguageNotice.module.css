@@ -1,4 +1,4 @@
-/* The owner's notice colour (used nowhere else) with snow text (fixed in both themes): 10.7:1, AA at any size. */
+/* The owner's notice colour (used nowhere else) with its light text (fixed in both themes): 10.7:1, AA at any size. */
 .notice {
   margin: 0; padding: 8px 16px; background: var(--notice-maroon); color: var(--notice-text);
   font-size: 14px; line-height: 1.5; text-align: center;

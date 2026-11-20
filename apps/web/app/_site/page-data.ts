@@ -16,8 +16,12 @@ import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
-/** A page's database load: the data, or nothing when the database could not be read (the reason is logged). */
-export type Loaded<T> = { ok: true; today: IsoDate; data: T } | { ok: false; today: IsoDate };
+/**
+ * A page's database load: the data, or nothing when the database could not be read (the reason is logged). `now` is
+ * when it was made (ISO): the rows compare their operator's last good run with it (an old-data warning), and the
+ * server and the browser must compare with the same time.
+ */
+export type Loaded<T> = { ok: true; today: IsoDate; now: string; data: T } | { ok: false; today: IsoDate; now: string };
 
 /** An address's query parameters as one query string, in their order, repeats kept: a value React's cache can key on. */
 export function queryOf(params: SearchParams): string {
@@ -43,12 +47,13 @@ export function paramsOf(query: string): SearchParams {
  * message, the log gets the cause); Next.js's own signals (such as "render this per request") pass through.
  */
 async function attempt<T>(page: string, today: IsoDate, load: () => Promise<T>): Promise<Loaded<T>> {
+  const now = new Date().toISOString();
   try {
-    return { ok: true, today, data: await load() };
+    return { ok: true, today, now, data: await load() };
   } catch (err) {
     unstable_rethrow(err);
     console.error(`${page}: could not load tours:`, err);
-    return { ok: false, today };
+    return { ok: false, today, now };
   }
 }
 

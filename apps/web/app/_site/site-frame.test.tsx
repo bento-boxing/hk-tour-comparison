@@ -54,16 +54,30 @@ it.each([
   expect(html).toMatch(new RegExp(`^<html lang="${{ 'zh-Hant': 'zh-Hant-HK', 'zh-Hans': 'zh-Hans', en: 'en' }[locale]}"`));
 });
 
+/** The header's links in the served page, but the language switch's (which go to the other languages on purpose). */
+const headerLinks = (html: string) => [...new DOMParser().parseFromString(html, 'text/html').querySelector('nav')!.querySelectorAll('a:not([hreflang])')];
+
 it.each([
-  ['zh-Hant', '/', '/', '/chain'],
-  ['zh-Hans', '/zh-hans', '/zh-hans', '/zh-hans/chain'],
-  ['en', '/en/chain', '/en', '/en/chain'],
-] as const)('%s at %s: the nav bar links stay in the language', async (locale, pathname, search, chain) => {
+  ['zh-Hant', '/', ['/', '/', '/chain', '/tours']],
+  ['zh-Hans', '/zh-hans', ['/zh-hans', '/zh-hans', '/zh-hans/chain', '/zh-hans/tours']],
+  ['en', '/en/chain', ['/en', '/en', '/en/chain', '/en/tours']],
+] as const)('%s at %s: the header\'s links (the name, then the three pages) stay in the language', async (locale, pathname, hrefs) => {
   address.pathname = pathname;
-  const html = await renderLayout(locale);
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const navHrefs = [...doc.querySelectorAll('nav > div > a')].map(a => a.getAttribute('href'));
-  expect(navHrefs).toEqual([search, chain]);
+  expect(headerLinks(await renderLayout(locale)).map(a => a.getAttribute('href'))).toEqual(hrefs);
+});
+
+it.each([
+  ['/', 'zh-Hant', '搜尋旅行團'],
+  ['/tours/japan', 'zh-Hant', '搜尋旅行團'], // a destination's page is the search page with the destination chosen
+  ['/zh-hans/tours/japan-kansai', 'zh-Hans', '搜索旅行团'],
+  ['/en/chain', 'en', 'Plan a trip'],
+  ['/en/tours', 'en', 'Destinations'],
+  ['/tours', 'zh-Hant', '所有目的地'],
+  ['/about', 'zh-Hant', null],
+] as const)('at %s the header marks the page the address shows', async (pathname, locale, current) => {
+  address.pathname = pathname;
+  const marked = headerLinks(await renderLayout(locale)).filter(a => a.getAttribute('aria-current') === 'page').map(a => a.textContent);
+  expect(marked).toEqual(current === null ? [] : [current]);
 });
 
 it.each([

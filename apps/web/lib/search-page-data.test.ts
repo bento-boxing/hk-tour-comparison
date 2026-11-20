@@ -5,7 +5,9 @@ import { countToursByDestination, saveOperatorRun, PAGE_SIZE, type Db } from '@h
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import { createReads, type CacheFn } from './cached-reads';
-import { destinationOrder, loadSearchPage } from './search-page-data';
+import { destinationOrder, loadSearchPage, uncachedReads } from './search-page-data';
+import type { Locale } from './i18n';
+import { operatorName } from './place-names';
 
 const today = '2026-11-12';
 
@@ -57,6 +59,23 @@ it('an empty address lists every tour by price, with the operators', async () =>
   expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // the four that have run here
   // The heading's line: every listed tour, whatever the filters.
   expect(data.counts.all).toEqual({ tours: 4, operators: 4 });
+});
+
+it('the rows carry no tour name: no row shows it, so it is never sent to the browser', async () => {
+  const data = await loadSearchPage(db, {}, today);
+  expect(data.tours).toHaveLength(4);
+  for (const tour of data.tours) expect(tour).not.toHaveProperty('title');
+  expect(JSON.stringify(data)).not.toMatch(/團/);
+});
+
+it('every operator has an English name: English pages name each by it alone, Chinese pages by its Chinese name', async () => {
+  const data = await loadSearchPage(db, {}, today);
+  expect(data.operators.length).toBeGreaterThanOrEqual(8);
+  for (const op of data.operators) {
+    expect(operatorName(op, 'en'), op.id).toBe(op.nameEn);
+    expect(operatorName(op, 'en'), op.id).not.toMatch(/[\u3400-\u9fff]/);
+    expect(operatorName(op, 'zh-Hant'), op.id).toBe(op.nameZh);
+  }
 });
 
 it('the counts do not follow the filters: a destination page shows its own count above its filtered results', async () => {
@@ -180,6 +199,16 @@ it('a page beyond the last gives no tours but still the total', async () => {
   expect(data.state.page).toBe(2);
   expect(data.tours).toEqual([]);
   expect(data.total).toBe(4);
+});
+
+it('the rows per page in the address reach the search, and through the cached read\'s key', async () => {
+  const sizes: unknown[] = [];
+  const reads = { ...uncachedReads, searchTours: (d: Db, q: Parameters<typeof uncachedReads.searchTours>[1], l: Locale) => { sizes.push(q.pageSize); return uncachedReads.searchTours(d, q, l); } };
+  const data = await loadSearchPage(db, { size: '96', page: '1' }, today, 'zh-Hant', reads);
+  expect(data.state.size).toBe(96);
+  expect(data.tours).toHaveLength(4);
+  await loadSearchPage(db, { size: '50' }, today, 'zh-Hant', reads);
+  expect(sizes).toEqual([96, 24]);
 });
 
 it('a database error is passed to the caller', async () => {

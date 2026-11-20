@@ -1,15 +1,19 @@
-/* The 404 page: the nav bar's dark band with the mark and name, then the message in each language. */
-.bar { background: var(--bar-bg); color: var(--bar-text); margin-bottom: 18px; padding: 10px 20px; }
-.name { font-size: 17px; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 0.35em; white-space: nowrap; }
-.mark { --mark-primary: var(--bar-text); --mark-accent: var(--bar-accent); height: 1.3em; width: 1.3em; flex: none; }
+/* The 404 page: the header's ink bar with the mark and name, then the message in each language as quiet panels. */
+.bar { background: var(--header-bg); color: var(--header-text); }
+.barInner { max-width: 1280px; margin: 0 auto; padding: 0 24px; min-height: 60px; display: flex; align-items: center; }
+.name { font-size: 21px; font-weight: 900; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.mark { --mark-primary: var(--header-text); --mark-accent: var(--header-accent); height: 1.35em; width: 1.35em; flex: none; }
 
-.content { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
-.block { margin: 0 0 12px; padding: 20px 16px; border-radius: var(--radius-card); background: var(--panel); text-align: center; }
-.heading { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
-.link { color: var(--cerulean); font-size: 14px; font-weight: 600; }
-.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.content { max-width: 1280px; margin: 0 auto; padding: 20px 24px 40px; }
+.block {
+  margin: 0 0 12px; padding: 20px 16px; border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); text-align: center;
+}
+.heading { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+.link { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-size: 15px; font-weight: 700; }
+.link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 @media (max-width: 639px) {
-  .bar { padding: 10px 16px; }
-  .content { padding: 0 16px; }
+  .barInner { padding: 0 16px; }
+  .content { padding: 16px 16px 32px; }
 }

@@ -98,9 +98,23 @@ describe('the key is built only from validated values, in a canonical form', () 
       { ...base, filters: { priceMin: 3 } }, { ...base, filters: { priceMax: 3 } },
       { ...base, filters: { operators: ['egl' as OperatorId] } },
       { ...base, sort: 'days' as SortKey }, { ...base, page: 2 }, { ...base, today: '2026-11-13' },
+      { ...base, pageSize: 48 as const }, { ...base, pageSize: 96 as const },
     ];
     const keys = await Promise.all(changed.map(q => keyFor(q)));
     expect(new Set([none, ...keys]).size).toBe(changed.length + 1);
+  });
+
+  it('the rows per page are always in the key, as the database reads them: anything but 48 or 96 is the default 24', async () => {
+    const none = await keyFor(base);
+    expect(JSON.parse(none).pageSize).toBe(24);
+    for (const odd of [24, 25, 0, undefined]) {
+      expect(await keyFor({ ...base, pageSize: odd as SearchQuery['pageSize'] }), String(odd)).toBe(none);
+    }
+    // The read runs on the key's size: a page of 48 asks the database for 48 rows ($16 limit, $17 offset).
+    const params: unknown[][] = [];
+    const db = { query: async (_sql: string, p: unknown[]) => { params.push(p); return params.length === 1 ? [{ total: 100 }] : []; } } as unknown as Db;
+    await createReads(() => [], jsonStore().cache, BUILD).searchTours(db, { ...base, page: 2, pageSize: 48 }, 'en');
+    expect([params[1][15], params[1][16]]).toEqual([48, 48]);
   });
 
   it('a filter of 0 is kept: in the key as 0, and passed to the database as 0', async () => {
@@ -123,7 +137,7 @@ describe('the key is built only from validated values, in a canonical form', () 
 
   it('example keys, as stored', async () => {
     expect(await keyFor({ ...base, filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' }, operators: ['jetour', 'egl'] } }))
-      .toBe('{"build":"abc123","read":"searchTours","today":"2026-11-12","sort":"price","page":1,"locale":null,"filters":{'
+      .toBe('{"build":"abc123","read":"searchTours","today":"2026-11-12","sort":"price","page":1,"pageSize":24,"locale":null,"filters":{'
         + '"destination":{"countryId":"japan","regionId":"japan-kansai"},"excludeCountryIds":null,"dateFrom":null,"dateTo":null,'
         + '"travelFrom":null,"travelTo":null,"daysMin":null,"daysMax":null,"priceMin":null,"priceMax":null,"operators":["egl","jetour"]}}');
   });

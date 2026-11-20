@@ -36,8 +36,8 @@ it('is decorative: hidden from assistive technology and never focusable', () => 
   expect(svg).toHaveClass('x');
 });
 
-it('takes its colours from theme variables, light colouring unless the parent overrides them', () => {
-  expect(css()).toContain('var(--mark-primary, var(--charcoal))');
-  expect(css()).toContain('var(--mark-accent, var(--cerulean))');
-  expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+it('takes its colours from the parent (the header: its text colour and gold), else the page\'s ink with a gold next leg', () => {
+  expect(css()).toContain('.dot { fill: var(--mark-primary, var(--ink)); }');
+  expect(css()).toContain('.route { stroke: var(--mark-primary, var(--ink)); }');
+  expect(css()).toContain('.next { stroke: var(--mark-accent, var(--gold)); }');
 });

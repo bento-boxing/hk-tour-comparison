@@ -10,6 +10,7 @@ const zh = {
   'notice.cantonese': '旅行團一般以粵語進行，詳情請向旅行社查詢。', // shown only in the other languages
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
+  'nav.destinations': '所有目的地', // the header's link to the destinations index
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
   'notFound.text': '這個地址沒有頁面。', // the 404 inside a language's pages (an unknown /tours/<id>), under notFound.title
   // A destination's page (/tours/<id>). {place} is the country ('日本') or the region with its country (dest.regionOf).
@@ -23,7 +24,13 @@ const zh = {
   'dest.allOf': '{country}全部旅行團', // a region's link to its country
   'dest.tours': '{n} 團', // a destination's count beside its link
   'home.heading': '比較香港旅行團', // the search page's <h1>
-  'home.browse': '按目的地瀏覽', // the search page's link to the destinations index
+  // The gold band on the home page (task 47). {n} is the number of operators listing tours now, as a Chinese
+  // numeral (lib/format.ts headlineCount); {tours} the tours listed now. 一次過 is the owner's choice of Cantonese here.
+  'band.headline': '{n}間旅行社，一次過比較',
+  'band.subline': '現有 {tours} 個旅行團 · 報名請到旅行社自己的網站',
+  'band.placeholder': '想去邊？輸入國家、地區或城市', // the band's search box (colloquial on purpose, the owner's wish)
+  'band.shortcuts': '旅行團最多的目的地', // the accessible name of the row of destination shortcuts
+  'band.allDestinations': '所有目的地 →', // the last shortcut: the destinations index
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
@@ -35,7 +42,7 @@ const zh = {
   'about.description': '跟邊團是一個由個人製作的非牟利網站。本頁說明網站顯示甚麼、資料如何收集，以及如何更正或移除資料。',
   'about.intro': '「跟邊團」是一個由個人製作的非牟利網站，把香港多間旅行社的旅行團放在一起，方便用戶按出發日期、日數、目的地和價錢比較。網站不設廣告、不收佣金、不代售任何產品；所有報名均經連結返回旅行社自己的網頁進行。本網站與各旅行社並無任何關連。',
   'about.showHeading': '網站顯示甚麼',
-  'about.show1': '只顯示事實資料：旅行社名稱、團號、旅行團名稱、日數、途經城市、集合及解散地點、出發日期及團費。',
+  'about.show1': '只顯示事實資料：旅行社名稱、日數、途經城市、集合及解散地點、出發日期及團費。',
   'about.show2': '每個旅行團均連結到旅行社網站上的該團頁面。',
   'about.show3': '不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。',
   'about.collectHeading': '資料如何收集',
@@ -44,7 +51,7 @@ const zh = {
   'about.collect3': '對每個網站每次只發出一個請求，每個請求之間最少相隔三秒。',
   'about.collect4': '不會登入，不會繞過任何防止自動讀取的措施；如網站多次拒絕，程式當晚即停止讀取該網站。',
   'about.pricesHeading': '價錢及出發日期',
-  'about.prices': '資料每晚更新一次。如某旅行社當晚的資料未能更新，其旅行團會保留之前的資料，並註明最後更新的日期及時間。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。',
+  'about.prices': '資料每晚更新一次。如某旅行社當晚的資料未能更新，其旅行團會保留之前的資料，並註明最後更新的日期。價錢及出發日期以旅行社網站為準，報名前請先在旅行社網站確認。',
   'about.fixHeading': '更正或移除資料',
   'about.fix': '如發現資料有誤，請電郵至 {email}，我們會盡快更正。', // {email} becomes a mailto link
   'about.remove': '旅行社如不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取該旅行社的網站。',
@@ -52,8 +59,6 @@ const zh = {
   'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
   'length.daysNights': '{days}日{nights}夜',
   'length.days': '{days}日',
-  'updated.today': '更新：今日 {time}',
-  'updated.on': '更新：{monthName}{day}日 {time}', // {monthName} is a date.month.* text: '11月'
   'dest.placeholder': '輸入國家、地區或城市',
   'dest.none': '沒有相符地區',
   'dest.includes': '包括 {cities}',
@@ -73,14 +78,25 @@ const zh = {
   'countryGroup.oceania': '大洋洲',
   'countryGroup.polar': '南北極',
   'card.priceFrom': '{price} 起', // a lowest price; components split it around {price} to style the marker
-  'card.lower': '↓ {amount}　比{days}日前',
-  'card.higher': '↑ {amount}　比{days}日前',
-  'card.same': '— 與{days}日前相同',
+  'card.lower': '↓ 比{days}日前平 {amount}', // the price change under the price: one line in its column (the drawing's wording)
+  'card.higher': '↑ 比{days}日前貴 {amount}',
   'card.moreDates': '+{n} 個出發日',
   'card.dates': '出發日期', // the accessible name of a card's row of dates (each shows its price on hover or focus)
-  'card.openedEarlier': '已瀏覽', // on a card whose operator page the visitor opened earlier in this tab
-  'card.openedLatest': '最近瀏覽', // … on the one opened most recently
-  'card.goTo': '前往{operator}網站 ↗',
+  'card.openedEarlier': '已看過', // on a row whose operator page the visitor opened earlier in this tab
+  'card.openedLatest': '上次打開', // … on the one opened most recently
+  'card.moreDatesCell': '+{n} 個', // the sixth date cell when a tour has more than six dates; card.moreDates is read out
+  'row.stale': '資料為 {date}', // on a row whose operator's data is old: {date} is date.monthDay
+  'list.updated': '資料更新：{date} · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準', // under the list
+  // The list's column names, for screen readers only (the columns have no visible headings).
+  'col.operator': '旅行社',
+  'col.days': '日數',
+  'col.region': '地區',
+  'col.route': '路線',
+  'col.dates': '出發日期',
+  'col.price': '價錢',
+  'col.actions': '操作',
+  'row.goTo': '去旅行社網站 ↗', // a row's button to the operator's page
+  'row.again': '再看一次 ↗', // … on a row the visitor has opened in this tab
   'card.add': '加入行程 ＋',
   'card.startsAt': '{place}出發',
   'card.endsAt': '{place}解散',
@@ -96,6 +112,8 @@ const zh = {
   'date.weekday.4': '四',
   'date.weekday.5': '五',
   'date.weekday.6': '六',
+  'date.chipWeekday': '({weekday})', // a weekday on a date chip: '12/28 (一)' (a bare 一 or 二 reads as a dash)
+  'date.monthDay': '{monthName}{day}日', // a day without its year: '11月19日'
   'date.month.1': '1月',
   'date.month.2': '2月',
   'date.month.3': '3月',
@@ -108,7 +126,7 @@ const zh = {
   'date.month.10': '10月',
   'date.month.11': '11月',
   'date.month.12': '12月',
-  'search.count': '共 {n} 個旅行團',
+  'search.listLabel': '旅行團', // the list's accessible name (an ARIA table)
   'search.empty': '找不到符合條件的旅行團',
   'search.clearAll': '清除所有篩選',
   'search.error': '暫時未能載入資料，請稍後再試。',
@@ -158,6 +176,9 @@ const zh = {
   'pager.page': '第 {page} / {pages} 頁',
   'pager.first': '回到第 1 頁',
   'pager.label': '分頁',
+  'pager.range': '第 {from}–{to} 個，共 {total} 個旅行團', // under the list
+  'pager.size': '每頁顯示', // before the 24 / 48 / 96 choice
+  'pager.goTo': '第 {page} 頁', // a page number's accessible name
   'pager.beyond': '這一頁沒有內容。', // a page past the last; the link back to page 1 follows
   'chain.empty': '先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。',
   'chain.dropped': '部分旅行團已下架或日期已不適用，已從行程中移除。',

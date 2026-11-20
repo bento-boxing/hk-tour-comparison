@@ -10,6 +10,8 @@ export interface DestinationSearchProps {
   places: PlacesIndex; t: T;
   value: Destination | null;
   onSelect: (dest: Destination | null) => void;
+  /** The box's placeholder; dest.placeholder by default. Its accessible name is always dest.placeholder. */
+  placeholder?: string;
 }
 
 /**
@@ -41,7 +43,7 @@ const keyOf = (dest: Destination | null) => (dest ? `${dest.countryId}:${dest.re
  * The destination search bar (mockup `.search` / `.sugg`): a WAI-ARIA combobox whose listbox offers
  * `Country → Region` suggestions. Only choosing an option (or clearing) calls onSelect.
  */
-export function DestinationSearch({ places, t, value, onSelect }: DestinationSearchProps) {
+export function DestinationSearch({ places, t, value, onSelect, placeholder }: DestinationSearchProps) {
   const id = useId();
   const listboxId = `${id}-listbox`;
   const optionId = (i: number) => `${id}-option-${i}`;
@@ -122,7 +124,7 @@ export function DestinationSearch({ places, t, value, onSelect }: DestinationSea
           aria-controls={listOpen ? listboxId : undefined}
           aria-activedescendant={listOpen && active >= 0 ? optionId(active) : undefined}
           autoComplete="off"
-          placeholder={t('dest.placeholder')}
+          placeholder={placeholder ?? t('dest.placeholder')}
           value={text}
           onChange={e => { setText(e.target.value); setOpen(true); setActive(-1); }}
           onKeyDown={onKeyDown}

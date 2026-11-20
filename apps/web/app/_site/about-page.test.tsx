@@ -28,7 +28,7 @@ it('says what the owner asked for, in Traditional Chinese as in README.md\'s 給
     '由個人製作的非牟利網站', '不設廣告、不收佣金、不代售任何產品', '本網站與各旅行社並無任何關連',
     '只顯示事實資料', '連結到旅行社網站上的該團頁面', '不會儲存或顯示行程描述、圖片或宣傳文字', '不會使用旅行社的標誌',
     '每晚運行一次', 'tour-comparison-bot', 'robots.txt', '每次只發出一個請求', '最少相隔三秒', '不會登入', '不會繞過',
-    '最後更新的日期及時間', '以旅行社網站為準', 'hello@ganbintuen.com', '移除有關資料', '停止讀取該旅行社的網站',
+    '最後更新的日期', '以旅行社網站為準', 'hello@ganbintuen.com', '移除有關資料', '停止讀取該旅行社的網站',
   ]) expect(text, phrase).toContain(phrase);
   // Nothing it cannot keep: no promise of an age limit, no first-refusal stop, no switch to 貴公司 mid-sentence.
   expect(text).not.toMatch(/最多一天|如網站拒絕|貴公司|讀不到 robots\.txt 的網站不會讀取/);

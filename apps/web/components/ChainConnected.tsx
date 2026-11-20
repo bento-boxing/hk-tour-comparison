@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { places, type Destination, type IsoDate } from '@hktours/core';
-import type { OperatorInfo, TourCardData } from '@hktours/db/read';
+import type { OperatorInfo } from '@hktours/db/read';
+import type { TourRow } from '../lib/tour-row';
 import { useT } from '../lib/i18n-client';
 import { localeHref } from '../lib/locale-path';
 import { restRange, type ResolvedLeg } from '../lib/chain';
@@ -82,19 +83,21 @@ export function ChainFilterBarConnected({ address, operators, today }: { address
  * The tours that can come next. Each card says how much rest comes before it; picking a date appends that
  * leg (gap and filters kept, page reset) and goes to the new address, scrolled to the top to show the strip.
  */
-export function ChainResultsConnected({ address, lastEndDate, tours, total, operators, today }: {
-  address: ChainAddress; lastEndDate: IsoDate; tours: TourCardData[]; total: number; operators: OperatorInfo[]; today: IsoDate;
+export function ChainResultsConnected({ address, lastEndDate, tours, total, operators, today, now }: {
+  address: ChainAddress; lastEndDate: IsoDate; tours: TourRow[]; total: number; operators: OperatorInfo[]; today: IsoDate;
+  /** The server's time of this render (ISO), for the rows' old-data warning. */
+  now?: string;
 }) {
   const t = useT();
   const router = useRouter();
-  const footNote = (tour: TourCardData) => {
+  const footNote = (tour: TourRow) => {
     const rest = restRange(lastEndDate, tour.departures.map(d => d.date));
     if (rest === null) return undefined;
     return rest.min === rest.max ? t('chain.afterRest', { n: rest.min }) : t('chain.afterRestRange', { a: rest.min, b: rest.max });
   };
   return (
     <Results
-      tours={tours} total={total} operators={operators} places={places} today={today} t={t}
+      tours={tours} total={total} operators={operators} places={places} today={today} now={now} t={t}
       footNote={footNote}
       empty={<p className={styles.noNext}>{t('chain.noNext')}</p>}
       onAdd={(tour, departure) => router.push(localeHref(t.locale, chainPageHref(withLegAdded(address, { tourKey: tour.key, departure }))))}

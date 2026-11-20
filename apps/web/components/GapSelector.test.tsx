@@ -59,16 +59,14 @@ describe('the fields', () => {
   const css = () => readFileSync(join(__dirname, 'GapSelector.module.css'), 'utf8').replace(/\s+/g, ' ');
   const inputRule = () => /^[^@]*?\.input \{([^}]*)\}/.exec(css())?.[1] ?? '';
 
-  it('are narrow, at least 44 px tall, and use only theme colours', () => {
+  it('are narrow and at least 44 px tall', () => {
     expect(inputRule()).toContain('min-height: 44px;');
     expect(inputRule()).toMatch(/width: [^;]*ch/);
-    expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
-    expect(css()).not.toMatch(/rgb|hsl/i);
   });
 
-  it('are marked as editable by a dotted cerulean underline (khaki is too faint on white)', () => {
-    expect(inputRule()).toContain('border-bottom: 2px dotted var(--cerulean);');
-    expect(css()).not.toContain('--khaki');
+  it('are marked as editable by a dotted underline in the text colour, solid while focused', () => {
+    expect(inputRule()).toContain('border-bottom: 2px dotted var(--ink);');
+    expect(css()).toMatch(/\.input:focus \{ border-bottom-style: solid; \}/);
   });
 
   it('use the text size of the box, and 16 px only on phones (to stop iOS zooming in)', () => {

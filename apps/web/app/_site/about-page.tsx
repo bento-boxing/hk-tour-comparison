@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CONTACT_EMAIL } from '@hktours/core';
 import { makeT, type DictKey, type Locale, type T } from '../../lib/i18n';
 import { pageMetadata } from '../../lib/site-metadata';
+import frame from './site-frame.module.css';
 import styles from './about-page.module.css';
 
 /** Its own title and description; no database. */
@@ -25,22 +26,24 @@ export function AboutPage({ locale }: { locale: Locale }) {
   const t = makeT(locale);
   const list = (keys: DictKey[]) => <ul className={styles.list}>{keys.map(key => <li key={key}>{t(key)}</li>)}</ul>;
   return (
-    <article className={styles.about}>
-      <h1 className={styles.heading}>{t('about.title')}</h1>
-      <p>{t('about.intro')}</p>
+    <div className={`${frame.wrap} ${frame.page}`}>
+      <article className={styles.about}>
+        <h1 className={styles.heading}>{t('about.title')}</h1>
+        <p>{t('about.intro')}</p>
 
-      <h2 className={styles.subheading}>{t('about.showHeading')}</h2>
-      {list(['about.show1', 'about.show2', 'about.show3'])}
+        <h2 className={styles.subheading}>{t('about.showHeading')}</h2>
+        {list(['about.show1', 'about.show2', 'about.show3'])}
 
-      <h2 className={styles.subheading}>{t('about.collectHeading')}</h2>
-      {list(['about.collect1', 'about.collect2', 'about.collect3', 'about.collect4'])}
+        <h2 className={styles.subheading}>{t('about.collectHeading')}</h2>
+        {list(['about.collect1', 'about.collect2', 'about.collect3', 'about.collect4'])}
 
-      <h2 className={styles.subheading}>{t('about.pricesHeading')}</h2>
-      <p>{t('about.prices')}</p>
+        <h2 className={styles.subheading}>{t('about.pricesHeading')}</h2>
+        <p>{t('about.prices')}</p>
 
-      <h2 className={styles.subheading}>{t('about.fixHeading')}</h2>
-      <p>{withEmail(t, 'about.fix')}</p>
-      <p>{t('about.remove')}</p>
-    </article>
+        <h2 className={styles.subheading}>{t('about.fixHeading')}</h2>
+        <p>{withEmail(t, 'about.fix')}</p>
+        <p>{t('about.remove')}</p>
+      </article>
+    </div>
   );
 }

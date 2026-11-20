@@ -29,9 +29,14 @@ export interface FilterPopoverProps {
   label: string;
   /** The popover's heading and accessible name, e.g. '日數'. */
   title: string;
-  /** Filled (cerulean) when the pill's filter is set. */
+  /** Filled (the chosen colour) when the box's filter is set. */
   on: boolean;
   wide?: boolean;
+  /**
+   * The sort control: set apart at the right end of the row by a heavier outline, bold text and a sort icon
+   * (mock-up Rows), and never filled. Its popover hangs from its right edge.
+   */
+  sort?: boolean;
   /** Controlled by the filter bar, which keeps at most one popover open. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,12 +45,12 @@ export interface FilterPopoverProps {
 }
 
 /**
- * A filter pill (mockup `.f`) that opens a non-modal dialog below it, dismissed like the card's
+ * A filter box (mock-up Rows) that opens a non-modal dialog below it, dismissed like the card's
  * DeparturePicker (lib/use-popover-dismiss): focus moves to the first control inside; Escape inside it,
  * or pressing the pill again, closes it and returns focus to the pill; a press outside, or focus moving
  * to anything other than the popover and its pill (Tab), closes it and leaves focus where it went.
  */
-export function FilterPopover({ label, title, on, wide, open, onOpenChange, children }: FilterPopoverProps) {
+export function FilterPopover({ label, title, on, wide, sort, open, onOpenChange, children }: FilterPopoverProps) {
   const pillRef = useRef<HTMLButtonElement>(null);
 
   const close = (reason: CloseReason) => {
@@ -61,12 +66,12 @@ export function FilterPopover({ label, title, on, wide, open, onOpenChange, chil
   };
 
   return (
-    <div className={styles.slot} onBlur={onBlur}>
+    <div className={sort ? `${styles.slot} ${styles.sortSlot}` : styles.slot} onBlur={onBlur}>
       <button
         ref={pillRef}
         type="button"
-        className={styles.f}
-        data-on={on ? 'true' : undefined}
+        className={sort ? `${styles.f} ${styles.sort}` : styles.f}
+        data-on={on && !sort ? 'true' : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
         // While open, a press on the pill must not count as "outside" (which would close the popover only
@@ -74,6 +79,7 @@ export function FilterPopover({ label, title, on, wide, open, onOpenChange, chil
         onPointerDown={e => { if (open) e.stopPropagation(); }}
         onClick={() => (open ? close('done') : onOpenChange(true))}
       >
+        {sort && <SortIcon />}
         {label}
       </button>
       {open && (
@@ -82,6 +88,18 @@ export function FilterPopover({ label, title, on, wide, open, onOpenChange, chil
         </PopoverPanel>
       )}
     </div>
+  );
+}
+
+/** Two arrows, down and up (mock-up Rows), in the control's text colour. */
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" className={styles.sortIcon}>
+      <path
+        d="M7 5v14M7 19l-3-3M7 19l3-3M17 19V5M17 5l-3 3M17 5l3 3"
+        fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

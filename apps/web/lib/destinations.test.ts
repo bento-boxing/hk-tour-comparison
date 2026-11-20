@@ -5,7 +5,7 @@ import { makeT } from './i18n';
 import { retiredRegion } from './place-names';
 import {
   countOf, destinationFromId, destinationId, destinationIndex, destinationName, destinationPath, isArea, isListed,
-  isOnlyRegion, listedDestinations,
+  isOnlyRegion, listedDestinations, topDestinations, SHORTCUT_COUNT,
 } from './destinations';
 
 const japan = { countryId: 'japan', regionId: null };
@@ -94,6 +94,17 @@ it('the index arranges the listed destinations as the country picker does: parts
     'china', 'china-beijing', 'china-shanghai', 'japan', 'japan-kanto', 'japan-kansai', 'korea', 'korea-seoul', 'france',
   ]);
   expect(destinationIndex(places, { all: { tours: 0, operators: 0 }, destinations: [] })).toEqual([]);
+});
+
+it('the band\'s shortcuts: listed countries only, most tours first, equal counts in the index\'s order, at most seven', () => {
+  const ids = (n?: number) => topDestinations(places, counts, n).map(({ destination, count }) => `${destinationId(destination)} ${count.tours}`);
+  expect(SHORTCUT_COUNT).toBe(7);
+  // Countries only: never a country beside its own regions (日本, 日本關西, 日本關東). Kansai (7) has more tours
+  // than China (6) but is not a country.
+  expect(ids()).toEqual(['japan 12', 'korea 8', 'china 6', 'france 4']);
+  expect(ids(2)).toEqual(['japan 12', 'korea 8']);
+  for (const { destination } of topDestinations(places, counts)) expect(destination.regionId).toBeNull();
+  expect(topDestinations(places, { all: { tours: 0, operators: 0 }, destinations: [] })).toEqual([]);
 });
 
 it('names a destination in each language, a region with its country unless its name already says it', () => {

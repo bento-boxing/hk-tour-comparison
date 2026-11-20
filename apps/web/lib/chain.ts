@@ -1,12 +1,12 @@
 import { daysBetween, gapBetween, gapWindow, isIsoDate, sanitiseGap, tourEndDate, type ChainState, type IsoDate } from '@hktours/core';
-import type { TourCardData } from '@hktours/db/read';
+import type { TourRow } from './tour-row';
 
 // The chain page's arithmetic. Pure, and never throws: the core date helpers throw RangeError on a bad
 // date, so every date is checked with isIsoDate before it reaches them, and anything unusable counts as
 // an invalid leg.
 
 export interface ResolvedLeg {
-  tour: TourCardData; departure: IsoDate; endDate: IsoDate;
+  tour: TourRow; departure: IsoDate; endDate: IsoDate;
   priceHkd: number; priceIsExact: boolean;  // exact when that departure has its own price
   gapBefore: number | null;                 // free days since the previous leg; null for the first
 }
@@ -34,7 +34,7 @@ function safeEndDate(departure: unknown, days: unknown): IsoDate | null {
  * after the previous leg ends. The first invalid leg and every leg after it are dropped.
  * The price is that departure's own price, or the tour's stored fallback price (not exact) when it has none.
  */
-export function resolveChain(state: ChainState, tours: Map<string, TourCardData>, today: IsoDate): ResolvedChain {
+export function resolveChain(state: ChainState, tours: Map<string, TourRow>, today: IsoDate): ResolvedChain {
   const refs = Array.isArray(state?.legs) ? state.legs : [];
   const legs: ResolvedLeg[] = [];
   const todayOk = typeof today === 'string' && isIsoDate(today);

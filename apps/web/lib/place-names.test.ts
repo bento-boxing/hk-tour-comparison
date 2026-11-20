@@ -17,13 +17,16 @@ it('falls back to the Traditional name when there is no English one', () => {
   expect(placeName({ nameZh: '甲市', nameEn: '' }, 'en')).toBe('甲市');
 });
 
-it('keeps the operator\'s Chinese name, adding its English name in English only', () => {
+it('names an operator by its Chinese name on Chinese pages and by its English name only on English pages', () => {
   const egl = { nameZh: '東瀛遊', nameEn: 'EGL Tours' };
   expect(operatorName(egl, 'zh-Hant')).toBe('東瀛遊');
   expect(operatorName(egl, 'zh-Hans')).toBe('東瀛遊');
-  expect(operatorName(egl, 'en')).toBe('東瀛遊 (EGL Tours)');
+  expect(operatorName(egl, 'en')).toBe('EGL Tours'); // no Chinese name beside it
+  expect(operatorName({ nameZh: '新華旅遊', nameEn: ' Sunflower Travel ' }, 'en')).toBe('Sunflower Travel');
+  // Without an English name, the Chinese one; an unknown operator: its id, once.
   expect(operatorName({ nameZh: '新華旅遊', nameEn: '' }, 'en')).toBe('新華旅遊');
-  expect(operatorName({ nameZh: 'egl', nameEn: 'egl' }, 'en')).toBe('egl'); // an unknown operator: its id, once
+  expect(operatorName({ nameZh: '新華旅遊', nameEn: '  ' }, 'en')).toBe('新華旅遊');
+  expect(operatorName({ nameZh: 'egl', nameEn: 'egl' }, 'en')).toBe('egl');
 });
 
 it('a retired region is not in the places data, and the regions that replaced it are (task 37)', () => {

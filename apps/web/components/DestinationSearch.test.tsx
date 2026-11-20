@@ -220,24 +220,16 @@ it('is a labelled combobox that controls its listbox', async () => {
   expect(input).toHaveAttribute('aria-controls', screen.getByRole('listbox').id);
 });
 
-it('styles the dropdown like the mockup: the row Enter would pick is the hit', async () => {
+it('shows and tells screen readers which row Enter would pick: the first, then the one the arrows reach', async () => {
   renderSearch();
   await user.type(screen.getByRole('combobox'), '日本');
   const options = screen.getAllByRole('option');
-  expect(options[0].className).toMatch(/hit/);
-  expect(options[1].className).not.toMatch(/hit/);
-  await user.keyboard('{ArrowDown}{ArrowDown}');
-  expect(options[0].className).not.toMatch(/hit/);
-  expect(options[1].className).toMatch(/hit/);
-});
-
-it('tells screen readers which row Enter would pick', async () => {
-  renderSearch();
-  await user.type(screen.getByRole('combobox'), '日本');
-  const options = screen.getAllByRole('option');
+  const highlighted = () => options.map(o => /hit/.test(o.className));
   expect(options.map(o => o.getAttribute('aria-selected'))).toEqual(options.map((_, i) => String(i === 0)));
+  expect(highlighted()).toEqual(options.map((_, i) => i === 0));
   await user.keyboard('{ArrowDown}{ArrowDown}');
   expect(options.map(o => o.getAttribute('aria-selected'))).toEqual(options.map((_, i) => String(i === 1)));
+  expect(highlighted()).toEqual(options.map((_, i) => i === 1));
 });
 
 it('pointing at a row highlights it instead of leaving two rows lit', async () => {

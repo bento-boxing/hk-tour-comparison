@@ -2,7 +2,7 @@
 // loads PGlite, so a web bundle that imports `@hktours/db/read` carries neither the migration runner nor the test database.
 export { createPgDb, normaliseCaCert, type Db, type PgDbOptions } from './db';
 export {
-  searchTours, getToursByKeys, getOperators, PAGE_SIZE,
-  type TourFilters, type SortKey, type TourCardData, type SearchInput, type OperatorInfo,
+  searchTours, getToursByKeys, getOperators, PAGE_SIZE, PAGE_SIZES, isPageSize,
+  type TourFilters, type SortKey, type PageSize, type TourCardData, type SearchInput, type OperatorInfo,
 } from './search';
 export { countToursByDestination, type DestinationCount, type DestinationCounts, type ListedCount } from './destinations';

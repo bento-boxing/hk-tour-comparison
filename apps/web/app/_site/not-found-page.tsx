@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { TOURS_PATH } from '../../lib/destinations';
+import frame from './site-frame.module.css';
 import styles from './not-found-page.module.css';
 
 /** The 404's title in its language. Next.js adds <meta name="robots" content="noindex"> to a 404 by itself. */
@@ -18,13 +19,15 @@ export function notFoundMetadata(locale: Locale): Metadata {
 export function NotFoundPage({ locale }: { locale: Locale }) {
   const t = makeT(locale);
   return (
-    <div className={styles.notFound}>
-      <h1 className={styles.heading}>{t('notFound.title')}</h1>
-      <p className={styles.text}>{t('notFound.text')}</p>
-      <p className={styles.links}>
-        <Link className={styles.link} href={localeHref(t.locale, '/')}>{t('nav.search')}</Link>
-        <Link className={styles.link} href={localeHref(t.locale, TOURS_PATH)}>{t('footer.destinations')}</Link>
-      </p>
+    <div className={`${frame.wrap} ${frame.page}`}>
+      <div className={styles.notFound}>
+        <h1 className={styles.heading}>{t('notFound.title')}</h1>
+        <p className={styles.text}>{t('notFound.text')}</p>
+        <p className={styles.links}>
+          <Link className={styles.link} href={localeHref(t.locale, '/')}>{t('nav.search')}</Link>
+          <Link className={styles.link} href={localeHref(t.locale, TOURS_PATH)}>{t('footer.destinations')}</Link>
+        </p>
+      </div>
     </div>
   );
 }

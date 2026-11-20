@@ -1,12 +1,15 @@
-.footer { max-width: 1100px; margin: 32px auto 0; padding: 0 20px 24px; }
-.text { margin: 0; padding-top: 12px; border-top: 1px solid var(--ash); font-size: 12px; color: var(--text-faint); }
+/* The footer: a rule, then the disclaimer, the contact line and the links, small and muted, in the content column. */
+.footer { max-width: 1280px; margin: 40px auto 0; padding: 0 24px 28px; }
+.text { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-muted); }
 /* The contact line sits right under the disclaimer, inside the same rule. */
 .contact { padding-top: 4px; border-top: 0; }
-/* Then the links to the destinations index and the about page, in the same small faint text. */
-.links { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-top: 8px; font-size: 12px; color: var(--text-faint); }
+/* Then the links to the destinations index and the about page. */
+.links { display: flex; flex-wrap: wrap; gap: 0 18px; padding-top: 6px; font-size: 13px; color: var(--text-muted); }
+.links .link { display: inline-flex; align-items: center; min-height: 36px; }
 .link { color: inherit; text-decoration: underline; }
-.link:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 @media (max-width: 639px) {
   .footer { padding: 0 16px 24px; }
+  .links .link { min-height: 44px; }
 }

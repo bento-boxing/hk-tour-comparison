@@ -4,8 +4,8 @@ import type { Db } from './db';
 import { createTestDb } from './test-db';
 import { recordFailedRun, saveOperatorRun, type RunStats } from './save-run';
 import {
-  searchTours, getToursByKeys, getOperators, PAGE_SIZE,
-  type SortKey, type TourCardData, type TourFilters,
+  searchTours, getToursByKeys, getOperators, PAGE_SIZE, PAGE_SIZES,
+  type PageSize, type SortKey, type TourCardData, type TourFilters,
 } from './search';
 
 const today: IsoDate = '2026-11-12';
@@ -444,6 +444,21 @@ describe('paging', () => {
     ]);
     expect((await page(1)).tours.map(t => t.key)).toEqual(p1.tours.map(t => t.key));
     expect(await page(3)).toEqual({ tours: [], total: 35 });
+  });
+
+  it('pages of 48 or 96 rows hold that many; any other size is the default 24', async () => {
+    expect(PAGE_SIZES).toEqual([24, 48, 96]);
+    const sized = (pageSize: unknown, n = 1) =>
+      searchTours(db, { filters: {}, sort: 'price', page: n, today, pageSize: pageSize as PageSize });
+    const all = [...(await page(1)).tours, ...(await page(2)).tours].map(t => t.key);
+    expect((await sized(48)).tours.map(t => t.key)).toEqual(all); // 35 tours fit on one page of 48
+    expect(await sized(48, 2)).toEqual({ tours: [], total: 35 });
+    expect((await sized(96)).tours).toHaveLength(35);
+    for (const odd of [10, 25, 0, -24, 1000, NaN, '48', undefined]) {
+      expect((await sized(odd)).tours.map(t => t.key), String(odd)).toEqual(all.slice(0, 24));
+    }
+    // The page cap follows the size: a page far past the end is still a clean empty answer, never an SQL error.
+    expect(await sized(96, Number.MAX_SAFE_INTEGER)).toEqual({ tours: [], total: 35 });
   });
 
   it('page 0 and negative pages behave as page 1', async () => {

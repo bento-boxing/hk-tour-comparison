@@ -1,48 +1,46 @@
-/* Mockup Screen 2: .chain, .leg, .gap, .gapbox, .leg.next and .total, with the theme tokens. */
+/* Mockup Screen 2's .chain, .leg, .gap, .gapbox, .leg.next and .total, in the ink-and-gold palette. */
 .chain {
   display: flex; align-items: stretch; flex-wrap: wrap; margin-bottom: 16px;
-  background: var(--panel); border-radius: var(--radius-card); padding: 14px;
-  /* Not in the mockup: a little space between rows once the strip wraps. */
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 14px;
   row-gap: 10px;
 }
 
+/* A leg: a surface box; its operator is the coloured dot before the route (no stripe down the edge). */
 .leg {
-  background: var(--surface); border: 1px solid var(--ash); border-left: 5px solid var(--c);
-  border-radius: var(--radius-card); padding: 10px 14px; min-width: 210px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 10px 14px; min-width: 210px;
 }
-/* Mockup .leg b */
-.route { display: block; font-size: 14px; font-weight: 700; }
-/* Mockup .leg small: #7b7c76, darkened to --text-muted for contrast as on the cards. */
-.facts { color: var(--text-muted); font-size: 12px; }
+.route { display: flex; align-items: baseline; gap: 7px; font-size: 15px; font-weight: 700; }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); align-self: center; }
+.facts { color: var(--text-muted); font-size: 13px; }
 
 .gap {
   display: flex; flex-direction: column; justify-content: center; align-items: center;
-  padding: 0 12px; font-size: 12px;
+  padding: 0 12px; font-size: 13px;
 }
-.line { width: 70px; border-top: 2px dashed var(--khaki); margin: 4px 0; }
+.line { width: 70px; border-top: 2px dashed var(--line-control); margin: 4px 0; }
+/* The rest the next leg leaves: the strip's one control, in the sort control's heavier outline. */
 .gapbox {
-  background: var(--surface); border: 2px solid var(--cerulean); color: var(--cerulean);
-  border-radius: 6px; padding: 3px 8px; font-weight: 700;
+  background: var(--surface); border: 2px solid var(--ink); color: var(--ink);
+  border-radius: var(--radius-control); padding: 0 8px; font-weight: 700;
 }
 
 .leg.next {
-  border: 2px dashed var(--khaki); background: transparent; display: flex; align-items: center;
-  color: var(--text-muted); font-size: 13px;
+  border: 2px dashed var(--line-control); background: transparent; display: flex; align-items: center;
+  color: var(--text-muted); font-size: 14px;
 }
 
-.total { margin-left: auto; align-self: center; text-align: right; font-size: 13px; }
-/* Mockup .total b */
-.totalPrice { font-size: 20px; color: var(--cerulean); display: block; }
-/* 起 after an inexact total, as on the card's price. */
-.from { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.total { margin-left: auto; align-self: center; text-align: right; font-size: 14px; }
+.totalPrice { font-size: 22px; font-weight: 900; display: block; }
+/* 起 after an inexact total, as on the rows' price. */
+.from { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 
-/* Not in the mockup: the remove-last control, a quiet text button under the total. */
+/* The remove-last control, a quiet text button under the total. */
 .remove {
-  display: block; margin: 6px 0 0 auto; padding: 2px 0; border: 0; background: none;
-  color: var(--cerulean); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer;
+  display: block; min-height: 36px; margin: 4px 0 0 auto; padding: 0; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer;
 }
-.remove:hover { color: var(--charcoal); }
-.remove:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.remove:hover { text-decoration-thickness: 2px; }
+.remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* Phones: one column, the connectors still between the boxes; the total below, still on the right. */
 @media (max-width: 639px) {
@@ -50,4 +48,5 @@
   .leg { min-width: 0; }
   .gap { padding: 4px 0; }
   .total { margin-left: 0; align-self: stretch; }
+  .remove { min-height: 44px; }
 }

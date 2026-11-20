@@ -85,6 +85,25 @@ export function listedDestinations(places: PlacesIndex, counts: DestinationCount
   return destinationIndex(places, counts).flatMap(g => g.countries.flatMap(c => [c.destination, ...c.regions.map(r => r.destination)]));
 }
 
+/** How many destinations the gold band offers as shortcuts. */
+export const SHORTCUT_COUNT = 7;
+
+/**
+ * The countries with the most tours now, for the gold band's shortcuts: every listed country (isListed), most tours
+ * first, equal counts in the index's order; at most `n`. Countries only, so a country and its own regions are never
+ * offered side by side (日本, 日本關西). From the counts the page already has, so no extra read.
+ */
+export function topDestinations(
+  places: PlacesIndex, counts: DestinationCounts, n: number = SHORTCUT_COUNT,
+): { destination: Destination; count: ListedCount }[] {
+  return listedDestinations(places, counts)
+    .filter(destination => destination.regionId === null)
+    .map((destination, order) => ({ destination, count: countOf(destination, counts), order }))
+    .sort((a, b) => b.count.tours - a.count.tours || a.order - b.order)
+    .slice(0, Math.max(0, n))
+    .map(({ destination, count }) => ({ destination, count }));
+}
+
 /**
  * A destination's name for headings and titles, in `t`'s language: the country's name ('日本'), or a region's
  * with its country (dest.regionOf: '日本關西', 'Kansai, Japan'), unless the region's name already holds the

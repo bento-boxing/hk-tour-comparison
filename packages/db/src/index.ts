@@ -5,7 +5,7 @@ export {
   type GoodRun, type FailedRun, type RunStats, type UnmatchedName, type ChangedStops,
 } from './save-run';
 export {
-  searchTours, getToursByKeys, getOperators, PAGE_SIZE,
-  type TourFilters, type SortKey, type TourCardData, type SearchInput, type OperatorInfo,
+  searchTours, getToursByKeys, getOperators, PAGE_SIZE, PAGE_SIZES, isPageSize,
+  type TourFilters, type SortKey, type PageSize, type TourCardData, type SearchInput, type OperatorInfo,
 } from './search';
 export { countToursByDestination, type DestinationCount, type DestinationCounts, type ListedCount } from './destinations';

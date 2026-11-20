@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { places, type PriceChange, type Stop, type TourPoint } from '@hktours/core';
-import { departureDateText, departurePrice, priceChangeText, regionLabel, routeNames, startNote } from './card-text';
-import { makeT } from './i18n';
+import {
+  departureDateText, departurePrice, lastUpdateDay, priceChangeText, regionParts, routeNames, staleSince, startNote,
+  MAX_REGION_NAMES, STALE_AFTER_HOURS,
+} from './card-text';
+import { makeT, type T } from './i18n';
+
+/** The region as the row writes it: the names with dots between them, the count of the rest after the last, no dot. */
+const regionLabel = (stops: Stop[], index: typeof places, t: T = makeT('zh-Hant')) => {
+  const { names, more } = regionParts(stops, index, t);
+  return more > 0 ? `${names.join(' · ')} +${more}` : names.join(' · ');
+};
 
 const tZh = makeT('zh-Hant');
 const tEn = makeT('en');
@@ -28,26 +37,47 @@ it('routeNames falls back to the region name for an unknown city, and leaves out
   expect(routeNames([{ countryId: 'atlantis', regionId: 'atlantis-nowhere', cityId: null }], places)).toEqual([]);
 });
 
-it('regionLabel', () => {
+it('the region label: within one country, the country once and then its regions in route order', () => {
   expect(regionLabel(kansaiStops, places)).toBe('日本 · 關西');
-  expect(regionLabel([...kansaiStops, tokyoStop, seoulStop], places)).toBe('日本 · 關西 +2');
-  expect(regionLabel([...kansaiStops, tokyoStop], places, tZh)).toBe('日本 · 關西 +1');
+  expect(regionLabel([...kansaiStops, tokyoStop], places, tZh)).toBe('日本 · 關西 · 關東');
+  expect(regionLabel([tokyoStop, ...kansaiStops, tokyoStop], places, tZh)).toBe('日本 · 關東 · 關西'); // each once
+  const guilin: Stop = { countryId: 'china', regionId: 'china-guangxi', cityId: 'china-guangxi-guilin' };
+  const zhaoqing: Stop = { countryId: 'china', regionId: 'china-guangdong', cityId: 'china-guangdong-zhaoqing' };
+  expect(regionLabel([guilin, zhaoqing], places)).toBe('中國 · 廣西 · 廣東');
   expect(regionLabel([], places)).toBe('');
 });
 
-it('regionLabel names the province of a stop that was in 華中 (task 37)', () => {
+it('the region label: across several countries, the countries only, in route order', () => {
+  expect(regionLabel([...kansaiStops, tokyoStop, seoulStop], places)).toBe('日本 · 韓國');
+  expect(regionLabel([seoulStop, ...kansaiStops], places, tEn)).toBe('South Korea · Japan');
+});
+
+it(`the region label: at most ${MAX_REGION_NAMES} names, then +N; regionParts gives the names apart, each to be kept whole`, () => {
+  const capital = (country: string) => places.data.regions.find(r => r.countryId === country)!;
+  const countries = ['argentina', 'brazil', 'peru', 'chile', 'morocco', 'antarctica', 'france'];
+  const stops = countries.map(c => ({ countryId: c, regionId: capital(c).id, cityId: null }));
+  expect(regionLabel(stops.slice(0, 5), places)).toBe('阿根廷 · 巴西 · 秘魯 · 智利 · 摩洛哥');
+  expect(regionLabel(stops, places)).toBe('阿根廷 · 巴西 · 秘魯 · 智利 · 摩洛哥 +2');
+  expect(regionParts(stops, places)).toEqual({ names: ['阿根廷', '巴西', '秘魯', '智利', '摩洛哥'], more: 2 });
+  // One country: the country is the first of the five names.
+  const provinces = ['china-guangdong', 'china-guangxi', 'china-hunan', 'china-hubei', 'china-jiangxi', 'china-fujian']
+    .map(regionId => ({ countryId: 'china', regionId, cityId: null }));
+  expect(regionParts(provinces, places)).toEqual({ names: ['中國', '廣東', '廣西', '湖南', '湖北'], more: 2 });
+});
+
+it('the region label names the province of a stop that was in 華中 (task 37)', () => {
   const wuhan: Stop = { countryId: 'china', regionId: 'china-hubei', cityId: 'china-central-wuhan' };
   expect(regionLabel([wuhan], places)).toBe('中國 · 湖北');
   expect(regionLabel([wuhan], places, tEn)).toBe('China · Hubei');
   expect(routeNames([wuhan, { countryId: 'china', regionId: 'china-jiangxi', cityId: null }], places)).toEqual(['武漢', '江西']);
 });
 
-it('regionLabel reads a stop saved before 華中 was split by its city, or names the country alone (task 37)', () => {
+it('the region label reads a stop saved before 華中 was split by its city, or names the country alone (task 37)', () => {
   // Saved stops keep the old region id until the operator's next good run rewrites them.
   const savedWuhan: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-wuhan' };
   const savedNanchang: Stop = { countryId: 'china', regionId: 'china-central', cityId: 'china-central-nanchang' };
   expect(regionLabel([savedWuhan], places)).toBe('中國 · 湖北');
-  expect(regionLabel([savedWuhan, savedNanchang], places)).toBe('中國 · 湖北 +1');
+  expect(regionLabel([savedWuhan, savedNanchang], places)).toBe('中國 · 湖北 · 江西');
   expect(routeNames([savedWuhan], places)).toEqual(['武漢']);
 });
 
@@ -69,12 +99,12 @@ describe('a stop saved under the retired region 華中 (china-central) reads as 
     expect(regionLabel([savedWuhan, saved華中], places)).toBe('中國 · 湖北');
     expect(regionLabel([saved華中, savedWuhan], places, tEn)).toBe('China · Hubei');
   });
-  it('beside another region, 華中 counts as one more region', () => {
+  it('beside another region, 華中 is one more region, under the name it had', () => {
     expect(routeNames([hunan, saved華中], places, 'en')).toEqual(['Hunan', 'Central China']);
-    expect(regionLabel([hunan, saved華中], places)).toBe('中國 · 湖南 +1');
-    expect(regionLabel([saved華中, hunan], places, tEn)).toBe('China · Central China +1');
+    expect(regionLabel([hunan, saved華中], places)).toBe('中國 · 湖南 · 華中');
+    expect(regionLabel([saved華中, hunan], places, tEn)).toBe('China · Central China · Hunan');
   });
-  it('a region unknown and not retired is left out of the label and the +N count', () => {
+  it('a region unknown and not retired is left out of the label', () => {
     expect(regionLabel([city('japan-nowhere', null), tokyoStop], places)).toBe('日本 · 關東');
     expect(regionLabel([tokyoStop, city('japan-nowhere', null)], places)).toBe('日本 · 關東');
     expect(regionLabel([city('japan-nowhere', null)], places)).toBe('日本');
@@ -92,7 +122,7 @@ describe('stops saved before the five grouped regions became provinces (task 40)
   const savedChongqing: Stop = { countryId: 'china', regionId: 'china-sichuan', cityId: 'china-sichuan-chongqing' };
   it('a city stop under a kept id (上海及華東 is now 上海) counts in its city\'s province', () => {
     expect(regionLabel([savedHangzhou], places)).toBe('中國 · 浙江');
-    expect(regionLabel([savedShanghai, savedHangzhou], places, tEn)).toBe('China · Shanghai +1');
+    expect(regionLabel([savedShanghai, savedHangzhou], places, tEn)).toBe('China · Shanghai · Zhejiang');
     expect(regionLabel([savedChongqing], places, makeT('zh-Hans'))).toBe('中国 · 重庆');
     expect(routeNames([savedHangzhou, savedChongqing], places)).toEqual(['杭州', '重慶']);
   });
@@ -111,36 +141,59 @@ describe('stops saved before the five grouped regions became provinces (task 40)
       expect(text).not.toMatch(/china-/);
     }
   });
-  it('a stop in an area (華東) still shows its name on the card, though the area is not offered as a destination', () => {
+  it('a stop in an area (華東) still shows its name on the row, though the area is not offered as a destination', () => {
     const area: Stop = { countryId: 'china', regionId: 'china-area-east', cityId: null };
     expect(routeNames([area], places)).toEqual(['華東']);
     expect(routeNames([area], places, 'en')).toEqual(['East China']);
     expect(regionLabel([area], places)).toBe('中國 · 華東');
   });
-  it('an old region-only 東北三省 beside an old city of it adds no +1', () => {
+  it('an old region-only 東北三省 beside an old city of it adds nothing', () => {
     expect(regionLabel([savedHarbin, savedNortheast], places)).toBe('中國 · 黑龍江');
   });
 });
 
-it('regionLabel names a country once when its region has the same name', () => {
+it('the region label names a country once when its region has the same name', () => {
   const paris: Stop = { countryId: 'france', regionId: 'france-france', cityId: 'france-france-paris' };
   const zurich: Stop = { countryId: 'switzerland', regionId: 'switzerland-switzerland', cityId: 'switzerland-switzerland-zurich' };
   expect(regionLabel([paris], places)).toBe('法國');
-  expect(regionLabel([paris, zurich], places)).toBe('法國 +1');
-  // A different region name still shows both, and later same-named regions only count towards +N.
-  expect(regionLabel([...kansaiStops, paris], places)).toBe('日本 · 關西 +1');
+  expect(regionLabel([paris, zurich], places)).toBe('法國 · 瑞士');
+  expect(regionLabel([...kansaiStops, paris], places)).toBe('日本 · 法國');
+});
+
+describe('an operator whose data is old', () => {
+  it(`staleSince: the day of its last good run, once that is more than ${STALE_AFTER_HOURS} hours before now`, () => {
+    const run = '2026-11-11T19:10:00Z'; // 03:10 on 12 Nov in Hong Kong
+    expect(STALE_AFTER_HOURS).toBe(36);
+    expect(staleSince(run, '2026-11-13T07:10:00Z', tZh)).toBeNull(); // exactly 36 hours
+    expect(staleSince(run, '2026-11-13T07:11:00Z', tZh)).toBe('11月12日');
+    expect(staleSince(run, '2026-11-20T00:00:00Z', tEn)).toBe('12 Nov');
+    expect(staleSince('garbage', '2026-11-20T00:00:00Z', tZh)).toBeNull();
+    expect(staleSince(run, 'garbage', tZh)).toBeNull();
+  });
+
+  it('lastUpdateDay: the latest good run of any operator, as a day; none when no operator has run', () => {
+    const operators = [{ lastGoodRunAt: '2026-11-11T19:10:00Z' }, { lastGoodRunAt: null }, { lastGoodRunAt: '2026-11-18T18:40:00Z' }, { lastGoodRunAt: 'garbage' }];
+    expect(lastUpdateDay(operators, tZh)).toBe('11月19日');
+    expect(lastUpdateDay(operators, tEn)).toBe('19 Nov');
+    expect(lastUpdateDay([{ lastGoodRunAt: null }], tZh)).toBeNull();
+    expect(lastUpdateDay([], tZh)).toBeNull();
+  });
 });
 
 it.each([
-  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500　比7日前', 'down'],
-  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-05' }, '↑ HK$300　比7日前', 'up'],
-  [{ kind: 'same', sinceDate: '2026-11-05' }, '— 與7日前相同', 'same'],
-  [{ kind: 'lower', diffHkd: 200, sinceDate: '2026-11-09' }, '↓ HK$200　比3日前', 'down'],
-])('priceChangeText(%j)', (change, text, tone) => {
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ 比7日前平 HK$500', 'down'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-05' }, '↑ 比7日前貴 HK$300', 'up'],
+  [{ kind: 'lower', diffHkd: 200, sinceDate: '2026-11-09' }, '↓ 比3日前平 HK$200', 'down'],
+])('priceChangeText(%j): which way, since when, by how much', (change, text, tone) => {
   expect(priceChangeText(change as PriceChange, '2026-11-12', tZh)).toEqual({ text, tone });
 });
 
-it('priceChangeText(null) is null', () => { expect(priceChangeText(null, '2026-11-12', tZh)).toBeNull(); });
+it('priceChangeText is null for no change and for an unchanged price (only a change is noted)', () => {
+  expect(priceChangeText(null, '2026-11-12', tZh)).toBeNull();
+  for (const t of [tZh, tEn, makeT('zh-Hans')]) {
+    expect(priceChangeText({ kind: 'same', sinceDate: '2026-11-05' }, '2026-11-12', t)).toBeNull();
+  }
+});
 
 it.each([
   [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-13-45' }, '2026-11-12'],   // not a real date
@@ -167,7 +220,7 @@ it.each([
   expect(startNote(start as TourPoint, end as TourPoint, tZh)).toBe(expected);
 });
 
-it('departureDateText gives the date with its weekday, computed in UTC', () => {
+it('departureDateText gives the date with its weekday, the calendar date\'s own', () => {
   expect(departureDateText('2026-12-18', tZh)).toBe('2026年12月18日（五）');
   expect(departureDateText('2026-12-20', tZh)).toBe('2026年12月20日（日）');
   expect(departureDateText('2027-01-02', tZh)).toBe('2027年1月2日（六）');
@@ -175,26 +228,26 @@ it('departureDateText gives the date with its weekday, computed in UTC', () => {
   expect(departureDateText('2026-12-18', makeT('zh-Hans'))).toBe('2026年12月18日（周五）');
 });
 
-it('routeNames and regionLabel name the places in the visitor\'s language', () => {
+it('routeNames and the region label name the places in the visitor\'s language', () => {
   expect(routeNames(kansaiStops, places, 'en')).toEqual(['Osaka', 'Kyoto', 'Nara', 'Kobe']);
   expect(routeNames([seoulStop, city('japan-hokkaido', null)], places, 'zh-Hans')).toEqual(['首尔', '北海道']);
-  expect(regionLabel([...kansaiStops, tokyoStop], places, tEn)).toBe('Japan · Kansai +1');
+  expect(regionLabel([...kansaiStops, tokyoStop], places, tEn)).toBe('Japan · Kansai · Kanto');
   expect(regionLabel([seoulStop], places, makeT('zh-Hans'))).toBe('韩国 · 首尔及京畿');
   // A region named like its country is still named once.
   expect(regionLabel([city('france-france', 'france-france-paris')], places, tEn)).toBe('France');
 });
 
 it.each([
-  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 since 7 days ago'],
-  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 since 1 day ago'],
-  [{ kind: 'same', sinceDate: '2026-11-05' }, '— unchanged since 7 days ago'],
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 over 7 days'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 over 1 day'],
 ])('priceChangeText in English (%j)', (change, text) => {
   expect(priceChangeText(change as PriceChange, '2026-11-12', tEn)?.text).toBe(text);
 });
 
 it('priceChangeText in Simplified Chinese', () => {
   const change: PriceChange = { kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' };
-  expect(priceChangeText(change, '2026-11-12', makeT('zh-Hans'))?.text).toBe('↓ HK$500　较7天前');
+  expect(priceChangeText(change, '2026-11-12', makeT('zh-Hans'))?.text).toBe('↓ 比7天前便宜 HK$500');
+  expect(priceChangeText({ ...change, kind: 'higher' }, '2026-11-12', makeT('zh-Hans'))?.text).toBe('↑ 比7天前贵 HK$500');
 });
 
 it('departurePrice: a date\'s own price, or the tour\'s stored from-price marked as a lowest price', () => {

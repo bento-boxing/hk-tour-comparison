@@ -7,6 +7,7 @@ import { pageMetadata } from '../../lib/site-metadata';
 import { placeName } from '../../lib/place-names';
 import { TOURS_PATH, destinationIndex, destinationPath } from '../../lib/destinations';
 import { loadCounts } from './page-data';
+import frame from './site-frame.module.css';
 import styles from './tours-page.module.css';
 
 /** Its own title and description; marked noindex when the counts could not be read. */
@@ -26,16 +27,16 @@ export async function ToursPage({ locale }: { locale: Locale }) {
   const load = await loadCounts();
   if (!load.ok) {
     return (
-      <>
+      <div className={`${frame.wrap} ${frame.page}`}>
         <h1 className={styles.heading}>{t('tours.title')}</h1>
         <p className={styles.error} role="alert">{t('search.error')}</p>
-      </>
+      </div>
     );
   }
   const { all } = load.data;
   const groups = destinationIndex(places, load.data);
   return (
-    <>
+    <div className={`${frame.wrap} ${frame.page}`}>
       <h1 className={styles.heading}>{t('tours.title')}</h1>
       <p className={styles.summary}>{all.tours > 0 ? t('dest.count', { tours: all.tours, operators: all.operators }) : t('dest.countNone')}</p>
       {groups.map(group => (
@@ -61,6 +62,6 @@ export async function ToursPage({ locale }: { locale: Locale }) {
           </ul>
         </section>
       ))}
-    </>
+    </div>
   );
 }

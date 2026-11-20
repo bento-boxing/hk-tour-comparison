@@ -4,12 +4,13 @@ import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { formatChipDate } from '../../lib/format';
-import { chainPageHref, withPage } from '../../lib/chain-href';
+import { chainPageHref } from '../../lib/chain-href';
 import { loadChain, queryOf, type SearchParams } from './page-data';
 import {
   ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
-import { Pager } from '../../components/Pager';
+import { ListFooter, UpdatedNote } from '../../components/ListFooter';
+import frame from './site-frame.module.css';
 import styles from './chain-page.module.css';
 
 /**
@@ -34,7 +35,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
   const t = makeT(locale);
   const load = await loadChain(locale, queryOf(await searchParams));
   // Missing DATABASE_URL or an unreachable database: the visitor gets a short message, the log gets the cause.
-  if (!load.ok) return <p className={styles.error} role="alert">{t('search.error')}</p>;
+  if (!load.ok) return <div className={`${frame.wrap} ${frame.page}`}><p className={styles.error} role="alert">{t('search.error')}</p></div>;
   const { today, data } = load;
 
   const { address, legs, droppedCount, departWindow, next, full, operators, filterOperators } = data;
@@ -42,7 +43,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
   const date = (d: string) => formatChipDate(d, today, t);
 
   return (
-    <>
+    <div className={`${frame.wrap} ${frame.page}`}>
       {droppedCount > 0 && <p className={styles.notice} role="status">{t('chain.dropped')}</p>}
 
       {!lastLeg ? (
@@ -70,13 +71,17 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
               <ChainFilterBarConnected address={address} operators={filterOperators} today={today} />
               <ChainResultsConnected
                 address={address} lastEndDate={lastLeg.endDate}
-                tours={next.tours} total={next.total} operators={operators} today={today}
+                tours={next.tours} total={next.total} operators={operators} today={today} now={load.now}
               />
-              <Pager state={address.search} total={next.total} t={t} hrefFor={page => chainPageHref(withPage(address, page))} />
+              <ListFooter
+                state={address.search} total={next.total} t={t}
+                hrefFor={search => chainPageHref({ chain: address.chain, search })}
+              />
+              <UpdatedNote operators={operators} t={t} />
             </section>
           )}
         </>
       )}
-    </>
+    </div>
   );
 }

@@ -1,23 +1,42 @@
-.bar { background: var(--bar-bg); color: var(--bar-text); margin-bottom: 18px; }
-/* The language switch's 44px links set the bar's height, so the bar has little padding of its own. */
+/* Mock-up Rows header: ink (near-black in dark), 60px tall, the content column's width. */
+.bar { background: var(--header-bg); color: var(--header-text); }
 .inner {
-  max-width: 1100px; margin: 0 auto; padding: 2px 20px; min-height: 48px;
-  display: flex; flex-wrap: wrap; column-gap: 22px; align-items: center; font-size: 14px;
+  max-width: 1280px; margin: 0 auto; padding: 0 24px; min-height: 60px;
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 28px;
 }
-.name { font-size: 17px; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 0.35em; white-space: nowrap; }
-/* The mark in the nav bar's colouring (the bar is dark in both themes), as tall as the name's line. */
-.mark { --mark-primary: var(--bar-text); --mark-accent: var(--bar-accent); height: 1.3em; width: 1.3em; flex: none; }
-.link { color: inherit; text-decoration: none; opacity: 0.75; padding-bottom: 2px; border-bottom: 2px solid transparent; white-space: nowrap; }
-.link:hover { opacity: 1; }
-.current { opacity: 1; border-bottom-color: var(--bar-accent); }
-/* The language and theme switches, together at the right, with no gap of the bar's own between them. */
-.tools { margin-left: auto; display: flex; align-items: center; }
+.name {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  font-size: 21px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; color: inherit; text-decoration: none;
+}
+/* The mark: route in the bar's text colour, the next leg in gold; as tall as the name's line. */
+.mark { --mark-primary: var(--header-text); --mark-accent: var(--header-accent); height: 1.35em; width: 1.35em; flex: none; }
+.links { display: flex; flex-grow: 1; column-gap: 22px; }
+.link {
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: inherit; text-decoration: none; font-size: 15px; white-space: nowrap;
+  border-bottom: 3px solid transparent; border-top: 3px solid transparent;
+}
+.link:hover { border-bottom-color: var(--header-text); }
+/* The current page: bold with the gold underline (a non-colour cue too: the weight). */
+.current, .current:hover { font-weight: 700; border-bottom-color: var(--header-accent); }
+.name:focus-visible, .link:focus-visible { outline: 2px solid var(--header-accent); outline-offset: 2px; }
+/* The language and theme switches, together at the right. */
+.tools { margin-left: auto; display: flex; align-items: center; column-gap: 6px; }
 
 /*
- * Phones: tighter, so the name, the two links and both switches fit on one line at 375px in Chinese (measured in
- * Firefox, 2px to spare). In English the links are longer and the switches move to a second row below ~387px.
+ * Phones: two rows. The name with the switches at the right, then the three links (14px, 44px tall), which fit
+ * 320px in every language (English, the longest, measured at about 280px).
  */
 @media (max-width: 639px) {
-  .inner { padding: 2px 16px; column-gap: 6px; }
-  .name { letter-spacing: 0; }
+  .inner { padding: 0 16px; min-height: 0; column-gap: 8px; }
+  .name { font-size: 19px; letter-spacing: 0; order: 1; }
+  .tools { order: 2; column-gap: 0; }
+  .links { order: 3; flex-basis: 100%; column-gap: 18px; }
+  .link { font-size: 14px; }
+}
+
+/* A zoomed phone (narrower than 320 CSS px): the three links a little closer, so English still fits. */
+@media (max-width: 319px) {
+  .inner { padding: 0 12px; }
+  .links { column-gap: 10px; }
 }

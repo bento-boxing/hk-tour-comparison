@@ -1,21 +1,23 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, within, fireEvent, getDefaultNormalizer } from '@testing-library/react';
+import { act, render, screen, within, fireEvent } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot } from 'react-dom/client';
 import userEvent from '@testing-library/user-event';
-import { places, type Stop } from '@hktours/core';
-import type { OperatorInfo, TourCardData } from '@hktours/db';
-import { TourCard, MAX_DATE_CHIPS, shiftIntoView, type TourCardProps } from './TourCard';
+import { places, type IsoDate, type Stop } from '@hktours/core';
+import type { OperatorInfo } from '@hktours/db';
+import { TourCard, DATE_CELLS, shiftIntoView, type TourCardProps } from './TourCard';
+import styles from './TourCard.module.css';
+import type { TourRow } from '../lib/tour-row';
 import { makeT } from '../lib/i18n';
 import { OPENED_KEY, resetOpenedCache } from '../lib/opened-tours';
 
 const tZh = makeT('zh-Hant');
 
 const kansai = (cityId: string): Stop => ({ countryId: 'japan', regionId: 'japan-kansai', cityId });
-const tour: TourCardData = {
-  key: 'egl:KIX5', operatorId: 'egl', url: 'https://www.egltours.com/website/itinerary/KIX5', title: '關西5天',
+const tour: TourRow = {
+  key: 'egl:KIX5', operatorId: 'egl', url: 'https://example.test/egl/KIX5',
   days: 5, nights: 4,
   stops: [kansai('japan-kansai-osaka'), kansai('japan-kansai-kyoto'), kansai('japan-kansai-nara'), kansai('japan-kansai-kobe')],
   start: { kind: 'hk', label: null }, end: { kind: 'hk', label: null },
@@ -28,110 +30,318 @@ const tour: TourCardData = {
   priceChange: { kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' },
   lastUpdated: '2026-11-11T19:10:00Z',
 };
+/** Two more dates than the grid holds: five are shown, the sixth cell counts the other three. */
+const eight: TourRow = { ...tour, departures: [...tour.departures, { date: '2027-01-08', priceHkd: 8999 }, { date: '2027-01-10', priceHkd: 8999 }] };
+/** Seven countries: five names on the row, then the count of the other two. */
+const sevenCountries: Stop[] = ['argentina', 'brazil', 'peru', 'chile', 'morocco', 'antarctica', 'france'].map(countryId => {
+  const region = places.data.regions.find(r => r.countryId === countryId)!;
+  return { countryId, regionId: region.id, cityId: null };
+});
 const operator: OperatorInfo = {
   id: 'egl', nameZh: '東瀛遊', nameEn: 'EGL Tours', color: '#d62839', lastGoodRunAt: '2026-11-11T19:10:00Z',
 };
 const props: TourCardProps = { tour, operator, places, today: '2026-11-12', t: tZh };
 
-// The default normalizer turns the full-width space (U+3000) in '↓ HK$500　比7日前' into ' ' in the
-// rendered text but not in the expected string, so those lookups keep whitespace as rendered.
-const keepSpaces = { normalizer: getDefaultNormalizer({ collapseWhitespace: false }) };
-const cardCss = () => readFileSync(join(__dirname, 'TourCard.module.css'), 'utf8').replace(/\s+/g, ' ');
-/** The card's own link (to the operator's page); each departure date is a link too, named by its date. */
+/** The row's own link (the gold button to the operator's page); each departure date is a link too, named by its date. */
 const cardLink = () => screen.getByRole('link', { name: /^東瀛遊/ });
-/** The card's price is a div; each date's price (its tooltip) is a span, so lookups by price text pick the div. */
+/** The row's price is a div; each date's price (its tooltip) is a span, so lookups by price text pick the div. */
 const priceDiv = { selector: 'div' };
+const dateLinks = () => within(screen.getByRole('group', { name: '出發日期' })).getAllByRole('link');
+const cells = () => within(screen.getAllByRole('row')[0]).getAllByRole('cell');
+
+/*
+ * The stylesheet, read as rules (not compared as text): for each media query ('' outside any), each selector's
+ * declarations. The tests below state the layout's rules on it. What only a browser can check (that no two cells
+ * overlap, that the rows are the same height, that the columns line up) is measured in a browser, outside the unit
+ * tests.
+ */
+type Declarations = Record<string, string>;
+function parseCss(source: string): Record<string, Record<string, Declarations>> {
+  const sheet: Record<string, Record<string, Declarations>> = {};
+  const read = (text: string, media: string) => {
+    let i = 0;
+    for (;;) {
+      const open = text.indexOf('{', i);
+      if (open < 0) return;
+      const prelude = text.slice(i, open).trim().replace(/\s+/g, ' ');
+      let depth = 1, j = open + 1;
+      for (; depth > 0; j++) depth += text[j] === '{' ? 1 : text[j] === '}' ? -1 : 0;
+      const body = text.slice(open + 1, j - 1);
+      if (prelude.startsWith('@media')) read(body, prelude.slice('@media'.length).trim());
+      else {
+        const rules = (sheet[media] ??= {});
+        const declarations = (rules[prelude] ??= {});
+        for (const d of body.split(';')) {
+          const colon = d.indexOf(':');
+          if (colon > 0) declarations[d.slice(0, colon).trim()] = d.slice(colon + 1).trim().replace(/\s+/g, ' ');
+        }
+      }
+      i = j;
+    }
+  };
+  read(source.replace(/\/\*[\s\S]*?\*\//g, ''), '');
+  return sheet;
+}
+const sheet = parseCss(readFileSync(join(__dirname, 'TourCard.module.css'), 'utf8'));
+const PHONE = '';
+const ZOOMED = '(max-width: 319px)';
+const TABLET = '(min-width: 640px)';
+const WIDE = '(min-width: 1280px)';
+/** The row's rule in each layout: the seven columns apply to Chinese pages only. */
+const ROW: Record<string, string> = { [PHONE]: '.row', [TABLET]: '.row', [WIDE]: '.row:lang(zh)' };
+const rule = (media: string, selector: string): Declarations => sheet[media]?.[selector] ?? {};
+const allRules = () => Object.entries(sheet).flatMap(([media, rules]) => Object.entries(rules).map(([selector, d]) => ({ media, selector, d })));
+const SEVEN = ['tag', 'days', 'region', 'route', 'dates', 'price', 'actions'];
+/** grid-template-areas as rows of names. */
+const areaGrid = (value: string) => [...value.matchAll(/'([^']*)'/g)].map(m => m[1].trim().split(/\s+/));
+/** A track list split at its top-level spaces: 'max-content minmax(0, 1fr) 210px' → three tracks. */
+function trackList(value: string): string[] {
+  const out: string[] = [];
+  let depth = 0, current = '';
+  for (const ch of value) {
+    depth += ch === '(' ? 1 : ch === ')' ? -1 : 0;
+    if (ch === ' ' && depth === 0) { if (current) out.push(current); current = ''; } else current += ch;
+  }
+  return current ? [...out, current] : out;
+}
+const withVars = (value: string, vars: Declarations) => value.replace(/var\((--[\w-]+)\)/g, (_, name: string) => vars[name] ?? name);
+const px = (value: string | undefined) => Number(/^(\d+(?:\.\d+)?)px$/.exec(value ?? '')?.[1] ?? Number.NaN);
 
 let user: ReturnType<typeof userEvent.setup>;
 beforeEach(() => { user = userEvent.setup(); window.sessionStorage.clear(); resetOpenedCache(); });
 afterEach(() => { vi.restoreAllMocks(); });
 
-it('shows the facts from the mockup', () => {
-  render(<TourCard {...props} />);
-  expect(screen.getByText('東瀛遊')).toBeInTheDocument();
-  expect(screen.getByText('日本 · 關西')).toBeInTheDocument();
-  expect(screen.getByRole('heading')).toHaveTextContent('大阪→京都→奈良→神戶');
-  expect(screen.getByText('5日4夜')).toBeInTheDocument();
-  expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
-  expect(screen.getByText('↓ HK$500　比7日前', keepSpaces)).toBeInTheDocument();
-  expect(screen.getByText('更新：今日 03:10')).toBeInTheDocument();
-});
+describe('what a row shows, column by column', () => {
+  it('the operator, the days, the region, the route, the dates, the price and its change, the buttons', () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    const row = cells();
+    expect(row).toHaveLength(7);
+    expect(row[0]).toHaveTextContent('東瀛遊');
+    expect(row[1]).toHaveTextContent(/^5日$/); // the days only: the nights are in the link's name
+    expect(row[2]).toHaveTextContent(/^日本 · 關西$/);
+    expect(within(row[3]).getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶');
+    expect(within(row[4]).getAllByRole('link')).toHaveLength(6);
+    expect(within(row[5]).getByText(/HK\$7,999/, priceDiv)).toHaveTextContent('HK$7,999 起');
+    expect(within(row[5]).getByText('↓ 比7日前平 HK$500')).toBeInTheDocument();
+    expect(within(row[6]).getByRole('link')).toHaveTextContent('去旅行社網站 ↗');
+    expect(within(row[6]).getByRole('button')).toHaveTextContent('加入行程 ＋');
+  });
 
-it('follows the price with 起 and shows the go-to-operator text', () => {
-  render(<TourCard {...props} />);
-  expect(screen.getByText(/HK\$7,999/, priceDiv)).toHaveTextContent('HK$7,999 起');
-  expect(screen.getByText('前往東瀛遊網站 ↗')).toBeInTheDocument();
-});
+  it('no tour code and no tour name anywhere on the row (the owner wants people on the operator\'s page)', () => {
+    // The loaders no longer send the name (lib/tour-row.ts); even one handed in is not drawn.
+    const { container } = render(<TourCard {...props} tour={{ ...tour, title: '關西5天' } as TourRow} />);
+    expect(container.textContent).not.toContain('關西5天');
+    expect(container.textContent).not.toContain('KIX5');
+    expect(container.querySelector('img')).toBeNull();
+  });
 
-it('shows four date chips and counts the rest', () => {
-  render(<TourCard {...props} />);
-  expect(MAX_DATE_CHIPS).toBe(4);
-  for (const chip of ['12/18', '12/20', '12/23', '12/27']) expect(screen.getByText(chip)).toBeInTheDocument();
-  expect(screen.queryByText('12/30')).toBeNull();
-  expect(screen.getByText('+2 個出發日')).toBeInTheDocument();
-});
+  it('a start or end outside Hong Kong is noted under the region, and describes the link', () => {
+    render(<TourCard {...props} tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }} />);
+    const note = screen.getByText('澳門出發 · 珠海解散');
+    expect(note.closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西/);
+    expect(cardLink()).toHaveAccessibleDescription(/澳門出發 · 珠海解散/);
+  });
 
-it('shows no count when every date fits', () => {
-  render(<TourCard {...props} tour={{ ...tour, departures: tour.departures.slice(0, 4) }} />);
-  expect(screen.getByText('12/27')).toBeInTheDocument();
-  expect(screen.queryByText(/個出發日/)).toBeNull();
-});
+  it('an unchanged price shows no note; a change down or up does, in its colour, in each language', () => {
+    const { unmount } = render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'same', sinceDate: '2026-11-05' } }} />);
+    expect(screen.queryByText(/日前/)).toBeNull();
+    expect(cardLink()).not.toHaveAttribute('aria-describedby');
+    unmount();
+    const up = render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'higher', diffHkd: 2000, sinceDate: '2026-11-05' } }} />);
+    expect(screen.getByText('↑ 比7日前貴 HK$2,000').className).toMatch(/up/);
+    up.unmount();
+    const en = render(<TourCard {...props} t={makeT('en')} />);
+    expect(screen.getByText('↓ HK$500 over 7 days').className).toMatch(/down/);
+    en.unmount();
+    render(<TourCard {...props} t={makeT('zh-Hans')} />);
+    expect(screen.getByText('↓ 比7天前便宜 HK$500')).toBeInTheDocument();
+  });
 
-describe('each departure date shows its own price', () => {
-  const dateLinks = () => within(screen.getByRole('group', { name: '出發日期' })).getAllByRole('link');
+  it('hides the price change when the window price differs from the from-price', () => {
+    render(<TourCard {...props} tour={{ ...tour, windowPriceHkd: 8999 }} />);
+    expect(screen.queryByText(/比7日前/)).toBeNull();
+    expect(screen.getByText(/HK\$8,999/, priceDiv)).toBeInTheDocument();
+  });
 
-  it('each date is a link to the operator\'s page in a new tab, named by its date and that date\'s price', () => {
+  it('a note (the chain page\'s rest) goes under the region, where the column has room', () => {
+    render(<TourCard {...props} footNote="休息 1–2 日後出發" />);
+    expect(screen.getByText('休息 1–2 日後出發').closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西休息 1–2 日後出發$/);
+  });
+
+  it('the price and its "from" are one unit: 起 always after the figure, "from" always before it, never on a line of their own', () => {
+    const { unmount } = render(<TourCard {...props} t={makeT('en')} tour={{ ...tour, windowPriceHkd: 999999, fromPriceHkd: 999999 }} />);
+    const en = screen.getByText(/HK\$999,999/, priceDiv);
+    expect(en).toHaveTextContent(/^from HK\$999,999$/);
+    expect(en.firstElementChild).toHaveTextContent('from');
+    unmount();
     render(<TourCard {...props} />);
-    expect(dateLinks().map(a => a.textContent)).toEqual(['12/18 HK$7,999', '12/20 HK$8,299', '12/23 HK$8,299', '12/27 HK$7,499 起']);
+    expect(screen.getByText(/HK\$7,999/, priceDiv).lastElementChild).toHaveTextContent('起');
+    expect(rule(PHONE, '.price')['white-space']).toBe('nowrap');
+  });
+});
+
+describe('the region: the country, then its regions (or the countries), at most five names, then +N', () => {
+  it('each name is one unit with its dot; units are separated by plain spaces, the only places a line may break', () => {
+    const { container } = render(<TourCard {...props} />);
+    const units = [...cells()[2].querySelectorAll(`.${styles.place}`)];
+    expect(units.map(u => u.textContent)).toEqual(['日本 ·', '關西']);
+    expect(units[1].previousSibling?.textContent).toBe(' ');
+    expect(container.querySelectorAll(`.${styles.place}`)).toHaveLength(2);
+  });
+
+  it('more than five: the count of the rest goes in the last unit, with no dot before it ("摩洛哥 +2"), in every language', () => {
+    const { unmount } = render(<TourCard {...props} tour={{ ...tour, stops: sevenCountries }} />);
+    expect(cells()[2]).toHaveTextContent(/^阿根廷 · 巴西 · 秘魯 · 智利 · 摩洛哥 \+2$/);
+    const last = () => [...cells()[2].querySelectorAll(`.${styles.place}`)].at(-1)!;
+    expect(last().textContent).toBe('摩洛哥 +2');
+    unmount();
+    const en = render(<TourCard {...props} tour={{ ...tour, stops: sevenCountries }} t={makeT('en')} />);
+    expect(last().textContent).toBe('Morocco +2');
+    expect(cells()[2]).toHaveTextContent(/^Argentina · Brazil · Peru · Chile · Morocco \+2$/);
+    en.unmount();
+    render(<TourCard {...props} tour={{ ...tour, stops: sevenCountries }} t={makeT('zh-Hans')} />);
+    expect(last().textContent).toBe('摩洛哥 +2');
+    expect(cells()[2].textContent).not.toMatch(/·\s*\+/);
+  });
+
+  it('the wrapping rule: a Chinese name never breaks; an English name may wrap between its own words; nothing breaks inside a word to fit', () => {
+    // A unit is kept whole (inline-block, never wider than the column).
+    expect(rule(PHONE, '.place')).toMatchObject({ display: 'inline-block', 'max-width': '100%', 'white-space': 'nowrap' });
+    // English only: between the words of one name ('Bosnia and Herzegovina'). The page's language picks it.
+    expect(rule(PHONE, '.region:lang(en) .place')).toEqual({ 'white-space': 'normal' });
+    // No word is ever broken: nothing in the rows sets overflow-wrap, word-break or hyphens (the site-wide check is
+    // lib/word-breaks.test.ts).
+    for (const { selector, d } of allRules()) {
+      expect(d, selector).not.toHaveProperty('overflow-wrap');
+      expect(d, selector).not.toHaveProperty('word-break');
+      expect(d, selector).not.toHaveProperty('hyphens');
+    }
+  });
+});
+
+describe('the route', () => {
+  const eleven = ['osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara'];
+
+  it('every stop, never cut, wrapping onto as many lines as it needs', () => {
+    render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
+    expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良');
+    expect(cardLink()).toHaveAccessibleName(/大阪、京都、奈良、神戶、大阪、京都、奈良、神戶、大阪、京都、奈良/);
+    // Nothing on the route or its cell can hide a stop.
+    for (const selector of ['.route', '.routeCell', '.stop']) {
+      for (const media of [PHONE, TABLET, WIDE]) {
+        expect(rule(media, selector), selector).not.toHaveProperty('overflow');
+        expect(rule(media, selector), selector).not.toHaveProperty('text-overflow');
+        expect(rule(media, selector), selector).not.toHaveProperty('-webkit-line-clamp');
+        expect(rule(media, selector)['white-space'], selector).toBeUndefined();
+      }
+    }
+  });
+
+  it('each stop\'s name is one unit, the arrows between them: a line breaks only beside an arrow, never inside a name ("聖 / 地牙哥")', () => {
+    render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
+    const heading = screen.getByRole('heading');
+    const stops = [...heading.querySelectorAll(`.${styles.stop}`)];
+    expect(stops.map(s => s.textContent)).toEqual(eleven.map((_, i) => ['大阪', '京都', '奈良', '神戶'][i % 4]));
+    // Name, arrow, name, …: the arrow with a plain space on each side (where the line may break), nothing else.
+    expect([...heading.children].map(el => (el.classList.contains(styles.stop) ? 'stop' : el.textContent))).toEqual(
+      eleven.flatMap((_, i) => (i === 0 ? ['stop'] : [' → ', 'stop'])),
+    );
+    expect(heading.childNodes).toHaveLength(eleven.length * 2 - 1);
+    // A name wider than the whole column wraps between its words, never inside one.
+    expect(rule(PHONE, '.stop')).toEqual({ display: 'inline-block', 'max-width': '100%' });
+  });
+
+  it('in English, the route joined with the dictionary separator in the link\'s name; on screen the arrows', () => {
+    render(<TourCard {...props} t={makeT('en')} />);
+    expect(screen.getByRole('heading')).toHaveTextContent('Osaka → Kyoto → Nara → Kobe');
+    expect(screen.getByRole('link', { name: /^EGL Tours/ })).toHaveAccessibleName('EGL Tours: Osaka, Kyoto, Nara, Kobe, 5 days, 4 nights, from HK$7,999');
+    // English pages name the operator in English only, on the tag too.
+    expect(cells()[0]).toHaveTextContent(/^EGL Tours$/);
+  });
+});
+
+describe('the dates: three by two, the same on every row', () => {
+  it('six or fewer: all of them, each with its weekday (in brackets in Chinese); the chips leave the year out, the names keep it', () => {
+    render(<TourCard {...props} />);
+    expect(DATE_CELLS).toBe(6);
+    expect(dateLinks().map(a => a.querySelector('span')!.textContent)).toEqual(['12/18 (五)', '12/20 (日)', '12/23 (三)', '12/27 (日)', '12/30 (三)', '1/3 (日)']);
+    expect(dateLinks().map(a => a.getAttribute('aria-label'))).toEqual([
+      '2026年12月18日（五） HK$7,999', '2026年12月20日（日） HK$8,299', '2026年12月23日（三） HK$8,299',
+      '2026年12月27日（日） HK$7,499 起', '2026年12月30日（三） HK$9,999', '2027年1月3日（日） HK$8,999',
+    ]);
+    expect(screen.queryByText(/個$/)).toBeNull();
+  });
+
+  it('in Simplified Chinese the chips bracket the weekday too, and the names say 周', () => {
+    render(<TourCard {...props} t={makeT('zh-Hans')} />);
+    const links = within(screen.getByRole('group', { name: '出发日期' })).getAllByRole('link');
+    expect(links[0].querySelector('span')!.textContent).toBe('12/18 (五)');
+    expect(links[0]).toHaveAccessibleName('2026年12月18日（周五） HK$7,999');
+  });
+
+  it('more than six: five dates, and the sixth cell counts the rest ("+3 個" on screen, "+3 個出發日" read out)', () => {
+    render(<TourCard {...props} tour={eight} />);
+    expect(dateLinks()).toHaveLength(5);
+    expect(screen.getByText('+3 個')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('+3 個出發日')).toBeInTheDocument();
+    expect(screen.getByText('+3 個').closest('a')).toBeNull(); // plain text, not a link
+  });
+
+  it('the grid: three equal columns; every chip as wide as its column, its text centred and on one line', () => {
+    expect(rule(PHONE, '.dates')['grid-template-columns']).toBe('repeat(3, minmax(0, 1fr))');
+    expect(rule(PHONE, '.chip')).toMatchObject({ width: '100%', 'text-align': 'center', 'white-space': 'nowrap' });
+  });
+
+  it('each date is a link to the operator\'s page in a new tab; a date without its own price shows the stored from-price with 起', () => {
+    render(<TourCard {...props} />);
     for (const a of dateLinks()) {
       expect(a).toHaveAttribute('href', tour.url);
       expect(a).toHaveAttribute('target', '_blank');
       expect(a).toHaveAttribute('rel', expect.stringContaining('noopener'));
     }
-    expect(screen.getByRole('link', { name: '12/18 HK$7,999' })).toBeInTheDocument();
+    // fallbackPriceHkd (7,499): the same figure the picker shows for that date, not the row's window price.
+    expect(dateLinks()[3]).toHaveTextContent('HK$7,499 起');
   });
 
-  it('a date without its own price shows the tour\'s stored from-price with 起, as the departure picker does', () => {
-    render(<TourCard {...props} />);
-    // fallbackPriceHkd (7,499): the same figure the picker shows for that date, not the card's window price.
-    expect(screen.getByRole('link', { name: '12/27 HK$7,499 起' })).toBeInTheDocument();
-  });
-
-  it('in English the from-marker comes first, as on the card', () => {
+  it('in English: day first, a three-letter weekday, and "from" before a from-price', () => {
     render(<TourCard {...props} t={makeT('en')} />);
-    expect(screen.getByRole('link', { name: '18 Dec HK$7,999' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '27 Dec from HK$7,499' })).toBeInTheDocument();
+    const links = within(screen.getByRole('group', { name: 'Departure dates' })).getAllByRole('link');
+    expect(links.map(a => a.querySelector('span')!.textContent)).toEqual(['18 Dec Fri', '20 Dec Sun', '23 Dec Wed', '27 Dec Sun', '30 Dec Wed', '3 Jan Sun']);
+    expect(links[3]).toHaveAccessibleName('Sun 27 Dec 2026 from HK$7,499');
   });
 
-  it('the "+N" count is plain text, not a link', () => {
-    render(<TourCard {...props} />);
-    expect(screen.getByText('+2 個出發日').closest('a')).toBeNull();
+  it('in English the sixth cell reads "+3 more"; in Simplified Chinese "+3 个"', () => {
+    const { unmount } = render(<TourCard {...props} tour={eight} t={makeT('en')} />);
+    expect(screen.getByText('+3 more')).toBeInTheDocument();
+    unmount();
+    render(<TourCard {...props} tour={eight} t={makeT('zh-Hans')} />);
+    expect(screen.getByText('+3 个')).toBeInTheDocument();
   });
 
-  it('the dates are one tab stop between the card link and the add button; the arrow keys move between them', async () => {
+  it('the dates are one tab stop, before the row link and the add button (the order they are drawn in); the arrow keys move between them', async () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
-    await user.tab();
-    expect(cardLink()).toHaveFocus();
     await user.tab();
     const links = dateLinks();
     expect(links[0]).toHaveFocus();
-    expect(links.map(a => a.tabIndex)).toEqual([0, -1, -1, -1]);
+    expect(links.map(a => a.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
     await user.keyboard('{ArrowRight}');
     expect(links[1]).toHaveFocus();
     await user.keyboard('{End}');
-    expect(links[3]).toHaveFocus();
+    expect(links[5]).toHaveFocus();
     await user.keyboard('{ArrowRight}'); // stays on the last
-    expect(links[3]).toHaveFocus();
+    expect(links[5]).toHaveFocus();
     await user.keyboard('{ArrowLeft}');
-    expect(links[2]).toHaveFocus();
-    expect(links.map(a => a.tabIndex)).toEqual([-1, -1, 0, -1]); // Tab comes back to the date last visited
+    expect(links[4]).toHaveFocus();
+    expect(links.map(a => a.tabIndex)).toEqual([-1, -1, -1, -1, 0, -1]); // Tab comes back to the date last visited
     await user.keyboard('{Home}');
     expect(links[0]).toHaveFocus();
+    await user.tab();
+    expect(cardLink()).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: '加入行程 ＋' })).toHaveFocus();
   });
 
-  it('a mouse (or pen) over a date shows its price; leaving hides it', () => {
+  it('a mouse (or pen) over a date shows its price; leaving hides it; a finger does not', () => {
     render(<TourCard {...props} />);
     const link = dateLinks()[1];
     fireEvent.pointerEnter(link, { pointerType: 'mouse' });
@@ -140,24 +350,18 @@ describe('each departure date shows its own price', () => {
     expect(link).not.toHaveAttribute('data-hover');
     fireEvent.pointerEnter(link, { pointerType: 'pen' });
     expect(link).toHaveAttribute('data-hover');
+    fireEvent.pointerEnter(dateLinks()[2], { pointerType: 'touch' });
+    expect(dateLinks()[2]).not.toHaveAttribute('data-hover');
   });
 
-  it('a finger does not: a tap opens the page and leaves no price showing, even where the screen also has a mouse', async () => {
-    render(<TourCard {...props} />);
-    const link = dateLinks()[1];
-    fireEvent.pointerEnter(link, { pointerType: 'touch' });
-    expect(link).not.toHaveAttribute('data-hover');
-    expect(link).toHaveAttribute('href', tour.url);
-  });
-
-  it('a card without an https address: the dates are plain text, not links and not tab stops; a mouse still shows the price', async () => {
+  it('a row without an https address: the dates are plain text, not links and not tab stops; a mouse still shows the price', async () => {
     render(<TourCard {...props} tour={{ ...tour, url: 'http://example.com' }} />);
     expect(screen.queryByRole('link')).toBeNull();
-    const chip = screen.getByText('12/18').parentElement!;
+    const chip = screen.getByText('12/18', { exact: false }).parentElement!;
     expect(chip).not.toHaveAttribute('tabindex');
     await user.tab();
-    expect(document.body).toHaveFocus(); // nothing in the card to stop at (no add button here)
-    expect(chip).toHaveTextContent('12/18 HK$7,999'); // screen readers still read the price with the date
+    expect(document.body).toHaveFocus(); // nothing in the row to stop at (no add button here)
+    expect(chip).toHaveTextContent('12/18 (五) HK$7,999'); // screen readers still read the price with the date
     fireEvent.pointerEnter(chip, { pointerType: 'mouse' });
     expect(chip).toHaveAttribute('data-hover');
   });
@@ -169,102 +373,136 @@ describe('each departure date shows its own price', () => {
     expect(shiftIntoView(0, 1200, 1000)).toBe(8); // wider than the window: keep its start visible
   });
 
-  /**
-   * A stand-in for the browser: the tooltip measures as the 16px hidden box unless its shown geometry applies at
-   * the moment of measuring (in Firefox, :hover is not yet applied when pointerenter fires). Measuring the hidden
-   * box would always give a shift of 0, which is what the first version did.
-   */
-  function layOut(tip: HTMLElement, shown: { left: number; right: number }) {
-    tip.getBoundingClientRect = () => (tip.hasAttribute('data-measure')
-      ? { left: shown.left, right: shown.right }
-      : { left: (shown.left + shown.right) / 2 - 8, right: (shown.left + shown.right) / 2 + 8 }) as DOMRect;
-  }
-
   it('measures the tooltip as it will show, not as the hidden box, when a mouse enters or the date takes focus', () => {
+    // A stand-in for the browser: the hidden tooltip measures 16px unless its shown geometry applies while measured.
+    const layOut = (tip: HTMLElement, shown: { left: number; right: number }) => {
+      tip.getBoundingClientRect = () => (tip.hasAttribute('data-measure')
+        ? { left: shown.left, right: shown.right }
+        : { left: (shown.left + shown.right) / 2 - 8, right: (shown.left + shown.right) / 2 + 8 }) as DOMRect;
+    };
     render(<TourCard {...props} />);
     const [first, second] = dateLinks();
     const tip = first.lastElementChild as HTMLElement;
-    layOut(tip, { left: -20, right: 90 }); // would start 20px off the left edge
+    layOut(tip, { left: -20, right: 90 });
     fireEvent.pointerEnter(first, { pointerType: 'mouse' });
     expect(tip.style.getPropertyValue('--tip-shift')).toBe('28px');
-    expect(tip).not.toHaveAttribute('data-measure'); // only for the measurement: nothing is left behind
+    expect(tip).not.toHaveAttribute('data-measure');
     const tip2 = second.lastElementChild as HTMLElement;
-    layOut(tip2, { left: window.innerWidth - 50, right: window.innerWidth + 40 }); // 40px off the right edge
+    layOut(tip2, { left: window.innerWidth - 50, right: window.innerWidth + 40 });
     fireEvent.focus(second);
     expect(tip2.style.getPropertyValue('--tip-shift')).toBe('-48px');
   });
 
-  it('the CSS: dates use the link cursor and have no pressed look; the price shows for a mouse (data-hover), on keyboard focus (:focus-visible, not a tap\'s :focus) and while measured, out of the layout', () => {
-    const css = cardCss();
-    expect(css).toMatch(/a\.d \{ cursor: pointer; \}/);
-    expect(css).not.toMatch(/cursor: help/);
-    expect(css).not.toMatch(/\.d:active/);
-    expect(css).toMatch(/\.tip \{[^}]*position: absolute[^}]*bottom: calc\(100% \+ 6px\)/);
-    expect(css).toMatch(/\.tip \{[^}]*background: var\(--charcoal\)[^}]*color: var\(--snow\)/);
-    expect(css).toMatch(/\.d\[data-hover\] \.tip, \.d:focus-visible \.tip, \.tip\[data-measure\] \{ clip-path: none;/);
-    // Never on :hover or :focus alone: a finger's tap sets both and would leave the price stuck on screen.
-    expect(css).not.toMatch(/:hover \.tip|:focus \.tip/);
+  it('the price shows for a mouse (data-hover), on keyboard focus (:focus-visible, not a tap\'s :focus) and while measured, out of the layout', () => {
+    expect(rule(PHONE, '.tip')).toMatchObject({ position: 'absolute', bottom: 'calc(100% + 6px)' });
+    expect(rule(PHONE, '.d[data-hover] .tip, .d:focus-visible .tip, .tip[data-measure]')).toMatchObject({ 'clip-path': 'none' });
+    // Never on :hover or :focus alone: a finger's tap sets both and would leave the price stuck on screen. No
+    // pressed look either: the dates are information, not buttons.
+    for (const { selector } of allRules()) {
+      expect(selector).not.toMatch(/:hover \.tip|:focus \.tip|\.d:active/);
+    }
   });
 
-  it('the CSS: a click anywhere on the card reaches the card link, except on a date (its own link to the same page) and the add button', () => {
-    const css = cardCss();
-    expect(css).toMatch(/\.link::after \{[^}]*content: ''[^}]*position: absolute[^}]*inset: -1px -1px -1px -5px/);
-    expect(css).toMatch(/\.dates \{[^}]*position: relative[^}]*pointer-events: none/);
-    expect(css).toMatch(/\.d \{[^}]*pointer-events: auto/);
-  });
-
-  it('the CSS: the card\'s focus ring goes round the whole card, outside its borders, with a page-coloured band inside it', () => {
-    const css = cardCss();
-    // The stretched area covers the border box (the 5px operator edge included); the band covers any khaki ring.
-    expect(css).toMatch(/\.link:focus-visible::after \{ outline: 2px solid var\(--cerulean\); outline-offset: 4px; box-shadow: 0 0 0 4px var\(--snow\); \}/);
+  it('a departure with a bad date is left out of the dates and the picker', async () => {
+    const departures = [{ date: '2026-12-32' as IsoDate, priceHkd: 7999 }, ...tour.departures.slice(0, 2)];
+    render(<TourCard {...props} tour={{ ...tour, departures }} onAdd={vi.fn()} />);
+    expect(dateLinks()).toHaveLength(2);
+    expect(screen.queryByText(/NaN|12\/32/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(2);
   });
 });
 
-describe('cards opened this session are marked', () => {
-  const article = () => screen.getAllByRole('article')[0];
-  const other: TourCardData = { ...tour, key: 'jetour:OSA6', url: 'https://www.jetour.com.hk/OSA6' };
-  const jetour: OperatorInfo = { ...operator, id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06' };
-  const two = () => render(<><TourCard {...props} onAdd={vi.fn()} /><TourCard {...props} tour={other} operator={jetour} /></>);
-  const cards = () => screen.getAllByRole('article');
-
-  it('an unopened card has no mark and no cue', () => {
-    render(<TourCard {...props} />);
-    expect(article()).not.toHaveAttribute('data-opened');
-    expect(screen.queryByText(/瀏覽/)).toBeNull();
+describe('an operator whose data is old', () => {
+  // The operator's last good run: 19:10 UTC on 11 Nov (03:10 on 12 Nov in Hong Kong).
+  it('more than 36 hours later, a tag 資料為 and that day: beside the operator in the block layouts, under the price in the seven columns; it describes the link', () => {
+    render(<TourCard {...props} now="2026-11-13T07:11:00Z" />);
+    const [inTag, inPrice] = screen.getAllByText('資料為 11月12日');
+    // Never in the route's cell, where it would push a long route down.
+    expect(within(cells()[3]).queryByText(/資料為/)).toBeNull();
+    expect(cells()[0]).toContainElement(inTag);
+    expect(inTag).toHaveClass(styles.staleInTag);
+    // Under the price and its note: the last thing in the price cell.
+    expect(cells()[5].lastElementChild).toBe(inPrice);
+    expect(inPrice).toHaveClass(styles.staleInPrice);
+    expect(cardLink()).toHaveAccessibleDescription(/資料為 11月12日/);
   });
 
-  it('opening the operator\'s page from the card link marks the card as the most recent, with a text cue in its description', async () => {
+  it('each layout shows exactly one of the two: the one beside the operator until the seven columns, then the one under the price, right-aligned', () => {
+    expect(rule(PHONE, '.stale')).toMatchObject({ display: 'block', 'white-space': 'nowrap' });
+    expect(rule(PHONE, '.staleInPrice')).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.tagCell')).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
+    expect(rule(TABLET, '.staleInPrice')).toEqual({});
+    expect(rule(WIDE, '.staleInTag:lang(zh)')).toEqual({ display: 'none' });
+    expect(rule(WIDE, '.staleInPrice:lang(zh)')).toEqual({ display: 'block', margin: '4px 0 0 auto' });
+    // Price (21px × 1.35), note (12px × 1.4) and the tag (4px + 12px × 1.4 + its 2px border) fit the content height
+    // of the least row, so the tag never makes a row taller.
+    const content = px(rule(WIDE, ROW[WIDE])['min-height']) - 2 * Number(/^(\d+)px/.exec(rule(WIDE, ROW[WIDE]).padding)![1]);
+    expect(21 * 1.35 + 12 * 1.4 + (4 + 12 * 1.4 + 2)).toBeLessThanOrEqual(content);
+  });
+
+  it('within 36 hours, or without the render\'s time, or with an unreadable time: nothing', () => {
+    const { unmount } = render(<TourCard {...props} now="2026-11-13T07:09:00Z" />);
+    expect(screen.queryByText(/資料為/)).toBeNull();
+    unmount();
+    const second = render(<TourCard {...props} />);
+    expect(screen.queryByText(/資料為/)).toBeNull();
+    second.unmount();
+    render(<TourCard {...props} tour={{ ...tour, lastUpdated: 'garbage' }} now="2026-11-20T00:00:00Z" />);
+    expect(screen.queryByText(/資料為/)).toBeNull();
+  });
+
+  it('in the other languages', () => {
+    const { unmount } = render(<TourCard {...props} t={makeT('en')} now="2026-11-14T00:00:00Z" />);
+    expect(screen.getAllByText('Data from 12 Nov')).toHaveLength(2);
+    unmount();
+    render(<TourCard {...props} t={makeT('zh-Hans')} now="2026-11-14T00:00:00Z" />);
+    expect(screen.getAllByText('数据为 11月12日')).toHaveLength(2);
+  });
+});
+
+describe('rows opened this session are tinted', () => {
+  const row = () => screen.getAllByRole('row')[0];
+  const other: TourRow = { ...tour, key: 'jetour:OSA6', url: 'https://example.test/jetour/OSA6' };
+  const jetour: OperatorInfo = { ...operator, id: 'jetour', nameZh: '捷旅', nameEn: 'Jetour', color: '#ee7b06' };
+  const two = () => render(<><TourCard {...props} onAdd={vi.fn()} /><TourCard {...props} tour={other} operator={jetour} /></>);
+  const rows = () => screen.getAllByRole('row');
+
+  it('an unopened row has no mark and the gold button', () => {
+    render(<TourCard {...props} />);
+    expect(row()).not.toHaveAttribute('data-opened');
+    expect(cardLink()).toHaveTextContent('去旅行社網站 ↗');
+    expect(cardLink()).not.toHaveAccessibleDescription(/看過|打開/);
+  });
+
+  it('opening the operator\'s page from the row link makes it the last opened: no tag on screen, 上次打開 read out, and 再看一次', async () => {
     render(<TourCard {...props} />);
     await user.click(cardLink());
-    expect(article()).toHaveAttribute('data-opened', 'latest');
-    expect(screen.getByText('最近瀏覽')).toBeInTheDocument();
-    expect(cardLink()).toHaveAccessibleDescription(/最近瀏覽/);
+    expect(row()).toHaveAttribute('data-opened', 'latest');
+    expect(cardLink()).toHaveAccessibleDescription(/上次打開/);
+    expect(screen.getByText('上次打開').className).toMatch(/visuallyHidden/);
+    expect(cardLink()).toHaveTextContent('再看一次 ↗');
+    // Its name (operator, route, length, price) is unchanged.
+    expect(cardLink()).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
     expect(JSON.parse(window.sessionStorage.getItem(OPENED_KEY)!)).toEqual(['egl:KIX5']);
   });
 
-  it('opening it from a date counts too', async () => {
-    render(<TourCard {...props} />);
-    await user.click(screen.getByRole('link', { name: '12/20 HK$8,299' }));
-    expect(article()).toHaveAttribute('data-opened', 'latest');
-  });
-
-  it('a middle click (open in a background tab) counts', () => {
-    render(<TourCard {...props} />);
-    fireEvent(cardLink(), new MouseEvent('auxclick', { bubbles: true, button: 1 }));
-    expect(article()).toHaveAttribute('data-opened', 'latest');
-  });
-
-  it('a right click (auxclick with button 2, the context menu) does not count', () => {
-    render(<TourCard {...props} />);
+  it('opening it from a date counts too; so do a middle click and Enter; a right click does not', async () => {
+    const { unmount } = render(<TourCard {...props} />);
+    await user.click(dateLinks()[1]);
+    expect(row()).toHaveAttribute('data-opened', 'latest');
+    unmount(); window.sessionStorage.clear(); resetOpenedCache();
+    const middle = render(<TourCard {...props} />);
     fireEvent(cardLink(), new MouseEvent('auxclick', { bubbles: true, button: 2 }));
-    expect(article()).not.toHaveAttribute('data-opened');
-  });
-
-  it('Enter on the focused card link counts', async () => {
+    expect(row()).not.toHaveAttribute('data-opened');
+    fireEvent(cardLink(), new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+    expect(row()).toHaveAttribute('data-opened', 'latest');
+    middle.unmount(); window.sessionStorage.clear(); resetOpenedCache();
     render(<TourCard {...props} />);
-    await user.tab();
+    await user.tab(); // the dates
+    await user.tab(); // the row link
     await user.keyboard('{Enter}');
-    expect(article()).toHaveAttribute('data-opened', 'latest');
+    expect(row()).toHaveAttribute('data-opened', 'latest');
   });
 
   it('the click itself is left alone: not prevented, so the browser opens the page in a new tab as before', () => {
@@ -276,7 +514,7 @@ describe('cards opened this session are marked', () => {
     expect(prevent).not.toHaveBeenCalled();
     expect(stop).not.toHaveBeenCalled();
     expect(click.defaultPrevented).toBe(false);
-    expect(article()).toHaveAttribute('data-opened', 'latest');
+    expect(row()).toHaveAttribute('data-opened', 'latest');
     expect(cardLink()).toHaveAttribute('target', '_blank');
   });
 
@@ -284,36 +522,39 @@ describe('cards opened this session are marked', () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
     await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
-    expect(article()).not.toHaveAttribute('data-opened');
+    expect(row()).not.toHaveAttribute('data-opened');
   });
 
-  it('exactly one card is the most recent: opening another makes the first "opened earlier"', async () => {
+  it('exactly one row is the last opened: opening another makes the first "viewed"; both offer 再看一次', async () => {
     two();
     await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
     await user.click(screen.getByRole('link', { name: /^捷旅/ }));
-    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
-    expect(within(cards()[0]).getByText('已瀏覽')).toBeInTheDocument();
-    expect(within(cards()[1]).getByText('最近瀏覽')).toBeInTheDocument();
+    expect(rows().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
+    expect(screen.getByRole('link', { name: /^東瀛遊/ })).toHaveAccessibleDescription(/已看過/);
+    expect(screen.getByRole('link', { name: /^捷旅/ })).toHaveAccessibleDescription(/上次打開/);
+    expect(screen.getAllByRole('link', { name: /^(東瀛遊|捷旅)/ }).map(a => a.textContent)).toEqual(['再看一次 ↗', '再看一次 ↗']);
     await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
-    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['latest', 'earlier']);
+    expect(rows().map(c => c.getAttribute('data-opened'))).toEqual(['latest', 'earlier']);
   });
 
-  it('the marks survive a re-render from scratch (another page, a language or theme change, a reload)', async () => {
+  it('the marks survive a re-render from scratch (another page, a language or theme change, a reload), in that language', async () => {
     const { unmount } = two();
     await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
     await user.click(screen.getByRole('link', { name: /^捷旅/ }));
     unmount();
     resetOpenedCache(); // as after a reload: read again from sessionStorage
     render(<><TourCard {...props} t={makeT('en')} /><TourCard {...props} tour={other} operator={jetour} t={makeT('en')} /></>);
-    expect(cards().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
-    expect(screen.getByText('Visited')).toBeInTheDocument();
-    expect(screen.getByText('Last visited')).toBeInTheDocument();
+    expect(rows().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
+    expect(screen.getByText('Viewed')).toBeInTheDocument();
+    expect(screen.getByText('Last opened')).toBeInTheDocument();
+    expect(screen.getAllByText('View again ↗')).toHaveLength(2);
   });
 
   it('in Simplified Chinese', async () => {
     render(<TourCard {...props} t={makeT('zh-Hans')} />);
     await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
-    expect(screen.getByText('最近浏览')).toBeInTheDocument();
+    expect(screen.getByText('上次打开')).toBeInTheDocument();
+    expect(cardLink()).toHaveTextContent('再看一次 ↗');
   });
 
   it('with storage blocked: the click still opens the page and nothing is marked, as before', async () => {
@@ -321,326 +562,363 @@ describe('cards opened this session are marked', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
     render(<TourCard {...props} />);
     await user.click(cardLink());
-    expect(article()).not.toHaveAttribute('data-opened');
-    expect(screen.queryByText(/瀏覽/)).toBeNull();
+    expect(row()).not.toHaveAttribute('data-opened');
+    expect(cardLink()).toHaveTextContent('去旅行社網站 ↗');
     expect(cardLink()).toHaveAttribute('href', tour.url);
   });
 
   it('the server renders no mark (it cannot know); marks appear after hydration without a mismatch warning', async () => {
     window.sessionStorage.setItem(OPENED_KEY, JSON.stringify(['egl:KIX5']));
-    const html = renderToString(<TourCard {...props} />);
+    const html = renderToString(<TourCard {...props} now="2026-11-13T00:00:00Z" />);
     expect(html).not.toContain('data-opened');
     const container = document.createElement('div');
     container.innerHTML = html;
     document.body.append(container);
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     let root: ReturnType<typeof hydrateRoot> | undefined;
-    await act(async () => { root = hydrateRoot(container, <TourCard {...props} />); });
+    await act(async () => { root = hydrateRoot(container, <TourCard {...props} now="2026-11-13T00:00:00Z" />); });
     expect(errors).not.toHaveBeenCalled();
-    expect(container.querySelector('article')).toHaveAttribute('data-opened', 'latest');
+    expect(container.querySelector('[role="row"]')).toHaveAttribute('data-opened', 'latest');
     act(() => root!.unmount());
     container.remove();
   });
 
-  it('the CSS: two tints from the theme, a ring for the most recent; the cue sits on the border, out of the layout, and lets presses through', () => {
-    const css = cardCss();
-    expect(css).toMatch(/\.card\[data-opened\] \{ background: var\(--opened-bg\);/);
-    // On the tints the card's secondary text, accent, price-down and arrow use the darker --marked-* tokens.
-    expect(css).toMatch(/\.card\[data-opened\] \{[^}]*--text-muted: var\(--marked-muted\); --text-faint: var\(--marked-muted\); --cerulean: var\(--marked-accent\);[^}]*--price-down: var\(--marked-down\); --line-control: var\(--marked-line\);/);
-    expect(css).toMatch(/\.card\[data-opened='latest'\] \{[^}]*background: var\(--latest-bg\)[^}]*box-shadow: 0 0 0 2px var\(--latest-accent\)/);
-    expect(css).toMatch(/\.cue \{[^}]*position: absolute[^}]*pointer-events: none/);
-    expect(css).toMatch(/\.cue \{[^}]*background: var\(--ash\)[^}]*color: var\(--charcoal\)/);
-    expect(css).toMatch(/\.card\[data-opened='latest'\] \.cue \{[^}]*background: var\(--latest-accent\)[^}]*color: var\(--on-latest-accent\)/);
+  it('the tints change colours only: the row\'s background, the chips on the surface, the button outlined; no tag, no greyed text, no size', () => {
+    expect(rule(PHONE, ".row[data-opened='earlier']")).toEqual({ background: 'var(--viewed-bg)' });
+    expect(rule(PHONE, ".row[data-opened='latest']")).toEqual({ background: 'var(--latest-bg)' });
+    expect(rule(PHONE, '.row[data-opened] .chip')).toEqual({ background: 'var(--surface)' });
+    expect(rule(PHONE, '.row[data-opened] .go')).toEqual({ background: 'var(--surface)', 'border-color': 'var(--ink)', color: 'var(--ink)' });
+    const opened = allRules().filter(r => r.selector.includes('[data-opened'));
+    expect(opened).toHaveLength(4);
+    for (const { selector, d } of opened) {
+      for (const [property, value] of Object.entries(d)) {
+        expect(['background', 'border-color', 'color'], `${selector} ${property}`).toContain(property);
+        expect(value, selector).not.toMatch(/text-muted/);
+      }
+    }
   });
 });
 
-it('the operator tag uses the text colour that meets WCAG AA on the operator\'s colour', () => {
-  const { unmount } = render(<TourCard {...props} />);
-  expect(screen.getByText('東瀛遊').className).not.toMatch(/opDark/);
-  unmount();
-  render(<TourCard {...props} operator={{ ...operator, color: '#ee7b06' }} />);
-  expect(screen.getByText('東瀛遊').className).toMatch(/opDark/);
-  const css = cardCss();
-  expect(css).toMatch(/\.op \{[^}]*color: var\(--on-operator-light\)/);
-  expect(css).toMatch(/\.opDark \{ color: var\(--on-operator-dark\); \}/);
+describe('three layouts, switched by the window\'s width', () => {
+  /** Where each of the seven cells sits in a layout's grid: each must be one rectangle. */
+  function placements(media: string) {
+    const grid = areaGrid(rule(media, ROW[media])['grid-template-areas']);
+    const at: Record<string, { rows: Set<number>; cols: Set<number>; count: number }> = {};
+    grid.forEach((line, r) => line.forEach((name, c) => {
+      const p = (at[name] ??= { rows: new Set(), cols: new Set(), count: 0 });
+      p.rows.add(r); p.cols.add(c); p.count++;
+    }));
+    return { grid, at };
+  }
+
+  it('below 640px a block; from 640px two columns; from 1280px the seven columns on Chinese pages only', () => {
+    expect(Object.keys(sheet)).toEqual([PHONE, ZOOMED, TABLET, WIDE]);
+    expect(placements(PHONE).grid[0]).toHaveLength(2);
+    expect(placements(TABLET).grid[0]).toHaveLength(3);
+    expect(placements(WIDE).grid).toEqual([SEVEN]);
+  });
+
+  it('every layout places each of the seven cells exactly once, as one rectangle, with as many tracks as its areas have columns', () => {
+    for (const media of [PHONE, TABLET, WIDE]) {
+      const { grid, at } = placements(media);
+      expect(grid.every(line => line.length === grid[0].length), media).toBe(true);
+      expect(Object.keys(at).sort(), media).toEqual([...SEVEN].sort());
+      for (const [name, p] of Object.entries(at)) {
+        const rows = [...p.rows], cols = [...p.cols];
+        expect(Math.max(...rows) - Math.min(...rows) + 1, `${media} ${name}`).toBe(rows.length);
+        expect(Math.max(...cols) - Math.min(...cols) + 1, `${media} ${name}`).toBe(cols.length);
+        expect(p.count, `${media} ${name}`).toBe(rows.length * cols.length);
+      }
+      const row = rule(media, ROW[media]);
+      expect(trackList(withVars(row['grid-template-columns'], row)), media).toHaveLength(grid[0].length);
+    }
+  });
+
+  it('each cell is placed by its own area name, in the order a screen reader reads them', () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    const placedBy = (area: string) => Object.entries(sheet[PHONE]).find(([, d]) => d['grid-area'] === area)![0].slice(1);
+    SEVEN.forEach((area, i) => expect(cells()[i], area).toHaveClass(styles[placedBy(area)]));
+  });
+
+  it('on a phone: the operator and the days, then the price, the region, the route, the dates and the buttons, each button at most 360px', () => {
+    expect(placements(PHONE).grid.map(line => [...new Set(line)].join(' '))).toEqual(['tag days', 'price', 'region', 'route', 'dates', 'actions']);
+    expect(px(rule(PHONE, '.actions > *')['max-width'])).toBeLessThanOrEqual(360);
+    expect(px(rule(PHONE, '.dates')['max-width'])).toBeLessThanOrEqual(360);
+  });
+
+  it('on a tablet: the facts on the left; the price and the buttons stacked in a right-hand column of at most 360px', () => {
+    const { grid } = placements(TABLET);
+    expect(grid.map(line => line.at(-1))).toEqual(['price', 'price', 'actions', 'actions']);
+    expect(grid.flatMap(line => line.slice(0, -1))).not.toContain('price');
+    const right = trackList(rule(TABLET, '.row')['grid-template-columns']).at(-1);
+    expect(px(right)).toBeLessThanOrEqual(360);
+    expect(rule(TABLET, '.actions')['flex-direction']).toBe('column');
+  });
+
+  it('from 1280px, on Chinese pages: the same seven tracks on every row; only the route flexes', () => {
+    const row = rule(WIDE, ROW[WIDE]);
+    const zh = trackList(withVars(row['grid-template-columns'], row));
+    expect(zh).toHaveLength(7);
+    expect(zh[SEVEN.indexOf('route')]).toBe('minmax(0, 1fr)');
+    expect(zh.filter((_, i) => i !== SEVEN.indexOf('route')).every(track => px(track) > 0)).toBe(true);
+    // The tracks are the row's alone (the dates' own grid is inside their cell): nothing a row holds can change them,
+    // so every row has the same ones.
+    const setters = allRules().filter(({ d }) => 'grid-template-columns' in d || Object.keys(d).some(p => p.startsWith('--col-')));
+    expect(setters.map(r => `${r.media} ${r.selector}`)).toEqual([' .row', ' .dates', `${ZOOMED} .dates`, `${TABLET} .row`, `${WIDE} .row:lang(zh)`]);
+  });
+
+  it('English pages keep the two-column block at every width from 640px: every seven-column rule is for Chinese pages only', () => {
+    const wide = Object.keys(sheet[WIDE]);
+    expect(wide.length).toBeGreaterThan(5);
+    for (const selector of wide) expect(selector).toMatch(/:lang\(zh\)/);
+    // :lang(zh) matches both Chinese pages (<html lang="zh-Hant-HK">, <html lang="zh-Hans">), never lang="en".
+    for (const { selector } of allRules()) expect(selector).not.toMatch(/:lang\((?!zh\)|en\))/);
+  });
+
+  it('a zoomed phone (below 320px): two dates a line, so no chip spills', () => {
+    expect(sheet[ZOOMED]).toEqual({ '.dates': { 'grid-template-columns': 'repeat(2, minmax(0, 1fr))' } });
+  });
+
+  it('from 1280px every row is as tall as its stacked buttons at least; the thin line before the route spans the row', () => {
+    const vertical = Number(/^(\d+)px/.exec(rule(WIDE, ROW[WIDE]).padding)![1]);
+    const stacked = px(rule(WIDE, '.go:lang(zh)')['min-height']) + px(rule(TABLET, '.actions').gap) + px(rule(WIDE, '.add:lang(zh)')['min-height']);
+    expect(px(rule(WIDE, ROW[WIDE])['min-height'])).toBe(stacked + 2 * vertical);
+    expect(rule(WIDE, '.routeCell:lang(zh)')).toMatchObject({ 'align-self': 'stretch', 'border-left': '1px solid var(--line)' });
+  });
+
+  it('text never shrinks to fit: no layout changes a font size, and no size follows the window', () => {
+    for (const { media, selector, d } of allRules()) {
+      if (media !== PHONE) {
+        expect(d, `${media} ${selector}`).not.toHaveProperty('font-size');
+        expect(d, `${media} ${selector}`).not.toHaveProperty('font');
+      }
+      expect(d['font-size'] ?? '', selector).not.toMatch(/vw|vh|clamp|%/);
+    }
+  });
+
+  it('nothing is cut off: only the visually hidden helpers clip; no ellipsis or line clamp anywhere', () => {
+    const clipping = allRules().filter(({ d }) => /hidden|clip/.test(d.overflow ?? '')).map(r => r.selector);
+    expect(clipping).toEqual(['.visuallyHidden', '.tip']);
+    for (const { selector, d } of allRules()) {
+      expect(d, selector).not.toHaveProperty('text-overflow');
+      expect(d, selector).not.toHaveProperty('-webkit-line-clamp');
+      expect(d, selector).not.toHaveProperty('line-clamp');
+    }
+  });
+
+  it('only the route and the region may take more lines: every other cell\'s text keeps to one line', () => {
+    for (const selector of ['.days', '.price', '.delta', '.stale', '.chip', '.more', '.go', '.add']) {
+      expect(rule(PHONE, selector)['white-space'], selector).toBe('nowrap');
+    }
+  });
+
+  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程); 36px buttons in the seven columns', () => {
+    for (const selector of ['.d', '.go', '.add']) expect(rule(PHONE, selector)['min-height'], selector).toBe('44px');
+    expect(rule(WIDE, '.go:lang(zh)')['min-height']).toBe('36px');
+    expect(rule(WIDE, '.add:lang(zh)')['min-height']).toBe('36px');
+  });
+
+  it('the actions: the gold button, then 加入行程', () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    const actions = cardLink().parentElement!;
+    expect(actions.children[0]).toBe(cardLink());
+    expect(actions.children[1]).toContainElement(screen.getByRole('button', { name: '加入行程 ＋' }));
+  });
 });
 
-it('links to the operator in a new tab', () => {
-  render(<TourCard {...props} />);
-  const link = cardLink();
-  expect(link).toHaveAttribute('href', 'https://www.egltours.com/website/itinerary/KIX5');
-  expect(link).toHaveAttribute('target', '_blank');
-  expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+describe('the row link', () => {
+  it('links to the operator in a new tab, with a short accessible name instead of the whole row\'s text', () => {
+    render(<TourCard {...props} />);
+    const link = cardLink();
+    expect(link).toHaveAttribute('href', 'https://example.test/egl/KIX5');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(link).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
+  });
+
+  it('in English it reads "Operator\'s site"', () => {
+    render(<TourCard {...props} t={makeT('en')} />);
+    expect(screen.getByRole('link', { name: /^EGL Tours/ })).toHaveTextContent("Operator's site ↗");
+  });
+
+  it('is described by the price change (the dates follow it as links of their own)', () => {
+    render(<TourCard {...props} />);
+    expect(cardLink()).toHaveAccessibleDescription(/↓ 比7日前平 HK\$500/);
+    expect(cardLink()).not.toHaveAccessibleDescription(/12\/18|出發$|解散/);
+  });
+
+  it('a row with no change, no note, no old data and no mark has no dangling description ids', () => {
+    render(<TourCard {...props} tour={{ ...tour, priceChange: null, departures: [] }} />);
+    expect(cardLink()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('a click anywhere on the row reaches the row link, except on a date (its own link) and the add button', () => {
+    expect(rule(PHONE, '.row').position).toBe('relative');
+    expect(rule(PHONE, '.go::after')).toEqual({ content: "''", position: 'absolute', inset: '0' });
+    expect(rule(PHONE, '.datesCell')).toMatchObject({ position: 'relative', 'z-index': '1', 'pointer-events': 'none' });
+    expect(rule(PHONE, '.d')['pointer-events']).toBe('auto');
+    expect(rule(PHONE, '.addArea')).toEqual({ position: 'relative', 'z-index': '1' });
+    // Keyboard focus on the row link rings the button and the whole row.
+    expect(rule(PHONE, '.row:has(.go:focus-visible)')).toEqual({ 'box-shadow': 'inset 0 0 0 2px var(--focus)' });
+  });
+
+  it.each(['javascript:alert(1)', 'data:text/html,x', 'http://example.com', '/website/itinerary/KIX5'])(
+    'a non-https url (%s) gives no link, and the rest of the row still works',
+    async url => {
+      const onAdd = vi.fn();
+      const { container } = render(<TourCard {...props} tour={{ ...tour, url }} onAdd={onAdd} />);
+      expect(screen.queryByRole('link')).toBeNull();
+      expect(container.querySelector('[href]')).toBeNull();
+      expect(screen.queryByText('去旅行社網站 ↗')).toBeNull(); // no promise of a link that is not there
+      expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶');
+      expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+      await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
+      expect(onAdd).toHaveBeenCalledWith('2026-12-18');
+    },
+  );
+
+  it('accepts an https url in any letter case', () => {
+    render(<TourCard {...props} tour={{ ...tour, url: 'HTTPS://example.test/x' }} />);
+    expect(cardLink()).toHaveAttribute('href', 'HTTPS://example.test/x');
+  });
 });
 
-it('gives the link a short accessible name instead of the whole card text', () => {
-  render(<TourCard {...props} />);
-  expect(cardLink()).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
-});
+describe('the operator\'s colour', () => {
+  const card = (container: HTMLElement) => container.querySelector<HTMLElement>('[role="row"]')!;
 
-it('joins the route in the link name with the dictionary separator', () => {
-  const tEn = makeT('en');
-  render(<TourCard {...props} t={tEn} />);
-  expect(cardLink()).toHaveAccessibleName('東瀛遊 (EGL Tours): Osaka, Kyoto, Nara, Kobe, 5 days, 4 nights, from HK$7,999');
-});
-
-it('describes the link with the price change (the dates follow it as links of their own)', () => {
-  render(<TourCard {...props} />);
-  const link = cardLink();
-  expect(link).toHaveAccessibleDescription(/↓ HK\$500\s比7日前/);
-  expect(link).not.toHaveAccessibleDescription(/12\/18|出發$|解散/);
-});
-
-it('describes the link with the start or end note when there is one', () => {
-  render(<TourCard {...props} tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }} />);
-  expect(cardLink()).toHaveAccessibleDescription(/澳門出發 · 珠海解散/);
-});
-
-it('a card with no change line and no dates has no dangling description ids', () => {
-  render(<TourCard {...props} tour={{ ...tour, priceChange: null, departures: [] }} />);
-  expect(cardLink()).not.toHaveAttribute('aria-describedby');
-});
-
-it.each(['javascript:alert(1)', 'data:text/html,x', 'http://example.com', '/website/itinerary/KIX5'])(
-  'a non-https url (%s) gives no link, and the rest of the card still works',
-  async url => {
-    const onAdd = vi.fn();
-    const { container } = render(<TourCard {...props} tour={{ ...tour, url }} onAdd={onAdd} />);
-    expect(screen.queryByRole('link')).toBeNull();
-    expect(container.querySelector('[href]')).toBeNull();
-    expect(screen.queryByText('前往東瀛遊網站 ↗')).toBeNull(); // no promise of a link that is not there
-    expect(screen.getByText('更新：今日 03:10')).toBeInTheDocument();
-    expect(screen.getByRole('heading')).toHaveTextContent('大阪→京都→奈良→神戶');
-    expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
-    expect(screen.getByText('12/18')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
-    await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
-    expect(onAdd).toHaveBeenCalledWith('2026-12-18');
-  },
-);
-
-it('accepts an https url in any letter case', () => {
-  render(<TourCard {...props} tour={{ ...tour, url: 'HTTPS://www.egltours.com/x' }} />);
-  expect(cardLink()).toHaveAttribute('href', 'HTTPS://www.egltours.com/x');
-});
-
-it('uses the operator colour for the tag and the left border', () => {
-  const { container } = render(<TourCard {...props} />);
-  const card = container.querySelector('article')!;
-  expect(card.style.getPropertyValue('--c')).toBe('#d62839');
-  expect(card).toContainElement(screen.getByText('東瀛遊'));
-  // jsdom does not apply CSS modules, so pin the two rules that paint from --c.
-  const css = cardCss();
-  expect(css).toMatch(/\.card \{[^}]*border-left: 5px solid var\(--c\)/);
-  expect(css).toMatch(/\.op \{[^}]*background: var\(--c\)/);
-});
-
-it('takes the colour from the operator record, so a new operator needs no CSS', () => {
-  const { container } = render(<TourCard {...props} operator={{ ...operator, color: '#0F8B8D' }} />);
-  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('#0F8B8D');
-});
-
-it.each(['red;position:fixed;inset:0', 'red', '#fff', '#d62839;', 'url(x)', ''])(
-  'a colour that is not #rrggbb (%j) falls back to the fixed operator fallback grey, with light tag text',
-  color => {
-    const { container } = render(<TourCard {...props} operator={{ ...operator, color }} />);
-    const card = container.querySelector('article')!;
-    expect(card.style.getPropertyValue('--c')).toBe('var(--op-fallback)');
+  it('paints the tag only, no stripe down the row\'s edge; its text is the colour that meets WCAG AA on it', () => {
+    const { container, unmount } = render(<TourCard {...props} />);
+    expect(card(container).style.getPropertyValue('--c')).toBe('#d62839');
     expect(screen.getByText('東瀛遊').className).not.toMatch(/opDark/);
-    expect(card.style.position).toBe('');
-    expect(card.getAttribute('style')).not.toMatch(/position|inset/);
-  },
-);
+    const users = allRules().filter(({ d }) => Object.values(d).some(v => v.includes('var(--c)')));
+    expect(users.map(r => [r.selector, r.d.background])).toEqual([['.op', 'var(--c)']]);
+    expect(rule(PHONE, '.opDark')).toEqual({ color: 'var(--on-operator-dark)' });
+    unmount();
+    render(<TourCard {...props} operator={{ ...operator, color: '#ee7b06' }} />);
+    expect(screen.getByText('東瀛遊').className).toMatch(/opDark/);
+  });
 
-it('has no add button without onAdd', () => {
-  render(<TourCard {...props} />);
-  expect(screen.queryByRole('button')).toBeNull();
+  it('comes from the operator record, so a new operator needs no CSS', () => {
+    const { container } = render(<TourCard {...props} operator={{ ...operator, color: '#0F8B8D' }} />);
+    expect(card(container).style.getPropertyValue('--c')).toBe('#0F8B8D');
+  });
+
+  it.each(['red;position:fixed;inset:0', 'red', '#fff', '#d62839;', 'url(x)', ''])(
+    'a colour that is not #rrggbb (%j) falls back to the fixed operator fallback grey, with light tag text',
+    color => {
+      const { container } = render(<TourCard {...props} operator={{ ...operator, color }} />);
+      expect(card(container).style.getPropertyValue('--c')).toBe('var(--op-fallback)');
+      expect(screen.getByText('東瀛遊').className).not.toMatch(/opDark/);
+      expect(card(container).getAttribute('style')).not.toMatch(/position|inset/);
+    },
+  );
 });
 
-it('the add button is outside the link and opens the picker', async () => {
-  const onAdd = vi.fn();
-  render(<TourCard {...props} onAdd={onAdd} />);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  expect(cardLink().contains(button)).toBe(false);
-  await user.click(button);
-  expect(screen.getByText('選擇出發日期')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
-  expect(onAdd).toHaveBeenCalledWith('2026-12-18');
+describe('加入行程', () => {
+  it('has no add button without onAdd', () => {
+    render(<TourCard {...props} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('the add button is outside the link and opens the picker; choosing a date adds it and returns focus to the button', async () => {
+    const onAdd = vi.fn();
+    render(<TourCard {...props} onAdd={onAdd} />);
+    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    expect(cardLink().contains(button)).toBe(false);
+    await user.click(button);
+    expect(screen.getByText('選擇出發日期')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /2026年12月20日/ }));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledWith('2026-12-20');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button).toHaveFocus();
+  });
+
+  it('the picker works from the keyboard and Escape returns focus to the add button without scrolling', async () => {
+    const onAdd = vi.fn();
+    render(<TourCard {...props} onAdd={onAdd} />);
+    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await user.tab(); // the departure dates (one tab stop)
+    await user.tab(); // the row link
+    await user.tab(); // the add button
+    expect(button).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /2026年12月18日/ })).toHaveFocus();
+    const focus = vi.spyOn(button, 'focus');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button).toHaveFocus();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it('the close button and a second press on the add button close the picker', async () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    await user.click(button);
+    await user.click(screen.getByRole('button', { name: '關閉' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button).toHaveFocus();
+    await user.click(button);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(button);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('a press outside closes it without adding; focus stays on what was pressed', async () => {
+    const onAdd = vi.fn();
+    render(<><input aria-label="elsewhere" /><TourCard {...props} onAdd={onAdd} /></>);
+    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    await user.click(button);
+    const focus = vi.spyOn(button, 'focus');
+    await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'elsewhere' })).toHaveFocus();
+  });
+
+  it('the picker lists every departure, not only those on the row, with the stored fallback price and 起 for an unpriced date', async () => {
+    render(<TourCard {...props} tour={eight} onAdd={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(8);
+    expect(screen.getByRole('button', { name: /2026年12月27日/ })).toHaveTextContent('HK$7,499 起');
+  });
+
+  it('keeps its words in every language (the owner found a bare "+" unclear)', () => {
+    const { unmount } = render(<TourCard {...props} onAdd={vi.fn()} t={makeT('en')} />);
+    expect(screen.getByRole('button')).toHaveTextContent('+ Add to trip');
+    unmount();
+    render(<TourCard {...props} onAdd={vi.fn()} t={makeT('zh-Hans')} />);
+    expect(screen.getByRole('button')).toHaveTextContent('加入行程 ＋');
+  });
 });
 
-it('closes the picker after a date is chosen and returns focus to the add button', async () => {
-  const onAdd = vi.fn();
-  render(<TourCard {...props} onAdd={onAdd} />);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  await user.click(button);
-  await user.click(screen.getByRole('button', { name: /2026年12月20日/ }));
-  expect(onAdd).toHaveBeenCalledTimes(1);
-  expect(onAdd).toHaveBeenCalledWith('2026-12-20');
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(button).toHaveFocus();
+describe('bad data never takes the row down', () => {
+  it('a bad price-change date drops only the change', () => {
+    render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'lower', diffHkd: 500, sinceDate: 'not-a-date' } }} />);
+    expect(screen.queryByText(/日前/)).toBeNull();
+    expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
+  });
+
+  it('a bad today drops the change but renders the row', () => {
+    render(<TourCard {...props} today="garbage" />);
+    expect(screen.queryByText(/日前/)).toBeNull();
+    expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶');
+    expect(dateLinks()).toHaveLength(6);
+  });
 });
 
-it('the picker works from the keyboard and Escape returns focus to the add button', async () => {
-  const onAdd = vi.fn();
-  render(<TourCard {...props} onAdd={onAdd} />);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  expect(button).toHaveAttribute('aria-expanded', 'false');
-  await user.tab(); // the card link
-  await user.tab(); // the departure dates (one tab stop)
-  await user.tab(); // the add button
-  expect(button).toHaveFocus();
-  await user.keyboard('{Enter}');
-  expect(button).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByRole('button', { name: /2026年12月18日/ })).toHaveFocus();
-  const focus = vi.spyOn(button, 'focus');
-  await user.keyboard('{Escape}');
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(button).toHaveFocus();
-  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
-  expect(onAdd).not.toHaveBeenCalled();
-});
-
-it('the close button returns focus to the add button without scrolling', async () => {
-  render(<TourCard {...props} onAdd={vi.fn()} />);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  await user.click(button);
-  const focus = vi.spyOn(button, 'focus');
-  await user.click(screen.getByRole('button', { name: '關閉' }));
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(button).toHaveFocus();
-  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
-});
-
-it('clicking the add button again closes the picker', async () => {
-  render(<TourCard {...props} onAdd={vi.fn()} />);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  await user.click(button);
-  expect(screen.getByRole('dialog')).toBeInTheDocument();
-  await user.click(button);
-  expect(screen.queryByRole('dialog')).toBeNull();
-});
-
-it('clicking outside the picker closes it without adding or moving focus back', async () => {
-  const onAdd = vi.fn();
-  render(<><p>elsewhere</p><TourCard {...props} onAdd={onAdd} /></>);
-  const button = screen.getByRole('button', { name: '加入行程 ＋' });
-  await user.click(button);
-  const focus = vi.spyOn(button, 'focus');
-  await user.click(screen.getByText('elsewhere'));
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(onAdd).not.toHaveBeenCalled();
-  expect(focus).not.toHaveBeenCalled();
-  expect(button).not.toHaveFocus();
-});
-
-it('pressing another control outside leaves focus on that control', async () => {
-  render(<><input aria-label="elsewhere" /><TourCard {...props} onAdd={vi.fn()} /></>);
-  await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
-  await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
-  expect(screen.queryByRole('dialog')).toBeNull();
-  expect(screen.getByRole('textbox', { name: 'elsewhere' })).toHaveFocus();
-});
-
-it('the picker lists every departure, with the stored fallback price and 起 for an unpriced date', async () => {
-  render(<TourCard {...props} onAdd={vi.fn()} />);
-  await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
-  const dialog = screen.getByRole('dialog');
-  expect(dialog.querySelectorAll('li')).toHaveLength(6);
-  // fallbackPriceHkd (7,499), not fromPriceHkd (7,999).
-  expect(screen.getByRole('button', { name: /2026年12月27日/ })).toHaveTextContent('HK$7,499 起');
-});
-
-it('hides the price change when the window price differs from the from-price', () => {
-  render(<TourCard {...props} tour={{ ...tour, windowPriceHkd: 8999 }} />);
-  expect(screen.queryByText(/比7日前/)).toBeNull();
-  expect(screen.getByText(/HK\$8,999/, priceDiv)).toBeInTheDocument();
-});
-
-it('shows no price change line when there is no change data', () => {
-  render(<TourCard {...props} tour={{ ...tour, priceChange: null }} />);
-  expect(screen.queryByText(/日前/)).toBeNull();
-});
-
-it('shows the start note only for a non-HK, non-Shenzhen start', () => {
-  const { unmount } = render(<TourCard {...props} />);
-  expect(screen.queryByText(/出發$/)).toBeNull();
+it('reads in each language: the days in their own words, the price\'s "from" where the language puts it', () => {
+  const { unmount } = render(<TourCard {...props} t={makeT('en')} />);
+  expect(cells()[1]).toHaveTextContent(/^5 days$/);
+  expect(screen.getByText(/HK\$7,999/, priceDiv)).toHaveTextContent(/^from HK\$7,999$/);
+  expect(screen.getByRole('heading')).toHaveTextContent('Osaka → Kyoto → Nara → Kobe');
   unmount();
-  render(<TourCard {...props} tour={{ ...tour, start: { kind: 'other', label: '澳門外港碼頭' } }} />);
-  expect(screen.getByText('澳門外港碼頭出發')).toBeInTheDocument();
-});
-
-it('shows a footNote and, beneath it, the updated time', () => {
-  render(<TourCard {...props} footNote="休息 1–2 日後出發" />);
-  const note = screen.getByText('休息 1–2 日後出發');
-  const updated = screen.getByText('更新：今日 03:10');
-  expect(note.parentElement).toBe(updated.parentElement); // together, on the footer's left side
-  expect(note.compareDocumentPosition(updated) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // the note first
-  expect(screen.getByText('前往東瀛遊網站 ↗').previousElementSibling).toBe(note.parentElement);
-});
-
-it('a footNote with a bad last-updated timestamp shows the foot note alone', () => {
-  render(<TourCard {...props} tour={{ ...tour, lastUpdated: 'garbage' }} footNote="休息 1–2 日後出發" />);
-  expect(screen.getByText('休息 1–2 日後出發')).toBeInTheDocument();
-  expect(screen.queryByText(/更新/)).toBeNull();
-});
-
-it('renders no image and no description', () => {
-  const { container } = render(<TourCard {...props} />);
-  expect(container.querySelector('img')).toBeNull();
-  expect(screen.queryByText(tour.title)).toBeNull();
-});
-
-it('shows a long route in full', () => {
-  const ten = ['osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto'];
-  render(<TourCard {...props} tour={{ ...tour, stops: ten.map(c => kansai(`japan-kansai-${c}`)) }} />);
-  expect(screen.getByRole('heading')).toHaveTextContent('大阪→京都→奈良→神戶→大阪→京都→奈良→神戶→大阪→京都');
-  const css = cardCss();
-  expect(css).toMatch(/\.route \{[^}]*overflow-wrap: anywhere/);
-  expect(css).not.toMatch(/\.route \{[^}]*(text-overflow|white-space: nowrap)/);
-});
-
-it('a bad price-change date drops only the change line', () => {
-  render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'lower', diffHkd: 500, sinceDate: 'not-a-date' } }} />);
-  expect(screen.queryByText(/日前/)).toBeNull();
-  expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
-  expect(screen.getByText('更新：今日 03:10')).toBeInTheDocument();
-});
-
-it('a bad last-updated timestamp drops only the updated text', () => {
-  render(<TourCard {...props} tour={{ ...tour, lastUpdated: 'garbage' }} />);
-  expect(screen.queryByText(/更新/)).toBeNull();
-  expect(screen.getByText('前往東瀛遊網站 ↗')).toBeInTheDocument();
-  expect(screen.getByText('↓ HK$500　比7日前', keepSpaces)).toBeInTheDocument();
-});
-
-it('a bad today drops the change line and the updated text but renders the card', () => {
-  render(<TourCard {...props} today="garbage" />);
-  expect(screen.queryByText(/日前/)).toBeNull();
-  expect(screen.getByRole('heading')).toHaveTextContent('大阪→京都→奈良→神戶');
-  expect(screen.getByText(/12\/18$/)).toBeInTheDocument();
-});
-
-it('a departure with a bad date is left out of the chips and the picker', async () => {
-  const departures = [{ date: '2026-12-32', priceHkd: 7999 }, ...tour.departures.slice(0, 2)];
-  render(<TourCard {...props} tour={{ ...tour, departures }} onAdd={vi.fn()} />);
-  expect(screen.getByText('12/18')).toBeInTheDocument();
-  expect(screen.queryByText(/NaN|12\/32/)).toBeNull();
-  await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
-  expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(2);
-});
-
-it('in English: day-first chip dates, "from" before the price, and the add button', () => {
-  render(<TourCard {...props} t={makeT('en')} onAdd={() => {}} />);
-  const dates = within(screen.getByRole('group', { name: 'Departure dates' })).getAllByRole('link').map(a => a.firstChild!.textContent);
-  expect(dates).toEqual(['18 Dec', '20 Dec', '23 Dec', '27 Dec']);
-  expect(screen.getByText('+2 more dates')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: '27 Dec from HK$7,499' })).toBeInTheDocument();
-  expect(screen.getByText(/HK\$7,999/, priceDiv).closest('div')).toHaveTextContent(/^from HK\$7,999$/);
-  expect(screen.getByRole('button', { name: '+ Add to trip' })).toBeInTheDocument();
-});
-
-it('in Simplified Chinese the chips and the price read as in Traditional', () => {
   render(<TourCard {...props} t={makeT('zh-Hans')} />);
-  expect(screen.getByText('12/18')).toBeInTheDocument();
-  expect(screen.getByText(/HK\$7,999/, priceDiv).closest('div')).toHaveTextContent(/^HK\$7,999 起$/);
+  expect(cells()[1]).toHaveTextContent(/^5天$/);
+  expect(screen.getByText(/HK\$7,999/, priceDiv)).toHaveTextContent(/^HK\$7,999 起$/);
 });

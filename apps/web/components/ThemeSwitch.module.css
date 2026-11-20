@@ -1,19 +1,14 @@
-/* The theme switch, at the right end of the nav bar after the language switch (on the dark bar). 44px for touch. */
+/* The theme switch, at the right end of the header after the language switch (on the ink bar). 44px for touch. */
 .form { margin: 0; display: flex; }
 
 .option {
-  min-height: 44px; min-width: 44px; padding: 0; border: 0; background: none;
+  min-height: 44px; min-width: 44px; padding: 0; border: 0; border-radius: var(--radius-control); background: none;
   align-items: center; justify-content: center;
-  color: var(--bar-text); opacity: 0.75; cursor: pointer;
+  color: var(--header-text); cursor: pointer;
 }
-.option:hover { opacity: 1; }
-.option:focus-visible { outline: 2px solid var(--bar-accent); outline-offset: -4px; opacity: 1; }
+.option:hover { box-shadow: inset 0 -3px 0 var(--header-text); }
+.option:focus-visible { outline: 2px solid var(--header-accent); outline-offset: -4px; }
 
 /* Only the button for the other theme shows (theme.css swaps the two display values in the dark theme). */
 .toDark { display: var(--when-light); }
 .toLight { display: var(--when-dark); }
-
-/* Phones: narrower (26 × 44px), so the bar fits on one line at 375px in every language. */
-@media (max-width: 639px) {
-  .option { min-width: 26px; }
-}

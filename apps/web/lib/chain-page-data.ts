@@ -1,10 +1,11 @@
 import { decodeChain, places, MAX_CHAIN_LEGS, type IsoDate } from '@hktours/core';
-import type { Db, OperatorInfo, TourCardData } from '@hktours/db/read';
+import type { Db, OperatorInfo } from '@hktours/db/read';
+import { withoutTitle, type TourRow } from './tour-row';
 import type { Reads } from './cached-reads';
 import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
-import { parseSearchParams } from './search-params';
+import { pageSizeOf, parseSearchParams } from './search-params';
 import { filterBarOperators, uncachedReads } from './search-page-data';
 
 type RawParams = Record<string, string | string[] | undefined>;
@@ -21,7 +22,7 @@ export interface ChainPageData {
   /** Departure window for the next leg; null when there are no legs or the chain is full. */
   departWindow: { from: IsoDate; to: IsoDate } | null;
   /** The tours that can come next, in that window; null exactly when `departWindow` is. */
-  next: { tours: TourCardData[]; total: number } | null;
+  next: { tours: TourRow[]; total: number } | null;
   /** MAX_CHAIN_LEGS legs: no more can be added. */
   full: boolean;
   /** Every operator, for looking one up by id (the strip's and cards' names and colours). */
@@ -69,7 +70,9 @@ export async function loadChainPage(
     reads.getOperators(db, { onlyWithGoodRun: true }),
   ]);
   const filterOperators = filterBarOperators(operators, withGoodRun, search.filters.operators);
-  const resolved = resolveChain(decoded, tours, today);
+  // The tours' own names are not shown, so they are not sent to the browser.
+  const rows = new Map([...tours].map(([key, tour]) => [key, withoutTitle(tour)]));
+  const resolved = resolveChain(decoded, rows, today);
   const { legs } = resolved;
   const droppedCount = resolved.droppedCount + unreadable;
   const address: ChainAddress = {
@@ -79,12 +82,13 @@ export async function loadChainPage(
 
   const full = legs.length >= MAX_CHAIN_LEGS;
   const departWindow = full ? null : nextWindow(legs, decoded.gap);
-  const next = departWindow
+  const found = departWindow
     ? await reads.searchTours(db, {
       filters: { ...search.filters, dateFrom: departWindow.from, dateTo: departWindow.to },
-      sort: search.sort, page: search.page, today,
+      sort: search.sort, page: search.page, pageSize: pageSizeOf(search), today,
     }, locale)
     : null;
+  const next = found && { tours: found.tours.map(withoutTitle), total: found.total };
 
   return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators };
 }

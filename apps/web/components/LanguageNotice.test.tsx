@@ -33,16 +33,20 @@ it.each([
   expect(note).toHaveClass(styles.notice);
 });
 
-it('is fixed to the top of the window, full width, above every other layer, in snow on #800000', () => {
+it('is fixed to the top of the window, full width, above every other layer, in its own light text on #800000', () => {
   expect(css()).toMatch(/\.fixed \{ position: fixed; top: 0; left: 0; right: 0; z-index: 1000; \}/);
   expect(css()).toMatch(/\.notice \{[^}]*background: var\(--notice-maroon\);[^}]*color: var\(--notice-text\);/);
   // The spacer stays in the flow (not fixed, not display: none), so it takes the notice's height.
   expect(css()).toMatch(/\.spacer \{ visibility: hidden; \}/);
-  // Every other layer in the site is below it.
-  const dir = __dirname;
-  for (const file of readdirSync(dir).filter(f => f.endsWith('.module.css') && f !== 'LanguageNotice.module.css')) {
-    for (const m of readFileSync(join(dir, file), 'utf8').matchAll(/z-index:\s*(\d+)/g)) expect(Number(m[1]), file).toBeLessThan(1000);
+  // Every other layer in the site (components' and pages' stylesheets) is below it.
+  let checked = 0;
+  for (const dir of [__dirname, join(__dirname, '../app'), join(__dirname, '../app/_site')]) {
+    for (const file of readdirSync(dir).filter(f => f.endsWith('.module.css') && f !== 'LanguageNotice.module.css')) {
+      checked++;
+      for (const m of readFileSync(join(dir, file), 'utf8').matchAll(/z-index:\s*(\d+)/g)) expect(Number(m[1]), file).toBeLessThan(1000);
+    }
   }
+  expect(checked).toBeGreaterThan(20);
 });
 
 it('#800000 is used for the notice only', () => {

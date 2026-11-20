@@ -94,6 +94,27 @@ it('walks every folder: nested CSS modules, lib components, and the exceptions e
   expect(files.some(f => f.includes('node_modules') || f.includes('.test.'))).toBe(false);
 });
 
+/**
+ * Custom properties a stylesheet may read without theme.css defining them: each is set where it is used. --c is the
+ * operator colour (set inline by the row, the chain strip's legs and the operator checkboxes); --tip-shift by the
+ * row's date tooltip; --mark-* by whoever colours the mark; --band-*, --search-*, --toggle-* by the gold band for
+ * the controls on it (each read with a fallback); --col-* by the row for its own grid tracks.
+ */
+const LOCAL_PROPERTIES = /^--(c|tip-shift|mark-primary|mark-accent|band-focus|search-[a-z]+|toggle-[a-z]+|col-[a-z]+)$/;
+
+it('every custom property a stylesheet reads is a theme token or set where it is used: no old colour name is left', () => {
+  const tokens = new Set([...readFileSync(join(WEB, 'lib/theme.css'), 'utf8').matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+  const unknown = sourceFiles()
+    .filter(path => path.endsWith('.css'))
+    .flatMap(path => [...readFileSync(join(WEB, path), 'utf8').matchAll(/var\((--[\w-]+)/g)]
+      .map(m => m[1])
+      .filter(name => !tokens.has(name) && !LOCAL_PROPERTIES.test(name))
+      .map(name => `${path}: ${name}`));
+  expect(unknown).toEqual([]);
+  // The guard does read the stylesheets: the tokens the rows use are found there.
+  expect(tokens.has('--gold') && tokens.has('--ink')).toBe(true);
+});
+
 describe('it catches', () => {
   // The review's four cases (each passed the old check), then the other forms.
   it.each([
@@ -122,10 +143,10 @@ describe('it catches', () => {
 
 describe('and lets through', () => {
   it.each([
-    ['a.module.css', '.a { white-space: nowrap; color: var(--charcoal); background: transparent; fill: currentColor; }'],
+    ['a.module.css', '.a { white-space: nowrap; color: var(--ink); background: transparent; fill: currentColor; }'],
     ['a.module.css', '.a { color: inherit; border-color: initial; }'],
-    ['a.module.css', '.d:focus-visible .tip { outline: 2px solid var(--snow); }'],
-    ['a.module.css', '.red:hover, #main .tan { color: var(--charcoal); }'],
+    ['a.module.css', '.d:focus-visible .tip { outline: 2px solid var(--page); }'],
+    ['a.module.css', '.red:hover, #main .tan { color: var(--ink); }'],
     ['a.module.css', '/* the mockup\'s #7b7c76, darkened */ .a { color: var(--text-muted); }'],
     ['a.module.css', '@media (prefers-color-scheme: dark) { :root:not([data-theme=\'light\']) { --x: var(--y); } }'],
     ['a.tsx', 'const SAFE_COLOR = /^#[0-9a-f]{6}$/i;'],

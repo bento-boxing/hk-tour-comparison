@@ -1,8 +1,9 @@
 import { unstable_cache } from 'next/cache';
 import type { Destination, IsoDate } from '@hktours/core';
 import {
-  countToursByDestination, getOperators, getToursByKeys, searchTours,
-  type DestinationCounts, type Db, type OperatorInfo, type SearchInput, type SortKey, type TourCardData, type TourFilters,
+  countToursByDestination, getOperators, getToursByKeys, isPageSize, searchTours, PAGE_SIZE,
+  type DestinationCounts, type Db, type OperatorInfo, type PageSize, type SearchInput, type SortKey, type TourCardData,
+  type TourFilters,
 } from '@hktours/db/read';
 import type { Locale } from './i18n';
 
@@ -143,6 +144,8 @@ type KeyFilters = { [K in keyof Required<TourFilters>]: NonNullable<TourFilters[
 
 interface SearchKey {
   build: string; read: 'searchTours'; today: IsoDate; sort: SortKey; page: number;
+  /** Rows per page, always written (the default too), as searchTours reads it: anything but 48 or 96 is 24. */
+  pageSize: PageSize;
   /** Only for the destination sorts; null otherwise. */
   locale: Locale | null;
   filters: KeyFilters;
@@ -170,6 +173,7 @@ function searchKey(build: string, query: SearchQuery, locale: Locale): SearchKey
   };
   return {
     build, read: 'searchTours', today: query.today, sort: query.sort, page: query.page,
+    pageSize: isPageSize(query.pageSize) ? query.pageSize : PAGE_SIZE,
     locale: usesDestinationOrder(query.sort) ? locale : null,
     filters,
   };
@@ -179,7 +183,7 @@ function searchKey(build: string, query: SearchQuery, locale: Locale): SearchKey
 function searchInput(key: SearchKey, orderFor: (locale: Locale) => string[]): SearchInput {
   const filters = Object.fromEntries(Object.entries(key.filters).filter(([, v]) => v !== null)) as TourFilters;
   return {
-    filters, sort: key.sort, page: key.page, today: key.today,
+    filters, sort: key.sort, page: key.page, pageSize: key.pageSize, today: key.today,
     destinationOrder: key.locale === null ? undefined : orderFor(key.locale),
   };
 }

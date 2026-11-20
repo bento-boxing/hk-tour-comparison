@@ -1,13 +1,15 @@
 import { places, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
-import type { Db, DestinationCounts, OperatorInfo, TourCardData } from '@hktours/db/read';
+import type { Db, DestinationCounts, OperatorInfo } from '@hktours/db/read';
+import { withoutTitle, type TourRow } from './tour-row';
 import { createReads, runUncached, type Reads } from './cached-reads';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { placeName } from './place-names';
-import { parseSearchParams, type SearchState } from './search-params';
+import { pageSizeOf, parseSearchParams, type SearchState } from './search-params';
 
 export interface SearchPageData {
   state: SearchState;
-  tours: TourCardData[];
+  /** This page's tours, without their own names (the rows never show them: lib/tour-row.ts). */
+  tours: TourRow[];
   /** Every match before paging. */
   total: number;
   /** Every operator, for looking one up by id (a card's name and colour). */
@@ -85,11 +87,11 @@ export async function loadSearchPage(
   const state: SearchState = { ...parsed, filters };
 
   const [{ tours, total }, operators, withGoodRun, counts] = await Promise.all([
-    reads.searchTours(db, { filters, sort: state.sort, page: state.page, today }, locale),
+    reads.searchTours(db, { filters, sort: state.sort, page: state.page, pageSize: pageSizeOf(state), today }, locale),
     reads.getOperators(db),
     reads.getOperators(db, { onlyWithGoodRun: true }),
     reads.countToursByDestination(db, today),
   ]);
   const filterOperators = filterBarOperators(operators, withGoodRun, filters.operators);
-  return { state, tours, total, operators, filterOperators, counts };
+  return { state, tours: tours.map(withoutTitle), total, operators, filterOperators, counts };
 }

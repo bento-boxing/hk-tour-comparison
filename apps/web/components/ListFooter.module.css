@@ -1,0 +1,23 @@
+/* Mock-up Rows: under the list, the rows-per-page choice, the count (growing to fill the row) and the pager. */
+.footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: 16px 0 8px; }
+.size { display: flex; align-items: center; gap: 8px; }
+.sizeLabel { font-size: 14px; color: var(--text-muted); }
+/* One outlined box split in three, the current choice filled. */
+.sizes { display: inline-flex; border: 1px solid var(--line-control); border-radius: var(--radius-control); overflow: hidden; }
+.sizeOption {
+  display: inline-flex; align-items: center; justify-content: center; width: 52px; min-height: 44px;
+  font-size: 14px; color: var(--ink); background: var(--surface); text-decoration: none;
+}
+.sizeOption + .sizeOption { border-left: 1px solid var(--line-control); }
+.sizeOption:hover { background: var(--hit); }
+.sizeOption[aria-current='true'] { background: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
+/* Inside the box (it clips its overflow): the ring, then a surface band, so it shows on the filled choice too. */
+.sizeOption:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; box-shadow: inset 0 0 0 4px var(--surface); }
+.range { flex-grow: 1; margin: 0; font-size: 14px; color: var(--text-muted); }
+
+/* When the data was last updated: a quiet line under the footer. */
+.updated { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+
+@media (max-width: 639px) {
+  .range { flex-basis: 100%; order: -1; }
+}

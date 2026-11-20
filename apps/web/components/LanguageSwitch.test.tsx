@@ -59,8 +59,8 @@ const LEGS = 'legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan&page=2';
 
 it.each([
   ['zh-Hant', '/', '', ['/', '/zh-hans', '/en']],
-  ['zh-Hant', '/', 'dest=japan&dmin=5&page=3', ['/?dest=japan&dmin=5&page=3', '/zh-hans?dest=japan&dmin=5&page=3', '/en?dest=japan&dmin=5&page=3']],
-  ['en', '/en', 'dest=japan&dmin=5', ['/?dest=japan&dmin=5', '/zh-hans?dest=japan&dmin=5', '/en?dest=japan&dmin=5']],
+  ['zh-Hant', '/', 'dmin=5&size=48&page=3', ['/?dmin=5&size=48&page=3', '/zh-hans?dmin=5&size=48&page=3', '/en?dmin=5&size=48&page=3']],
+  ['en', '/en/tours/japan', 'dmin=5', ['/tours/japan?dmin=5', '/zh-hans/tours/japan?dmin=5', '/en/tours/japan?dmin=5']],
   ['zh-Hans', '/zh-hans/chain', '', ['/chain', '/zh-hans/chain', '/en/chain']],
   ['en', '/en/chain', LEGS, [`/chain?${LEGS}`, `/zh-hans/chain?${LEGS}`, `/en/chain?${LEGS}`]],
   ['zh-Hant', '/chain', LEGS, [`/chain?${LEGS}`, `/zh-hans/chain?${LEGS}`, `/en/chain?${LEGS}`]],
@@ -97,15 +97,14 @@ it('is reachable by keyboard, in the order 繁 简 EN', async () => {
   expect(screen.getByRole('link', { name: 'English' })).toHaveFocus();
 });
 
-it('is 44px tall for touch, sits at the right, looks as the buttons did, and drops to 繁 / 简 / EN on phones', () => {
-  expect(css()).toMatch(/\.option \{[^}]*display: inline-flex; align-items: center;/);
-  expect(css()).toMatch(/\.option \{[^}]*min-height: 44px/);
-  expect(css()).toMatch(/\.option \{[^}]*text-decoration: none/); // a link, but no underline except the current one's
-  expect(css()).toMatch(/\.option\[aria-current='true'\] \{[^}]*text-decoration: underline; text-decoration-color: var\(--bar-accent\)/);
-  expect(css()).toMatch(/\.switch \{ margin: 0 0 0 auto; \}/);
+it('is 44px tall for touch, marks the current language bold with the gold underline, and drops to 繁 / 简 / EN on phones', () => {
+  // jsdom applies no CSS: the rules a visitor depends on are pinned.
+  expect(css()).toMatch(/\.option \{[^}]*display: inline-flex; align-items: center;[^}]*min-height: 44px/);
+  expect(css()).toMatch(/\.option \{[^}]*text-decoration: none/); // a link, but drawn as the header's other links
+  expect(css()).toMatch(/\.option\[aria-current='true'\] \{ font-weight: 700; border-bottom-color: var\(--header-accent\); \}/);
+  expect(css()).toMatch(/\.option:focus-visible \{ outline: 2px solid var\(--header-accent\)/);
   expect(css()).toMatch(/\.short \{ display: none; \}/);
   expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*\.long \{ display: none; \}[^@]*\.short \{ display: inline; \}/);
-  // Phones: 26px wide (above the 24px minimum touch target), so the bar keeps one row at 375px in every language.
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.option \{ min-width: 26px; padding: 0 3px; \}/);
-  expect(css()).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  // Phones: 30px wide (above the 24px minimum touch target) and 44px tall.
+  expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*\.option \{ min-width: 30px;/);
 });

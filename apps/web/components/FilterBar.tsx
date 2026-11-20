@@ -70,9 +70,9 @@ function priceText(f: TourFilters, t: T): string | null {
 }
 
 /**
- * The filter pills (mockup `.filters` / `.f`), in this order: destination (only when set, with ✕ to clear),
- * departure dates, travel dates, length, price, operators, exclusions (only when asked), sort. A pill whose
- * filter is set is filled.
+ * The filter row (mock-up Rows): outlined boxes in this order: destination (only when set, with ✕ to clear),
+ * departure dates, travel dates, length, price, operators, exclusions (only when asked); a box whose filter is set
+ * is filled. Then, at the right end of the row, the sort control, set apart by its heavier outline.
  */
 export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong() }: FilterBarProps) {
   const showDates = show?.dates ?? true;
@@ -263,6 +263,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
         label={pillLabel('filter.sort', t(`sort.${state.sort}`))}
         title={t('filter.sort')}
         on={state.sort !== DEFAULT_SORT}
+        sort
         // Wide enough for a row name and two directions side by side ('Departure date  Soonest first  Latest first').
         wide
       >

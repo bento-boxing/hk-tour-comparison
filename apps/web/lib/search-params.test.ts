@@ -1,6 +1,8 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { places } from '@hktours/core';
-import { parseSearchParams, buildSearchQuery, withFilters, searchHref, movedSearchHref, DEFAULT_SORT, SORT_KEYS } from './search-params';
+import {
+  parseSearchParams, buildSearchQuery, withFilters, withPageSize, pageSizeOf, searchHref, movedSearchHref, DEFAULT_SORT, SORT_KEYS,
+} from './search-params';
 
 it('parses a full address', () => {
   const s = parseSearchParams({ dest: 'japan-kansai', from: '2026-12-01', to: '2026-12-31', dmin: '4', dmax: '6',
@@ -215,3 +217,39 @@ it('an old address whose dest names no destination stays where it is (its dest i
   expect(movedSearchHref({}, places)).toBeNull();
 });
 
+
+describe('rows per page (size)', () => {
+  const parse = (raw: Record<string, string>) => parseSearchParams(raw, places);
+
+  it('keeps 48 and 96; 24 (the default) and anything else leave it out', () => {
+    expect(parse({ size: '48' }).size).toBe(48);
+    expect(parse({ size: '96' }).size).toBe(96);
+    for (const odd of ['24', '25', '0', '480', '048', '096', '-48', '48.0', ' 48', '4.8e1', 'abc', '']) {
+      expect(parse({ size: odd }), odd).not.toHaveProperty('size');
+    }
+    expect(pageSizeOf(parse({}))).toBe(24);
+    expect(pageSizeOf(parse({ size: '96' }))).toBe(96);
+  });
+
+  it('is written to the address only when it is not the default, and survives a filter or sort change', () => {
+    const state = parse({ size: '48', dmin: '4', page: '3' });
+    expect(buildSearchQuery(state).toString()).toBe('dmin=4&size=48&page=3');
+    expect(searchHref(withFilters(state, { daysMax: 6 }))).toBe('/?dmin=4&dmax=6&size=48');
+    expect(searchHref({ ...state, sort: 'days', page: 1 })).toBe('/?dmin=4&sort=days&size=48');
+  });
+
+  it('a new size keeps the first row in view and never passes the last page', () => {
+    const at = (page: number, size?: 48 | 96) => ({ ...parse({}), page, ...(size ? { size } : {}) });
+    // Page 3 of 24 shows rows 49–72: page 2 of 48 (rows 49–96), page 1 of 96.
+    expect(withPageSize(at(3), 48, 2122)).toMatchObject({ page: 2, size: 48 });
+    expect(withPageSize(at(3), 96, 2122)).toMatchObject({ page: 1, size: 96 });
+    // Back from page 2 of 96 (rows 97–192) to 24: page 5 (rows 97–120); the default size leaves the address.
+    const back = withPageSize(at(2, 96), 24, 2122);
+    expect(back).toEqual({ ...parse({}), page: 5 });
+    expect(searchHref(back)).toBe('/?page=5');
+    // Page 9 of 24 with 200 rows starts at row 193: page 3 of 96, the last. A page past the end comes back to the last.
+    expect(withPageSize(at(9), 96, 200).page).toBe(3);
+    expect(withPageSize(at(40), 96, 200).page).toBe(3);
+    expect(withPageSize(at(1), 48, 0).page).toBe(1);
+  });
+});

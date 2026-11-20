@@ -1,90 +1,104 @@
 /*
- * Design tokens from docs/design/mockup.html. Components use these through CSS modules; no CSS module or
- * component writes a colour itself (lib/theme.test.ts checks, and checks every text/background pair against
- * WCAG AA in both themes).
+ * Design tokens: ink and gold (the owner's choice, task 47; the mock-ups Rows / RowsGrid and, for the dark values,
+ * RowsDark). Components use these through CSS modules; no CSS module or component writes a colour itself
+ * (lib/colour-literals.test.ts checks), and lib/theme.test.ts checks every text/background pair against WCAG AA in
+ * both themes.
  *
  * Light by default. Dark when the visitor chose it with the theme switch (<html data-theme="dark">, from the
  * `theme` cookie, rendered on the server), or when they have not chosen and their system is dark (the media
  * query below). <html data-theme="light"> keeps light on a dark system. The dark values appear twice, once for
  * each of those cases; the test checks the two copies are the same.
  *
- * The palette names keep their mockup meaning by role: --charcoal is the ink (text) and --snow the paper
- * (page, and text on an accent fill), so in the dark theme --charcoal is light and --snow dark.
+ * Names say what a colour is for, not what it looks like: --ink is the text in both themes (dark ink on light
+ * paper, light text on warm charcoal). Only what is meant to be gold or ink carries those colours; the greys
+ * (lines, panels, hover) stay neutral.
  */
 :root {
   color-scheme: light;
-  --charcoal: #50514f; --snow: #fffcff; --surface: #ffffff; --panel: #f1f3ed; --hit: #e6f1f6;
-  --ash: #cbd4c2; --khaki: #c3b299;
-  /* --cerulean: the mockup's #247ba0 a shade darker (same hue), to reach 4.5:1 on --panel and --hit too. */
-  --cerulean: #21749a;
-  /* --text-muted: the mockup's #7b7c76 darkened (same hue) to reach 4.5:1 on white and on --hit. */
-  --text-muted: #6c6d67;
-  /* --text-faint: was #8f908a (3.2:1 on white); darkened to reach 4.5:1 on white and on --snow. */
-  --text-faint: #74756f;
-  /* --line-control: khaki darkened (same hue) for the outlines of pills, fields and pager links: 3:1 on white. */
-  --line-control: #9a8a6e;
-  --divider: #e9ede4;
-  --shadow: rgba(80, 81, 79, 0.12);
-  --price-down: #1f7a4d; --price-up: #a8432a;
+  /* Text, and the strong outlines (the sort control, the search box, a viewed row's button). */
+  --ink: #14213d;
+  /* The page, the cards and rows, popovers; a quiet panel (empty states, the chain strip); a hovered control. */
+  --page: #faf9f4; --surface: #ffffff; --panel: #f1f0ea; --hit: #f1f0ea;
+  --text-muted: #555c70;
+  /* Lines: --line between rows, round panels and before a row's route (decorative); --line-control round controls.
+   * The mock-up's #c9c6b8 for controls is 1.7:1 on white, so it is darkened (same hue) to reach 3:1 on white, the
+   * page, a panel and both row tints. */
+  --line: #e0ded3; --line-control: #8a887e;
+  /* Departure date chips, and the weekday in them. */
+  --chip: #eef0f6; --chip-muted: #555c70;
+  /* Gold: the band under the header, the main button, the most recent row's ring and tag; --on-gold is text on it. */
+  --gold: #f5b82e; --on-gold: #14213d;
+  /* The header bar: ink in light, near-black in dark; its current-page underline and focus ring are gold. */
+  --header-bg: #14213d; --header-text: #ffffff; --header-accent: #f5b82e;
+  /* A chosen control (a set filter, the current page, the rows-per-page choice) and the 已看過 tag. */
+  --selected-bg: #14213d; --on-selected: #ffffff;
+  /* The search box on the gold band: its background and its placeholder (its text and outline are --on-gold). */
+  --band-field-bg: #ffffff; --band-field-muted: #555c70;
+  /* Focus rings (on the band they use --on-gold instead: see search-band.module.css). */
+  --focus: #14213d;
+  --shadow: rgba(0, 0, 0, 0.14);
+  --price-down: #1f794d; --price-up: #a8432a;
   /*
-   * Cards opened in this tab (TourCard): earlier ones greyed, the most recent a khaki wash with a darker khaki ring
-   * and cue (the mockup's khaki, as --line-control); the cue's text is dark in both themes. On those two tints a
-   * card's muted/faint text, accent, price-down and arrow are a shade darker (--marked-*), to stay AA.
+   * Rows opened in this tab (TourCard): a tint for those opened before (a light ink in light; in dark a neutral
+   * charcoal a step lighter than a row, never blue), the pale gold for the one opened most recently (the owner's).
    */
-  --opened-bg: #e9ebe4; --latest-bg: #f4ead6; --latest-accent: #9a8a6e; --on-latest-accent: #1c1d1b;
-  --marked-muted: #60615b; --marked-accent: #1d6a8d; --marked-down: #1b6a42; --marked-line: #8a7b60;
-  /* The nav bar is dark in both themes; its text and accent are fixed, its background is not. */
-  --bar-bg: #50514f; --bar-text: #fffcff; --bar-accent: #c3b299;
+  --viewed-bg: #e8ecf5; --latest-bg: #fdf3d3;
+  /* A row's warning that its operator's data is old (資料為 11月17日): text and outline. */
+  --stale: #9a3a22;
   /* Operator colours (the database's operators.color) carry their own background, so they are the same in both themes. */
   --op-egl: #d62839; --op-jetour: #ee7b06; --op-texpert: #7d3cc8; --op-bigline: #2a9d4b;
   --op-charming: #b5179e; --op-yummy: #7a6a00; --op-sunflower: #3949ab; --op-taste: #007a7a;
-  /* A card's tag and border when an operator has no usable colour, and the two tag text colours (lib/contrast.ts picks). */
+  /* A tag when an operator has no usable colour, and the two tag text colours (lib/contrast.ts picks). */
   --op-fallback: #50514f; --on-operator-light: #ffffff; --on-operator-dark: #1c1d1b;
   /* --notice-maroon: the owner's colour for the language notice (components/LanguageNotice) only; fixed in both themes. */
   --notice-maroon: #800000; --notice-text: #fffcff;
   /* The theme switch shows the button for the other theme: display values, swapped in the dark theme. */
   --when-light: inline-flex; --when-dark: none;
-  --radius-card: 10px; --radius-pill: 999px;
+  --radius-card: 8px; --radius-control: 6px;
   --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --charcoal: #e4e3dd; --snow: #1e1f1d; --surface: #282927; --panel: #171816; --hit: #213a47;
-  --ash: #474943; --khaki: #a99a7f;
-  --cerulean: #62b4dc;
+  --ink: #ecebe6;
+  --page: #1e1f1d; --surface: #282927; --panel: #232422; --hit: #33342f;
   --text-muted: #a9aaa3;
-  --text-faint: #9a9b94;
-  --line-control: #8e8169;
-  --divider: #33342f;
+  --line: #3a3b37; --line-control: #81827d;
+  --chip: #3f403b; --chip-muted: #aeafa8;
+  --gold: #f0b429; --on-gold: #17181c;
+  --header-bg: #141513; --header-text: #ecebe6; --header-accent: #f0b429;
+  --selected-bg: #ecebe6; --on-selected: #17181c;
+  --band-field-bg: #fffdf6; --band-field-muted: #5f605a;
+  --focus: #ecebe6;
   --shadow: rgba(0, 0, 0, 0.45);
   --price-down: #5cc28f; --price-up: #f08a6c;
-  --opened-bg: #1a1b19; --latest-bg: #3a3428; --latest-accent: #a99a7f;
-  --marked-muted: #a9aaa3; --marked-accent: #62b4dc; --marked-down: #5cc28f; --marked-line: #8e8169;
-  --bar-bg: #2f302d;
+  --viewed-bg: #383934; --latest-bg: #3a3220;
+  --stale: #f08a6c;
   --when-light: none; --when-dark: inline-flex;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --charcoal: #e4e3dd; --snow: #1e1f1d; --surface: #282927; --panel: #171816; --hit: #213a47;
-    --ash: #474943; --khaki: #a99a7f;
-    --cerulean: #62b4dc;
+    --ink: #ecebe6;
+    --page: #1e1f1d; --surface: #282927; --panel: #232422; --hit: #33342f;
     --text-muted: #a9aaa3;
-    --text-faint: #9a9b94;
-    --line-control: #8e8169;
-    --divider: #33342f;
+    --line: #3a3b37; --line-control: #81827d;
+    --chip: #3f403b; --chip-muted: #aeafa8;
+    --gold: #f0b429; --on-gold: #17181c;
+    --header-bg: #141513; --header-text: #ecebe6; --header-accent: #f0b429;
+    --selected-bg: #ecebe6; --on-selected: #17181c;
+    --band-field-bg: #fffdf6; --band-field-muted: #5f605a;
+    --focus: #ecebe6;
     --shadow: rgba(0, 0, 0, 0.45);
     --price-down: #5cc28f; --price-up: #f08a6c;
-    --opened-bg: #1a1b19; --latest-bg: #3a3428; --latest-accent: #a99a7f;
-    --marked-muted: #a9aaa3; --marked-accent: #62b4dc; --marked-down: #5cc28f; --marked-line: #8e8169;
-    --bar-bg: #2f302d;
+    --viewed-bg: #383934; --latest-bg: #3a3220;
+    --stale: #f08a6c;
     --when-light: none; --when-dark: inline-flex;
   }
 }
 
 /* Simplified Chinese pages use Simplified glyph forms when the visitor has such a font. */
 :root:lang(zh-Hans) { --font: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
-body { background: var(--snow); color: var(--charcoal); font-family: var(--font); margin: 0; }
+body { background: var(--page); color: var(--ink); font-family: var(--font); margin: 0; line-height: 1.5; }
 *, *::before, *::after { box-sizing: border-box; }

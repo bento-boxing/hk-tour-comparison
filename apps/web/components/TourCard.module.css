@@ -1,87 +1,107 @@
-/* Mockup .card and its children. --c (the operator colour) is set inline from operator.color. */
-.card {
-  position: relative; /* anchors the departure picker and the card link's stretched area */
-  background: var(--surface); border-radius: var(--radius-card); border: 1px solid var(--ash); border-left: 5px solid var(--c);
-  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0;
+/*
+ * One tour as a row: the owner's final row (mock-up RowsB13). --c (the operator colour) is set inline.
+ *
+ * Three layouts, each placing the same seven cells; no cell paints outside its own track at any width:
+ *   below 640px (phones): a block. The operator with the days; the price (its note beside it, or under it when the
+ *     line is too short); the region; the route; the dates, three by two; the two buttons.
+ *   from 640px: two columns. The facts on the left (operator, days and region, route, dates); the price and the
+ *     buttons in a 210px column on the right. English pages keep this layout at every width: with English labels the
+ *     seven columns would leave the route about 150px.
+ *   from 1280px, Traditional and Simplified Chinese pages only: the seven columns, the same tracks on every row, so
+ *     each column starts at the same x down the page: operator | days | region | route (1fr, after a thin line) |
+ *     dates | price | actions.
+ *
+ * Text never shrinks to fit: the tracks are sized for the longest text they hold (measured: a chip with its weekday,
+ * HK$999,999 with 起, the price note at its longest). No text breaks inside a word anywhere: the operator's name and
+ * an English region or stop name may wrap between their words, the route at its arrows, and nothing else wraps.
+ */
+.row {
+  position: relative; /* anchors the stretched link, the picker and the dates' tooltips */
+  display: grid; align-items: start; column-gap: 12px; row-gap: 6px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-areas: 'tag days' 'price price' 'region region' 'route route' 'dates dates' 'actions actions';
+  padding: 12px 8px; background: var(--surface); border-bottom: 1px solid var(--line);
 }
+.row:last-child { border-bottom: 0; }
 
 /*
- * Opened in this tab (set after hydration from lib/opened-tours): earlier ones greyed, the most recent a khaki
- * wash with a darker khaki ring. Neither changes the card's size (box-shadow, not a border). On the tints the
- * secondary text, accent, price-down and arrow take a shade darker (--marked-*), so every text stays AA.
+ * Opened in this tab (set after hydration from lib/opened-tours): no tag and no greyed text. Earlier: a tint; the most
+ * recent: the pale gold, the only gold row. Both: date chips and the button in the surface colour (so they stay
+ * visible on the tint) and the button outlined, reading 再看一次. Colours only: nothing changes a size.
  */
-.card[data-opened] {
-  background: var(--opened-bg);
-  --text-muted: var(--marked-muted); --text-faint: var(--marked-muted); --cerulean: var(--marked-accent);
-  --price-down: var(--marked-down); --line-control: var(--marked-line);
-}
-.card[data-opened='latest'] { background: var(--latest-bg); box-shadow: 0 0 0 2px var(--latest-accent); }
-/* The text cue (已瀏覽 / 最近瀏覽): on the top border at the right, out of the layout; presses go through to the card. */
-.cue {
-  position: absolute; top: -9px; right: 14px; pointer-events: none;
-  padding: 0 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; line-height: 17px; white-space: nowrap;
-  background: var(--ash); color: var(--charcoal);
-}
-.card[data-opened='latest'] .cue { background: var(--latest-accent); color: var(--on-latest-accent); }
+.row[data-opened='earlier'] { background: var(--viewed-bg); }
+.row[data-opened='latest'] { background: var(--latest-bg); }
+.row[data-opened] .chip { background: var(--surface); }
+.row[data-opened] .go { background: var(--surface); border-color: var(--ink); color: var(--ink); }
 
-/* The top of the card (the link, or a plain block for a non-https address); the mockup's rows with the card's own 9px gap. */
-.body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
-.link { color: inherit; text-decoration: none; border-radius: 6px; }
-/*
- * The link stretches over the whole card, so a press anywhere on it (the gaps, the footer) opens the operator's
- * page. Positioned elements after it in the card (the dates, the add button) are drawn above it and take their
- * own presses; the footer is not positioned and stays under it.
- */
-.link::after { content: ''; position: absolute; inset: -1px -1px -1px -5px; border-radius: var(--radius-card); }
-/*
- * The focus ring: round the card's border box (the 5px operator edge included), 4px out, with a band of page
- * colour inside it, so the ring always meets the page colour on both sides: never the operator colour, nor the
- * most recent card's khaki ring (the band covers it while focused).
- */
-.link:focus-visible { outline: none; }
-.link:focus-visible::after { outline: 2px solid var(--cerulean); outline-offset: 4px; box-shadow: 0 0 0 4px var(--snow); }
-.link:hover ~ .foot .go { text-decoration: underline; }
-
-.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
-/* The tag's text: light, or dark on a light operator colour (TourCard picks, lib/contrast.ts). */
-.op { background: var(--c); color: var(--on-operator-light); padding: 2px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+/* The operator's tag, and in the block layouts the old-data tag beside it (on the same line when it has room). */
+.tagCell { grid-area: tag; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+/* The tag's text: light, or dark on a light operator colour (TourCard picks, lib/contrast.ts). A long name wraps between its words. */
+.op {
+  display: inline-block; max-width: 100%; padding: 2px 9px; border-radius: 4px;
+  background: var(--c); color: var(--on-operator-light); font-size: 15px; font-weight: 700; line-height: 1.45;
+}
 .opDark { color: var(--on-operator-dark); }
-.reg { color: var(--text-muted); text-align: right; }
 
-/* A ten-stop route wraps onto more lines; nothing is cut off. */
-.route { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
-.arrow { color: var(--line-control); font-weight: 400; margin: 0 3px; }
-
-/* Start or end outside Hong Kong / Shenzhen. */
-.note {
-  align-self: flex-start; font-size: 12px; padding: 2px 9px;
-  border: 1px solid var(--khaki); border-radius: var(--radius-pill);
-}
-
-.meta { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
-.days { font-size: 13px; }
-.price { font-size: 22px; font-weight: 800; color: var(--cerulean); white-space: nowrap; text-align: right; }
-.from { font-size: 12px; font-weight: 500; color: var(--text-muted); }
-.delta { font-size: 12px; text-align: right; }
-.down { color: var(--price-down); }
-.up { color: var(--price-up); }
-.same { color: var(--text-faint); }
+.days { grid-area: days; font-size: 18px; font-weight: 900; line-height: 1.35; white-space: nowrap; text-align: right; }
 
 /*
- * The dates: information that shows more on hover, not buttons (no fill change, no pressed look). Their row lets
- * presses through to the card link (pointer-events: none) except on the dates themselves, which are links to the
- * same page, so they have the link cursor; on a card without a link they are plain text.
+ * The region: names in ink, each one unit (its dot glued to it). A Chinese name is never broken; an English name of
+ * several words may wrap between its words when it alone is wider than the column, never inside a word. A start or
+ * end outside Hong Kong / Shenzhen under them, smaller; on the chain page the rest before this tour.
  */
-.dates { position: relative; display: flex; flex-wrap: wrap; gap: 5px; pointer-events: none; }
+.region { grid-area: region; min-width: 0; font-size: 16px; font-weight: 700; line-height: 1.45; }
+.place { display: inline-block; max-width: 100%; white-space: nowrap; }
+.region:lang(en) .place { white-space: normal; }
+.note { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.footNote { display: block; margin-top: 2px; font-size: 13px; font-weight: 700; line-height: 1.4; }
+
+.routeCell { grid-area: route; min-width: 0; }
+/*
+ * Every stop, never cut. Each stop's name is one unit, so a line breaks only beside an arrow; a name wider than the
+ * whole column wraps between its words (or, in Chinese, between its characters), never inside an English word.
+ */
+.route { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.35; }
+.stop { display: inline-block; max-width: 100%; }
+.arrow { font-weight: 400; color: var(--text-muted); }
+
+/*
+ * Its operator's data is old: a small outlined tag. TourCard draws it twice and each layout shows one: beside the
+ * operator's tag in the block layouts (staleInTag), right-aligned under the price and its note in the seven columns
+ * (staleInPrice), where it fits within the row's least height. The second carries the id the row link's description
+ * points to (a description is read even from a hidden element).
+ */
+.stale {
+  display: block; width: fit-content; padding: 0 6px;
+  border: 1px solid var(--stale); border-radius: 4px;
+  font-size: 12px; font-weight: 700; line-height: 1.4; color: var(--stale); white-space: nowrap;
+}
+.staleInPrice { display: none; }
+
+/*
+ * The dates: three equal columns by two rows. Information that shows more on hover, not buttons (no fill change, no
+ * pressed look). They sit above the stretched link (z-index), so each takes its own presses: each is a link to the
+ * same page. Their cell lets other presses through to the row link (pointer-events: none) except on the dates.
+ */
+.datesCell { grid-area: dates; position: relative; z-index: 1; min-width: 0; pointer-events: none; }
+.dates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 4px; max-width: 360px; }
 .d {
-  position: relative; pointer-events: auto;
-  font-size: 12px; color: inherit; text-decoration: none;
-  background: var(--ash); border-radius: 4px; padding: 3px 7px;
+  position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 44px;
+  pointer-events: auto; color: inherit; text-decoration: none;
 }
 a.d { cursor: pointer; }
-.d > span:first-child { text-decoration: underline dotted; text-underline-offset: 3px; }
-.d:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
-.more { background: none; color: var(--text-muted); pointer-events: none; }
+.chip {
+  display: block; width: 100%; padding: 4px 0; border-radius: 4px; background: var(--chip); color: var(--ink);
+  font-size: 13px; font-weight: 700; line-height: 1.4; text-align: center; white-space: nowrap;
+}
+.weekday { font-weight: 500; color: var(--chip-muted); }
+.d:focus-visible { outline: none; }
+.d:focus-visible .chip { outline: 2px solid var(--focus); outline-offset: 2px; }
+.more { display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.visuallyHidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
 
 /*
  * The date's price, above it: out of the layout (absolute), so showing it moves nothing. Until shown it is
@@ -93,23 +113,90 @@ a.d { cursor: pointer; }
 .tip {
   position: absolute; bottom: calc(100% + 6px); left: 50%; z-index: 5;
   transform: translateX(calc(-50% + var(--tip-shift, 0px)));
-  padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 8px var(--shadow); pointer-events: none;
-  background: var(--charcoal); color: var(--snow); font-size: 13px; font-weight: 700; white-space: nowrap;
+  padding: 4px 8px; border-radius: var(--radius-control); box-shadow: 0 2px 8px var(--shadow); pointer-events: none;
+  background: var(--ink); color: var(--page); font-size: 13px; font-weight: 700; white-space: nowrap;
   /* Hidden until shown (below). */
   clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden;
 }
 .tipFrom { font-size: 11px; font-weight: 500; }
 .d[data-hover] .tip, .d:focus-visible .tip, .tip[data-measure] { clip-path: none; width: auto; height: auto; overflow: visible; }
 
-.foot { font-size: 11px; color: var(--text-faint); display: flex; justify-content: space-between; gap: 8px; }
-.footLeft { display: flex; flex-direction: column; gap: 2px; }
-.go { color: var(--cerulean); font-weight: 600; white-space: nowrap; }
+/*
+ * The lowest price ('HK$999,999 起', 'from HK$999,999': always one line, the marker always in the same place) and
+ * under it only a change, also always one line. On a phone the note sits beside the price when the line has room.
+ */
+.priceCell { grid-area: price; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+.price { font-size: 21px; font-weight: 900; line-height: 1.35; white-space: nowrap; }
+.from { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.delta { font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+.down { color: var(--price-down); }
+.up { color: var(--price-up); }
 
-/* Not in the mockup as a button: it must sit outside the link, so it gets its own row. */
-.addArea { position: relative; align-self: flex-end; }
+/* The actions: the gold button, then 加入行程; side by side when the block is wide enough, each at most 360px. */
+.actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.actions > * { flex: 1 1 200px; max-width: 360px; }
+.go {
+  display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 10px;
+  border: 2px solid var(--gold); border-radius: var(--radius-control); background: var(--gold); color: var(--on-gold);
+  font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap;
+}
+/*
+ * The row link stretches over the whole row, so a press anywhere on it opens the operator's page. The dates and
+ * 加入行程 are drawn above it (z-index) and take their own presses.
+ */
+.go::after { content: ''; position: absolute; inset: 0; }
+.go:hover { text-decoration: underline; }
+.go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* While its link has keyboard focus, the whole row is outlined too: the row is what opens. */
+.row:has(.go:focus-visible) { box-shadow: inset 0 0 0 2px var(--focus); }
+
+.addArea { position: relative; z-index: 1; }
+/* Open: above the rows below it too (each later row's dates sit at z-index 1). */
+.addArea[data-open] { z-index: 30; }
 .add {
-  padding: 5px 12px; border: 1px solid var(--cerulean); border-radius: 6px; background: var(--surface);
-  font: inherit; font-size: 13px; font-weight: 600; color: var(--cerulean); cursor: pointer;
+  width: 100%; min-height: 44px; padding: 0 8px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
+  background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
 }
 .add:hover, .add[aria-expanded="true"] { background: var(--hit); }
-.add:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* A zoomed phone (narrower than 320 CSS px): two dates a line, so the chips keep their text. */
+@media (max-width: 319px) {
+  .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* From 640px: the facts on the left; the price and the buttons stacked in a 210px column on the right. */
+@media (min-width: 640px) {
+  .row {
+    grid-template-columns: max-content minmax(0, 1fr) 210px;
+    grid-template-areas: 'tag tag price' 'days region price' 'route route actions' 'dates dates actions';
+    column-gap: 16px; padding: 12px 14px;
+  }
+  .days { text-align: left; }
+  .priceCell { display: block; text-align: right; }
+  .actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+  .actions > * { flex: none; max-width: none; }
+}
+
+/* From 1280px, on Traditional and Simplified Chinese pages: the seven columns. */
+@media (min-width: 1280px) {
+  .row:lang(zh) {
+    --col-tag: 92px; --col-days: 52px; --col-region: 146px; --col-dates: 234px; --col-price: 176px; --col-actions: 160px;
+    grid-template-columns: var(--col-tag) var(--col-days) var(--col-region) minmax(0, 1fr) var(--col-dates) var(--col-price) var(--col-actions);
+    grid-template-areas: 'tag days region route dates price actions';
+    column-gap: 14px;
+    /* At least as tall as the stacked buttons (36 + 6 + 36) with the padding: the same for every row. */
+    min-height: 102px; padding: 12px 18px;
+  }
+  .tagCell:lang(zh) { padding-top: 2px; }
+  /* The old-data tag under the price and its note (price 28 + note 17 + tag 23 px: within the 78 px of content). */
+  .staleInTag:lang(zh) { display: none; }
+  .staleInPrice:lang(zh) { display: block; margin: 4px 0 0 auto; }
+  /* The thin line before the route, the full height of the row's content. */
+  .routeCell:lang(zh) { align-self: stretch; padding-left: 12px; border-left: 1px solid var(--line); }
+  .dates:lang(zh) { padding-top: 2px; max-width: none; }
+  .d:lang(zh) { min-height: 0; }
+  .more:lang(zh) { padding: 4px 0; }
+  .go:lang(zh) { min-height: 36px; }
+  .add:lang(zh) { min-height: 36px; }
+}

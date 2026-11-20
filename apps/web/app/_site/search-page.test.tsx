@@ -3,13 +3,19 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { isIsoDate } from '@hktours/core';
 import type { Db, TourCardData } from '@hktours/db/read';
-import styles from './search-page.module.css';
+import band from './search-band.module.css';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { I18nProvider } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
 import type { SearchPageData } from '../../lib/search-page-data';
 import type { DestinationCounts } from '@hktours/db/read';
+
+/** The tour rows of the list (an ARIA table): the rows with cells, not its visually hidden header row. */
+const tourRows = () => screen.queryAllByRole('row').filter(row => within(row).queryAllByRole('cell').length > 0);
+/** The one tour row on the page. */
+const oneRow = () => { const rows = tourRows(); expect(rows).toHaveLength(1); return rows[0]; };
+
 
 const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
@@ -31,7 +37,7 @@ const { DestinationPage } = await import('./destination-page');
 
 const fakeDb = {} as Db;
 const ERROR = '暫時未能載入資料，請稍後再試。';
-// The page takes today from the clock (todayInHongKong()) and the cards show the fixture dates
+// The page takes today from the clock (todayInHongKong()) and the rows show the fixture dates
 // against it, so the clock is pinned to a day before them.
 beforeAll(() => { vi.setSystemTime(new Date('2026-11-12T04:00:00Z')); }); // 12:00 in Hong Kong
 afterAll(() => { vi.useRealTimers(); });
@@ -101,15 +107,21 @@ it('loads the page from the address and lays it out top to bottom', async () => 
   expect(raw).toEqual({ dest: 'japan-kansai', sort: 'days' });
   expect(isIsoDate(today)).toBe(true);
 
+  // The band (heading, search box, country button, shortcuts), the filter row, the rows, then under them the
+  // rows-per-page choice, the count and the pager.
+  const heading = screen.getByRole('heading', { level: 1 });
   const search = screen.getByRole('combobox', { name: '輸入國家、地區或城市' });
   expect(search).toHaveValue('日本 → 關西');
   const panels = screen.getByRole('button', { name: '按國家選擇' });
+  const shortcuts = screen.getByRole('navigation', { name: '旅行團最多的目的地' });
   const destPill = screen.getByRole('button', { name: '清除目的地：日本 → 關西' });
   const sortPill = screen.getByRole('button', { name: '排序：日數 短→長' });
-  const count = screen.getByText('共 30 個旅行團');
-  const card = screen.getByRole('article');
+  const card = oneRow();
+  const sizes = screen.getByRole('group', { name: '每頁顯示' });
+  const count = screen.getByText('第 1–24 個，共 30 個旅行團');
   const next = screen.getByRole('link', { name: '下一頁' });
-  const inOrder = [search, panels, destPill, sortPill, count, card, next];
+  // Then when the data was last updated (no operator in this data has run: no line). See ListFooter's tests.
+  const inOrder = [heading, search, panels, shortcuts, destPill, sortPill, card, sizes, count, next];
   for (let i = 1; i < inOrder.length; i++) {
     expect(inOrder[i - 1].compareDocumentPosition(inOrder[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }
@@ -120,8 +132,8 @@ it('loads the page from the address and lays it out top to bottom', async () => 
 });
 
 it.each([
-  ['en', 'Japan → Kansai', 'Clear destination: Japan → Kansai', '30 tours', 'Next', '東瀛遊 (EGL Tours)', 'Osaka', '/en/tours/japan-kansai'],
-  ['zh-Hans', '日本 → 关西', '清除目的地：日本 → 关西', '共 30 个旅行团', '下一页', '東瀛遊', '大阪', '/zh-hans/tours/japan-kansai'],
+  ['en', 'Japan → Kansai', 'Clear destination: Japan → Kansai', '1–24 of 30 tours', 'Next', 'EGL Tours', 'Osaka', '/en/tours/japan-kansai'],
+  ['zh-Hans', '日本 → 关西', '清除目的地：日本 → 关西', '第 1–24 个，共 30 个旅行团', '下一页', '東瀛遊', '大阪', '/zh-hans/tours/japan-kansai'],
 ] as const)('in %s, the server text, the client text and the place names all follow the page\'s language', async (locale, dest, destPill, count, next, operator, city, home) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(data);
@@ -131,7 +143,7 @@ it.each([
   expect(screen.getByText(count)).toBeInTheDocument();
   // The Pager: server text, and its link in the page's language.
   expect(screen.getByRole('link', { name: next })).toHaveAttribute('href', `${home}?sort=days&page=2`);
-  const card = screen.getByRole('article');
+  const card = oneRow();
   expect(within(card).getByText(operator)).toBeInTheDocument();
   expect(within(card).getByRole('heading')).toHaveTextContent(city);
   expect(container.textContent).not.toMatch(/關西|個旅行團/);
@@ -161,7 +173,7 @@ it('shows the error message, and logs the cause, when DATABASE_URL is missing', 
   mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set: the website needs it to read tours from the database.'));
   await renderPage({});
   expect(screen.getByText(ERROR)).toBeInTheDocument();
-  expect(screen.queryByRole('article')).toBeNull();
+  expect(tourRows()).toHaveLength(0);
   expect(mocks.loadSearchPage).not.toHaveBeenCalled();
   expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('search page'), expect.objectContaining({ message: expect.stringContaining('DATABASE_URL') }));
 });
@@ -206,11 +218,11 @@ it('a page past the last says so neutrally, with the link back to page 1, not th
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/tours/japan-kansai?sort=days');
 });
 
-it('the filter bar offers filterOperators; the cards look operators up in the full list', async () => {
+it('the filter bar offers filterOperators; the rows look operators up in the full list', async () => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(data);
   await renderPage({});
-  expect(within(screen.getByRole('article')).getByText('東瀛遊')).toBeInTheDocument(); // egl's card, from `operators`
+  expect(within(oneRow()).getByText('東瀛遊')).toBeInTheDocument(); // egl's card, from `operators`
   await userEvent.setup().click(screen.getByRole('button', { name: '旅行社：全部' }));
   const dialog = screen.getByRole('dialog', { name: '旅行社' });
   expect(within(dialog).getAllByRole('checkbox').map(box => box.parentElement?.textContent)).toEqual(['捷旅']);
@@ -222,10 +234,10 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(data);
   await renderPage({});
-  const row = screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.searchRow}`);
+  const row = screen.getByRole('button', { name: '按國家選擇' }).closest(`.${band.searchRow}`);
   expect(row).not.toBeNull();
   expect(row).toContainElement(screen.getByRole('combobox', { name: '輸入國家、地區或城市' }));
-  const css = readFileSync(join(__dirname, 'search-page.module.css'), 'utf8').replace(/\s+/g, ' ');
+  const css = readFileSync(join(__dirname, 'search-band.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
 });
 
@@ -268,19 +280,76 @@ it('when the tours cannot be read, the page is marked noindex, so an outage is n
   expect(await searchPageMetadata('en', Promise.resolve({}))).not.toHaveProperty('robots');
 });
 
-it.each([
-  ['zh-Hant', '比較香港旅行團', '現時列出 40 個旅行團，來自 3 間旅行社。', '按目的地瀏覽', '/tours'],
-  ['zh-Hans', '比较香港旅行团', '目前列出 40 个旅行团，来自 3 家旅行社。', '按目的地浏览', '/zh-hans/tours'],
-  ['en', 'Compare Hong Kong group tours', 'Listing 40 tours from 3 operators.', 'Browse by destination', '/en/tours'],
-] as const)('in %s the search page has its heading, the line of real counts, and a link to the destinations index', async (locale, heading, line, browse, index) => {
+it('under the pager, when the data was last updated; rows carry the render\'s time for their old-data warning', async () => {
   mocks.requestDb.mockResolvedValue(fakeDb);
-  mocks.loadSearchPage.mockResolvedValue(homeData);
+  const ranAt = '2026-11-08T18:30:00Z'; // 02:30 on 9 Nov in Hong Kong: older than 36 hours on 12 Nov (the clock)
+  mocks.loadSearchPage.mockResolvedValue({
+    ...data, operators: [{ ...data.operators[0], lastGoodRunAt: ranAt }], tours: [{ ...tour, lastUpdated: ranAt }],
+  });
+  await renderPage({ dest: 'japan-kansai', sort: 'days' });
+  const note = screen.getByText('資料更新：11月9日 · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準');
+  expect(screen.getByRole('link', { name: '下一頁' }).compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(oneRow()).getAllByText('資料為 11月9日')).toHaveLength(2);
+});
+
+it.each([
+  ['zh-Hant', '三間旅行社，一次過比較', '現有 40 個旅行團 · 報名請到旅行社自己的網站', '想去邊？輸入國家、地區或城市', '旅行團最多的目的地', '所有目的地 →', '/tours'],
+  ['zh-Hans', '三家旅行社，一次比较', '现有 40 个旅行团 · 报名请前往旅行社自己的网站', '想去哪里？输入国家、地区或城市', '旅行团最多的目的地', '所有目的地 →', '/zh-hans/tours'],
+  ['en', 'Three tour operators, compared in one place', "40 tours listed now · book on the operator's own website", 'Where to? Enter a country, region or city', 'Destinations with the most tours', 'All destinations →', '/en/tours'],
+] as const)('in %s the home page\'s gold band: the headline and line from the live counts, the search box, the shortcuts and the index', async (locale, heading, line, placeholder, shortcutsName, all, index) => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  // Korea and its Seoul region too: a region with more tours than Korea (Kansai, 30) is still not offered.
+  const korea = [{ countryId: 'korea', regionId: null, tours: 8, operators: 1 }, { countryId: 'korea', regionId: 'korea-seoul', tours: 8, operators: 1 }];
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, counts: { ...counts, destinations: [...counts.destinations, ...korea] } });
   await renderPage({}, locale);
+  // 3 operators and 40 tours: counts.all, from the read the page already makes.
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading);
-  expect(screen.getByText(line, { exact: false })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: browse })).toHaveAttribute('href', index);
+  expect(screen.getByText(line)).toBeInTheDocument();
+  expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', placeholder);
+  // The shortcuts: the countries with the most tours, most first (never a country beside its own regions), then
+  // the index.
+  const shortcuts = within(screen.getByRole('navigation', { name: shortcutsName })).getAllByRole('link');
+  expect(shortcuts.map(a => a.getAttribute('href'))).toEqual([
+    ...['/tours/japan', '/tours/korea'].map(path => (index === '/tours' ? path : `${index.slice(0, -'/tours'.length)}${path}`)),
+    index,
+  ]);
+  expect(shortcuts.at(-1)).toHaveTextContent(all);
   // The heading comes before the search box.
   expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(screen.getByRole('combobox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('the headline\'s numbers are the live ones: one operator, twelve, twenty-one', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  for (const [operators, tours, zh, en] of [[1, 9, '一間旅行社，一次過比較', 'One tour operator, compared in one place'], [12, 2122, '十二間旅行社，一次過比較', 'Twelve tour operators, compared in one place'], [21, 3000, '二十一間旅行社，一次過比較', '21 tour operators, compared in one place']] as const) {
+    mocks.loadSearchPage.mockResolvedValue({ ...homeData, counts: { ...counts, all: { tours, operators } } });
+    const { unmount } = await renderPage({});
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(zh);
+    expect(screen.getByText(`現有 ${tours.toLocaleString('en-US')} 個旅行團 · 報名請到旅行社自己的網站`)).toBeInTheDocument();
+    unmount();
+    const english = await renderPage({}, 'en');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en);
+    english.unmount();
+  }
+});
+
+it('with no tours listed at all, the home page says so plainly instead of counting operators', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, tours: [], total: 0, counts: { all: { tours: 0, operators: 0 }, destinations: [] } });
+  await renderPage({});
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('比較香港旅行團');
+  expect(screen.getByText('現時沒有列出旅行團。')).toBeInTheDocument();
+});
+
+it('a destination\'s page has the same band, with its own heading, counts and related links', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...data, state: { filters: { destination: { countryId: 'japan', regionId: null } }, sort: 'price', page: 1 } });
+  await renderPage({ dest: 'japan' });
+  const bandSection = screen.getByRole('heading', { level: 1 }).closest('section')!;
+  expect(within(bandSection).getByRole('heading', { level: 1 })).toHaveTextContent('日本旅行團');
+  expect(within(bandSection).getByText('現時列出 32 個旅行團，來自 3 間旅行社。')).toBeInTheDocument();
+  expect(within(bandSection).getByRole('link', { name: '關西' })).toHaveAttribute('href', '/tours/japan-kansai');
+  expect(within(bandSection).getByRole('combobox')).toHaveValue('日本 → 全部地區');
+  expect(within(bandSection).getByRole('navigation', { name: '旅行團最多的目的地' })).toBeInTheDocument();
 });
 
 it.each([
@@ -304,12 +373,13 @@ it.each([['nonsense'], ['china-central'], ['Japan'], ['%2F%2Fevil.example']])('a
   const element = await SearchPage({ locale: 'zh-Hant', searchParams: Promise.resolve({ dest: decodeURIComponent(dest), dmin: '5' }) });
   render(<I18nProvider locale="zh-Hant">{element}</I18nProvider>);
   expect(mocks.loadSearchPage.mock.calls[0][1]).toEqual({ dmin: '5' });
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('比較香港旅行團');
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('三間旅行社，一次過比較');
 });
 
-it('on the error, the search page keeps its heading above the message', async () => {
+it('on the error, the search page keeps a heading (the counts are unknown) above the message, and no search box', async () => {
   mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set'));
   await renderPage({});
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('比較香港旅行團');
   expect(screen.getByRole('alert')).toHaveTextContent(ERROR);
+  expect(screen.queryByRole('combobox')).toBeNull();
 });

@@ -1,55 +1,66 @@
-/* Mockup .filters / .f / .f.on. A filled pill is marked data-on="true" instead of the mockup's .on class. */
-.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+/*
+ * Mock-up Rows: the filter row. Outlined boxes, 44px tall; a box whose filter is set is filled (data-on="true").
+ * The sort control sits at the right end of the row, set apart only by a heavier outline (2px, the text colour),
+ * bold text and a small sort icon; it is never filled.
+ */
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
 
 .f {
-  background: var(--surface); border: 1px solid var(--line-control); border-radius: var(--radius-pill); padding: 6px 13px;
-  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--line-control); border-radius: var(--radius-control);
+  font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; text-align: left;
 }
 .f:hover { background: var(--hit); }
-.f[data-on='true'] { background: var(--cerulean); color: var(--snow); border-color: var(--cerulean); }
-.f:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
+.f[data-on='true'] { background: var(--selected-bg); color: var(--on-selected); border-color: var(--selected-bg); }
+.f:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* Not in the mockup: the popovers, in the style of the departure picker. */
+/* The sort control: pushed to the right end of the row (on a narrow screen it wraps to its own line, still right). */
+.sortSlot { margin-left: auto; }
+.sort { padding: 0 12px; border: 2px solid var(--ink); font-weight: 700; }
+.sortIcon { flex: none; }
+
+/* The popovers, in the page's colours. */
 .slot { position: relative; }
 .popover {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
   min-width: 240px; max-width: calc(100vw - 32px); max-height: 360px; overflow-y: auto;
-  padding: 10px 12px; background: var(--surface); color: var(--charcoal);
-  border: 1px solid var(--ash); border-radius: 8px; box-shadow: 0 6px 18px var(--shadow);
+  padding: 12px 14px; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-control); border-radius: var(--radius-card); box-shadow: 0 6px 18px var(--shadow);
 }
 /* Pushed back inside the window by FilterPopover when its pill is near the right edge (see fitShift). */
 .wide { width: min(400px, calc(100vw - 32px)); }
-.title { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.title { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
 
 .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .chip {
-  padding: 5px 12px; border: 1px solid var(--line-control); border-radius: var(--radius-pill); background: var(--surface);
-  font: inherit; font-size: 13px; color: var(--charcoal); cursor: pointer;
+  min-height: 36px; padding: 0 12px; border: 1px solid var(--line-control); border-radius: var(--radius-control); background: var(--surface);
+  font: inherit; font-size: 14px; color: var(--ink); cursor: pointer;
 }
 .chip:hover { background: var(--hit); }
-.chip[aria-pressed='true'] { background: var(--cerulean); border-color: var(--cerulean); color: var(--snow); }
+.chip[aria-pressed='true'] { background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
 
 .range { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .input {
-  width: 120px; padding: 6px 8px; border: 1px solid var(--line-control); border-radius: 6px;
-  font: inherit; font-size: 14px; color: var(--charcoal); background: var(--surface);
+  width: 120px; min-height: 40px; padding: 0 8px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
+  font: inherit; font-size: 15px; color: var(--ink); background: var(--surface);
 }
 .input[type='date'] { width: 150px; }
 .actions { display: flex; justify-content: flex-end; gap: 6px; width: 100%; margin-top: 4px; }
-.reset, .apply { padding: 6px 12px; border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; }
-.reset { border: 0; background: none; color: var(--cerulean); }
+.reset, .apply { min-height: 40px; padding: 0 14px; border-radius: var(--radius-control); font: inherit; font-size: 14px; cursor: pointer; }
+.reset { border: 0; background: none; color: var(--ink); text-decoration: underline; }
 .reset:hover { background: var(--hit); }
-.apply { border: 1px solid var(--cerulean); background: var(--cerulean); color: var(--snow); font-weight: 700; }
+/* The popover's main button: gold, as the row's main button. */
+.apply { border: 2px solid var(--gold); background: var(--gold); color: var(--on-gold); font-weight: 700; }
 
 .checks { margin: 0; padding: 0; list-style: none; }
 .countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 /* The exclusion list's parts of the world, labelled as in the destination panel. */
 .countryGroup + .countryGroup { margin-top: 10px; }
 .groupLabel { padding: 0 4px 2px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
-.check { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+.check { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: var(--radius-control); font-size: 14px; cursor: pointer; }
 .check:hover { background: var(--hit); }
-.check input { margin: 0; accent-color: var(--cerulean); }
+.check input { margin: 0; accent-color: var(--ink); }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 
 /* The sort popover: one row per order, its name then its two directions as chips (the pressed one filled). */
@@ -59,21 +70,25 @@
   display: grid; grid-column: 1 / -1; align-items: center; gap: 6px;
   grid-template-columns: minmax(4.5em, auto) 1fr 1fr; grid-template-columns: subgrid;
 }
-.sortName { font-size: 13px; color: var(--text-muted); }
+.sortName { font-size: 14px; color: var(--text-muted); }
 .sortDir { white-space: nowrap; text-align: center; }
+/* The sort popover hangs from the control's right edge (the control is at the right of the row). */
+.sortSlot .popover { left: auto; right: 0; }
 
 /* A short note above a range's inputs (the travel dates). */
-.hint { width: 100%; margin: 0 0 2px; font-size: 12px; color: var(--text-muted); }
+.hint { width: 100%; margin: 0 0 2px; font-size: 13px; color: var(--text-muted); }
 
-.chip:focus-visible, .reset:focus-visible, .apply:focus-visible, .input:focus-visible { outline: 2px solid var(--cerulean); outline-offset: 2px; }
-.check:has(input:focus-visible) { outline: 2px solid var(--cerulean); outline-offset: -2px; }
+.chip:focus-visible, .reset:focus-visible, .apply:focus-visible, .input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.check:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 
-/* Phones: a popover spans the whole bar instead of hanging off its pill past the screen edge. */
+/* Phones: a popover spans the whole row instead of hanging off its box past the screen edge. Touch: 44px. */
 @media (max-width: 639px) {
   .filters { position: relative; }
   .slot { position: static; }
-  .popover, .wide { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
-  .input { font-size: 16px; } /* 16px stops iOS zooming into the field on focus */
-  .check { padding: 9px 6px; }
-  .sortDir { padding: 8px 6px; }
+  .popover, .wide, .sortSlot .popover { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
+  .f { padding: 0 12px; }
+  .input { font-size: 16px; min-height: 44px; } /* 16px stops iOS zooming into the field on focus */
+  .chip, .reset, .apply { min-height: 44px; }
+  .check { padding: 10px 6px; }
+  .sortDir { padding: 0 6px; }
 }

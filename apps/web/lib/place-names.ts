@@ -45,10 +45,11 @@ export function retiredRegion(regionId: string): RetiredRegion | undefined {
 }
 
 /**
- * An operator's name: its Chinese name in every language, with its English company name beside it in
- * English when it has one ('東瀛遊 (EGL Tours)').
+ * An operator's name as every part of the site shows it (the rows' tags and link names, the operators filter and its
+ * button, the chain strip): on English pages its English name only ('EGL Tours'), or its Chinese name when it has
+ * none; on Traditional and Simplified Chinese pages its Chinese name ('東瀛遊').
  */
 export function operatorName(operator: Named, locale: Locale): string {
   const english = operator.nameEn.trim();
-  return locale === 'en' && english !== '' && english !== operator.nameZh ? `${operator.nameZh} (${english})` : operator.nameZh;
+  return locale === 'en' && english !== '' ? english : operator.nameZh;
 }

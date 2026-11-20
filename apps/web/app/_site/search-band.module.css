@@ -1,0 +1,52 @@
+/*
+ * Mock-up Rows: the gold band under the header (home and destination pages). Its text is --on-gold. The controls on
+ * it read the --band-* hooks (DestinationSearch, DestinationPanels): the search box white with an ink outline, the
+ * 按國家選擇 button in the header's colours, focus rings in --on-gold (the page's own ring colour does not show on
+ * gold in the dark theme). Their popovers keep the page's colours.
+ */
+.band {
+  background: var(--gold); color: var(--on-gold);
+  --band-focus: var(--on-gold);
+  --search-bg: var(--band-field-bg); --search-text: var(--on-gold); --search-border: var(--on-gold);
+  --search-muted: var(--band-field-muted); --search-height: 52px; --search-font: 17px;
+  --toggle-bg: var(--header-bg); --toggle-text: var(--header-text); --toggle-border: var(--header-bg);
+}
+.inner { padding-top: 28px; padding-bottom: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.heading { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 1px; line-height: 1.25; }
+.line { margin: 0; font-size: 16px; font-weight: 500; }
+
+/* A destination's related links (its regions, or its country), under the heading. */
+.related { margin: -8px 0 0; font-size: 15px; }
+.relatedLink { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.relatedLink:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+
+/* The search box with the 按國家選擇 button beside it; the button wraps below on a narrow phone. */
+/* position: relative: on phones the 按國家選擇 panel hangs off this row (DestinationPanels.module.css). */
+.searchRow { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.searchBox { flex: 1 1 320px; max-width: 720px; }
+
+/* The destinations with the most tours: underlined links on the gold, each with its count; then the index. */
+.shortcuts { margin: -4px 0 0; }
+.shortcutList { display: flex; flex-wrap: wrap; gap: 0 18px; margin: 0; padding: 0; list-style: none; }
+.shortcut {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 36px;
+  color: inherit; font-size: 15px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+.shortcut:hover { text-decoration-thickness: 2px; }
+.shortcut:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+.count { font-weight: 500; font-size: 13px; }
+.all { font-weight: 500; }
+
+@media (max-width: 639px) {
+  .inner { padding-top: 18px; padding-bottom: 16px; gap: 12px; }
+  .heading { font-size: 24px; letter-spacing: 0; }
+  .line { font-size: 14px; }
+  .searchBox { flex-basis: 100%; }
+  /* Touch: 44px tall. The first four destinations only, then the link to them all, so the band stays short. */
+  .shortcutList { gap: 0 14px; }
+  .shortcutList > li:nth-child(n + 5):not(:last-child) { display: none; }
+  .shortcut { min-height: 44px; font-size: 14px; }
+}

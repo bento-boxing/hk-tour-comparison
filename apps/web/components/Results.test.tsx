@@ -8,6 +8,12 @@ import { I18nProvider } from '../lib/i18n-client';
 import { Results, type ResultsProps } from './Results';
 import { ResultsConnected } from './ResultsConnected';
 
+/** The tour rows of the list (an ARIA table): the rows with cells, not its visually hidden header row. */
+const tourRows = () => screen.queryAllByRole('row').filter(row => within(row).queryAllByRole('cell').length > 0);
+/** The one tour row on the page. */
+const oneRow = () => { const rows = tourRows(); expect(rows).toHaveLength(1); return rows[0]; };
+
+
 const push = vi.fn<(href: string) => void>();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
@@ -33,42 +39,34 @@ const props: ResultsProps = { tours, total: 2, operators, places, today, t };
 
 beforeEach(() => { push.mockReset(); });
 
-it('renders one card per tour', () => {
+it('renders one row per tour, in order, each linking to its operator\'s page', () => {
   render(<Results {...props} />);
-  const cards = screen.getAllByRole('article');
+  const cards = tourRows();
   expect(cards).toHaveLength(2);
   expect(cards[0]).toHaveTextContent('東瀛遊');
   expect(cards[1]).toHaveTextContent('捷旅');
-  // Each card's first link is the card link (its dates follow as links to the same page).
-  expect(cards.map(c => within(c).getAllByRole('link')[0].getAttribute('href')))
+  // Each row's link is the gold button (its dates are links to the same page).
+  expect(cards.map(c => within(c).getByRole('link', { name: /^(東瀛遊|捷旅)：/ }).getAttribute('href')))
     .toEqual(['https://example.test/egl/KIX5', 'https://example.test/jetour/OSA6']);
-});
-
-it('shows the count', () => {
-  render(<Results {...props} />);
-  expect(screen.getByText('共 2 個旅行團')).toBeInTheDocument();
-});
-
-it('counts every match, not just the cards on this page', () => {
-  render(<Results {...props} total={57} />);
-  expect(screen.getByText('共 57 個旅行團')).toBeInTheDocument();
+  // The count is under the list now (ListFooter), not here.
+  expect(screen.queryByText(/個旅行團/)).toBeNull();
 });
 
 it('shows the empty message and a clear link when there are none', () => {
   render(<Results {...props} tours={[]} total={0} />);
   expect(screen.getByText('找不到符合條件的旅行團')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '清除所有篩選' })).toHaveAttribute('href', '/');
-  expect(screen.queryByRole('article')).toBeNull();
+  expect(tourRows()).toHaveLength(0);
   expect(screen.queryByText(/個旅行團$/)).toBeNull();
 });
 
-it('a card whose operator is missing from the list still renders, in the fallback grey', () => {
+it('a row whose operator is missing from the list still renders, in the fallback grey', () => {
   const { container } = render(<Results {...props} operators={[operators[1]]} />);
-  expect(screen.getAllByRole('article')).toHaveLength(2);
-  expect(container.querySelector('article')!.style.getPropertyValue('--c')).toBe('var(--op-fallback)');
+  expect(tourRows()).toHaveLength(2);
+  expect(tourRows()[0].style.getPropertyValue('--c')).toBe('var(--op-fallback)');
 });
 
-it('cards get an add button only when onAdd is given', async () => {
+it('rows get an add button only when onAdd is given', async () => {
   const onAdd = vi.fn();
   const { unmount } = render(<Results {...props} />);
   expect(screen.queryByRole('button', { name: '加入行程 ＋' })).toBeNull();
@@ -93,13 +91,41 @@ it('picking a date on a card navigates to the chain page with that leg', async (
   expect(Object.fromEntries(url.searchParams)).toEqual({ legs: 'egl:KIX5@2026-12-18', gap: '1-3' });
 });
 
-it('a footer note per card is shown with its updated text', () => {
+it('a note per row (the chain page\'s rest) is shown on its own row only; no row shows an update time', () => {
   render(<Results {...props} footNote={tour => (tour.key === 'egl:KIX5' ? '休息 1 日後出發' : undefined)} />);
-  const [first, second] = screen.getAllByRole('article');
+  const [first, second] = tourRows();
   expect(first).toHaveTextContent('休息 1 日後出發');
-  expect(first).toHaveTextContent('更新：');
   expect(second).not.toHaveTextContent('休息');
-  expect(second).toHaveTextContent('更新：');
+  expect(first).not.toHaveTextContent('更新');
+});
+
+it('the list is a table for screen readers: a header row naming the seven columns (not drawn), then one row per tour', () => {
+  render(<Results {...props} />);
+  const table = screen.getByRole('table', { name: '旅行團' });
+  const [header, ...rows] = within(table).getAllByRole('row');
+  expect(within(header).getAllByRole('columnheader').map(h => h.textContent))
+    .toEqual(['旅行社', '日數', '地區', '路線', '出發日期', '價錢', '操作']);
+  expect(header.className).toMatch(/visuallyHidden/);
+  expect(rows).toHaveLength(2);
+  for (const row of rows) expect(within(row).getAllByRole('cell')).toHaveLength(7);
+  // Every row and cell on an element that may take the role (not <article>, whose role a validator will not let
+  // be changed), each row directly in the table.
+  for (const el of [header, ...rows, ...rows.flatMap(row => within(row).getAllByRole('cell'))]) expect(el.tagName).toBe('DIV');
+  for (const row of [header, ...rows]) expect(row.parentElement).toBe(table);
+});
+
+it.each([
+  ['zh-Hans', '旅行团', ['旅行社', '天数', '地区', '路线', '出发日期', '价格', '操作']],
+  ['en', 'Tours', ['Operator', 'Length', 'Region', 'Route', 'Departures', 'Price', 'Actions']],
+] as const)('in %s the table and its columns are named in the language', (locale, name, columns) => {
+  render(<Results {...props} t={makeT(locale)} />);
+  expect(within(screen.getByRole('table', { name })).getAllByRole('columnheader').map(h => h.textContent)).toEqual(columns);
+});
+
+it('passes the render\'s time to the rows, which mark an operator\'s old data', () => {
+  render(<Results {...props} now="2026-11-14T00:00:00Z" />);
+  // Both operators last ran on 11 Nov (19:10 UTC, 12 Nov in Hong Kong): more than 36 hours before.
+  expect(screen.getAllByText('資料為 11月12日')).toHaveLength(4); // two rows, each with the tag in both of its places (one shown per layout)
 });
 
 it('an empty message replaces the default one and its clear link', () => {
@@ -109,12 +135,12 @@ it('an empty message replaces the default one and its clear link', () => {
   expect(screen.queryByRole('link')).toBeNull();
 });
 
-it('no cards but matches on other pages (a page past the last): a neutral line, not an empty message', () => {
+it('no rows but matches on other pages (a page past the last): a neutral line, not an empty message', () => {
   render(<Results {...props} tours={[]} total={30} empty={<p>這段休息期內沒有可接續的旅行團</p>} />);
   expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
   expect(screen.queryByText('這段休息期內沒有可接續的旅行團')).toBeNull();
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
-  expect(screen.queryByText('共 30 個旅行團')).toBeNull();
+  expect(tourRows()).toHaveLength(0);
 });
 
 it.each([

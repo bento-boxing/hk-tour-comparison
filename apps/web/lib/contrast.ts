@@ -19,12 +19,6 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** `fg` drawn at `opacity` over `bg`, as the browser composites it: a #rrggbb colour. */
-export function blend(fg: string, bg: string, opacity: number): string {
-  const [f, b] = [channels(fg), channels(bg)];
-  return `#${f.map((c, i) => Math.round(c * opacity + b[i] * (1 - opacity)).toString(16).padStart(2, '0')).join('')}`;
-}
-
 /** Which of the two tag text colours reads better on an operator's #rrggbb colour. */
 export function operatorTextTone(color: string): keyof typeof ON_OPERATOR {
   return contrast(ON_OPERATOR.light, color) >= contrast(ON_OPERATOR.dark, color) ? 'light' : 'dark';

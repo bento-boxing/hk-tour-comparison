@@ -1,9 +1,19 @@
-import { isIsoDate, OPERATOR_IDS, type Destination, type OperatorId, type PlacesIndex } from '@hktours/core';
+import {
+  isIsoDate, OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, type Destination, type OperatorId, type PageSize, type PlacesIndex,
+} from '@hktours/core';
 import type { SortKey, TourFilters } from '@hktours/db/read';
 import { destinationPath, isOnlyRegion } from './destinations';
 
-/** Everything the search address can say. Built only by parseSearchParams, so every value in it is valid. */
-export interface SearchState { filters: TourFilters; sort: SortKey; page: number }
+/**
+ * Everything the search address can say. Built only by parseSearchParams, so every value in it is valid.
+ * `size` is the rows per page (`size=` in the address: 48 or 96); absent for the default, PAGE_SIZE (24).
+ */
+export interface SearchState { filters: TourFilters; sort: SortKey; page: number; size?: PageSize }
+
+/** The rows per page a state shows. */
+export function pageSizeOf(state: SearchState): PageSize {
+  return state.size ?? PAGE_SIZE;
+}
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -109,8 +119,11 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
   const sortText = first(raw, 'sort');
   const sort = SORT_KEYS.find(key => key === sortText) ?? DEFAULT_SORT;
   const page = intInRange(first(raw, 'page'), { min: 1, max: Number.MAX_SAFE_INTEGER }) ?? 1;
+  // Only the exact texts 48 and 96 are kept (not 048): 24 is the default (left out, as every default is).
+  const sizeText = first(raw, 'size');
+  const size = PAGE_SIZES.find(n => n !== PAGE_SIZE && String(n) === sizeText);
 
-  return { filters, sort, page };
+  return size === undefined ? { filters, sort, page } : { filters, sort, page, size };
 }
 
 /** The address query for a state. Omits defaults and empty values so addresses stay short. */
@@ -132,8 +145,21 @@ export function buildSearchQuery(state: SearchState): URLSearchParams {
   set('pmax', f.priceMax);
   list('op', f.operators);
   if (sort !== DEFAULT_SORT) set('sort', sort);
+  if (state.size !== undefined && state.size !== PAGE_SIZE) set('size', state.size);
   if (page !== 1) set('page', page);
   return query;
+}
+
+/**
+ * The state showing `size` rows per page, on the page that holds the first row the visitor sees now, and never past
+ * the last page of `total` rows: page 3 of 24 (rows 49–72) becomes page 2 of 48 (rows 49–96).
+ */
+export function withPageSize(state: SearchState, size: PageSize, total: number): SearchState {
+  const firstRow = (state.page - 1) * pageSizeOf(state);
+  const last = Math.max(1, Math.ceil(total / size));
+  const page = Math.min(Math.floor(firstRow / size) + 1, last);
+  const { size: _old, ...rest } = state;
+  return size === PAGE_SIZE ? { ...rest, page } : { ...rest, page, size };
 }
 
 /** The state with these filters changed (undefined or an empty list removes one), back on page 1. */

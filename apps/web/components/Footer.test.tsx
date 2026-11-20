@@ -30,11 +30,10 @@ it.each([
   expect(paragraphs[1]).toBe(line);
 });
 
-it('the contact line is in the footer\'s small faint text, below the disclaimer with no second rule, and its link stays in that colour, underlined, with a visible focus ring', () => {
+it('its links are in the footer\'s text colour, so they are underlined to read as links, with a visible focus ring', () => {
   const text = css();
-  expect(text).toMatch(/\.contact \{ padding-top: 4px; border-top: 0; \}/);
   expect(text).toMatch(/\.link \{ color: inherit; text-decoration: underline; \}/);
-  expect(text).toMatch(/\.link:focus-visible \{ outline: 2px solid var\(--cerulean\); outline-offset: 2px; \}/);
+  expect(text).toMatch(/\.link:focus-visible \{ outline: 2px solid var\(--focus\); outline-offset: 2px; \}/);
 });
 
 it.each([

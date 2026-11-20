@@ -39,7 +39,8 @@ export async function SiteFrame({ locale, children }: { locale: Locale; children
         <I18nProvider locale={locale}>
           <LanguageNotice t={t} />
           <SiteNav />
-          <main className={styles.content}>{children}</main>
+          {/* Full width: each page puts its content in the frame's .wrap (the band spans the window). */}
+          <main className={styles.main}>{children}</main>
           <Footer t={t} />
         </I18nProvider>
       </body>
