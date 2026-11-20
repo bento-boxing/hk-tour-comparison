@@ -4,6 +4,9 @@ import { resolveSiteIdentity, SiteIdentityError } from './index';
 // Invented values only: nothing here reads the real environment.
 const GOOD = { SITE_URL: 'https://example.invalid', CONTACT_EMAIL: 'bot@example.invalid' };
 
+/** The URL standard's parser (Node's and the browser's), which core is not typed for. */
+const WhatwgUrl = (globalThis as unknown as { URL: new (input: string) => { origin: string } }).URL;
+
 /** The message resolveSiteIdentity throws for `env`, or null when it does not throw. */
 function refusal(env: Record<string, string | undefined>): string | null {
   try {
@@ -30,8 +33,28 @@ describe('resolveSiteIdentity', () => {
     ['https://example.invalid:8443'], // a port of its own is part of the address
     ['https://sub.example.co.invalid'],
     ['https://xn--fsq.example.invalid'], // an international domain, written in its xn-- form
-  ])('accepts the site address %s as it is', siteUrl => {
+    ['https://localhost'],
+    ['https://192.0.2.1'], // an IPv4 address, as the URL standard writes it
+    ['https://example.invalid:65535'],
+  ])('accepts the site address %s as it is, and the URL standard reads it as that same origin', siteUrl => {
     expect(resolveSiteIdentity({ ...GOOD, SITE_URL: siteUrl }).siteUrl).toBe(siteUrl);
+    expect(new WhatwgUrl(siteUrl).origin).toBe(siteUrl); // what the website's metadata does with it (task 49 fix 1)
+  });
+
+  // Task 49 fix 1: hosts the pattern allows but the URL standard refuses or rewrites. A numeric last label makes
+  // the host an IPv4 address, so these crashed the pages' metadata (new URL) while the build went through.
+  it.each([
+    ['a number as the last label', 'https://example.123'],
+    ['an IPv4 address out of range', 'https://999.999.999.999'],
+    ['a hexadecimal last label', 'https://a.0x10'],
+    ['an IPv4 address the standard rewrites (octal)', 'https://010.0.0.1'],
+    ['an IPv4 address the standard rewrites (short form)', 'https://127.1'],
+    ['a punycode label that does not decode', 'https://xn--a.example.invalid'],
+  ])('SITE_URL with %s is refused: the URL standard does not read it back as written', (_name, value) => {
+    const message = refusal({ ...GOOD, SITE_URL: value }) ?? '';
+    expect(message).toMatch(/^SITE_URL is not an address the URL standard reads as written: /);
+    const host = value.slice('https://'.length);
+    expect(message).not.toContain(host); // never the value
   });
 
   it.each([

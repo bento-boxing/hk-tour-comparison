@@ -45,13 +45,30 @@ const LABEL = '[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?';
  */
 const EMAIL = new RegExp(`^[A-Za-z0-9_+-]+(?:\\.[A-Za-z0-9_+-]+)*@${LABEL}(?:\\.${LABEL})+$`);
 
+/**
+ * The URL standard's parser, as Node and every browser have it. Core is typed for neither, so it is reached
+ * through globalThis; the website's metadata (`new URL(siteUrl)`) uses the same parser.
+ */
+const WhatwgUrl = (globalThis as unknown as { URL: new (input: string) => { origin: string } }).URL;
+
+/** The origin the URL standard reads `value` as, or null when it refuses it. */
+function standardOrigin(value: string): string | null {
+  try {
+    return new WhatwgUrl(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 /** A host name in lower case (two or more labels, or one: `localhost`), then a port of its own if any. */
 const HOST_AND_PORT = new RegExp(`^${LABEL}(?:\\.${LABEL})*(?::[1-9][0-9]{0,4})?$`);
 
 /**
  * What is wrong with SITE_URL (already trimmed), or null when it is good. Good is exactly an https origin as a
  * browser writes it: `https://`, a host name in lower case, a port only if it is not 443, and nothing after.
- * (Checked by hand, not with URL: core runs in the browser and in Node and is typed for neither.)
+ * The pattern checks below give each common mistake its own message; the last check is the URL standard's
+ * parser itself, so that every accepted value satisfies `new URL(value).origin === value` (it refuses, say, a
+ * numeric last label, which it reads as an IPv4 address: `https://example.123`).
  */
 function siteUrlProblem(value: string): string | null {
   if (value === '') return 'SITE_URL is not set: it must be the site\'s address, such as https://example.org';
@@ -74,6 +91,10 @@ function siteUrlProblem(value: string): string | null {
   const port = authority.includes(':') ? Number(authority.slice(authority.indexOf(':') + 1)) : null;
   if (port === 443) return 'SITE_URL names the default port :443: leave it out';
   if (port !== null && port > 65535) return 'SITE_URL has a port above 65535';
+  if (standardOrigin(value) !== value) {
+    return 'SITE_URL is not an address the URL standard reads as written: a host whose last part is a number or '
+      + 'starts with 0x is read as an IP address, and an xn-- label must be valid punycode';
+  }
   return null;
 }
 

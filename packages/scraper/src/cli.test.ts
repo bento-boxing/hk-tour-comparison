@@ -145,6 +145,7 @@ describe('runCli without the site\'s identity (task 49)', () => {
     ['SITE_URL with a trailing slash', { ...IDENTITY, SITE_URL: 'https://example.invalid/' }, /^SITE_URL ends with a slash: /],
     ['SITE_URL over http', { ...IDENTITY, SITE_URL: 'http://example.invalid' }, /^SITE_URL must start with https:\/\/ /],
     ['SITE_URL with a path', { ...IDENTITY, SITE_URL: 'https://example.invalid/bot' }, /^SITE_URL has a path: /],
+    ['SITE_URL the URL standard reads as an IP address', { ...IDENTITY, SITE_URL: 'https://example.123' }, /^SITE_URL is not an address the URL standard reads as written: /],
     ['SITE_URL with a header injection', { ...IDENTITY, SITE_URL: 'https://example.invalid\r\nX-Evil: 1' }, /^SITE_URL holds a space, a control character/],
     ['CONTACT_EMAIL not an address', { ...IDENTITY, CONTACT_EMAIL: 'example.invalid' }, /^CONTACT_EMAIL is not an e-mail address: /],
     ['CONTACT_EMAIL with a parenthesis', { ...IDENTITY, CONTACT_EMAIL: 'bot)@example.invalid' }, /^CONTACT_EMAIL is not an e-mail address: /],

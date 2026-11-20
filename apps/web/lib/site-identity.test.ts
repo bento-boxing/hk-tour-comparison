@@ -64,6 +64,7 @@ describe('siteIdentity', () => {
   it.each([
     ['SITE_URL', '', /^SITE_URL is not set: /],
     ['SITE_URL', 'https://example.invalid/', /^SITE_URL ends with a slash: /],
+    ['SITE_URL', 'https://example.123', /^SITE_URL is not an address the URL standard reads as written: /], // task 49 fix 1
     ['CONTACT_EMAIL', '', /^CONTACT_EMAIL is not set: /],
     ['CONTACT_EMAIL', 'not-an-address', /^CONTACT_EMAIL is not an e-mail address: /],
   ])('with %s %j it throws core\'s message, and so does every page that uses it', async (name, value, message) => {
@@ -102,6 +103,7 @@ describe('next.config.ts', () => {
     [phase, 'CONTACT_EMAIL', undefined, /^CONTACT_EMAIL is not set: /],
     [phase, 'SITE_URL', 'http://example.invalid', /^SITE_URL must start with https:\/\/ /],
     [phase, 'CONTACT_EMAIL', 'bot@', /^CONTACT_EMAIL is not an e-mail address: /],
+    [phase, 'SITE_URL', 'https://example.123', /^SITE_URL is not an address the URL standard reads as written: /],
   ] as const))('%s with %s %j: stops with core\'s message (the build fails)', async (phase, name, value, message) => {
     vi.stubEnv(name, value);
     const make = await config();
