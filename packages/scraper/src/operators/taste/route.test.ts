@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractDayLineStops, places, type Stop } from '@hktours/core';
-import { withoutConnections } from './route';
+import { HUBS_NOT_IN_DATA, withoutConnections } from './route';
 
 const names = (stops: Stop[]) => stops.map(s => (s.cityId !== null ? places.city(s.cityId)!.nameZh : places.region(s.regionId)!.nameZh));
 /** The route the shared day-line rules read from the lines, as normaliseTour gives them (Hong Kong left out). */
@@ -34,12 +34,45 @@ describe('Taste: connections offered as a choice are not stops (task 48)', () =>
       .toEqual(['蘇黎世', '琉森', '蘇黎世']);
   });
 
+  it('a hub named only right beside its choice stays when the day is spent there (follow-up round)', () => {
+    // The morning after `杜拜/赫爾辛基`, a line naming no other place: the day is spent in Helsinki.
+    expect(route(withoutConnections(['香港 → 杜拜/赫爾辛基', '赫爾辛基 → 岩石教堂', '塔林 → 斯德哥爾摩', '斯德哥爾摩 → 杜拜/赫爾辛基 → 香港']), 4))
+      .toEqual(['赫爾辛基', '塔林', '斯德哥爾摩']);
+    // Just before the choice, but not straight after Hong Kong: the last day in Helsinki.
+    expect(route(withoutConnections(['香港 → 杜拜/赫爾辛基', '杜拜/赫爾辛基 → 斯德哥爾摩', '斯德哥爾摩 → 塔林', '岩石教堂 → 赫爾辛基 → 杜拜/赫爾辛基 → 香港']), 4))
+      .toEqual(['斯德哥爾摩', '塔林', '赫爾辛基']);
+    // A 3-day Turkey tour naming Istanbul only on the arrival morning and the departure line keeps it.
+    expect(route(withoutConnections(['香港 → 杜拜 → 杜拜/多哈/伊斯坦堡', '伊斯坦堡 → 藍色清真寺', '伊斯坦堡 → 杜拜/多哈/伊斯坦堡 → 香港']), 3))
+      .toEqual(['伊斯坦堡']);
+    // A Dubai tour naming Dubai only the morning after `杜拜/多哈` keeps it.
+    expect(route(withoutConnections(['香港 → 杜拜/多哈', '杜拜 → 帆船酒店', '杜拜/多哈 → 香港']), 3)).toEqual(['杜拜']);
+    // The crawl's two real removals still happen: the morning's line names another place (EEC09), the hub follows
+    // Hong Kong (ETA13).
+    expect(route(withoutConnections(['香港 →杜拜/赫爾辛基', '杜拜→ 羅馬 → 佛羅倫斯']))).toEqual(['羅馬', '佛羅倫斯']);
+    expect(route(withoutConnections(['香港→杜拜 →杜拜/赫爾辛基/伊斯坦堡', '羅馬']))).toEqual(['羅馬']);
+  });
+
+  it('a lone hub beside a choice is no visit when deciding the choice (follow-up round): Dubai goes', () => {
+    const lines = ['香港 → 杜拜 → 杜拜/伊斯坦堡', '伊斯坦堡 → 藍色清真寺', '伊斯坦堡 → 博斯普魯斯', '伊斯坦堡 → 杜拜/伊斯坦堡 → 香港'];
+    expect(route(withoutConnections(lines), 4)).toEqual(['伊斯坦堡']);
+    // A two-place choice whose other place is named only beside it goes, with that lone chunk.
+    expect(route(withoutConnections(['香港 → 峴港', '峴港/會安', '會安 → 峴港 → 香港']), 3)).toEqual(['峴港']);
+  });
+
   it('a choice of two places the tour visits anyway stays, so the tour keeps its stops', () => {
-    const lines = ['香港 → 峴港', '峴港/會安', '會安 → 峴港 → 香港'];
+    // Both named on days of their own (a lone alternative beside the choice does not count: follow-up round).
+    const lines = ['香港 → 峴港', '峴港/會安', '會安 → 峴港', '峴港 → 會安 → 香港'];
     expect(withoutConnections(lines)).toEqual(lines);
-    expect(route(withoutConnections(lines), 3)).toEqual(['峴港', '會安', '峴港']);
+    expect(route(withoutConnections(lines), 4)).toEqual(['峴港', '會安', '峴港', '會安']);
     // A departure choice of Hong Kong or Macau, Macau visited: Hong Kong is never a stop, so the choice stays.
     expect(route(withoutConnections(['香港/澳門 → 大阪', '大阪 → 澳門']), 4)).toEqual(['澳門', '大阪', '澳門']);
+  });
+
+  it('every hub of HUBS_NOT_IN_DATA is still not in the places data (follow-up round)', () => {
+    for (const hub of HUBS_NOT_IN_DATA) {
+      const found = [...places.findCity(hub), ...places.findRegion(hub), ...places.findCountry(hub)];
+      expect(found, `${hub} is now in the places data: remove it from HUBS_NOT_IN_DATA in route.ts`).toEqual([]);
+    }
   });
 
   it('a hub the places data lacks (多哈) still makes a choice: 杜拜/多哈 names no stop (EMA09)', () => {

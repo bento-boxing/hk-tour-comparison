@@ -234,6 +234,17 @@ describe('places and guards from Taste Travel\'s practice crawl (task 48)', () =
     expect(places.data.collisionNames).toContain('興國');
     expect(route(['東京', '日光', '興國', '箱根', '東京'])).toEqual(['japan-kanto-tokyo', 'japan-kanto-nikko', 'japan-kanto-hakone', 'japan-kanto-tokyo']);
   });
+  it('新興國… (新興國際 a hotel, 新興國家 emerging countries) is not 興國; a visit to the county 新興 is unaffected (follow-up round)', () => {
+    for (const heading of ['入住新興國際酒店', '新興國家', '入住新兴国际酒店']) expect(route([heading]), heading).toEqual([]);
+    // 新興 (Xinxing, Yunfu) is not in the places data. Were it added, the guard would block only the phrase: the
+    // county named on its own, or before another word, is still read.
+    const xinxing = { id: 'china-guangdong-xinxing', regionId: 'china-guangdong', nameZh: '新興', nameEn: 'Xinxing', aliases: [] };
+    const withXinxing = buildPlacesIndex({ ...places.data, cities: [...places.data.cities, xinxing] });
+    const read = (heading: string) => extractStops([heading], withXinxing).stops.map(s => s.cityId);
+    expect(read('新興 → 雲浮')).toEqual(['china-guangdong-xinxing', 'china-guangdong-yunfu']);
+    expect(read('新興溫泉')).toEqual(['china-guangdong-xinxing']);
+    expect(read('新興國際酒店')).toEqual([]);
+  });
   it('the real places beside them stay: Rome, Venice, Dubai, Ho Chi Minh City, Guilin, Kunming, Zhongshan, Hamburg', () => {
     expect(route(['羅馬 → 威尼斯'])).toEqual(['italy-italy-rome', 'italy-italy-venice']);
     expect(route(['杜拜', '胡志明市', '桂林', '昆明', '中山', '漢堡'])).toEqual([

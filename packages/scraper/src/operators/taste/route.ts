@@ -10,12 +10,14 @@ import { CHUNK_SEPARATORS, extractStops, places as sharedPlaces, type PlacesInde
  * its 311 tours read; narrowed in fix round 1):
  * - a chunk whose alternatives name two or more different places (HUBS_NOT_IN_DATA counting as places) is a choice
  *   of connection, and is taken out, unless the tour visits every place it names anyway (named in a chunk of its
- *   own elsewhere: `峴港/會安` on a tour of both stays);
- * - a lone alternative right next to such a choice is the same connection: the chunk just before it on the same line
- *   (`香港 → 杜拜 → 杜拜/赫爾辛基/伊斯坦堡`), or the first chunk of the next line when the choice ends its line (`杜拜 →
- *   羅馬` the morning after `香港 → 杜拜/赫爾辛基`). It is taken out unless the tour visits that place elsewhere. A
- *   hub named anywhere else (`蘇黎世 → 蘇黎世湖` on a tour that flew in by `杜拜/蘇黎世/法蘭克福`, an Istanbul
- *   stopover day) is a visit and stays;
+ *   own elsewhere, not a lone alternative beside a choice: `峴港/會安` on a tour naming both on other days stays);
+ * - a lone alternative right next to such a choice is the same connection, in two shapes only (follow-up round):
+ *   the chunk just before the choice on its line when it directly follows Hong Kong (`香港 → 杜拜 →
+ *   杜拜/赫爾辛基/伊斯坦堡`), and the first chunk of the next line when the choice ends its line and the rest of that
+ *   line names another place (`杜拜 → 羅馬` the morning after `香港 → 杜拜/赫爾辛基`). It is taken out with its
+ *   choice, unless the tour names that place elsewhere. A next morning whose line names no other place is spent
+ *   there (`赫爾辛基 → sights` after `杜拜/赫爾辛基`), and a hub named anywhere else (`蘇黎世 → 蘇黎世湖` on a tour
+ *   that flew in by `杜拜/蘇黎世/法蘭克福`, an Istanbul stopover day) is a visit: both stay;
  * - a chunk naming a place right after 經 (via: `途經深圳北站`, `乘高鐵經廣州南站`) is a place passed on the way, and is
  *   taken out (the shared transit words, 轉機 and the like, do not include it).
  * Hong Kong never counts: it is never a stop. A choice naming one place or none is left as it is: a station named
@@ -110,30 +112,36 @@ export function withoutConnections(lines: string[], index: PlacesIndex = sharedP
     const choice = choiceOf(ref.text, index);
     if (choice !== undefined) choices.set(key(ref), choice);
   }
-  // Lone alternatives right next to a choice: the chunk before it on its line, and the next line's first chunk.
+  // Lone alternatives right next to a choice: the chunk before it on its line, when Hong Kong directly precedes it, and
+  // the next line's first chunk, when the rest of that line names another place.
   const lone = new Map<string, string>(); // a lone alternative's chunk → its choice's chunk
   const isAlternativeOf = (ref: Ref | undefined, choice: { alternatives: string[] } | undefined) =>
     ref !== undefined && choice !== undefined && !choices.has(key(ref)) && choice.alternatives.includes(ref.text.trim());
+  const namesAnotherPlace = (line: Ref[], hub: Ref) => {
+    const place = placeOf(hub.text, index);
+    return line.some(ref => ref !== hub && !choices.has(key(ref)) && ![undefined, HONG_KONG, place].includes(placeOf(ref.text, index)));
+  };
   chunks.forEach((line, l) => line.forEach((ref, i) => {
     const choice = choices.get(key(ref));
     if (choice === undefined) return;
-    if (isAlternativeOf(line[i - 1], choice)) lone.set(key(line[i - 1]), key(ref));
-    if (i === line.length - 1 && isAlternativeOf(chunks[l + 1]?.[0], choice)) lone.set(key(chunks[l + 1][0]), key(ref));
+    if (isAlternativeOf(line[i - 1], choice) && line[i - 2] !== undefined && placeOf(line[i - 2].text, index) === HONG_KONG) {
+      lone.set(key(line[i - 1]), key(ref));
+    }
+    const morning = chunks[l + 1]?.[0];
+    if (i === line.length - 1 && isAlternativeOf(morning, choice) && namesAnotherPlace(chunks[l + 1], morning)) lone.set(key(morning), key(ref));
   }));
   const passages = new Set(chunks.flat().filter(ref => isPassage(ref.text, index)).map(key));
-  // The places the tour visits: those its other chunks name. A choice stays when the tour visits all it names (a lone
-  // alternative beside it counting: `峴港/會安`, then `會安 → …`); a lone alternative beside a choice that goes stays
-  // only when a chunk not beside a choice names its place too.
+  // The places the tour visits: those its other chunks name, a lone alternative beside a choice not counting. A choice
+  // stays when the tour visits all it names; a lone alternative goes with its choice unless the tour visits its place.
   const placesOf = (refs: Ref[]) => new Set(refs.map(ref => placeOf(ref.text, index)).filter((p): p is string => p !== undefined));
   const others = chunks.flat().filter(ref => !choices.has(key(ref)) && !passages.has(key(ref)));
-  const named = placesOf(others);
-  const namedApart = placesOf(others.filter(ref => !lone.has(key(ref))));
-  const visits = (places: Set<string>) => (place: string | undefined) => place === undefined || place === HONG_KONG || places.has(place);
+  const visited = placesOf(others.filter(ref => !lone.has(key(ref))));
+  const isVisited = (place: string | undefined) => place === undefined || place === HONG_KONG || visited.has(place);
   const remove = new Set<string>(passages);
-  for (const [at, choice] of choices) if (![...choice.places].every(visits(named))) remove.add(at);
+  for (const [at, choice] of choices) if (![...choice.places].every(isVisited)) remove.add(at);
   for (const ref of others) {
     const choiceAt = lone.get(key(ref));
-    if (choiceAt !== undefined && remove.has(choiceAt) && !visits(namedApart)(placeOf(ref.text, index))) remove.add(key(ref));
+    if (choiceAt !== undefined && remove.has(choiceAt) && !isVisited(placeOf(ref.text, index))) remove.add(key(ref));
   }
   return pieces.map((line, l) => line.map((piece, at) => (remove.has(`${l}:${at}`) ? ' ' : piece.text)).join(''));
 }
