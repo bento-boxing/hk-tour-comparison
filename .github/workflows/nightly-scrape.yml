@@ -41,7 +41,7 @@ jobs:
           DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
 
       # Reports only whether the two settings exist (never their values) and cannot fail the job. The scraper
-      # will soon take the site's address and contact from them instead of from the code.
+      # takes the site's address and contact (its User-Agent) from them, and refuses to run without them.
       - name: Site identity settings present?
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
@@ -79,3 +79,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # Optional: verifies the database server. An unset secret is an empty string, which means "not supplied".
           DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
+          # The site's address and contact, for the User-Agent. Required: without them the scraper exits 2
+          # before any request. GitHub shows their values as *** in the public log.
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}

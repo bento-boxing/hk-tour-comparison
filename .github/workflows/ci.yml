@@ -25,6 +25,11 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       # No DATABASE_URL here on purpose: no page queries the database at build time.
+      # The build refuses to run without the site's address and contact. Forks and pull requests get no
+      # secrets, so CI builds with fixed placeholders (.invalid never resolves); the live values are set on
+      # Vercel and as repository secrets for the nightly run.
       - run: pnpm --filter @hktours/web build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+          SITE_URL: https://example.invalid
+          CONTACT_EMAIL: bot@example.invalid
