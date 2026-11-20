@@ -56,9 +56,10 @@ The code is in [`packages/scraper/src/polite-fetch.ts`](packages/scraper/src/pol
 
 **Who it says it is**
 
-- Every request carries the User-Agent `tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)`, which names the site and an address to write to.
+- Every request carries the User-Agent `tour-comparison-bot/0.1 (+<site>; <contact>)`, which names the site and an address to write to. The site and contact are the settings `SITE_URL` and `CONTACT_EMAIL` (see [Environment variables](#environment-variables)). For the live site's nightly run it reads `tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)`.
 - `robots.txt` rules are matched on its first word, `tour-comparison-bot`.
 - Until 2026-11-19 it was `tour-comparison-bot/0.1` alone. The site and contact were added that day, once the site had its own address, so that a site's owner can see who is asking and how to reach us.
+- **2026-11-20:** the site and contact moved out of the code into those two settings, with no default. The repository is public, and a copy run without changes must not crawl operators' sites in this site's name. Without the settings the scraper does not run.
 
 **robots.txt**
 
@@ -137,6 +138,7 @@ pnpm scrape --operator jetour --dry-run --limit 5
 
 - `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy`, `sunflower` or `taste`. The nightly run scrapes all eight (`taste` since its measured practice crawl of 2026-11-20, [`docs/operators/taste.md`](docs/operators/taste.md)).
 - `--limit N` is allowed only with `--dry-run`.
+- Every run, dry or real, needs `SITE_URL` and `CONTACT_EMAIL`. Without them it stops before making any request.
 - A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`, and uses `DATABASE_CA_CERT` when it is set.
 
 ### What the public logs show
@@ -175,8 +177,10 @@ To find the page behind a reference:
 
 ### Running the website locally
 
-1. Create `apps/web/.env.local` (git-ignored) with a line `DATABASE_URL=<connection string>`. For a hosted database, optionally add `DATABASE_CA_CERT=<certificate>`.
-2. Run `pnpm --filter @hktours/web dev`.
+1. Create `apps/web/.env.local` (git-ignored) with these lines:
+   - `SITE_URL=<the site's address>` and `CONTACT_EMAIL=<an address to write to>`. For a local copy, `SITE_URL=https://example.invalid` and `CONTACT_EMAIL=bot@example.invalid` will do.
+   - `DATABASE_URL=<connection string>`. For a hosted database, optionally add `DATABASE_CA_CERT=<certificate>`.
+2. Run `pnpm --filter @hktours/web dev`. Without `SITE_URL` or `CONTACT_EMAIL` it stops at once with a message naming the missing one.
 
 To create or update the tables, run `pnpm db:migrate` with `DATABASE_URL` set.
 
@@ -191,6 +195,8 @@ The certificate in `.env.local`:
 
 | Name | Used by | Meaning |
 |---|---|---|
+| `SITE_URL` | website, scraper | Required. The site's address: `https://` and the host, with nothing after it (no path, query, fragment, user name or trailing slash; a trailing slash is refused with a message, not removed). The website uses it for canonical addresses, hreflang, Open Graph, robots.txt and the sitemap. The scraper puts it in its User-Agent. Spaces and line breaks at either end are removed. Without it, or when it is malformed, `next build`, `next dev`, `next start` and `pnpm scrape` (dry run too) stop with one line naming the variable, without showing its value. The live site sets it as a Vercel environment variable and a GitHub Actions secret; CI builds with `https://example.invalid`. |
+| `CONTACT_EMAIL` | website, scraper | Required. The address visitors, tour operators and site owners write to: the footer's and the about page's `mailto:` link, and the scraper's User-Agent. Letters, digits and `.`, `_`, `+`, `-` before the `@`; a domain with a dot. Trimmed like `SITE_URL`, and missing or malformed stops the same programs the same way. CI builds with `bot@example.invalid`. |
 | `DATABASE_URL` | website, scraper, `pnpm db:migrate` | Postgres connection string. Never commit it. TLS is always used unless the host is `localhost`, `127.0.0.1`, `::1` or a Unix socket; TLS parameters in the string (`sslmode`, `ssl`, `sslcert`, `sslkey`, `sslrootcert`, `sslnegotiation`) are removed and have no effect. |
 | `DATABASE_CA_CERT` | website, scraper, `pnpm db:migrate` | Optional but recommended for a hosted database: the PEM text of the database's CA certificate (real line breaks, or `\n` in their place). With it the server's identity is verified; without it the connection is encrypted but not verified, and a warning is logged. Empty counts as not set. Text that is not a certificate stops the program with an error that does not show the value. |
 
