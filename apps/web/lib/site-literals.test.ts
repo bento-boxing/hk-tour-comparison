@@ -17,12 +17,16 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 /** Installed packages, build output (Next.js, `vercel build`, tsc, others) and git's own files: not our code. */
 const SKIP_DIRS = new Set(['node_modules', '.next', '.vercel', '.turbo', '.git', 'dist', 'out', 'coverage']);
 
-/** Every regular file under `dir`, whatever its type, outside SKIP_DIRS: only directories are walked. */
+/**
+ * Every regular file under `dir`, whatever its type, outside SKIP_DIRS: only directories are walked. Local
+ * settings files (`.env`, `.env.local`, …) are left out: git ignores them, and they are where the live values
+ * are meant to be written.
+ */
 function allFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return SKIP_DIRS.has(entry.name) ? [] : allFiles(path);
-    return entry.isFile() ? [path] : [];
+    return entry.isFile() && !/^\.env(\.|$)/.test(entry.name) ? [path] : [];
   });
 }
 
