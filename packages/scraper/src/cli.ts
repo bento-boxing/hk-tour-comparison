@@ -1,18 +1,21 @@
 /**
  * `pnpm scrape --operator <id> [--dry-run] [--limit N]`: one operator's nightly run.
+ * Always needs SITE_URL and CONTACT_EMAIL (the site and contact its User-Agent names; no default), dry run or not.
  * Needs DATABASE_URL unless --dry-run; DATABASE_CA_CERT, when set, verifies the database server.
  * Exit codes: 0 ok, 1 the run failed its checks (or a real run stopped on an unexpected error), 2 bad usage or
  * missing or invalid configuration.
  */
 import { pathToFileURL } from 'node:url';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
-import { OPERATOR_IDS, places, todayInHongKong, type OperatorId } from '@hktours/core';
+import {
+  OPERATOR_IDS, places, resolveSiteIdentity, SiteIdentityError, todayInHongKong, type OperatorId, type SiteIdentity,
+} from '@hktours/core';
 import { createPgDb, normaliseCaCert, type Db } from '@hktours/db';
 import { unexpectedErrorLines } from '@hktours/db/public-error';
 import { createDryRunDb, latestRunSummary } from './dry-run-db';
 import { describePage, formatUnmatched, recordDryRun, unmatchedCounts } from './dry-run-report';
 import { SCRAPERS } from './operators';
-import { createFetcher } from './polite-fetch';
+import { createFetcher, userAgentFor } from './polite-fetch';
 import { DRY_RUN_LOG, PUBLIC_LOG, type LogView } from './public-log';
 import { runOperator } from './run-operator';
 import type { Fetcher, OperatorScraper, RequestHeaders } from './types';
@@ -24,11 +27,12 @@ type Env = Record<string, string | undefined>;
 export interface CliDeps {
   scrapers: Partial<Record<OperatorId, OperatorScraper>>;
   /**
-   * Called once per process: every request of the run goes through this one fetcher. `requestHeaders`
-   * are the running operator's own (see OperatorScraper.requestHeaders), never another operator's. `logView`:
-   * PUBLIC_LOG for a real run, DRY_RUN_LOG for a dry run (see public-log.ts).
+   * Called once per process, and only once the site's identity is resolved: every request of the run goes
+   * through this one fetcher. `userAgent` is userAgentFor(the identity from SITE_URL and CONTACT_EMAIL).
+   * `requestHeaders` are the running operator's own (see OperatorScraper.requestHeaders), never another
+   * operator's. `logView`: PUBLIC_LOG for a real run, DRY_RUN_LOG for a dry run (see public-log.ts).
    */
-  makeFetcher: (requestHeaders?: RequestHeaders, logView?: LogView) => Fetcher;
+  makeFetcher: (userAgent: string, requestHeaders?: RequestHeaders, logView?: LogView) => Fetcher;
   /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
   makeDb: (databaseUrl: string, ca: string | undefined) => Promise<Db>;
   makeDryRunDb: () => Promise<Db>;
@@ -111,10 +115,22 @@ function printUnexpected(operator: OperatorId, error: unknown, print: (line: str
  */
 export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = {}): Promise<number> {
   const print = deps.print ?? (line => console.log(line));
+  // Before anything else, dry run or not: who the bot says it is. Without a good SITE_URL and CONTACT_EMAIL the
+  // run stops here, with one line naming the variable (never its value), before any fetcher, proxy or database
+  // exists, so no request of any kind is made.
+  let identity: SiteIdentity;
+  try {
+    identity = resolveSiteIdentity(env);
+  } catch (error) {
+    if (!(error instanceof SiteIdentityError)) throw error;
+    print(error.message);
+    return 2;
+  }
+
   const {
     scrapers = SCRAPERS,
-    makeFetcher = (requestHeaders?: RequestHeaders, logView?: LogView) =>
-      createFetcher({ log: print, extraHeaders: requestHeaders, logView }),
+    makeFetcher = (userAgent: string, requestHeaders?: RequestHeaders, logView?: LogView) =>
+      createFetcher({ userAgent, log: print, extraHeaders: requestHeaders, logView }),
     makeDb = async (url: string, ca: string | undefined) => createPgDb(url, { ca }),
     makeDryRunDb = createDryRunDb,
     now = () => new Date(),
@@ -150,7 +166,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   if (proxyWanted(env)) installProxy(env);
   // A real run's log is public (GitHub Actions); a dry run's is not, so it prints addresses and messages whole.
   const logView = args.dryRun ? DRY_RUN_LOG : PUBLIC_LOG;
-  const fetcher = makeFetcher(scraper.requestHeaders, logView);
+  const fetcher = makeFetcher(userAgentFor(identity), scraper.requestHeaders, logView);
   const today = todayInHongKong(now());
 
   if (!args.dryRun) {

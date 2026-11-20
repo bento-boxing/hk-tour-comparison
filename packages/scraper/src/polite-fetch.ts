@@ -1,18 +1,25 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import robotsParser from 'robots-parser';
-import { CONTACT_EMAIL, SITE_URL } from '@hktours/core';
+import type { SiteIdentity } from '@hktours/core';
 import { PUBLIC_LOG, type LogView } from './public-log';
 import type { FetchOptions, Fetcher } from './types';
 
 export const REQUEST_DELAY_MS = 3000;
 export const REQUEST_TIMEOUT_MS = 30_000;
+/** The bot's product token and version: the start of every User-Agent it sends. */
+export const BOT_PRODUCT = 'tour-comparison-bot/0.1';
+
 /**
- * The product token and version, then who runs the bot (the site and its contact, from core, which the website
- * also uses; since 2026-11-19). robots.txt groups are still matched on the product token alone: robots-parser
- * lower-cases the User-Agent and drops everything from its first `/` (pinned by the tests).
+ * The User-Agent: the product token and version, then who runs the bot, `(+<site>; <contact>)` (since 2026-11-19).
+ * The site and contact are settings (SITE_URL, CONTACT_EMAIL; since 2026-11-20), resolved and checked by core's
+ * resolveSiteIdentity, which the website uses too, so the two cannot disagree; there is no default. robots.txt
+ * groups are still matched on the product token alone: robots-parser lower-cases the User-Agent and drops
+ * everything from its first `/` (pinned by the tests).
  */
-export const USER_AGENT = `tour-comparison-bot/0.1 (+${SITE_URL}; ${CONTACT_EMAIL})`;
+export function userAgentFor({ siteUrl, contactEmail }: SiteIdentity): string {
+  return `${BOT_PRODUCT} (+${siteUrl}; ${contactEmail})`;
+}
 /** A robots.txt Crawl-delay above this means "do not crawl": that origin gets no page requests at all. */
 export const MAX_CRAWL_DELAY_MS = 30_000;
 
@@ -34,7 +41,8 @@ const MAX_REDIRECTS = 5;
 const NO_ROBOTS_STATUSES = [404, 410];
 
 export interface FetcherOptions {
-  userAgent?: string;                 // defaults to USER_AGENT
+  /** Sent on every request. No default: the run's own, userAgentFor(its identity); a test's invented one. */
+  userAgent: string;
   delayMs?: number;                   // per site, from the end of one request to the start of the next; defaults to REQUEST_DELAY_MS
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
@@ -177,8 +185,11 @@ function errorMessage(error: unknown): string {
  * read per origin. Redirects are followed by hand so every hop is checked
  * against robots.txt and spaced like any request.
  */
-export function createFetcher(opts: FetcherOptions = {}): PoliteFetcher {
-  const userAgent = opts.userAgent ?? USER_AGENT;
+export function createFetcher(opts: FetcherOptions): PoliteFetcher {
+  // Also checked when it runs: a caller in plain JavaScript, or one that casts, still gets no default identity.
+  const given: unknown = (opts as FetcherOptions | undefined)?.userAgent;
+  if (typeof given !== 'string' || given.trim() === '') throw new Error('createFetcher needs a userAgent');
+  const userAgent: string = given;
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));

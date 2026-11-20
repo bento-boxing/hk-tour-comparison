@@ -83,7 +83,11 @@ function harness(pages: Site, patch: Partial<CliDeps> = {}): Harness {
 const goodTours = (n: number) =>
   Array.from({ length: n }, (_, i) => [`T${i + 1}`, tour(`T${i + 1}`)] as [string, ScrapedTour]);
 
-const DATABASE = { DATABASE_URL: 'postgres://example.invalid/tours' };
+/** The site's identity every run needs: invented values (nothing here reads the real environment). */
+const IDENTITY = { SITE_URL: 'https://example.invalid', CONTACT_EMAIL: 'bot@example.invalid' };
+/** The User-Agent a run with IDENTITY sends. */
+const IDENTITY_UA = 'tour-comparison-bot/0.1 (+https://example.invalid; bot@example.invalid)';
+const DATABASE = { ...IDENTITY, DATABASE_URL: 'postgres://example.invalid/tours' };
 
 describe('parseArgs', () => {
   it.each([
@@ -108,6 +112,100 @@ describe('parseArgs', () => {
   ])('parseArgs(%j) rejects a repeated option', (argv, expected) => { expect(parseArgs(argv)).toEqual(expected); });
 });
 
+describe('runCli without the site\'s identity (task 49)', () => {
+  /**
+   * Everything a run could use to make a request, each failing the test if it is used at all: the fetcher, the
+   * proxy, both databases and the scraper itself; and fetch, for the default fetcher (the second form).
+   */
+  function forbiddingEverything(withDefaultFetcher: boolean) {
+    const used: string[] = [];
+    const refuse = (what: string) => { used.push(what); throw new Error(`used without an identity: ${what}`); };
+    const scraper: OperatorScraper = { id: 'jetour', discover: async () => refuse('discover'), parse: () => refuse('parse') };
+    const h = harness(new Map(), {
+      scrapers: { jetour: scraper },
+      makeFetcher: () => refuse('makeFetcher'),
+      makeDb: async () => refuse('makeDb'),
+      makeDryRunDb: async () => refuse('makeDryRunDb'),
+      installProxy: () => refuse('installProxy'),
+    });
+    if (withDefaultFetcher) delete h.deps.makeFetcher;
+    const fetchCalls: string[] = [];
+    vi.stubGlobal('fetch', async (input: unknown) => { fetchCalls.push(String(input)); return refuse('fetch'); });
+    return { h, used, fetchCalls };
+  }
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  /** Each environment, with the variable its one line must name and what the line says. */
+  const cases: Array<[name: string, env: Record<string, string>, line: RegExp]> = [
+    ['SITE_URL missing', { CONTACT_EMAIL: IDENTITY.CONTACT_EMAIL }, /^SITE_URL is not set: /],
+    ['SITE_URL empty (an unset GitHub secret)', { ...IDENTITY, SITE_URL: '' }, /^SITE_URL is not set: /],
+    ['CONTACT_EMAIL missing', { SITE_URL: IDENTITY.SITE_URL }, /^CONTACT_EMAIL is not set: /],
+    ['CONTACT_EMAIL empty (an unset GitHub secret)', { ...IDENTITY, CONTACT_EMAIL: '' }, /^CONTACT_EMAIL is not set: /],
+    ['both missing', {}, /^SITE_URL is not set: .*; CONTACT_EMAIL is not set: /],
+    ['SITE_URL with a trailing slash', { ...IDENTITY, SITE_URL: 'https://example.invalid/' }, /^SITE_URL ends with a slash: /],
+    ['SITE_URL over http', { ...IDENTITY, SITE_URL: 'http://example.invalid' }, /^SITE_URL must start with https:\/\/ /],
+    ['SITE_URL with a path', { ...IDENTITY, SITE_URL: 'https://example.invalid/bot' }, /^SITE_URL has a path: /],
+    ['SITE_URL with a header injection', { ...IDENTITY, SITE_URL: 'https://example.invalid\r\nX-Evil: 1' }, /^SITE_URL holds a space, a control character/],
+    ['CONTACT_EMAIL not an address', { ...IDENTITY, CONTACT_EMAIL: 'example.invalid' }, /^CONTACT_EMAIL is not an e-mail address: /],
+    ['CONTACT_EMAIL with a parenthesis', { ...IDENTITY, CONTACT_EMAIL: 'bot)@example.invalid' }, /^CONTACT_EMAIL is not an e-mail address: /],
+    ['CONTACT_EMAIL with a line break', { ...IDENTITY, CONTACT_EMAIL: 'bot@example.invalid\nX-Evil: 1' }, /^CONTACT_EMAIL holds a space, a control character/],
+  ];
+  const runs: Array<[kind: string, argv: string[]]> = [
+    ['a real run', ['--operator', 'jetour']],
+    ['a dry run', ['--operator', 'jetour', '--dry-run']],
+    ['a limited dry run', ['--operator', 'jetour', '--dry-run', '--limit', '1']],
+  ];
+
+  describe.each(runs)('%s', (_kind, argv) => {
+    it.each(cases)('%s: exits 2 with one line naming it, before any fetcher, proxy, database or request', async (_name, identity, line) => {
+      // A database and a proxy are set, to show that neither is even looked at.
+      const env = { DATABASE_URL: 'postgres://example.invalid/tours', HTTPS_PROXY: 'http://127.0.0.1:3128', ...identity };
+      const { h, used, fetchCalls } = forbiddingEverything(false);
+      expect(await runCli(argv, env, h.deps)).toBe(2);
+      expect(h.printed).toHaveLength(1);
+      expect(h.printed[0]).toMatch(line);
+      expect(used).toEqual([]);
+      expect(fetchCalls).toEqual([]);
+    });
+
+    it.each(cases)('%s: with the real default fetcher too, fetch is never called', async (_name, identity) => {
+      const { h, used, fetchCalls } = forbiddingEverything(true);
+      expect(await runCli(argv, identity, h.deps)).toBe(2);
+      expect(h.printed).toHaveLength(1);
+      expect(used).toEqual([]);
+      expect(fetchCalls).toEqual([]);
+    });
+  });
+
+  it('the line never repeats a value it refuses', async () => {
+    const { h } = forbiddingEverything(false);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], { SITE_URL: 'https://hunter2.invalid/x', CONTACT_EMAIL: 'hunter3' }, h.deps)).toBe(2);
+    expect(h.printed).toHaveLength(1);
+    expect(h.printed[0]).toMatch(/^SITE_URL has a path: .*; CONTACT_EMAIL is not an e-mail address: /);
+    expect(h.printed[0]).not.toMatch(/hunter/);
+  });
+
+  it('is checked before anything else, even the arguments: bad usage without an identity names the identity', async () => {
+    const { h, used } = forbiddingEverything(false);
+    expect(await runCli(['--operator', 'wingon'], {}, h.deps)).toBe(2);
+    expect(h.printed).toHaveLength(1);
+    expect(h.printed[0]).toMatch(/^SITE_URL is not set: /);
+    expect(used).toEqual([]);
+  });
+
+  it('reads the identity from the environment object it is given, never from process.env', async () => {
+    vi.stubEnv('SITE_URL', 'https://example.invalid');
+    vi.stubEnv('CONTACT_EMAIL', 'bot@example.invalid');
+    try {
+      const { h } = forbiddingEverything(false);
+      expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(2);
+      expect(h.printed[0]).toMatch(/^SITE_URL is not set: /);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe('runCli', () => {
   beforeEach(async () => {
     const db = await createTestDb();
@@ -117,7 +215,7 @@ describe('runCli', () => {
   afterEach(async () => { await testDb.close(); });
 
   it('exits 2 when DATABASE_URL is missing for a real run', async () => {
-    expect(await runCli(['--operator', 'jetour'], {})).toBe(2);
+    expect(await runCli(['--operator', 'jetour'], IDENTITY)).toBe(2);
   });
 
   it('exits 2 for bad usage, before creating anything', async () => {
@@ -182,6 +280,36 @@ describe('runCli', () => {
     expect(testDbCloses).toBe(1);
   });
 
+  it('makes its one fetcher with the User-Agent built from SITE_URL and CONTACT_EMAIL, trimmed (task 49)', async () => {
+    const pages = site(goodTours(1));
+    const agents: string[] = [];
+    const h = harness(pages, { makeFetcher: userAgent => { agents.push(userAgent); return fakeFetcher(pages); } });
+    const env = { SITE_URL: ' https://example.invalid\n', CONTACT_EMAIL: 'bot@example.invalid\r\n' };
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], env, h.deps)).toBe(0);
+    expect(agents).toEqual([IDENTITY_UA]);
+  });
+
+  it('the default fetcher sends that User-Agent, robots.txt included (task 49)', async () => {
+    // fetch is replaced: robots.txt disallows everything, so the only request is robots.txt itself.
+    const sent: Array<[string, string | null]> = [];
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      sent.push([String(input), new Headers(init?.headers).get('user-agent')]);
+      return new Response('User-agent: *\nDisallow: /', { status: 200 });
+    });
+    try {
+      const asking: OperatorScraper = {
+        id: 'jetour', parse: () => null,
+        discover: async fetcher => { await fetcher.fetchText('https://shop.invalid/a'); return []; },
+      };
+      const h = harness(new Map(), { scrapers: { jetour: asking } });
+      delete h.deps.makeFetcher;
+      await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps);
+      expect(sent).toEqual([['https://shop.invalid/robots.txt', IDENTITY_UA]]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('creates exactly one fetcher', async () => {
     let fetchers = 0;
     const pages = site(goodTours(2));
@@ -196,12 +324,12 @@ describe('runCli', () => {
   ])('makes the fetcher with the running scraper\'s request headers only (%s)', async (operator, expected) => {
     const pages = site(goodTours(2));
     const madeWith: unknown[] = [];
-    const makeFetcher = (headers?: unknown) => { madeWith.push(headers); return fakeFetcher(pages); };
+    const makeFetcher = (_userAgent: string, headers?: unknown) => { madeWith.push(headers); return fakeFetcher(pages); };
     const scrapers = {
       jetour: fakeScraper(pages),
       texpert: { ...fakeScraper(pages), id: 'texpert' as const, requestHeaders: { 'api.example.com': { 'x-key': 'k' } } },
     };
-    await runCli(['--operator', operator, '--dry-run'], {}, harness(pages, { scrapers, makeFetcher }).deps);
+    await runCli(['--operator', operator, '--dry-run'], IDENTITY, harness(pages, { scrapers, makeFetcher }).deps);
     expect(madeWith).toEqual([expected]);
   });
 
@@ -238,7 +366,7 @@ describe('runCli', () => {
       ['C', tour('C')],
     ]);
     const h = harness(pages);
-    expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(1);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps)).toBe(1);
     const out = h.printed.join('\n');
     expect(out).toContain('tours saved: 0');
     expect(out).toContain('parse failures: 2 (66.7% of 3 tour pages fetched)');
@@ -247,7 +375,7 @@ describe('runCli', () => {
 
   it('dry-run prints each page with its route, for checking matches by eye', async () => {
     const h = harness(site([['A', tour('A')], ['N', 'null']]));
-    await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps);
+    await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps);
     const pageLines = h.printed.filter(line => line.startsWith('page ')).map(line => JSON.parse(line.slice(5)));
     expect(pageLines).toEqual([
       {
@@ -261,7 +389,7 @@ describe('runCli', () => {
   it('dry-run checks the run against the scraper\'s floor for first runs', async () => {
     const pages = site(goodTours(3));
     const h = harness(pages, { scrapers: { jetour: { ...fakeScraper(pages), minExpectedTours: 4 } } });
-    expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(1);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps)).toBe(1);
     expect(h.printed).toContain('run checks: failed (below-minimum)');
   });
 
@@ -269,13 +397,13 @@ describe('runCli', () => {
     const pages = site(goodTours(1));
     const fetchPage = vi.fn(async (fetcher: Fetcher, url: string) => fetcher.fetchText(url));
     const h = harness(pages, { scrapers: { jetour: { ...fakeScraper(pages), fetchPage } } });
-    expect(await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).toBe(0);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps)).toBe(0);
     expect(fetchPage).toHaveBeenCalledWith(h.fetcher, pageUrl('T1'), '2026-11-13'); // the run's today in Hong Kong
   });
 
   it('dry-run with --limit fetches only that many pages', async () => {
     const h = harness(site(goodTours(5)));
-    expect(await runCli(['--operator', 'jetour', '--dry-run', '--limit', '2'], {}, h.deps)).toBe(0);
+    expect(await runCli(['--operator', 'jetour', '--dry-run', '--limit', '2'], IDENTITY, h.deps)).toBe(0);
     expect(h.fetcher.asked).toEqual([pageUrl('T1'), pageUrl('T2')]);
     expect(h.printed.join('\n')).toContain('tour pages discovered: 5 (limited to the first 2)');
   });
@@ -288,14 +416,14 @@ describe('runCli', () => {
       installProxy: () => { events.push('proxy'); },
       makeFetcher: () => ({ fetchText: url => { events.push('fetch'); return inner.fetchText(url); } }),
     });
-    expect(await runCli(['--operator', 'jetour', '--dry-run'], { HTTPS_PROXY: 'http://127.0.0.1:3128' }, h.deps)).toBe(0);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], { ...IDENTITY, HTTPS_PROXY: 'http://127.0.0.1:3128' }, h.deps)).toBe(0);
     expect(events).toEqual(['proxy', 'fetch']);
   });
 
   it('leaves the global dispatcher alone when no proxy variable is set', async () => {
     const installProxy = vi.fn();
     const h = harness(site(goodTours(1)), { installProxy });
-    expect(await runCli(['--operator', 'jetour', '--dry-run'], { NO_PROXY: 'localhost' }, h.deps)).toBe(0);
+    expect(await runCli(['--operator', 'jetour', '--dry-run'], { ...IDENTITY, NO_PROXY: 'localhost' }, h.deps)).toBe(0);
     expect(installProxy).not.toHaveBeenCalled();
   });
 
@@ -307,7 +435,7 @@ describe('runCli', () => {
     it('a real run makes its fetcher with PUBLIC_LOG and prints a page address only in its public form', async () => {
       const views: unknown[] = [];
       const pages = titledSite();
-      const h = harness(pages, { makeFetcher: (_headers, logView) => { views.push(logView); return fakeFetcher(pages); } });
+      const h = harness(pages, { makeFetcher: (_userAgent, _headers, logView) => { views.push(logView); return fakeFetcher(pages); } });
       expect(await runCli(['--operator', 'jetour'], DATABASE, h.deps)).toBe(0);
       expect(views).toEqual([PUBLIC_LOG]);
       expect(h.printed).toContain(`jetour: parse failure https://www.jetour.com.hk/?tour=* ${logRef(titled)}: parser returned null`);
@@ -317,8 +445,8 @@ describe('runCli', () => {
     it('a dry run makes its fetcher with DRY_RUN_LOG and prints the whole address with the same reference', async () => {
       const views: unknown[] = [];
       const pages = titledSite();
-      const h = harness(pages, { makeFetcher: (_headers, logView) => { views.push(logView); return fakeFetcher(pages); } });
-      await runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps);
+      const h = harness(pages, { makeFetcher: (_userAgent, _headers, logView) => { views.push(logView); return fakeFetcher(pages); } });
+      await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps);
       expect(views).toEqual([DRY_RUN_LOG]);
       expect(h.printed).toContain(`jetour: parse failure ${titled} ${logRef(titled)}: parser returned null`);
     });
@@ -361,7 +489,7 @@ describe('runCli', () => {
       };
       const dry = harness(new Map(), { scrapers: { jetour: asking } });
       delete dry.deps.makeFetcher;
-      await runCli(['--operator', 'jetour', '--dry-run'], {}, dry.deps);
+      await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, dry.deps);
       expect(dry.printed).toContain(`not an http(s) URL: 測試之旅 ${logRef('測試之旅')}`);
 
       const real = harness(new Map(), { scrapers: { jetour: asking } });
@@ -374,7 +502,7 @@ describe('runCli', () => {
       const h = harness(site(goodTours(2)), {
         makeDryRunDb: async () => ({ ...testDb, query: async () => { throw new Error('boom'); } }),
       });
-      await expect(runCli(['--operator', 'jetour', '--dry-run'], {}, h.deps)).rejects.toThrow('boom');
+      await expect(runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps)).rejects.toThrow('boom');
     });
   });
 });

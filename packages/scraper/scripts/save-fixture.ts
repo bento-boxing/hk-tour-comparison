@@ -3,7 +3,8 @@
  *
  *   pnpm --filter @hktours/scraper fixture <url> <output-path>
  *     fetches <url> through the polite fetcher (robots.txt, honest User-Agent, 3-second spacing),
- *     trims it with trimFixture and writes it to <output-path>.
+ *     trims it with trimFixture and writes it to <output-path>. Needs SITE_URL and CONTACT_EMAIL, as
+ *     `pnpm scrape` does (the User-Agent names them); without them it stops before any request.
  *
  *   pnpm --filter @hktours/scraper fixture --from <saved-page> <output-path>
  *     trims a page already fetched through the polite fetcher and saved untrimmed outside the
@@ -29,7 +30,8 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { createFetcher } from '../src/polite-fetch';
+import { resolveSiteIdentity, SiteIdentityError } from '@hktours/core';
+import { createFetcher, userAgentFor } from '../src/polite-fetch';
 import { KEEP_TEXT_LIMIT, trimFixture, type AllowList, type TrimOptions } from '../src/trim-fixture';
 
 const USAGE = [
@@ -98,7 +100,14 @@ async function main(): Promise<void> {
   if (fromSavedPage) {
     html = await readFile(resolve(base, args[1]), 'utf8');
   } else {
-    const fetched = await createFetcher().fetchText(args[0]);
+    let userAgent: string;
+    try {
+      userAgent = userAgentFor(resolveSiteIdentity(process.env));
+    } catch (error) {
+      if (error instanceof SiteIdentityError) fail(error.message);
+      throw error;
+    }
+    const fetched = await createFetcher({ userAgent }).fetchText(args[0]);
     if (fetched === null) fail(`nothing saved: ${args[0]} was not fetched (see the line above)`);
     html = fetched;
   }

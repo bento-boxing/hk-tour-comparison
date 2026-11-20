@@ -3,11 +3,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import {
-  createFetcher, siteOf, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, USER_AGENT,
-  type PoliteFetcher,
+  BOT_PRODUCT, createFetcher, siteOf, userAgentFor, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS,
+  REQUEST_TIMEOUT_MS, type FetcherOptions, type PoliteFetcher,
 } from './polite-fetch';
 import { addressRef, DRY_RUN_LOG, logRef, type LogView } from './public-log';
-import { CONTACT_EMAIL, SITE_URL } from '@hktours/core';
+import { resolveSiteIdentity } from '@hktours/core';
 
 interface RecordedRequest {
   path: string; userAgent: string | undefined; start: number; end: number;
@@ -689,7 +689,8 @@ it('an origin key is matched exactly, its host whatever its case', async () => {
 
 it.each(['example.com:8443', 'example.com/path', 'not a host', 'ftp://example.com'])(
   'refuses an extraHeaders key that is neither a host name nor an http(s) origin: %s', key => {
-    expect(() => createFetcher({ extraHeaders: { [key]: { 'x-site-key': 'k' } } })).toThrow(/neither a host name nor an origin/);
+    expect(() => createFetcher({ userAgent: 'test-bot/0.1', extraHeaders: { [key]: { 'x-site-key': 'k' } } }))
+      .toThrow(/neither a host name nor an origin/);
   });
 
 describe('extraHeaders that cannot be sent', () => {
@@ -960,24 +961,43 @@ describe('a logged address that may carry a title is shown as the log view allow
   });
 });
 
-it('USER_AGENT names the bot, then the site and the contact (since 2026-11-19)', () => {
-  expect(USER_AGENT).toBe('tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)');
+/** An invented identity, as core's resolveSiteIdentity returns it: no test uses the live site's values. */
+const IDENTITY = resolveSiteIdentity({ SITE_URL: 'https://example.invalid', CONTACT_EMAIL: 'bot@example.invalid' });
+/** The User-Agent a run with IDENTITY sends. */
+const USER_AGENT = userAgentFor(IDENTITY);
+
+it('userAgentFor names the bot, then the site and the contact it is given (since 2026-11-19)', () => {
+  expect(BOT_PRODUCT).toBe('tour-comparison-bot/0.1');
+  expect(USER_AGENT).toBe('tour-comparison-bot/0.1 (+https://example.invalid; bot@example.invalid)');
+  expect(userAgentFor({ siteUrl: 'https://other.invalid:8443', contactEmail: 'a.b+c@other.invalid' }))
+    .toBe('tour-comparison-bot/0.1 (+https://other.invalid:8443; a.b+c@other.invalid)');
 });
 
-it('USER_AGENT is built from the site constants the website uses, so the two cannot disagree', () => {
-  expect(USER_AGENT).toBe(`tour-comparison-bot/0.1 (+${SITE_URL}; ${CONTACT_EMAIL})`);
+it('a User-Agent made from any identity core accepts is a header value fetch sends as it is', () => {
+  const identity = resolveSiteIdentity({ SITE_URL: ' https://xn--fsq.example.invalid:8443\n', CONTACT_EMAIL: '\tfirst.last+x@mail.example.invalid ' });
+  const userAgent = userAgentFor(identity);
+  expect(new Headers({ 'user-agent': userAgent }).get('user-agent')).toBe(userAgent);
+  expect(userAgent).toBe('tour-comparison-bot/0.1 (+https://xn--fsq.example.invalid:8443; first.last+x@mail.example.invalid)');
 });
 
-it('uses USER_AGENT by default', async () => {
-  const plain = createFetcher({ log: () => {} });
+it('createFetcher has no default User-Agent: a caller must pass one', () => {
+  // @ts-expect-error: the options, with their userAgent, are required
+  expect(() => createFetcher()).toThrow('createFetcher needs a userAgent');
+  expect(() => createFetcher({ log: () => {} } as unknown as FetcherOptions)).toThrow('createFetcher needs a userAgent');
+  expect(() => createFetcher({ userAgent: '  ', log: () => {} })).toThrow('createFetcher needs a userAgent');
+  expect(main.requests).toEqual([]);
+});
+
+it('sends the User-Agent it is given on every request, robots.txt included', async () => {
+  const plain = createFetcher({ userAgent: USER_AGENT, delayMs: 0, log: () => {} });
   expect(await plain.fetchText(url('/a'))).toBe('ok-a');
-  expect(main.requests.length).toBeGreaterThan(0);
-  for (const r of main.requests) expect(r.userAgent).toBe('tour-comparison-bot/0.1 (+https://ganbintuen.com; hello@ganbintuen.com)');
-}, 10_000); // robots.txt, then the page after the default 3 s delay
+  expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/a']);
+  for (const r of main.requests) expect(r.userAgent).toBe('tour-comparison-bot/0.1 (+https://example.invalid; bot@example.invalid)');
+});
 
 /**
  * robots.txt groups are matched on the product token `tour-comparison-bot` (robots-parser lower-cases the
- * User-Agent and drops everything from its first `/`). The site and contact added to USER_AGENT on 2026-11-19
+ * User-Agent and drops everything from its first `/`). The site and contact added to the User-Agent on 2026-11-19
  * come after that `/`, so every group form must decide exactly as it did for the User-Agent sent before then.
  * fetch is replaced (no local server: these run wherever `localhost` resolves), and robots.txt disallows or
  * allows `/a` only; `/b` is always allowed, to show the group did not refuse the whole site.
@@ -997,7 +1017,7 @@ describe('robots.txt group matching is unchanged by the site and contact in the 
     ['another bot, and * allowing', ownDisallowsA('Googlebot'), true],
     ['a shorter name that is not our token', ownDisallowsA('tour-comparison'), true],
     ['a longer name that only starts with our token', ownDisallowsA('tour-comparison-bot-extra'), true],
-    ['the site name from the comment, which is not a product token', ownDisallowsA('ganbintuen.com'), true],
+    ['the site name from the comment, which is not a product token', ownDisallowsA('example.invalid'), true],
     ['the whole new User-Agent as a group name (cut at its first /, as ours is)', ownDisallowsA(USER_AGENT), false],
   ];
 

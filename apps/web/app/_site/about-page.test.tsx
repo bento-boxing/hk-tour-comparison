@@ -60,7 +60,7 @@ it('README\'s 給旅行社的說明 says the same as the about page, sentence fo
 
 it('names the program as the scraper names itself, its pace, its pushback rule and its robots.txt rule as the scraper keeps them', () => {
   const scraper = readFileSync(join(__dirname, '..', '..', '..', '..', 'packages', 'scraper', 'src', 'polite-fetch.ts'), 'utf8');
-  expect(scraper).toMatch(/export const USER_AGENT = `tour-comparison-bot\//);
+  expect(scraper).toMatch(/export const BOT_PRODUCT = 'tour-comparison-bot\//);
   expect(scraper).toMatch(/export const REQUEST_DELAY_MS = 3000;/);
   // "Several refusals in a row" (多次拒絕), not the first.
   expect(scraper).toMatch(/export const MAX_CONSECUTIVE_PUSHBACK = 3;/);
