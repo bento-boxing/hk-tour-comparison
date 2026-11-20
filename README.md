@@ -135,7 +135,7 @@ A dry run fetches real pages from the operator's site (politely, as above) but w
 pnpm scrape --operator jetour --dry-run --limit 5
 ```
 
-- `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy`, `sunflower` or `taste`. The nightly run scrapes the first seven; `taste` has had its measured practice crawl (2026-11-20, [`docs/operators/taste.md`](docs/operators/taste.md)) and joins the run once it is added to the nightly workflow's list of operators.
+- `--operator` is one of `jetour`, `texpert`, `egl`, `bigline`, `charming`, `yummy`, `sunflower` or `taste`. The nightly run scrapes all eight (`taste` since its measured practice crawl of 2026-11-20, [`docs/operators/taste.md`](docs/operators/taste.md)).
 - `--limit N` is allowed only with `--dry-run`.
 - A real run (`pnpm scrape --operator <id>`) needs `DATABASE_URL`, and uses `DATABASE_CA_CERT` when it is set.
 

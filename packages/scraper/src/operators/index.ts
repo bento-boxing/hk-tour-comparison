@@ -12,8 +12,8 @@ import { yummyScraper } from './yummy';
 /**
  * Every approved, implemented operator, by id. Only these are scraped. To add one, add its
  * line here and, once a measured crawl has set its first-run floor, its id to the operator matrix
- * in .github/workflows/nightly-scrape.yml (every operator below is in the matrix except taste,
- * which awaits its measured practice crawl).
+ * in .github/workflows/nightly-scrape.yml (every operator below is in the matrix; taste since its
+ * practice crawl of 2026-11-20, task 48).
  */
 export const SCRAPERS: Partial<Record<OperatorId, OperatorScraper>> = {
   bigline: biglineScraper,
