@@ -242,16 +242,16 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
 });
 
 const languages = {
-  'zh-Hant': 'https://ganbintuen.com',
-  'zh-Hans': 'https://ganbintuen.com/zh-hans',
-  en: 'https://ganbintuen.com/en',
-  'x-default': 'https://ganbintuen.com',
+  'zh-Hant': 'https://example.invalid',
+  'zh-Hans': 'https://example.invalid/zh-hans',
+  en: 'https://example.invalid/en',
+  'x-default': 'https://example.invalid',
 };
 
 it.each([
-  ['zh-Hant', 'https://ganbintuen.com', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
-  ['zh-Hans', 'https://ganbintuen.com/zh-hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
-  ['en', 'https://ganbintuen.com/en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
+  ['zh-Hant', 'https://example.invalid', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', 'https://example.invalid/zh-hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', 'https://example.invalid/en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
 ] as const)('in %s: the page names its own language\'s address canonical, without the query string, lists the three languages and x-default, with Open Graph in that language', async (locale, canonical, description, ogLocale) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(homeData);

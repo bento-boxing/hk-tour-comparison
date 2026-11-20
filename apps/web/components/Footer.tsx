@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { CONTACT_EMAIL } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
+import { siteIdentity } from '../lib/site-identity';
 import { TOURS_PATH } from '../lib/destinations';
 import styles from './Footer.module.css';
 
@@ -11,14 +11,16 @@ const LINKS = [
   { path: '/about', label: 'footer.about' },
 ] as const;
 
+/** A server component: the contact address is CONTACT_EMAIL (lib/site-identity.ts). */
 export function Footer({ t }: { t: T }) {
+  const { contactEmail } = siteIdentity();
   // The contact sentence with its {email} placeholder left as written, so the address can be a link.
   const [beforeEmail, afterEmail = ''] = t('footer.contact').split('{email}');
   return (
     <footer className={styles.footer}>
       <p className={styles.text}>{t('footer.disclaimer')}</p>
       <p className={`${styles.text} ${styles.contact}`}>
-        {beforeEmail}<a className={styles.link} href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>{afterEmail}
+        {beforeEmail}<a className={styles.link} href={`mailto:${contactEmail}`}>{contactEmail}</a>{afterEmail}
       </p>
       <nav className={styles.links} aria-label={t('footer.links')}>
         {LINKS.map(({ path, label }) => (

@@ -70,23 +70,23 @@ it('splitLocalePath undoes localeHref for every language and page', () => {
 });
 
 it('siteUrl: the absolute address, the home page without a trailing slash (as Next.js writes the canonical)', () => {
-  expect(siteUrl('/')).toBe('https://ganbintuen.com');
-  expect(siteUrl('/chain')).toBe('https://ganbintuen.com/chain');
-  expect(siteUrl('/en')).toBe('https://ganbintuen.com/en');
+  expect(siteUrl('/')).toBe('https://example.invalid');
+  expect(siteUrl('/chain')).toBe('https://example.invalid/chain');
+  expect(siteUrl('/en')).toBe('https://example.invalid/en');
 });
 
 it.each([
   ['/', {
-    'zh-Hant': 'https://ganbintuen.com',
-    'zh-Hans': 'https://ganbintuen.com/zh-hans',
-    en: 'https://ganbintuen.com/en',
-    'x-default': 'https://ganbintuen.com',
+    'zh-Hant': 'https://example.invalid',
+    'zh-Hans': 'https://example.invalid/zh-hans',
+    en: 'https://example.invalid/en',
+    'x-default': 'https://example.invalid',
   }],
   ['/chain', {
-    'zh-Hant': 'https://ganbintuen.com/chain',
-    'zh-Hans': 'https://ganbintuen.com/zh-hans/chain',
-    en: 'https://ganbintuen.com/en/chain',
-    'x-default': 'https://ganbintuen.com/chain',
+    'zh-Hant': 'https://example.invalid/chain',
+    'zh-Hans': 'https://example.invalid/zh-hans/chain',
+    en: 'https://example.invalid/en/chain',
+    'x-default': 'https://example.invalid/chain',
   }],
 ] as const)('languageAlternates(%j): the page in each language and x-default (the unprefixed one), absolute', (path, expected) => {
   expect(languageAlternates(path)).toEqual(expected);

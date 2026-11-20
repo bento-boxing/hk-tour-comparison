@@ -6,7 +6,7 @@ import GlobalNotFound, { metadata } from './global-not-found';
 import { getPathMatch } from 'next/dist/shared/lib/router/utils/path-match';
 import { prepareDestination } from 'next/dist/shared/lib/router/utils/prepare-destination';
 import { getRedirectStatus, modifyRouteRegex } from 'next/dist/lib/redirect-status';
-import nextConfig from '../next.config';
+import { nextConfig } from '../next.config';
 
 const page = () => new DOMParser().parseFromString(renderToStaticMarkup(<GlobalNotFound />), 'text/html');
 

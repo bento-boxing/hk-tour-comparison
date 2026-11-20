@@ -34,11 +34,11 @@ beforeEach(() => {
 });
 
 const languages = (path: string) => {
-  const zh = `https://ganbintuen.com${path === '/' ? '' : path}`;
+  const zh = `https://example.invalid${path === '/' ? '' : path}`;
   return {
     'zh-Hant': zh,
-    'zh-Hans': `https://ganbintuen.com/zh-hans${path === '/' ? '' : path}`,
-    en: `https://ganbintuen.com/en${path === '/' ? '' : path}`,
+    'zh-Hans': `https://example.invalid/zh-hans${path === '/' ? '' : path}`,
+    en: `https://example.invalid/en${path === '/' ? '' : path}`,
     'x-default': zh,
   };
 };
@@ -65,8 +65,8 @@ it('lists the fixed pages, then each destination with a page of its own, in all 
 it('still starts with the six addresses it had before destinations had pages', async () => {
   const urls = (await sitemap()).map(e => e.url);
   expect(urls.slice(0, 6)).toEqual([
-    'https://ganbintuen.com', 'https://ganbintuen.com/zh-hans', 'https://ganbintuen.com/en',
-    'https://ganbintuen.com/chain', 'https://ganbintuen.com/zh-hans/chain', 'https://ganbintuen.com/en/chain',
+    'https://example.invalid', 'https://example.invalid/zh-hans', 'https://example.invalid/en',
+    'https://example.invalid/chain', 'https://example.invalid/zh-hans/chain', 'https://example.invalid/en/chain',
   ]);
 });
 

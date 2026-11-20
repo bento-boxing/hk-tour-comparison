@@ -31,9 +31,9 @@ const FOLDERS = ['app', 'components', 'lib'];
 
 /** Links that deliberately leave the page's language or the site, by file, exactly as written. */
 const EXTERNAL_HREFS: Record<string, string[]> = {
-  'components/Footer.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
+  'components/Footer.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
   'components/TourCard.tsx': ['href: tour.url'], // the operator's own page
-  'app/_site/about-page.tsx': ['href={`mailto:${CONTACT_EMAIL}`}'], // the contact address
+  'app/_site/about-page.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);

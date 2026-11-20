@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { CONTACT_EMAIL } from '@hktours/core';
 import { makeT, type DictKey, type Locale, type T } from '../../lib/i18n';
+import { siteIdentity } from '../../lib/site-identity';
 import { pageMetadata } from '../../lib/site-metadata';
 import frame from './site-frame.module.css';
 import styles from './about-page.module.css';
@@ -11,10 +11,11 @@ export function aboutPageMetadata(locale: Locale): Metadata {
   return pageMetadata(t, '/about', { title: t('about.title'), description: t('about.description') });
 }
 
-/** A sentence with its {email} placeholder made a mailto link to the contact address. */
+/** A sentence with its {email} placeholder made a mailto link to the contact address (CONTACT_EMAIL). */
 function withEmail(t: T, key: DictKey) {
+  const { contactEmail } = siteIdentity();
   const [before, after = ''] = t(key).split('{email}');
-  return <>{before}<a className={styles.link} href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>{after}</>;
+  return <>{before}<a className={styles.link} href={`mailto:${contactEmail}`}>{contactEmail}</a>{after}</>;
 }
 
 /**

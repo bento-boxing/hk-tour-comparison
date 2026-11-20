@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
-import { SITE_URL } from '@hktours/core';
 import type { Locale, T } from './i18n';
 import { languageAlternates, localeHref, siteUrl } from './locale-path';
+import { siteIdentity } from './site-identity';
 
 /** Open Graph's locale (language_TERRITORY) for each language. */
 const OG_LOCALE: Record<Locale, string> = { 'zh-Hant': 'zh_HK', 'zh-Hans': 'zh_CN', en: 'en_GB' };
 
 /**
- * The root layouts' metadata: the site address that relative addresses are resolved against, the site name as
- * the title with the pattern a page's own title goes into ("連續行程 | 跟邊團"), and the description in the
- * page's language.
+ * The root layouts' metadata: the site address (SITE_URL, lib/site-identity.ts) that relative addresses are
+ * resolved against, the site name as the title with the pattern a page's own title goes into ("連續行程 | 跟邊團"),
+ * and the description in the page's language.
  */
 export function siteMetadata(t: T): Metadata {
   const siteName = t('site.name');
   return {
-    metadataBase: new URL(SITE_URL),
+    metadataBase: new URL(siteIdentity().siteUrl),
     title: { default: siteName, template: `%s | ${siteName}` },
     description: t('site.description'),
   };

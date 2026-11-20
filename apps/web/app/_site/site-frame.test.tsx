@@ -86,7 +86,7 @@ it.each([
   ['en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website."],
 ] as const)('%s: the site address as the base of every address, the site name as the title and its pattern for pages, and the description in that language', (locale, description) => {
   expect(siteFrameMetadata(locale)).toEqual({
-    metadataBase: new URL('https://ganbintuen.com'),
+    metadataBase: new URL('https://example.invalid'),
     title: { default: '跟邊團', template: '%s | 跟邊團' },
     description,
   });

@@ -153,18 +153,18 @@ const metadata = (locale: Locale, id: string, query: Record<string, string> = {}
   destinationPageMetadata(locale, Promise.resolve({ id }), Promise.resolve(query));
 
 it.each([
-  ['zh-Hant', 'japan', '日本旅行團比較', '比較香港多間旅行社的日本旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。', 'https://ganbintuen.com/tours/japan', 'zh_HK'],
-  ['zh-Hans', 'japan', '日本旅行团比较', '比较香港多家旅行社的日本旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://ganbintuen.com/zh-hans/tours/japan', 'zh_CN'],
-  ['en', 'japan', 'Group tours to Japan compared', "Compare group tours to Japan from several Hong Kong tour operators. Filter by departure date, length and price, then book on the operator's own website.", 'https://ganbintuen.com/en/tours/japan', 'en_GB'],
-  ['zh-Hans', 'china-beijing', '中国北京旅行团比较', '比较香港多家旅行社的中国北京旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://ganbintuen.com/zh-hans/tours/china-beijing', 'zh_CN'],
+  ['zh-Hant', 'japan', '日本旅行團比較', '比較香港多間旅行社的日本旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。', 'https://example.invalid/tours/japan', 'zh_HK'],
+  ['zh-Hans', 'japan', '日本旅行团比较', '比较香港多家旅行社的日本旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://example.invalid/zh-hans/tours/japan', 'zh_CN'],
+  ['en', 'japan', 'Group tours to Japan compared', "Compare group tours to Japan from several Hong Kong tour operators. Filter by departure date, length and price, then book on the operator's own website.", 'https://example.invalid/en/tours/japan', 'en_GB'],
+  ['zh-Hans', 'china-beijing', '中国北京旅行团比较', '比较香港多家旅行社的中国北京旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://example.invalid/zh-hans/tours/china-beijing', 'zh_CN'],
 ] as const)('in %s, %s: titled and described with the place, canonical without the query string, the three languages and x-default, indexable', async (locale, id, title, description, canonical, ogLocale) => {
   expect(await metadata(locale, id, { dmin: '5', sort: 'days' })).toEqual({
     title, description,
     alternates: {
       canonical,
       languages: {
-        'zh-Hant': `https://ganbintuen.com/tours/${id}`, 'zh-Hans': `https://ganbintuen.com/zh-hans/tours/${id}`,
-        en: `https://ganbintuen.com/en/tours/${id}`, 'x-default': `https://ganbintuen.com/tours/${id}`,
+        'zh-Hant': `https://example.invalid/tours/${id}`, 'zh-Hans': `https://example.invalid/zh-hans/tours/${id}`,
+        en: `https://example.invalid/en/tours/${id}`, 'x-default': `https://example.invalid/tours/${id}`,
       },
     },
     openGraph: { title: `${title} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },

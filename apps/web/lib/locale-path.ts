@@ -1,5 +1,5 @@
-import { SITE_URL } from '@hktours/core';
 import type { Locale } from './i18n';
+import { siteIdentity } from './site-identity';
 
 // The language is part of the address, and nothing else decides it: Traditional Chinese has no prefix ('/',
 // '/chain'), Simplified Chinese is '/zh-hans/…' and English '/en/…', in lower case, with no trailing slash.
@@ -49,9 +49,13 @@ export function splitLocalePath(pathname: string): { locale: Locale; path: strin
   return { locale, path: rest === '/' ? '/' : rest.replace(/\/$/, '') };
 }
 
-/** The absolute address of a site address; the home page without a trailing slash, as Next.js writes the canonical. */
+/**
+ * The absolute address of a site address, on SITE_URL (lib/site-identity.ts; server code only); the home page
+ * without a trailing slash, as Next.js writes the canonical.
+ */
 export function siteUrl(href: string): string {
-  return href === '/' ? SITE_URL : `${SITE_URL}${href}`;
+  const origin = siteIdentity().siteUrl;
+  return href === '/' ? origin : `${origin}${href}`;
 }
 
 /** The hreflang name of each language (BCP 47, script subtags for the two Chinese scripts). */

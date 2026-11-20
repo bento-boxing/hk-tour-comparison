@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { SITE_URL } from '@hktours/core';
+import { siteIdentity } from '../lib/site-identity';
 
 /**
  * /robots.txt: every crawler may read every page except an address with a query string (`/*?`). A filtered,
@@ -17,10 +17,12 @@ import { SITE_URL } from '@hktours/core';
  *
  * There is deliberately no `Allow: /` line: Next.js writes Allow lines before the Disallow, and a reader that
  * takes the first matching line would then allow everything.
+ *
+ * A static route: built once, at build time, with the SITE_URL the build had.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: '*', allow: ['/_next/static/', '/icon.svg?', '/apple-icon.png?'], disallow: '/*?' },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: `${siteIdentity().siteUrl}/sitemap.xml`,
   };
 }

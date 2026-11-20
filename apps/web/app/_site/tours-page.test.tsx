@@ -85,16 +85,16 @@ it.each([
 });
 
 it.each([
-  ['zh-Hant', '旅行團目的地', '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。', 'https://ganbintuen.com/tours'],
-  ['zh-Hans', '旅行团目的地', '按国家和地区浏览香港多家旅行社的旅行团，并查看每个目的地目前列出多少个旅行团。', 'https://ganbintuen.com/zh-hans/tours'],
-  ['en', 'Tour destinations', 'Browse group tours from several Hong Kong tour operators by country and region, with how many tours each destination has now.', 'https://ganbintuen.com/en/tours'],
+  ['zh-Hant', '旅行團目的地', '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。', 'https://example.invalid/tours'],
+  ['zh-Hans', '旅行团目的地', '按国家和地区浏览香港多家旅行社的旅行团，并查看每个目的地目前列出多少个旅行团。', 'https://example.invalid/zh-hans/tours'],
+  ['en', 'Tour destinations', 'Browse group tours from several Hong Kong tour operators by country and region, with how many tours each destination has now.', 'https://example.invalid/en/tours'],
 ] as const)('in %s: its own title, description and canonical, with the three languages and x-default', async (locale, title, description, canonical) => {
   const meta = await toursPageMetadata(locale);
   expect(meta).toMatchObject({
     title, description,
     alternates: {
       canonical,
-      languages: { 'zh-Hant': 'https://ganbintuen.com/tours', 'zh-Hans': 'https://ganbintuen.com/zh-hans/tours', en: 'https://ganbintuen.com/en/tours', 'x-default': 'https://ganbintuen.com/tours' },
+      languages: { 'zh-Hant': 'https://example.invalid/tours', 'zh-Hans': 'https://example.invalid/zh-hans/tours', en: 'https://example.invalid/en/tours', 'x-default': 'https://example.invalid/tours' },
     },
   });
   expect(meta).not.toHaveProperty('robots');

@@ -9,18 +9,18 @@ import styles from './Footer.module.css';
 const css = () => readFileSync(join(__dirname, 'Footer.module.css'), 'utf8').replace(/\s+/g, ' ');
 
 it.each([
-  ['zh-Hant', '本網站與各旅行社並無任何關連。', '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 hello@ganbintuen.com。'],
-  ['zh-Hans', '本网站与各旅行社没有任何关联。', '如有意见或疑问，或旅行社需要更正或删除旅行团信息，请发邮件至 hello@ganbintuen.com。'],
+  ['zh-Hant', '本網站與各旅行社並無任何關連。', '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 bot@example.invalid。'],
+  ['zh-Hans', '本网站与各旅行社没有任何关联。', '如有意见或疑问，或旅行社需要更正或删除旅行团信息，请发邮件至 bot@example.invalid。'],
   ['en', 'This site is not affiliated with any tour operator.',
-    'Questions or feedback, or a tour operator wanting a listing corrected or removed? Write to hello@ganbintuen.com.'],
+    'Questions or feedback, or a tour operator wanting a listing corrected or removed? Write to bot@example.invalid.'],
 ] as const)('in %s: the disclaimer, then a contact line whose address is a mailto link', (locale, disclaimer, contact) => {
   const { container } = render(<Footer t={makeT(locale)} />);
   const footer = container.querySelector('footer');
   expect(footer).toHaveTextContent(disclaimer);
   const line = screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === contact);
   expect(line).toHaveClass(styles.text, styles.contact);
-  const link = screen.getByRole('link', { name: 'hello@ganbintuen.com' });
-  expect(link).toHaveAttribute('href', 'mailto:hello@ganbintuen.com');
+  const link = screen.getByRole('link', { name: 'bot@example.invalid' });
+  expect(link).toHaveAttribute('href', 'mailto:bot@example.invalid');
   expect(link).toHaveClass(styles.link);
   expect(line).toContainElement(link);
   expect(screen.getAllByRole('link')).toHaveLength(3);

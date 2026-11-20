@@ -27,7 +27,7 @@ export class SiteIdentityError extends Error {
   }
 }
 
-const README = 'see "Environment variables" in README.md';
+const README = '(see "Environment variables" in README.md)';
 
 /**
  * Printable ASCII without the space (0x21–0x7E): what an address and a contact may hold, and so nothing that
@@ -54,7 +54,7 @@ const HOST_AND_PORT = new RegExp(`^${LABEL}(?:\\.${LABEL})*(?::[1-9][0-9]{0,4})?
  * (Checked by hand, not with URL: core runs in the browser and in Node and is typed for neither.)
  */
 function siteUrlProblem(value: string): string | null {
-  if (value === '') return `SITE_URL is not set: it must be the site's address, such as https://example.org (${README})`;
+  if (value === '') return 'SITE_URL is not set: it must be the site\'s address, such as https://example.org';
   if (!PRINTABLE_ASCII.test(value)) return `SITE_URL ${UNPRINTABLE} (write an international domain in its xn-- form)`;
   if (!value.startsWith('https://')) return 'SITE_URL must start with https:// (such as https://example.org)';
   const rest = value.slice('https://'.length);
@@ -79,7 +79,7 @@ function siteUrlProblem(value: string): string | null {
 
 /** What is wrong with CONTACT_EMAIL (already trimmed), or null when it is good. */
 function contactEmailProblem(value: string): string | null {
-  if (value === '') return `CONTACT_EMAIL is not set: it must be the address to write to, such as hello@example.org (${README})`;
+  if (value === '') return 'CONTACT_EMAIL is not set: it must be the address to write to, such as hello@example.org';
   if (!PRINTABLE_ASCII.test(value)) return `CONTACT_EMAIL ${UNPRINTABLE}`;
   if (!EMAIL.test(value) || value.length > 254 || value.indexOf('@') > 64) {
     return 'CONTACT_EMAIL is not an e-mail address: the address alone, such as hello@example.org (letters, digits, '
@@ -91,18 +91,12 @@ function contactEmailProblem(value: string): string | null {
 /**
  * The site's identity from `env` (process.env, or a test's own object): SITE_URL and CONTACT_EMAIL, each trimmed.
  * Throws a SiteIdentityError naming every variable that is missing (unset, empty or only spaces) or malformed,
- * on one line; the message never repeats a value. Reads nothing but those two keys of `env`.
+ * on one line that ends with where the README explains them; the message never repeats a value. Reads nothing but those two keys of `env`.
  */
 export function resolveSiteIdentity(env: SiteIdentityEnv): SiteIdentity {
   const siteUrl = (env.SITE_URL ?? '').trim();
   const contactEmail = (env.CONTACT_EMAIL ?? '').trim();
   const problems = [siteUrlProblem(siteUrl), contactEmailProblem(contactEmail)].filter(problem => problem !== null);
-  if (problems.length > 0) throw new SiteIdentityError(problems.join('; '));
+  if (problems.length > 0) throw new SiteIdentityError(`${problems.join('; ')} ${README}`);
   return { siteUrl, contactEmail };
 }
-
-/** @deprecated The live site's values, written in code; removed once the website and the scraper read settings. */
-export const SITE_URL = 'https://ganbintuen.com';
-
-/** @deprecated See SITE_URL. */
-export const CONTACT_EMAIL = 'hello@ganbintuen.com';

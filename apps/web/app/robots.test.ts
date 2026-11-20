@@ -12,7 +12,7 @@ import robots from './robots';
 it('every crawler may read every page except an address with a query string, but may fetch the icons and the static files, and is pointed at the sitemap', () => {
   expect(robots()).toEqual({
     rules: { userAgent: '*', allow: ['/_next/static/', '/icon.svg?', '/apple-icon.png?'], disallow: '/*?' },
-    sitemap: 'https://ganbintuen.com/sitemap.xml',
+    sitemap: 'https://example.invalid/sitemap.xml',
   });
 });
 
@@ -40,6 +40,6 @@ it('/robots.txt reads exactly so: the Allow lines, then the Disallow, and no All
     'Allow: /apple-icon.png?\n' +
     'Disallow: /*?\n' +
     '\n' +
-    'Sitemap: https://ganbintuen.com/sitemap.xml\n',
+    'Sitemap: https://example.invalid/sitemap.xml\n',
   );
 });
