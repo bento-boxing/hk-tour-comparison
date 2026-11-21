@@ -39,6 +39,21 @@ export function chooseTheme(theme: Theme): boolean {
   }
 }
 
+/**
+ * The theme the page is in now: <html data-theme> when set, else the system setting. The same rule as theme.css, so
+ * it is the theme whose colours are on the screen (and whose switch face is hidden).
+ */
+export function shownTheme(): Theme {
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (isTheme(theme)) return theme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/** The switch's one button: the page turns to the other theme, remembered as chooseTheme does. */
+export function switchTheme(): boolean {
+  return chooseTheme(shownTheme() === 'dark' ? 'light' : 'dark');
+}
+
 /** Another tab changed the choice (or cleared the site's storage): show what is stored now; nothing: the system. */
 function onStorage(event: StorageEvent) {
   if (event.key !== null && event.key !== THEME_KEY) return;

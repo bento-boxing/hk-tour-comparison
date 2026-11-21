@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from 'react';
 import type { T } from '../lib/i18n';
-import { chooseTheme, keepThemeInStep } from '../lib/theme-choice';
+import { keepThemeInStep, switchTheme } from '../lib/theme-choice';
 import styles from './ThemeSwitch.module.css';
 
 /** A moon: what the page turns into. Drawn in the button's text colour. */
@@ -28,12 +28,16 @@ function Sun() {
 }
 
 /**
- * The theme switch in the nav bar: two buttons, "switch to dark" and "switch to light". A click sets
- * <html data-theme> at once and remembers the choice in this browser (lib/theme-choice.ts); the script in <head>
- * applies it on every later page before anything is drawn. theme.css shows only the button for the theme the page
- * is not in (whether chosen or from the system setting), so the server need not know the theme and the right icon
- * is drawn from the first paint. With JavaScript off the switch is hidden (it could not work); the page then
- * follows the system setting.
+ * The theme switch in the nav bar: one button, which turns the page to the other theme. A click (or Enter, or Space)
+ * sets <html data-theme> at once and remembers the choice in this browser (lib/theme-choice.ts); the script in
+ * <head> applies it on every later page before anything is drawn.
+ *
+ * The button has two faces, "switch to dark" (a moon) and "switch to light" (a sun), each its icon, its name as
+ * text that is not drawn, and that name as its tooltip. theme.css shows only the face for the theme the page is not
+ * in (whether chosen or from the system setting), so the server need not know the theme, the right icon and name are
+ * there from the first paint, and the markup is the same in every theme (nothing for hydration to disagree on). The
+ * button itself stays, so after a switch by keyboard the focus (and its ring) stays on it; only its face and name
+ * change. With JavaScript off the switch is hidden (it could not work); the page then follows the system setting.
  */
 export function ThemeSwitch({ t }: { t: T }) {
   // Before paint: the stored choice back on <html> should React's development remount clear it (Next.js's guide
@@ -41,17 +45,13 @@ export function ThemeSwitch({ t }: { t: T }) {
   useLayoutEffect(() => keepThemeInStep(), []);
   return (
     <div className={styles.switch}>
-      <button
-        type="button" onClick={() => chooseTheme('dark')}
-        className={`${styles.option} ${styles.toDark}`} aria-label={t('theme.toDark')} title={t('theme.toDark')}
-      >
-        <Moon />
-      </button>
-      <button
-        type="button" onClick={() => chooseTheme('light')}
-        className={`${styles.option} ${styles.toLight}`} aria-label={t('theme.toLight')} title={t('theme.toLight')}
-      >
-        <Sun />
+      <button type="button" onClick={() => switchTheme()} className={styles.option}>
+        <span className={`${styles.face} ${styles.toDark}`} title={t('theme.toDark')}>
+          <Moon /><span className={styles.label}>{t('theme.toDark')}</span>
+        </span>
+        <span className={`${styles.face} ${styles.toLight}`} title={t('theme.toLight')}>
+          <Sun /><span className={styles.label}>{t('theme.toLight')}</span>
+        </span>
       </button>
     </div>
   );

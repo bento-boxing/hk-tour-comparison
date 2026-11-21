@@ -100,10 +100,10 @@ it('ends with the theme switch, after the language switch, named in the current 
   render(<NavBar current="search" t={makeT('en')} />);
   const nav = screen.getByRole('navigation');
   const group = screen.getByRole('group', { name: 'Language' });
-  const toDark = screen.getByRole('button', { name: 'Switch to dark theme' });
-  expect(nav).toContainElement(toDark);
-  expect(group.compareDocumentPosition(toDark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeInTheDocument();
+  // One button with a face per theme; CSS shows one (no CSS here, so both faces' names count: ThemeSwitch.test.tsx).
+  const toggle = screen.getByRole('button', { name: /^Switch to dark theme\s*Switch to light theme$/ });
+  expect(nav).toContainElement(toggle);
+  expect(group.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it('on a phone: the name and the switches, then the four links on a line of their own; two by two only where one line cannot hold them', () => {

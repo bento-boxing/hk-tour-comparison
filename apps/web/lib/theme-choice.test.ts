@@ -1,6 +1,6 @@
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { THEME_KEY } from './theme';
-import { chooseTheme, keepThemeInStep, resetThemeChoice } from './theme-choice';
+import { chooseTheme, keepThemeInStep, resetThemeChoice, shownTheme, switchTheme } from './theme-choice';
 
 const html = () => document.documentElement;
 let stop: (() => void) | undefined;
@@ -105,4 +105,42 @@ it('stopping removes the listeners', () => {
   keepThemeInStep()();
   fromAnotherTab('dark');
   expect(html()).not.toHaveAttribute('data-theme');
+});
+
+/** The system setting as the page sees it (prefers-color-scheme); jsdom has no matchMedia of its own. */
+const system = (scheme: 'light' | 'dark') => {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(prefers-color-scheme: dark)' && scheme === 'dark', media: query }));
+};
+afterEach(() => { vi.unstubAllGlobals(); });
+
+it.each([
+  // [system, <html data-theme>, the theme shown]
+  ['light', null, 'light'], ['dark', null, 'dark'],
+  ['light', 'dark', 'dark'], ['dark', 'light', 'light'],
+  ['light', 'light', 'light'], ['dark', 'dark', 'dark'],
+  // Anything else on <html> is ignored, as theme.css ignores it.
+  ['dark', 'blue', 'dark'],
+] as const)('the theme shown, on a %s system with data-theme %s: %s (the rule theme.css follows)', (scheme, attr, shown) => {
+  system(scheme);
+  if (attr !== null) html().setAttribute('data-theme', attr);
+  expect(shownTheme()).toBe(shown);
+});
+
+it('no matchMedia at all: the light theme, as theme.css without the media query', () => {
+  vi.stubGlobal('matchMedia', undefined);
+  expect(shownTheme()).toBe('light');
+});
+
+it.each([
+  ['light', null, 'dark'], ['dark', null, 'light'],
+  ['light', 'dark', 'light'], ['dark', 'light', 'dark'],
+] as const)('switching on a %s system with data-theme %s: the page turns %s, remembered', (scheme, attr, to) => {
+  system(scheme);
+  if (attr !== null) html().setAttribute('data-theme', attr);
+  expect(switchTheme()).toBe(true);
+  expect(html()).toHaveAttribute('data-theme', to);
+  expect(window.localStorage.getItem(THEME_KEY)).toBe(to);
+  // And back.
+  switchTheme();
+  expect(html()).toHaveAttribute('data-theme', to === 'dark' ? 'light' : 'dark');
 });
