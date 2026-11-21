@@ -125,7 +125,7 @@ it('loads the page from the address and lays it out top to bottom', async () => 
   for (let i = 1; i < inOrder.length; i++) {
     expect(inOrder[i - 1].compareDocumentPosition(inOrder[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }
-  expect(screen.getByRole('button', { name: '加入行程 ＋' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '加入行程 +' })).toBeInTheDocument();
   expect(next).toHaveAttribute('href', '/tours/japan-kansai?sort=days&page=2');
   expect(container.textContent).not.toContain(ERROR);
   expect(consoleError).not.toHaveBeenCalled();

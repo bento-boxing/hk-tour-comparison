@@ -30,6 +30,10 @@ vi.mock('./_site/about-page', () => ({
   AboutPage: () => null,
   aboutPageMetadata: (locale: Locale) => ({ page: 'about', locale }),
 }));
+vi.mock('./_site/saved-page', () => ({
+  SavedPage: () => null,
+  savedPageMetadata: (locale: Locale) => ({ page: 'saved', locale }),
+}));
 vi.mock('./_site/not-found-page', () => ({
   NotFoundPage: () => null,
   notFoundMetadata: (locale: Locale) => ({ page: 'not-found', locale }),
@@ -82,14 +86,18 @@ it('each language has its own folder, named by its address prefix, with a root l
 });
 
 it('every page exists in all three languages, at the same path', () => {
-  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/tours', '/tours/[id]']);
+  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/saved', '/tours', '/tours/[id]']);
   for (const locale of LOCALES) expect(pagePaths(locale), locale).toEqual(pagePaths('zh-Hant'));
 });
 
-it('the sitemap lists every page in every language: the fixed ones, and /tours/[id] for each destination with a page of its own', async () => {
+/** Pages that are never in the sitemap: the saved page is the visitor's own list (and noindex). */
+const NOT_IN_SITEMAP = ['/saved'];
+
+it('the sitemap lists every page in every language but the saved page: the fixed ones, and /tours/[id] for each destination with a page of its own', async () => {
   const listed = (await sitemap()).map(entry => entry.url).sort();
-  const paths = pagePaths('zh-Hant').flatMap(path =>
+  const paths = pagePaths('zh-Hant').filter(path => !NOT_IN_SITEMAP.includes(path)).flatMap(path =>
     path === '/tours/[id]' ? listedDestinations(places, counts).map(destinationPath) : [path]);
+  expect(listed.some(url => url.includes('/saved'))).toBe(false);
   expect(paths).toContain('/tours/japan-kansai');
   const expected = LOCALES.flatMap(locale => paths.map(path => siteUrl(localeHref(locale, path)))).sort();
   expect(listed).toEqual(expected);
@@ -103,21 +111,21 @@ type RouteModule = {
 
 const routes = (await Promise.all([
   ['zh-Hant', import('./(zh-hant)/layout'), import('./(zh-hant)/page'), import('./(zh-hant)/chain/page'),
-    import('./(zh-hant)/tours/page'), import('./(zh-hant)/tours/[id]/page'), import('./(zh-hant)/about/page'), import('./(zh-hant)/not-found')],
+    import('./(zh-hant)/tours/page'), import('./(zh-hant)/tours/[id]/page'), import('./(zh-hant)/about/page'), import('./(zh-hant)/saved/page'), import('./(zh-hant)/not-found')],
   ['zh-Hans', import('./zh-hans/layout'), import('./zh-hans/page'), import('./zh-hans/chain/page'),
-    import('./zh-hans/tours/page'), import('./zh-hans/tours/[id]/page'), import('./zh-hans/about/page'), import('./zh-hans/not-found')],
+    import('./zh-hans/tours/page'), import('./zh-hans/tours/[id]/page'), import('./zh-hans/about/page'), import('./zh-hans/saved/page'), import('./zh-hans/not-found')],
   ['en', import('./en/layout'), import('./en/page'), import('./en/chain/page'),
-    import('./en/tours/page'), import('./en/tours/[id]/page'), import('./en/about/page'), import('./en/not-found')],
+    import('./en/tours/page'), import('./en/tours/[id]/page'), import('./en/about/page'), import('./en/saved/page'), import('./en/not-found')],
 ].map(async ([locale, ...modules]) => [locale, ...(await Promise.all(modules))]))) as [Locale, ...RouteModule[]][];
 
-it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, search, chain, tours, destination, about, notFound) => {
+it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, search, chain, tours, destination, about, saved, notFound) => {
   const searchParams = Promise.resolve({ dmin: '5' });
   const params = Promise.resolve({ id: 'japan' });
   const children = 'page';
   const site = {
     frame: await import('./_site/site-frame'), search: await import('./_site/search-page'), chain: await import('./_site/chain-page'),
     tours: await import('./_site/tours-page'), destination: await import('./_site/destination-page'),
-    about: await import('./_site/about-page'), notFound: await import('./_site/not-found-page'),
+    about: await import('./_site/about-page'), saved: await import('./_site/saved-page'), notFound: await import('./_site/not-found-page'),
   };
   const frame = await layout.default({ children });
   expect(frame.type).toBe(site.frame.SiteFrame);
@@ -129,6 +137,7 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
     [tours, site.tours.ToursPage, {}, { page: 'tours', locale }],
     [destination, site.destination.DestinationPage, { params, searchParams }, { page: 'destination', locale, params, searchParams }],
     [about, site.about.AboutPage, {}, { page: 'about', locale }],
+    [saved, site.saved.SavedPage, { searchParams }, { page: 'saved', locale }],
   ];
   for (const [route, Page, props, metadata] of cases) {
     const page = await route.default({ ...props });

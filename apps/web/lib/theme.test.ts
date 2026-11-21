@@ -174,6 +174,17 @@ const PAIRS: { what: string; fg: string; bg: string; min: number }[] = [
   { what: 'the band\'s search box outline against the box', fg: 'on-gold', bg: 'band-field-bg', min: 3 },
   { what: 'the header\'s current-page underline and focus rings', fg: 'header-accent', bg: 'header-bg', min: 3 },
   { what: 'a chosen control\'s fill against the surface', fg: 'selected-bg', bg: 'surface', min: 3 },
+  // A saved tour's button (已收藏): its text, its star's outline (the text colour), and its own outline on every row.
+  { what: 'a saved tour\'s button: its text and its star\'s outline', fg: 'ink', bg: 'saved-bg', min: 4.5 },
+  ...(['surface', 'viewed-bg', 'latest-bg', 'page'] as const).map(bg => (
+    { what: `a saved tour's button outline on ${bg}`, fg: 'saved-line', bg, min: 3 })),
+  { what: 'a saved tour\'s button outline against its own fill', fg: 'saved-line', bg: 'saved-bg', min: 3 },
+  { what: 'focus ring on a saved tour\'s button', fg: 'focus', bg: 'saved-bg', min: 3 },
+  // The saved star reads as filled (a graphic: 3:1), on the button and under the pointer.
+  { what: 'a saved tour\'s star fill on its button', fg: 'saved-star', bg: 'saved-bg', min: 3 },
+  { what: 'a saved tour\'s star fill on its hovered button', fg: 'saved-star', bg: 'saved-hover', min: 3 },
+  { what: 'a hovered saved button: its text', fg: 'ink', bg: 'saved-hover', min: 4.5 },
+  { what: 'a hovered saved button: its outline', fg: 'saved-line', bg: 'saved-hover', min: 3 },
 ];
 
 describe.each(Object.entries(themes))('%s theme: WCAG AA for every pair used', (_name, theme) => {
@@ -210,6 +221,25 @@ it('opened rows are tinted, visibly: each tint differs from a normal row, and fr
   expect(contrast(hex(dark, 'viewed-bg'), hex(dark, 'surface'))).toBeGreaterThanOrEqual(1.2);
   expect(contrast(hex(dark, 'viewed-bg'), hex(dark, 'latest-bg'))).toBeGreaterThanOrEqual(1.05);
   expect(tint(hex(dark, 'latest-bg')) - tint(hex(dark, 'viewed-bg'))).toBeGreaterThanOrEqual(16);
+});
+
+it('a saved tour\'s button is told apart from the most recent row\'s gold, in both themes: by its fill and by its outline', () => {
+  for (const [name, theme] of Object.entries(themes)) {
+    // The fill differs visibly from the gold row it may sit on, and from a normal row.
+    expect(contrast(hex(theme, 'saved-bg'), hex(theme, 'latest-bg')), name).toBeGreaterThanOrEqual(1.2);
+    expect(contrast(hex(theme, 'saved-bg'), hex(theme, 'surface')), name).toBeGreaterThanOrEqual(1.2);
+    // Its outline is a UI outline on that row (3:1), and not the plain control outline.
+    expect(contrast(hex(theme, 'saved-line'), hex(theme, 'latest-bg')), name).toBeGreaterThanOrEqual(3);
+    expect(hex(theme, 'saved-line'), name).not.toBe(hex(theme, 'line-control'));
+    // Under the pointer it visibly changes.
+    expect(contrast(hex(theme, 'saved-hover'), hex(theme, 'saved-bg')), name).toBeGreaterThanOrEqual(1.1);
+    // It is gold: red above green above blue, clearly tinted (unlike the greys).
+    for (const token of ['saved-bg', 'saved-line', 'saved-hover']) {
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex(theme, token).slice(i, i + 2), 16));
+      expect(r > g && g > b, `${name} ${token}`).toBe(true);
+      expect(tint(hex(theme, token)), `${name} ${token}`).toBeGreaterThan(40);
+    }
+  }
 });
 
 // The guard against colour literals outside theme.css is lib/colour-literals.test.ts.

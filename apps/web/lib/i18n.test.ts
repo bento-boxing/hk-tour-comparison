@@ -73,7 +73,7 @@ it('the band and the row markers read as the owner chose (task 47): colloquial C
   expect(wording('card.openedLatest')).toEqual(['上次打開', '上次打开', 'Last opened']);
   expect(wording('row.again')).toEqual(['再看一次 ↗', '再看一次 ↗', 'View again ↗']);
   // The add-to-trip control keeps its words (the owner found a bare "+" unclear).
-  expect(wording('card.add')).toEqual(['加入行程 ＋', '加入行程 ＋', '+ Add to trip']);
+  expect(wording('card.add')).toEqual(['加入行程 +', '加入行程 +', '+ Add to trip']);
 });
 
 it('the Cantonese notice reads as the owner approved', () => {

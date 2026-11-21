@@ -1,0 +1,49 @@
+/* The saved page's notes (a list from a link, nothing readable, a browser that keeps nothing), as quiet panels. */
+.notice {
+  margin: 0 0 14px; padding: 10px 14px; border-radius: var(--radius-card);
+  background: var(--panel); border: 1px solid var(--line); font-size: 14px;
+}
+.link { color: var(--ink); font-weight: 700; }
+.link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Nothing saved: two lines on what saving does, and the way to the search (as the chain page's empty state). */
+.empty {
+  margin: 8px 0 24px; padding: 28px 16px; border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); text-align: center; font-size: 15px;
+}
+.emptyText { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+.emptyHow { margin: 0 0 10px; }
+.empty .link { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; }
+.emptyText:focus { outline: none; }
+
+/* Saved tours that are no longer listed: a line each, with its 移除 button. */
+.gone { margin: 20px 0 8px; }
+.goneHeading { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+.goneHeading:focus { outline: none; }
+.goneNote { margin: 0 0 10px; font-size: 14px; color: var(--text-muted); }
+.goneList {
+  margin: 0; padding: 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card);
+}
+.goneItem {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+  padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 15px;
+}
+.goneItem:last-child { border-bottom: 0; }
+/*
+ * The label kept when the tour was saved: it wraps between words (and in Chinese between characters). Never narrower
+ * than its longest word, so 移除 moves to the next line rather than the label sticking out of the line.
+ */
+.goneLabel { flex: 1 1 12em; }
+/* A link's tours no longer listed: only how many. */
+.goneCount { margin: 16px 0 8px; font-size: 14px; color: var(--text-muted); }
+.remove {
+  min-height: 44px; padding: 0 14px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
+  background: transparent; color: var(--ink); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+}
+.remove:hover { background: var(--hit); }
+.remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (min-width: 640px) {
+  .remove { min-height: 36px; }
+}

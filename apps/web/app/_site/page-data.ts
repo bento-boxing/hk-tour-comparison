@@ -6,6 +6,7 @@ import type { Locale } from '../../lib/i18n';
 import { requestDb } from '../../lib/db';
 import { cachedReads, loadSearchPage, type SearchPageData } from '../../lib/search-page-data';
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
+import { loadSavedPage, type SavedPageData } from '../../lib/saved-page-data';
 
 // Each page's database load, made once per request: the page renders from it, and its metadata marks the page
 // noindex when it failed (or, for a destination, when it has no tours). React's cache (the way the Next.js docs give
@@ -72,6 +73,12 @@ export const loadSearch = cache(async (locale: Locale, destinationId: string | n
 export const loadChain = cache(async (locale: Locale, query: string): Promise<Loaded<ChainPageData>> => {
   const today = todayInHongKong();
   return attempt('chain page', today, async () => loadChainPage(await requestDb(), paramsOf(query), today, locale, cachedReads));
+});
+
+/** The saved page's data: the tours its address lists (`t`); with none, no database read at all. */
+export const loadSaved = cache(async (query: string): Promise<Loaded<SavedPageData>> => {
+  const today = todayInHongKong();
+  return attempt('saved page', today, async () => loadSavedPage(requestDb, paramsOf(query), today, cachedReads));
 });
 
 /** How many tours each destination has now: the destinations index's data. */

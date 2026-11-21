@@ -23,8 +23,8 @@ const tour: TourCardData = {
 };
 
 it.each([
-  ['zh-Hant', '加入行程 ＋', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
-  ['zh-Hans', '加入行程 ＋', '/zh-hans/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
+  ['zh-Hant', '加入行程 +', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
+  ['zh-Hans', '加入行程 +', '/zh-hans/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
   ['en', '+ Add to trip', '/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3'],
 ] as const)('in %s, picking a date starts a chain on the chaining page in the same language', async (locale: Locale, add, href) => {
   const user = userEvent.setup();

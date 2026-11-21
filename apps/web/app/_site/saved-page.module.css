@@ -1,0 +1,11 @@
+/* The saved page's heading (as the destinations index's) and the line under it. */
+.heading { margin: 0 0 4px; font-size: 28px; font-weight: 900; line-height: 1.3; }
+.intro { margin: 0 0 16px; font-size: 15px; color: var(--text-muted); }
+.error {
+  margin: 8px 0 24px; padding: 20px 16px; border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); text-align: center; font-size: 15px;
+}
+
+@media (max-width: 639px) {
+  .heading { font-size: 24px; }
+}

@@ -14,6 +14,7 @@ import {
   departureDateText, departurePrice, priceChangeText, regionParts, routeNames, staleSince, startNote,
 } from '../lib/card-text';
 import { getNoOpenedTours, getOpenedTours, recordOpened, subscribeOpened } from '../lib/opened-tours';
+import { getNoSavedTours, getSavedTours, saveTour, subscribeSaved, unsaveTour } from '../lib/saved-tours';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { PriceWithFrom } from './PriceWithFrom';
@@ -87,11 +88,51 @@ function hideTip(event: PointerEvent<HTMLElement>) {
   event.currentTarget.removeAttribute('data-hover');
 }
 
+/** The star (the owner's drawing, RowsB13): an outline, filled once the tour is saved (CSS: --saved-star). */
+const STAR = 'M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.8Z';
+
+/**
+ * 收藏 / 已收藏 (Save / Saved): a toggle that keeps the tour in this browser's list (lib/saved-tours), with `tour` as
+ * its label there, or takes it out. A star and a word, never the star alone. Its accessible name is the same in both
+ * states and says which tour (收藏「東瀛遊：大阪、京都，5日4夜」); aria-pressed carries the state. It never navigates and
+ * is drawn above the stretched row link, so a press on it never opens the operator's page. The server renders it
+ * unpressed (it cannot know); after hydration it shows what this browser holds.
+ * Where the browser keeps nothing at all (site data blocked) it is not shown: the saved page says why. Where a change
+ * cannot be written (storage full), the press changes nothing and the button says so in the same box (空間已滿, no
+ * star), with a status line for screen readers saying why; the next press tries again.
+ */
+function SaveButton({ tourKey, tour, t }: { tourKey: string; tour: string; t: T }) {
+  const saved = useSyncExternalStore(subscribeSaved, getSavedTours, getNoSavedTours);
+  const [failed, setFailed] = useState(false);
+  if (saved?.available === false) return null;
+  const pressed = saved?.tours.some(s => s.key === tourKey) ?? false;
+  const press = () => setFailed(!(pressed ? unsaveTour(tourKey) : saveTour(tourKey, { label: tour })));
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.save}
+        aria-pressed={pressed}
+        aria-label={t('save.name', { tour })}
+        title={failed ? t('save.failedLong') : undefined}
+        data-failed={failed ? '' : undefined}
+        onClick={press}
+      >
+        {!failed && <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className={styles.star}><path d={STAR} /></svg>}
+        {t(failed ? 'save.failed' : pressed ? 'save.saved' : 'save.save')}
+      </button>
+      {/* Out of the layout (absolute): announces a failed change, takes no column of the pair. */}
+      <span aria-live="polite" className={styles.visuallyHidden}>{failed ? t('save.failedLong') : ''}</span>
+    </>
+  );
+}
+
 /**
  * One tour as a row of the list (the owner's final row, mock-up RowsB13). On a wide screen (Chinese pages) every row
  * has the same seven columns, so each starts at the same x down the page: the operator's tag | the days | the region (the country,
  * then its regions; or the countries) | the route, after a thin line, every stop, wrapping and never cut | the dates,
- * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程. No tour code
+ * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程 and 收藏, two
+ * equal buttons side by side (each as wide as the column allows, 加入行程 never narrower than its words). No tour code
  * and no tour name. On a phone the row becomes a stacked block in the same order of importance; from 640px (and on
  * English pages at every width from there) a two-column block.
  *
@@ -106,7 +147,7 @@ function hideTip(event: PointerEvent<HTMLElement>) {
  * `operator.color` through `--c`; the tag's text is light or dark, whichever reads better on it. The link's name is
  * short; the start/end note, the price change, the old-data warning and the opened mark are its description.
  *
- * Opening the operator's page from the row (a click, a middle click or Enter on any of its links; not 加入行程)
+ * Opening the operator's page from the row (a click, a middle click or Enter on any of its links; not 加入行程 or 收藏)
  * records the tour for this tab (lib/opened-tours). A row opened before is tinted light ink, the one opened most
  * recently pale gold (the only gold row); both turn their date chips to the surface colour and offer 再看一次 ↗ in an
  * outlined button. No tag is drawn: screen readers get the mark as the link's description. The click is only
@@ -298,33 +339,41 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
             {t(openedState ? 'row.again' : 'row.goTo')}
           </a>
         )}
-        {onAdd && (
-          <div className={styles.addArea} data-open={picking ? '' : undefined}>
-            <button
-              ref={addRef}
-              type="button"
-              className={styles.add}
-              aria-expanded={picking}
-              aria-haspopup="dialog"
-              // While the picker is open, a press here must not count as "outside" (which would close it
-              // only for this click to reopen it): the click below closes it instead.
-              onPointerDown={e => { if (picking) e.stopPropagation(); }}
-              onClick={() => (picking ? closePicker() : setPicking(true))}
-            >
-              {t('card.add')}
-            </button>
-            {picking && (
-              <DeparturePicker
-                departures={departures}
-                fallbackPriceHkd={tour.fallbackPriceHkd}
-                today={today}
-                t={t}
-                onPick={pick}
-                onClose={closePicker}
-              />
-            )}
-          </div>
-        )}
+        {/* 加入行程 and 收藏, side by side; the picker opens under them, at the column's right edge. */}
+        <div className={styles.pair} data-open={picking ? '' : undefined}>
+          {onAdd && (
+            <div>
+              <button
+                ref={addRef}
+                type="button"
+                className={styles.add}
+                aria-expanded={picking}
+                aria-haspopup="dialog"
+                // While the picker is open, a press here must not count as "outside" (which would close it
+                // only for this click to reopen it): the click below closes it instead.
+                onPointerDown={e => { if (picking) e.stopPropagation(); }}
+                onClick={() => (picking ? closePicker() : setPicking(true))}
+              >
+                {t('card.add')}
+              </button>
+              {picking && (
+                <DeparturePicker
+                  departures={departures}
+                  fallbackPriceHkd={tour.fallbackPriceHkd}
+                  today={today}
+                  t={t}
+                  onPick={pick}
+                  onClose={closePicker}
+                />
+              )}
+            </div>
+          )}
+          <SaveButton
+            tourKey={tour.key}
+            tour={t('save.tour', { operator: operatorText, route: route.join(t('dest.listSeparator')), length })}
+            t={t}
+          />
+        </div>
       </div>
     </div>
   );

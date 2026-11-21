@@ -15,6 +15,7 @@ export function pageFor(pathname: string): NavPage | undefined {
   if (path === '/' || path.startsWith('/tours/')) return 'search';
   if (path === '/tours') return 'destinations';
   if (path === '/chain' || path.startsWith('/chain/')) return 'chain';
+  if (path === '/saved') return 'saved';
   return undefined;
 }
 

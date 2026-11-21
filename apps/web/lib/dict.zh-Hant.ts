@@ -11,6 +11,8 @@ const zh = {
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
   'nav.destinations': '所有目的地', // the header's link to the destinations index
+  'nav.saved': '已收藏', // the header's link to the saved tours, their number after it
+  'nav.savedCount': '({n})',
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
   'notFound.text': '這個地址沒有頁面。', // the 404 inside a language's pages (an unknown /tours/<id>), under notFound.title
   // A destination's page (/tours/<id>). {place} is the country ('日本') or the region with its country (dest.regionOf).
@@ -97,11 +99,18 @@ const zh = {
   'col.actions': '操作',
   'row.goTo': '去旅行社網站 ↗', // a row's button to the operator's page
   'row.again': '再看一次 ↗', // … on a row the visitor has opened in this tab
-  'card.add': '加入行程 ＋',
+  'card.add': '加入行程 +',
   'card.startsAt': '{place}出發',
   'card.endsAt': '{place}解散',
   'card.moreRegions': '+{n}',
   'card.linkLabel': '{operator}：{route}，{length}，{price}起', // the card link's accessible name
+  // A row's save button (a toggle) and its accessible name, which says which tour: '收藏「東瀛遊：大阪、京都，5日4夜」'.
+  'save.save': '收藏',
+  'save.saved': '已收藏',
+  'save.name': '收藏「{tour}」', // the same in both states: aria-pressed says whether it is saved
+  'save.failed': '空間已滿', // on the button when a change could not be kept (storage full)
+  'save.failedLong': '瀏覽器的儲存空間已滿，未能更改收藏。',
+  'save.tour': '{operator}：{route}，{length}',
   'picker.title': '選擇出發日期',
   'picker.close': '關閉',
   'date.long': '{year}年{monthName}{day}日（{weekday}）', // {monthName} is a date.month.* text: '12月'
@@ -182,6 +191,24 @@ const zh = {
   'pager.beyond': '這一頁沒有內容。', // a page past the last; the link back to page 1 follows
   'chain.empty': '先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。',
   'chain.dropped': '部分旅行團已下架或日期已不適用，已從行程中移除。',
+  // The saved page (/saved): its title, the line under it, its states and the no-longer-listed tours.
+  'saved.title': '已收藏的旅行團',
+  'saved.intro': '收藏只保存在這個瀏覽器內，本網站不設帳戶。只有打開這一頁時，清單才會傳送到本網站，用來顯示這些旅行團，網站不會儲存它。',
+  'saved.empty': '未有收藏的旅行團。',
+  'saved.emptyHow': '在任何旅行團按「收藏」，它就會留在這裏，方便日後比較或再看。',
+  'saved.unavailable': '這個瀏覽器不讓本網站保存資料（例如封鎖了網站資料），所以未能在這裏收藏旅行團。',
+  'saved.fromLink': '這個清單來自一個連結，未必是你自己的收藏。按「收藏」可把旅行團加入你的收藏。',
+  'saved.fromLinkOnly': '這個清單來自一個連結。', // … where the browser can save nothing
+  'saved.yours': '查看你的收藏 ({n})',
+  'saved.dropped': '連結內有部分項目無法讀取，已略去。',
+  'saved.goneHeading': '已不再列出',
+  'saved.goneNote': '旅行社已不再列出以下旅行團，或它們已沒有將來的出發日期。',
+  'saved.goneUnnamed': '一個已收藏的旅行團', // an old entry kept without its label
+  'saved.goneCount': '連結內有 {n} 個旅行團已不再列出。',
+  'saved.nothingReadable': '連結內沒有可讀取的旅行團，以下是你自己的收藏。',
+  'saved.remove': '移除',
+  'saved.removeName': '移除 {tour}',
+  'saved.noscript': '收藏保存在瀏覽器內，需要開啟 JavaScript 才能顯示。',
   'chain.yours': '你的行程',
   'chain.rest': '休息',
   'chain.restDays': '休息 {n} 日',

@@ -58,10 +58,10 @@ it.each([
 const headerLinks = (html: string) => [...new DOMParser().parseFromString(html, 'text/html').querySelector('nav')!.querySelectorAll('a:not([hreflang])')];
 
 it.each([
-  ['zh-Hant', '/', ['/', '/', '/chain', '/tours']],
-  ['zh-Hans', '/zh-hans', ['/zh-hans', '/zh-hans', '/zh-hans/chain', '/zh-hans/tours']],
-  ['en', '/en/chain', ['/en', '/en', '/en/chain', '/en/tours']],
-] as const)('%s at %s: the header\'s links (the name, then the three pages) stay in the language', async (locale, pathname, hrefs) => {
+  ['zh-Hant', '/', ['/', '/', '/chain', '/tours', '/saved']],
+  ['zh-Hans', '/zh-hans', ['/zh-hans', '/zh-hans', '/zh-hans/chain', '/zh-hans/tours', '/zh-hans/saved']],
+  ['en', '/en/chain', ['/en', '/en', '/en/chain', '/en/tours', '/en/saved']],
+] as const)('%s at %s: the header\'s links (the name, then the three pages and the saved page) stay in the language', async (locale, pathname, hrefs) => {
   address.pathname = pathname;
   expect(headerLinks(await renderLayout(locale)).map(a => a.getAttribute('href'))).toEqual(hrefs);
 });
@@ -73,10 +73,13 @@ it.each([
   ['/en/chain', 'en', 'Plan a trip'],
   ['/en/tours', 'en', 'Destinations'],
   ['/tours', 'zh-Hant', '所有目的地'],
+  ['/en/saved', 'en', 'Saved'], // served without the number: the browser adds it
   ['/about', 'zh-Hant', null],
 ] as const)('at %s the header marks the page the address shows', async (pathname, locale, current) => {
   address.pathname = pathname;
-  const marked = headerLinks(await renderLayout(locale)).filter(a => a.getAttribute('aria-current') === 'page').map(a => a.textContent);
+  // The saved link's hidden copy (its kept room) is not what it says.
+  const said = (a: Element) => { const c = a.cloneNode(true) as Element; c.querySelectorAll('[aria-hidden="true"]').forEach(h => h.remove()); return c.textContent; };
+  const marked = headerLinks(await renderLayout(locale)).filter(a => a.getAttribute('aria-current') === 'page').map(said);
   expect(marked).toEqual(current === null ? [] : [current]);
 });
 

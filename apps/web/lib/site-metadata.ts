@@ -21,7 +21,7 @@ export function siteMetadata(t: T): Metadata {
 }
 
 /** A page's path without a language: the fixed pages, and each destination's ('/tours/japan'). */
-export type SitePath = '/' | '/chain' | '/tours' | '/about' | `/tours/${string}`;
+export type SitePath = '/' | '/chain' | '/tours' | '/about' | '/saved' | `/tours/${string}`;
 
 export interface PageMetadataOptions {
   /** The page's own title, before the site name; none for the home page, which is titled with the site name. */

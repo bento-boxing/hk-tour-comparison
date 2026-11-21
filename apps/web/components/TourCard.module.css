@@ -132,7 +132,10 @@ a.d { cursor: pointer; }
 .down { color: var(--price-down); }
 .up { color: var(--price-up); }
 
-/* The actions: the gold button, then 加入行程; side by side when the block is wide enough, each at most 360px. */
+/*
+ * The actions: the gold button, then 加入行程 and 收藏 side by side; on a phone the gold button and that pair are side by
+ * side too when the block is wide enough, each at most 360px.
+ */
 .actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .actions > * { flex: 1 1 200px; max-width: 360px; }
 .go {
@@ -150,15 +153,36 @@ a.d { cursor: pointer; }
 /* While its link has keyboard focus, the whole row is outlined too: the row is what opens. */
 .row:has(.go:focus-visible) { box-shadow: inset 0 0 0 2px var(--focus); }
 
-.addArea { position: relative; z-index: 1; }
+/*
+ * The second line of the actions (the owner's drawing, RowsB13): 加入行程 + and 收藏, two equal buttons. Each column is
+ * 1fr, whose least is its button's content, and each button keeps 8px between its words (or star) and its border, so
+ * the two are exactly equal wherever both fit half the line with that room (every layout and language, measured), and
+ * a button would rather grow than crowd its words. Nothing changes size when a tour is saved: 收藏, 已收藏 and 空間已滿
+ * all fit the column. Alone (no 加入行程, or 收藏 hidden), a button takes the whole line.
+ * Above the stretched row link, so each takes its own presses; the 加入行程 picker opens from the pair's right edge.
+ */
+.pair { position: relative; z-index: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 /* Open: above the rows below it too (each later row's dates sit at z-index 1). */
-.addArea[data-open] { z-index: 30; }
-.add {
+.pair[data-open] { z-index: 30; }
+/* On a phone, the pair wants the wider share of a shared line, so its halves keep that room in English too. */
+.actions > .go { flex-basis: 160px; }
+.actions > .pair { flex-basis: 240px; }
+.add, .save {
   width: 100%; min-height: 44px; padding: 0 8px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
   background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
 }
-.add:hover, .add[aria-expanded="true"] { background: var(--hit); }
-.add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.add:hover, .add[aria-expanded="true"], .save:hover { background: var(--hit); }
+.add:focus-visible, .save:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/*
+ * 收藏: a star and the word. Saved (已收藏): the button pale gold with a gold outline, a deeper gold under the pointer,
+ * and the star filled (ink in light, gold in dark: --saved-star). A change that could not be kept shows 空間已滿 in the
+ * same box, without the star.
+ */
+.save { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.star { flex: none; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.save[aria-pressed='true'] { background: var(--saved-bg); border-color: var(--saved-line); }
+.save[aria-pressed='true']:hover { background: var(--saved-hover); }
+.save[aria-pressed='true'] .star { fill: var(--saved-star); }
 
 /* A zoomed phone (narrower than 320 CSS px): two dates a line, so the chips keep their text. */
 @media (max-width: 319px) {
@@ -175,13 +199,13 @@ a.d { cursor: pointer; }
   .days { text-align: left; }
   .priceCell { display: block; text-align: right; }
   .actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
-  .actions > * { flex: none; max-width: none; }
+  .actions > *, .actions > .go, .actions > .pair { flex: none; max-width: none; }
 }
 
 /* From 1280px, on Traditional and Simplified Chinese pages: the seven columns. */
 @media (min-width: 1280px) {
   .row:lang(zh) {
-    --col-tag: 92px; --col-days: 52px; --col-region: 146px; --col-dates: 234px; --col-price: 176px; --col-actions: 160px;
+    --col-tag: 92px; --col-days: 52px; --col-region: 146px; --col-dates: 234px; --col-price: 176px; --col-actions: 182px;
     grid-template-columns: var(--col-tag) var(--col-days) var(--col-region) minmax(0, 1fr) var(--col-dates) var(--col-price) var(--col-actions);
     grid-template-areas: 'tag days region route dates price actions';
     column-gap: 14px;
@@ -198,5 +222,5 @@ a.d { cursor: pointer; }
   .d:lang(zh) { min-height: 0; }
   .more:lang(zh) { padding: 4px 0; }
   .go:lang(zh) { min-height: 36px; }
-  .add:lang(zh) { min-height: 36px; }
+  .add:lang(zh), .save:lang(zh) { min-height: 36px; }
 }

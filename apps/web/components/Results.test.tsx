@@ -69,10 +69,10 @@ it('a row whose operator is missing from the list still renders, in the fallback
 it('rows get an add button only when onAdd is given', async () => {
   const onAdd = vi.fn();
   const { unmount } = render(<Results {...props} />);
-  expect(screen.queryByRole('button', { name: '加入行程 ＋' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '加入行程 +' })).toBeNull();
   unmount();
   render(<Results {...props} onAdd={onAdd} />);
-  const buttons = screen.getAllByRole('button', { name: '加入行程 ＋' });
+  const buttons = screen.getAllByRole('button', { name: '加入行程 +' });
   expect(buttons).toHaveLength(2);
   await userEvent.setup().click(buttons[1]);
   await userEvent.setup().click(screen.getByRole('button', { name: /2026年12月20日/ }));
@@ -82,7 +82,7 @@ it('rows get an add button only when onAdd is given', async () => {
 it('picking a date on a card navigates to the chain page with that leg', async () => {
   const user = userEvent.setup();
   render(<I18nProvider locale="zh-Hant"><ResultsConnected tours={tours} total={2} operators={operators} today={today} /></I18nProvider>);
-  await user.click(screen.getAllByRole('button', { name: '加入行程 ＋' })[0]);
+  await user.click(screen.getAllByRole('button', { name: '加入行程 +' })[0]);
   await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
   expect(push).toHaveBeenCalledTimes(1);
   expect(push).toHaveBeenCalledWith('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3');

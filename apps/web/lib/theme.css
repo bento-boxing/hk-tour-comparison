@@ -43,6 +43,12 @@
    * charcoal a step lighter than a row, never blue), the pale gold for the one opened most recently (the owner's).
    */
   --viewed-bg: #e8ecf5; --latest-bg: #fdf3d3;
+  /*
+   * A saved tour's button (已收藏): a pale gold a step deeper than the most recent row's, a gold outline dark enough for
+   * 3:1 on every row (so the button stays visible on that row too), a deeper gold under the pointer, and its star
+   * filled with ink in light (a gold star would barely show on the pale gold) and gold in dark.
+   */
+  --saved-bg: #f9dc85; --saved-line: #8a6100; --saved-hover: #f5cd5c; --saved-star: #14213d;
   /* A row's warning that its operator's data is old (資料為 11月17日): text and outline. */
   --stale: #9a3a22;
   /* Operator colours (the database's operators.color) carry their own background, so they are the same in both themes. */
@@ -73,6 +79,7 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --price-down: #5cc28f; --price-up: #f08a6c;
   --viewed-bg: #383934; --latest-bg: #3a3220;
+  --saved-bg: #54441c; --saved-line: #f0b429; --saved-hover: #64511f; --saved-star: #f0b429;
   --stale: #f08a6c;
   --when-light: none; --when-dark: inline-flex;
 }
@@ -93,6 +100,7 @@
     --shadow: rgba(0, 0, 0, 0.45);
     --price-down: #5cc28f; --price-up: #f08a6c;
     --viewed-bg: #383934; --latest-bg: #3a3220;
+    --saved-bg: #54441c; --saved-line: #f0b429; --saved-hover: #64511f; --saved-star: #f0b429;
     --stale: #f08a6c;
     --when-light: none; --when-dark: inline-flex;
   }

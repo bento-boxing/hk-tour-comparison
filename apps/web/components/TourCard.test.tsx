@@ -12,6 +12,7 @@ import styles from './TourCard.module.css';
 import type { TourRow } from '../lib/tour-row';
 import { makeT } from '../lib/i18n';
 import { OPENED_KEY, resetOpenedCache } from '../lib/opened-tours';
+import { SAVED_KEY, resetSavedCache } from '../lib/saved-tours';
 
 const tZh = makeT('zh-Hant');
 
@@ -69,11 +70,14 @@ function parseCss(source: string): Record<string, Record<string, Declarations>> 
       const body = text.slice(open + 1, j - 1);
       if (prelude.startsWith('@media')) read(body, prelude.slice('@media'.length).trim());
       else {
+        // A selector list ('.add, .save') gives each of its selectors these declarations.
         const rules = (sheet[media] ??= {});
-        const declarations = (rules[prelude] ??= {});
-        for (const d of body.split(';')) {
-          const colon = d.indexOf(':');
-          if (colon > 0) declarations[d.slice(0, colon).trim()] = d.slice(colon + 1).trim().replace(/\s+/g, ' ');
+        for (const selector of prelude.split(',').map(x => x.trim())) {
+          const declarations = (rules[selector] ??= {});
+          for (const d of body.split(';')) {
+            const colon = d.indexOf(':');
+            if (colon > 0) declarations[d.slice(0, colon).trim()] = d.slice(colon + 1).trim().replace(/\s+/g, ' ');
+          }
         }
       }
       i = j;
@@ -108,7 +112,7 @@ const withVars = (value: string, vars: Declarations) => value.replace(/var\((--[
 const px = (value: string | undefined) => Number(/^(\d+(?:\.\d+)?)px$/.exec(value ?? '')?.[1] ?? Number.NaN);
 
 let user: ReturnType<typeof userEvent.setup>;
-beforeEach(() => { user = userEvent.setup(); window.sessionStorage.clear(); resetOpenedCache(); });
+beforeEach(() => { user = userEvent.setup(); window.sessionStorage.clear(); resetOpenedCache(); window.localStorage.clear(); resetSavedCache(); });
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('what a row shows, column by column', () => {
@@ -124,7 +128,7 @@ describe('what a row shows, column by column', () => {
     expect(within(row[5]).getByText(/HK\$7,999/, priceDiv)).toHaveTextContent('HK$7,999 起');
     expect(within(row[5]).getByText('↓ 比7日前平 HK$500')).toBeInTheDocument();
     expect(within(row[6]).getByRole('link')).toHaveTextContent('去旅行社網站 ↗');
-    expect(within(row[6]).getByRole('button')).toHaveTextContent('加入行程 ＋');
+    expect(within(row[6]).getAllByRole('button').map(b => b.textContent)).toEqual(['加入行程 +', '收藏']);
   });
 
   it('no tour code and no tour name anywhere on the row (the owner wants people on the operator\'s page)', () => {
@@ -338,7 +342,9 @@ describe('the dates: three by two, the same on every row', () => {
     await user.tab();
     expect(cardLink()).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole('button', { name: '加入行程 ＋' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: '加入行程 +' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: /^收藏/ })).toHaveFocus();
   });
 
   it('a mouse (or pen) over a date shows its price; leaving hides it; a finger does not', () => {
@@ -360,7 +366,8 @@ describe('the dates: three by two, the same on every row', () => {
     const chip = screen.getByText('12/18', { exact: false }).parentElement!;
     expect(chip).not.toHaveAttribute('tabindex');
     await user.tab();
-    expect(document.body).toHaveFocus(); // nothing in the row to stop at (no add button here)
+    // No date or link to stop at: the first tab stop is 收藏 (no add button here).
+    expect(screen.getByRole('button', { name: /^收藏/ })).toHaveFocus();
     expect(chip).toHaveTextContent('12/18 (五) HK$7,999'); // screen readers still read the price with the date
     fireEvent.pointerEnter(chip, { pointerType: 'mouse' });
     expect(chip).toHaveAttribute('data-hover');
@@ -395,7 +402,9 @@ describe('the dates: three by two, the same on every row', () => {
 
   it('the price shows for a mouse (data-hover), on keyboard focus (:focus-visible, not a tap\'s :focus) and while measured, out of the layout', () => {
     expect(rule(PHONE, '.tip')).toMatchObject({ position: 'absolute', bottom: 'calc(100% + 6px)' });
-    expect(rule(PHONE, '.d[data-hover] .tip, .d:focus-visible .tip, .tip[data-measure]')).toMatchObject({ 'clip-path': 'none' });
+    for (const selector of ['.d[data-hover] .tip', '.d:focus-visible .tip', '.tip[data-measure]']) {
+      expect(rule(PHONE, selector), selector).toMatchObject({ 'clip-path': 'none' });
+    }
     // Never on :hover or :focus alone: a finger's tap sets both and would leave the price stuck on screen. No
     // pressed look either: the dates are information, not buttons.
     for (const { selector } of allRules()) {
@@ -408,7 +417,7 @@ describe('the dates: three by two, the same on every row', () => {
     render(<TourCard {...props} tour={{ ...tour, departures }} onAdd={vi.fn()} />);
     expect(dateLinks()).toHaveLength(2);
     expect(screen.queryByText(/NaN|12\/32/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    await user.click(screen.getByRole('button', { name: '加入行程 +' }));
     expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(2);
   });
 });
@@ -520,7 +529,7 @@ describe('rows opened this session are tinted', () => {
 
   it('adding the tour to a trip (加入行程 and the picker) does not count', async () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    await user.click(screen.getByRole('button', { name: '加入行程 +' }));
     await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
     expect(row()).not.toHaveAttribute('data-opened');
   });
@@ -660,6 +669,9 @@ describe('three layouts, switched by the window\'s width', () => {
     const zh = trackList(withVars(row['grid-template-columns'], row));
     expect(zh).toHaveLength(7);
     expect(zh[SEVEN.indexOf('route')]).toBe('minmax(0, 1fr)');
+    // The actions track is the owner's drawing's 182px (RowsB13): wide enough for 加入行程 + and 收藏 as two equal
+    // buttons with 8px inside each, measured in the browser.
+    expect(zh[SEVEN.indexOf('actions')]).toBe('182px');
     expect(zh.filter((_, i) => i !== SEVEN.indexOf('route')).every(track => px(track) > 0)).toBe(true);
     // The tracks are the row's alone (the dates' own grid is inside their cell): nothing a row holds can change them,
     // so every row has the same ones.
@@ -707,22 +719,206 @@ describe('three layouts, switched by the window\'s width', () => {
   });
 
   it('only the route and the region may take more lines: every other cell\'s text keeps to one line', () => {
-    for (const selector of ['.days', '.price', '.delta', '.stale', '.chip', '.more', '.go', '.add']) {
+    for (const selector of ['.days', '.price', '.delta', '.stale', '.chip', '.more', '.go', '.add', '.save']) {
       expect(rule(PHONE, selector)['white-space'], selector).toBe('nowrap');
     }
   });
 
-  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程); 36px buttons in the seven columns', () => {
-    for (const selector of ['.d', '.go', '.add']) expect(rule(PHONE, selector)['min-height'], selector).toBe('44px');
+  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程, 收藏); 36px buttons in the seven columns', () => {
+    for (const selector of ['.d', '.go', '.add', '.save']) expect(rule(PHONE, selector)['min-height'], selector).toBe('44px');
     expect(rule(WIDE, '.go:lang(zh)')['min-height']).toBe('36px');
     expect(rule(WIDE, '.add:lang(zh)')['min-height']).toBe('36px');
+    expect(rule(WIDE, '.save:lang(zh)')['min-height']).toBe('36px');
   });
 
-  it('the actions: the gold button, then 加入行程', () => {
+  it('the actions: the gold button, then 加入行程 and 收藏 side by side on one line (the drawing\'s second line)', () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
     const actions = cardLink().parentElement!;
+    expect(actions.children).toHaveLength(2);
     expect(actions.children[0]).toBe(cardLink());
-    expect(actions.children[1]).toContainElement(screen.getByRole('button', { name: '加入行程 ＋' }));
+    const pair = actions.children[1];
+    expect(pair).toHaveClass(styles.pair);
+    expect(pair).toContainElement(screen.getByRole('button', { name: '加入行程 +' }));
+    expect(pair).toContainElement(screen.getByRole('button', { name: /^收藏/ }));
+    // The two buttons are the pair's only items in its grid (its status line is out of the layout).
+    const inFlow = [...pair.children].filter(el => !el.className.includes(styles.visuallyHidden));
+    expect(inFlow).toHaveLength(2);
+  });
+
+  it('the pair: equal columns that are never narrower than their words, so 加入行程 is never cut and nothing moves when a tour is saved', () => {
+    expect(rule(PHONE, '.pair')).toMatchObject({ display: 'grid', 'grid-auto-flow': 'column', 'grid-auto-columns': '1fr' });
+    // 8px between the words (or star) and the border, at least, in every layout (the owner's minimum).
+    expect(rule(PHONE, '.add').padding).toBe('0 8px');
+    for (const { media, selector, d } of allRules().filter(r => r.media !== PHONE || !['.add', '.save'].includes(r.selector))) {
+      if (/^\.(add|save)\b/.test(selector)) expect(d, `${media} ${selector}`).not.toHaveProperty('padding');
+    }
+    // On a phone the pair takes the wider share of a line it shares with the gold button.
+    expect(px(rule(PHONE, '.actions > .pair')['flex-basis'])).toBeGreaterThan(px(rule(PHONE, '.actions > .go')['flex-basis']));
+    expect(rule(TABLET, '.actions > .pair')).toMatchObject({ flex: 'none' });
+    // 1fr, not minmax(0, 1fr): a column's least width is its button's words.
+    for (const { selector, d } of allRules().filter(r => r.selector.startsWith('.pair'))) {
+      expect(JSON.stringify(d), selector).not.toMatch(/minmax\(0/);
+      expect(d, selector).not.toHaveProperty('grid-template-columns');
+    }
+    // The two buttons look alike: the same box, the same text.
+    for (const property of ['min-height', 'padding', 'border', 'font-size', 'font-weight', 'white-space']) {
+      expect(rule(PHONE, '.save')[property], property).toBe(rule(PHONE, '.add')[property]);
+    }
+  });
+});
+
+describe('收藏 (save)', () => {
+  const save = () => screen.getByRole('button', { name: /收藏「/ });
+  const stored = () => JSON.parse(window.localStorage.getItem(SAVED_KEY) ?? '[]').map((s: { key: string }) => s.key);
+
+  it('a toggle with a star and a word, never the star alone; its name says which tour', () => {
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    const button = save();
+    expect(button).toHaveAttribute('type', 'button');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(button).toHaveTextContent(/^收藏$/);
+    expect(button).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5日4夜」');
+    const star = button.querySelector('svg')!;
+    expect(star).toHaveAttribute('aria-hidden', 'true');
+    expect(star).toHaveClass(styles.star);
+    // Outside the row link.
+    expect(cardLink().contains(button)).toBe(false);
+  });
+
+  it('a press saves the tour in this browser, with its label; the word turns 已收藏, the name stays, aria-pressed says it', async () => {
+    render(<TourCard {...props} />);
+    await user.click(save());
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+    expect(save()).toHaveTextContent(/^已收藏$/);
+    expect(save()).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5日4夜」');
+    expect(stored()).toEqual(['egl:KIX5']);
+    // The label kept beside the key is the site's own text: the same as the name's, no code, no tour title.
+    expect(JSON.parse(window.localStorage.getItem(SAVED_KEY)!)[0].label).toBe('東瀛遊：大阪、京都、奈良、神戶，5日4夜');
+    await user.click(save());
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+    expect(stored()).toEqual([]);
+  });
+
+  it('works from the keyboard: Enter and Space', async () => {
+    render(<TourCard {...props} />);
+    save().focus();
+    await user.keyboard('{Enter}');
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+    await user.keyboard(' ');
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('never opens the operator\'s page: no navigation, the row link\'s click does not fire, and the row is not marked opened', async () => {
+    const linkClicks = vi.fn();
+    render(<TourCard {...props} />);
+    cardLink().addEventListener('click', linkClicks);
+    const pressed = new MouseEvent('click', { bubbles: true, cancelable: true });
+    act(() => { save().dispatchEvent(pressed); });
+    expect(linkClicks).not.toHaveBeenCalled();
+    expect(pressed.defaultPrevented).toBe(false); // a plain button: there is nothing to prevent
+    expect(screen.getAllByRole('row')[0]).not.toHaveAttribute('data-opened');
+    expect(window.sessionStorage.length).toBe(0);
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('each row is its own tour: saving one leaves the others as they are', async () => {
+    const other: TourRow = { ...tour, key: 'jetour:OSA6', url: 'https://example.test/jetour/OSA6' };
+    render(<><TourCard {...props} /><TourCard {...props} tour={other} operator={{ ...operator, id: 'jetour', nameZh: '捷旅' }} /></>);
+    await user.click(screen.getByRole('button', { name: /^收藏「捷旅/ }));
+    expect(screen.getByRole('button', { name: /^收藏「捷旅/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^收藏「東瀛遊/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(stored()).toEqual(['jetour:OSA6']);
+  });
+
+  it('shows what was saved before (another page, a reload), and follows a change made in another tab', () => {
+    window.localStorage.setItem(SAVED_KEY, JSON.stringify([{ key: 'egl:KIX5', savedAt: 1 }]));
+    render(<TourCard {...props} />);
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+    act(() => {
+      window.localStorage.setItem(SAVED_KEY, '[]');
+      window.dispatchEvent(new StorageEvent('storage', { key: SAVED_KEY }));
+    });
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('in Simplified Chinese and English', async () => {
+    const { unmount } = render(<TourCard {...props} t={makeT('zh-Hans')} />);
+    expect(screen.getByRole('button', { name: '收藏「東瀛遊：大阪、京都、奈良、神户，5天4晚」' })).toHaveTextContent(/^收藏$/);
+    unmount();
+    render(<TourCard {...props} t={makeT('en')} />);
+    const button = screen.getByRole('button', { name: 'Save EGL Tours: Osaka, Kyoto, Nara, Kobe, 5 days, 4 nights' });
+    expect(button).toHaveTextContent(/^Save$/);
+    await user.click(button);
+    expect(button).toHaveTextContent(/^Saved$/);
+    expect(button).toHaveAccessibleName('Save EGL Tours: Osaka, Kyoto, Nara, Kobe, 5 days, 4 nights');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('where the browser keeps nothing (site data blocked): no button, and 加入行程 keeps its place', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    render(<TourCard {...props} onAdd={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /收藏/ })).toBeNull();
+    expect(screen.getByRole('button', { name: '加入行程 +' })).toBeInTheDocument();
+  });
+
+  it('storage full: the press changes nothing and the button says so plainly, in the same box; the next press tries again', async () => {
+    render(<TourCard {...props} />);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError'); });
+    await user.click(save());
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+    expect(save()).toHaveTextContent(/^空間已滿$/);
+    expect(save().querySelector('svg')).toBeNull();
+    expect(save()).toHaveAttribute('title', '瀏覽器的儲存空間已滿，未能更改收藏。');
+    // Screen readers hear why, from a status line out of the layout.
+    const status = save().parentElement!.querySelector('[aria-live="polite"]')!;
+    expect(status).toHaveTextContent('瀏覽器的儲存空間已滿，未能更改收藏。');
+    expect(status).toHaveClass(styles.visuallyHidden);
+    expect(stored()).toEqual([]);
+    setItem.mockRestore();
+    await user.click(save());
+    expect(save()).toHaveTextContent(/^已收藏$/);
+    expect(status).toHaveTextContent(/^$/);
+  });
+
+  it('storage full with tours already saved: they still show as saved; removing fails the same way', async () => {
+    window.localStorage.setItem(SAVED_KEY, JSON.stringify([{ key: 'egl:KIX5', savedAt: 1 }]));
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError'); });
+    render(<TourCard {...props} />);
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+    await user.click(save());
+    expect(save()).toHaveAttribute('aria-pressed', 'true');
+    expect(save()).toHaveTextContent(/^空間已滿$/);
+  });
+
+  it('the server renders it unpressed (it cannot know); after hydration it shows the saved state without a mismatch warning', async () => {
+    window.localStorage.setItem(SAVED_KEY, JSON.stringify([{ key: 'egl:KIX5', savedAt: 1 }]));
+    const html = renderToString(<TourCard {...props} />);
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('收藏');
+    expect(html).not.toContain('已收藏');
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.append(container);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => { root = hydrateRoot(container, <TourCard {...props} />); });
+    expect(errors).not.toHaveBeenCalled();
+    expect(container.querySelector('button[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+    expect(container.querySelector('button[aria-pressed]')).toHaveTextContent('已收藏');
+    act(() => root!.unmount());
+    container.remove();
+  });
+
+  it('saved: colours only (the pale gold, the gold outline, a deeper gold under the pointer, the star filled); nothing changes a size', () => {
+    expect(rule(PHONE, ".save[aria-pressed='true']")).toEqual({ background: 'var(--saved-bg)', 'border-color': 'var(--saved-line)' });
+    // The hover comes after, so a saved button shows the pointer too.
+    expect(rule(PHONE, ".save[aria-pressed='true']:hover")).toEqual({ background: 'var(--saved-hover)' });
+    const order = Object.keys(sheet[PHONE]);
+    expect(order.indexOf(".save[aria-pressed='true']:hover")).toBeGreaterThan(order.indexOf(".save[aria-pressed='true']"));
+    expect(rule(PHONE, ".save[aria-pressed='true'] .star")).toEqual({ fill: 'var(--saved-star)' });
+    expect(rule(PHONE, '.star')).toMatchObject({ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor' });
+    // Its own colours, not the most recent row's gold tint, so it shows on that row too (lib/theme.test.ts).
+    expect(JSON.stringify(rule(PHONE, ".save[aria-pressed='true']"))).not.toMatch(/latest-bg/);
   });
 });
 
@@ -757,7 +953,9 @@ describe('the row link', () => {
     expect(rule(PHONE, '.go::after')).toEqual({ content: "''", position: 'absolute', inset: '0' });
     expect(rule(PHONE, '.datesCell')).toMatchObject({ position: 'relative', 'z-index': '1', 'pointer-events': 'none' });
     expect(rule(PHONE, '.d')['pointer-events']).toBe('auto');
-    expect(rule(PHONE, '.addArea')).toEqual({ position: 'relative', 'z-index': '1' });
+    // 加入行程 and 收藏 are above the stretched link (their pair, raised further while the picker is open).
+    expect(rule(PHONE, '.pair')).toMatchObject({ position: 'relative', 'z-index': '1' });
+    expect(rule(PHONE, '.pair[data-open]')).toEqual({ 'z-index': '30' });
     // Keyboard focus on the row link rings the button and the whole row.
     expect(rule(PHONE, '.row:has(.go:focus-visible)')).toEqual({ 'box-shadow': 'inset 0 0 0 2px var(--focus)' });
   });
@@ -772,7 +970,7 @@ describe('the row link', () => {
       expect(screen.queryByText('去旅行社網站 ↗')).toBeNull(); // no promise of a link that is not there
       expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶');
       expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+      await user.click(screen.getByRole('button', { name: '加入行程 +' }));
       await user.click(screen.getByRole('button', { name: /2026年12月18日/ }));
       expect(onAdd).toHaveBeenCalledWith('2026-12-18');
     },
@@ -816,15 +1014,16 @@ describe('the operator\'s colour', () => {
 });
 
 describe('加入行程', () => {
-  it('has no add button without onAdd', () => {
+  it('has no add button without onAdd (收藏 is then alone on its line)', () => {
     render(<TourCard {...props} />);
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('button', { name: /加入行程/ })).toBeNull();
+    expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['收藏']);
   });
 
   it('the add button is outside the link and opens the picker; choosing a date adds it and returns focus to the button', async () => {
     const onAdd = vi.fn();
     render(<TourCard {...props} onAdd={onAdd} />);
-    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    const button = screen.getByRole('button', { name: '加入行程 +' });
     expect(cardLink().contains(button)).toBe(false);
     await user.click(button);
     expect(screen.getByText('選擇出發日期')).toBeInTheDocument();
@@ -838,7 +1037,7 @@ describe('加入行程', () => {
   it('the picker works from the keyboard and Escape returns focus to the add button without scrolling', async () => {
     const onAdd = vi.fn();
     render(<TourCard {...props} onAdd={onAdd} />);
-    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    const button = screen.getByRole('button', { name: '加入行程 +' });
     expect(button).toHaveAttribute('aria-expanded', 'false');
     await user.tab(); // the departure dates (one tab stop)
     await user.tab(); // the row link
@@ -857,7 +1056,7 @@ describe('加入行程', () => {
 
   it('the close button and a second press on the add button close the picker', async () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
-    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    const button = screen.getByRole('button', { name: '加入行程 +' });
     await user.click(button);
     await user.click(screen.getByRole('button', { name: '關閉' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -871,7 +1070,7 @@ describe('加入行程', () => {
   it('a press outside closes it without adding; focus stays on what was pressed', async () => {
     const onAdd = vi.fn();
     render(<><input aria-label="elsewhere" /><TourCard {...props} onAdd={onAdd} /></>);
-    const button = screen.getByRole('button', { name: '加入行程 ＋' });
+    const button = screen.getByRole('button', { name: '加入行程 +' });
     await user.click(button);
     const focus = vi.spyOn(button, 'focus');
     await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
@@ -883,17 +1082,17 @@ describe('加入行程', () => {
 
   it('the picker lists every departure, not only those on the row, with the stored fallback price and 起 for an unpriced date', async () => {
     render(<TourCard {...props} tour={eight} onAdd={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: '加入行程 ＋' }));
+    await user.click(screen.getByRole('button', { name: '加入行程 +' }));
     expect(screen.getByRole('dialog').querySelectorAll('li')).toHaveLength(8);
     expect(screen.getByRole('button', { name: /2026年12月27日/ })).toHaveTextContent('HK$7,499 起');
   });
 
   it('keeps its words in every language (the owner found a bare "+" unclear)', () => {
     const { unmount } = render(<TourCard {...props} onAdd={vi.fn()} t={makeT('en')} />);
-    expect(screen.getByRole('button')).toHaveTextContent('+ Add to trip');
+    expect(screen.getByRole('button', { expanded: false })).toHaveTextContent('+ Add to trip');
     unmount();
     render(<TourCard {...props} onAdd={vi.fn()} t={makeT('zh-Hans')} />);
-    expect(screen.getByRole('button')).toHaveTextContent('加入行程 ＋');
+    expect(screen.getByRole('button', { expanded: false })).toHaveTextContent('加入行程 +');
   });
 });
 

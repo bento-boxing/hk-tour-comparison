@@ -135,7 +135,8 @@ export function problems(path: string, text: string): string[] {
 it('every internal link and navigation in the site goes through localeHref, in the page\'s language', () => {
   const files = sourceFiles();
   // The walk sees the files that make links, so an empty or wrong walk cannot pass.
-  for (const path of ['components/NavBar.tsx', 'components/Pager.tsx', 'app/_site/chain-page.tsx', 'app/en/page.tsx', 'lib/chain-href.ts']) {
+  for (const path of ['components/NavBar.tsx', 'components/Pager.tsx', 'app/_site/chain-page.tsx', 'app/en/page.tsx', 'lib/chain-href.ts',
+    'components/SavedConnected.tsx', 'app/_site/saved-page.tsx', 'app/en/saved/page.tsx', 'lib/saved-list.ts']) {
     expect(files, path).toContain(path);
   }
   expect(files.flatMap(path => problems(path, readFileSync(join(WEB, path), 'utf8')))).toEqual([]);
@@ -192,6 +193,11 @@ describe('it catches', () => {
     ['components/X.tsx', 'router.push(localeHref(locale, \'/\') + x);'],
     ['components/X.tsx', 'router.replace(localeHref(t.locale, a) + b, { scroll: false });'],
     ['components/X.tsx', '<Link href={localeHref(t.locale, \'/\') + q}>x</Link>'],
+    // The saved page (task 50): its address built without the language, or the language added by hand.
+    ['components/X.tsx', '<Link href={savedHref(keys)}>x</Link>'],
+    ['components/X.tsx', 'router.replace(savedHref(own), { scroll: false });'],
+    ['components/X.tsx', 'router.replace(`/en${savedHref(own)}`);'],
+    ['components/X.tsx', '<Link href={localeHref(\'zh-Hans\', savedHref(keys))}>x</Link>'],
   ])('%s: %s', (path, line) => {
     expect(problems(path, line)).not.toEqual([]);
   });
@@ -213,6 +219,8 @@ describe('it catches', () => {
     ['app/x/page.tsx', 'if (moved !== null) permanentRedirect(localeHref(t.locale, moved));'],
     ['components/X.tsx', 'router.push(localeHref(t.locale, f(a, \')\')), { scroll: false });'],
     ['components/X.tsx', 'router.push(\n  localeHref(locale, searchHref(next)),\n);'],
+    ['components/X.tsx', 'router.replace(localeHref(t.locale, savedHref(own)), { scroll: false });'],
+    ['components/X.tsx', '<Link href={localeHref(t.locale, savedHref(keys))}>x</Link>'],
   ])('and lets pass %s: %s', (path, line) => {
     expect(problems(path, line)).toEqual([]);
   });

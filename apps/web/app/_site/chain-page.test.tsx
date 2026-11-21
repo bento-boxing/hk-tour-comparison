@@ -161,7 +161,7 @@ it('adding a card appends the leg and navigates, keeping the gap and filters', a
   await renderPage({});
   const user = userEvent.setup();
   const [sel] = tourRows();
-  await user.click(within(sel).getByRole('button', { name: '加入行程 ＋' }));
+  await user.click(within(sel).getByRole('button', { name: '加入行程 +' }));
   await user.click(screen.getByRole('button', { name: /2026年12月25日/ }));
   expect(mocks.push).toHaveBeenCalledWith('/chain?legs=egl%3AKIX5%402026-12-18%2Ctexpert%3ASEL5%402026-12-25&gap=1-3&ex=japan');
 });
