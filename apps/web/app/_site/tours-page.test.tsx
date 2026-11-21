@@ -183,6 +183,8 @@ it('the look (drawing D1): no boxes; ink links underlined only under the pointer
   // name's line box (no offset) so it stays clear of the count.
   expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry \{[^}]*row-gap: 2px; padding: 0\.32em 0; \}/);
   expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry > \.countryLink:focus-visible \{ outline-offset: 0; \}/);
+  // The ring's side room: wider by 3px each side, pulled back by the same, so the name does not move.
+  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry > \.countryLink \{ padding: 0 3px; margin: 0 -3px; \}/);
   expect(text).toMatch(/\.count, \.regionCount \{[^}]*color: var\(--text-muted\);[^}]*font-variant-numeric: tabular-nums;/);
   // No word is ever broken inside itself (lib/word-breaks.test.ts): names stay whole.
   expect(text).not.toMatch(/overflow-wrap|word-break/);

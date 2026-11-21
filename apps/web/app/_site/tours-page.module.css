@@ -118,5 +118,8 @@
    */
   .plainCountry { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; row-gap: 2px; padding: 0.32em 0; }
   .plainCountry > .countryLink:focus-visible { outline-offset: 0; }
+  /* Side room for that ring: the link's box is 3px wider each side and pulled back by the same, so the name stays
+     where it was and the ring clears its first and last glyphs. */
+  .plainCountry > .countryLink { padding: 0 3px; margin: 0 -3px; }
   .long { grid-column: 1 / -1; }
 }
