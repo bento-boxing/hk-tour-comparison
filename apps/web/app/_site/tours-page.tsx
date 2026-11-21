@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { places } from '@hktours/core';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
@@ -42,20 +42,20 @@ export async function ToursPage({ locale }: { locale: Locale }) {
       <h1 className={styles.heading}>{t('tours.title')}</h1>
       <p className={styles.summary}>{all.tours > 0 ? t('dest.count', { tours: all.tours, operators: all.operators }) : t('dest.countNone')}</p>
       {/* On its own line, at every width: no line ever starts with a separator. */}
-      <p className={styles.browseLine}><Link className={styles.browse} href={localeHref(t.locale, OPERATORS_PATH)}>{t('tours.byOperator')}</Link></p>
+      <p className={styles.browseLine}><SiteLink className={styles.browse} href={localeHref(t.locale, OPERATORS_PATH)}>{t('tours.byOperator')}</SiteLink></p>
       {groups.map(group => (
         <section key={group.id} className={styles.group} aria-labelledby={`group-${group.id}`}>
           <h2 id={`group-${group.id}`} className={styles.groupHeading}>{t(`countryGroup.${group.id}`)}</h2>
           <ul className={styles.countries}>
             {group.countries.map(({ country, destination, count, regions }) => (
               <li key={country.id} className={styles.country}>
-                <Link className={styles.countryLink} href={localeHref(t.locale, destinationPath(destination))}>{placeName(country, t.locale)}</Link>
+                <SiteLink className={styles.countryLink} href={localeHref(t.locale, destinationPath(destination))}>{placeName(country, t.locale)}</SiteLink>
                 {' '}<span className={styles.count}>{t('dest.tours', { n: count.tours })}</span>
                 {regions.length > 0 && (
                   <ul className={styles.regions}>
                     {regions.map(r => (
                       <li key={r.region.id}>
-                        <Link className={styles.regionLink} href={localeHref(t.locale, destinationPath(r.destination))}>{placeName(r.region, t.locale)}</Link>
+                        <SiteLink className={styles.regionLink} href={localeHref(t.locale, destinationPath(r.destination))}>{placeName(r.region, t.locale)}</SiteLink>
                         {' '}<span className={styles.count}>{t('dest.tours', { n: r.count.tours })}</span>
                       </li>
                     ))}

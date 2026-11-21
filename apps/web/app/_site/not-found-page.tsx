@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { TOURS_PATH } from '../../lib/destinations';
@@ -24,8 +24,8 @@ export function NotFoundPage({ locale }: { locale: Locale }) {
         <h1 className={styles.heading}>{t('notFound.title')}</h1>
         <p className={styles.text}>{t('notFound.text')}</p>
         <p className={styles.links}>
-          <Link className={styles.link} href={localeHref(t.locale, '/')}>{t('nav.search')}</Link>
-          <Link className={styles.link} href={localeHref(t.locale, TOURS_PATH)}>{t('footer.destinations')}</Link>
+          <SiteLink className={styles.link} href={localeHref(t.locale, '/')}>{t('nav.search')}</SiteLink>
+          <SiteLink className={styles.link} href={localeHref(t.locale, TOURS_PATH)}>{t('footer.destinations')}</SiteLink>
         </p>
       </div>
     </div>

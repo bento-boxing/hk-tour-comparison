@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { permanentRedirect } from 'next/navigation';
 import { places, type Destination, type IsoDate } from '@hktours/core';
 import { makeT, type Locale, type T } from '../../lib/i18n';
@@ -129,7 +129,7 @@ export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFro
 function Related({ t, destination, data }: { t: T; destination: Destination; data: SearchPageData }) {
   const { counts } = data;
   const link = (d: Destination, text: string): ReactNode => (
-    <Link key={destinationPath(d)} className={band.relatedLink} href={localeHref(t.locale, destinationPath(d))}>{text}</Link>
+    <SiteLink key={destinationPath(d)} className={band.relatedLink} href={localeHref(t.locale, destinationPath(d))}>{text}</SiteLink>
   );
   if (destination.regionId !== null) {
     const country: Destination = { countryId: destination.countryId, regionId: null };

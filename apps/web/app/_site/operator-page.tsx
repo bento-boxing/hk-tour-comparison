@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { notFound } from 'next/navigation';
 import { places, type OperatorId } from '@hktours/core';
 import type { OperatorListing } from '@hktours/db/read';
@@ -103,7 +103,7 @@ export async function OperatorPage({ locale, params, searchParams }: { locale: L
         <div className={`${frame.wrap} ${frame.page}`}>
           <p className={styles.none}>
             {t('operator.none', { operator: name })}{' '}
-            <Link className={styles.allTours} href={localeHref(t.locale, '/')}>{t('operator.allTours')}</Link>
+            <SiteLink className={styles.allTours} href={localeHref(t.locale, '/')}>{t('operator.allTours')}</SiteLink>
           </p>
         </div>
       </>

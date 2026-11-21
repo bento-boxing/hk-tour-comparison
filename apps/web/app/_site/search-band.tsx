@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import type { ReactNode } from 'react';
 import { places, type Destination } from '@hktours/core';
 import type { ListedCount } from '@hktours/db/read';
@@ -51,17 +51,17 @@ export function SearchBand({ t, heading, line, related, state, shortcuts }: Sear
             <ul className={styles.shortcutList}>
               {shortcuts.map(({ destination, count }) => (
                 <li key={destinationPath(destination)}>
-                  <Link className={styles.shortcut} href={localeHref(t.locale, destinationPath(destination))}>
+                  <SiteLink className={styles.shortcut} href={localeHref(t.locale, destinationPath(destination))}>
                     {/* One line box, so the name and its smaller count share a baseline. */}
                     <span>
                       {destinationName(destination, places, t)}
                       {' '}<span className={styles.count}>{formatCount(count.tours)}</span>
                     </span>
-                  </Link>
+                  </SiteLink>
                 </li>
               ))}
               <li>
-                <Link className={styles.all} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</Link>
+                <SiteLink className={styles.all} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</SiteLink>
               </li>
             </ul>
           </nav>

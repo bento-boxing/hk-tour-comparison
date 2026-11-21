@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react';
-import Link from 'next/link';
+import { SiteLink } from './SiteLink';
 import { useRouter } from 'next/navigation';
 import { places, type IsoDate } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db/read';
@@ -111,7 +111,7 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
             <>
               {' '}
               {/* Plain /saved, never prefetched: the visitor's list is sent only when they open it. */}
-              <Link href={localeHref(t.locale, '/saved')} prefetch={false} className={`${styles.link} ${styles.yours}`}>{t('saved.yours', { n: own.length })}</Link>
+              <SiteLink href={localeHref(t.locale, '/saved')} prefetch={false} className={`${styles.link} ${styles.yours}`}>{t('saved.yours', { n: own.length })}</SiteLink>
             </>
           )}
         </p>
@@ -123,7 +123,7 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
         <div className={styles.empty}>
           <h2 className={styles.emptyText} tabIndex={-1} data-focus-after-removal="">{t('saved.empty')}</h2>
           <p className={styles.emptyHow}>{t('saved.emptyHow')}</p>
-          <Link href={localeHref(t.locale, '/')} className={styles.link}>{t('nav.search')}</Link>
+          <SiteLink href={localeHref(t.locale, '/')} className={styles.link}>{t('nav.search')}</SiteLink>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
@@ -49,7 +49,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
       {!lastLeg ? (
         <div className={styles.empty}>
           <p className={styles.emptyText}>{t('chain.empty')}</p>
-          <Link href={localeHref(t.locale, '/')} className={styles.link}>{t('nav.search')}</Link>
+          <SiteLink href={localeHref(t.locale, '/')} className={styles.link}>{t('nav.search')}</SiteLink>
         </div>
       ) : (
         <>

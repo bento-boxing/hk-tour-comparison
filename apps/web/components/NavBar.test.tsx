@@ -127,6 +127,13 @@ it('the saved link is always plain /saved in the page\'s language and never pref
   }
 });
 
+it('no header link pre-loads its page (each is made per request): the name, the three page links and the saved link', () => {
+  render(<NavBar current="search" t={tZh} />);
+  const links = [screen.getByRole('link', { name: '跟邊團' }), ...pageLinks()];
+  expect(links).toHaveLength(5);
+  for (const link of links) expect(link, link.getAttribute('href') ?? '').toHaveAttribute('data-prefetch', 'false');
+});
+
 it('the number is this browser\'s saved tours; it follows a save at once, and the link stays plain', () => {
   saveTour('egl:KIX5');
   saveTour('jetour:THB');

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { SiteLink } from './SiteLink';
 import type { ReactNode } from 'react';
 import type { IsoDate, OperatorId, PlacesIndex } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db/read';
@@ -55,7 +55,7 @@ export function Results({ tours, total, operators, places, today, t, now, onAdd,
             {empty ?? (
               <>
                 <p className={styles.emptyText}>{t('search.empty')}</p>
-                <Link href={localeHref(t.locale, clearPath)} className={styles.clearAll}>{t('search.clearAll')}</Link>
+                <SiteLink href={localeHref(t.locale, clearPath)} className={styles.clearAll}>{t('search.clearAll')}</SiteLink>
               </>
             )}
           </div>

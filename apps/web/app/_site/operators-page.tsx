@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { SiteLink } from '../../components/SiteLink';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
@@ -50,7 +50,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
       <h1 className={tours.heading}>{t('operators.heading')}</h1>
       <p className={tours.summary}>{all.tours > 0 ? t('dest.count', { tours: all.tours, operators: all.operators }) : t('dest.countNone')}</p>
       {/* On its own line, at every width: no line ever starts with a separator. */}
-      <p className={tours.browseLine}><Link className={tours.browse} href={localeHref(t.locale, TOURS_PATH)}>{t('operators.byDestination')}</Link></p>
+      <p className={tours.browseLine}><SiteLink className={tours.browse} href={localeHref(t.locale, TOURS_PATH)}>{t('operators.byDestination')}</SiteLink></p>
       <p className={styles.notOfficial}><KeepClauses text={t('operators.notOfficial')} locale={t.locale} /></p>
       <ul className={styles.operators}>
         {listings.map(listing => {
@@ -58,7 +58,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
           const dark = safe && operatorTextTone(listing.color) === 'dark';
           return (
             <li key={listing.id}>
-              <Link className={styles.operator} href={localeHref(t.locale, operatorPath(listing.id))}>
+              <SiteLink className={styles.operator} href={localeHref(t.locale, operatorPath(listing.id))}>
                 <span
                   className={dark ? `${styles.tag} ${styles.tagDark}` : styles.tag}
                   style={{ '--c': safe ? listing.color : 'var(--op-fallback)' } as CSSProperties}
@@ -66,7 +66,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
                   {operatorName(listing, t.locale)}
                 </span>
                 <span className={styles.count}>{t('dest.tours', { n: listing.tours })}</span>
-              </Link>
+              </SiteLink>
             </li>
           );
         })}

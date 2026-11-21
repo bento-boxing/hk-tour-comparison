@@ -1,10 +1,16 @@
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { makeT } from '../lib/i18n';
 import { Footer } from './Footer';
 import styles from './Footer.module.css';
+
+// next/link as a plain <a> that shows the prefetch setting it was given (data-prefetch), so the tests can check it.
+vi.mock('next/link', () => ({
+  default: ({ href, prefetch, children, ...rest }: { href: string; prefetch?: boolean | 'auto' | null; children: React.ReactNode }) =>
+    <a href={href} data-prefetch={prefetch === undefined ? 'default' : String(prefetch)} {...rest}>{children}</a>,
+}));
 
 const css = () => readFileSync(join(__dirname, 'Footer.module.css'), 'utf8').replace(/\s+/g, ' ');
 
@@ -46,4 +52,12 @@ it.each([
   const nav = screen.getByRole('navigation', { name: label });
   expect([...nav.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href')])).toEqual(links);
   expect(container.querySelector('footer')?.lastElementChild).toBe(nav);
+});
+
+it('only the about page, which is stored (made at build time), is pre-loaded; the indexes are made per request and are not', () => {
+  render(<Footer t={makeT('en')} />);
+  const nav = screen.getByRole('navigation', { name: 'Site links' });
+  expect([...nav.querySelectorAll('a')].map(a => [a.getAttribute('href'), a.getAttribute('data-prefetch')])).toEqual([
+    ['/en/tours', 'false'], ['/en/operators', 'false'], ['/en/about', 'auto'],
+  ]);
 });

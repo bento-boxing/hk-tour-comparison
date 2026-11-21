@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { SiteLink } from './SiteLink';
 import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
 import { pageSizeOf, searchHref, type SearchState } from '../lib/search-params';
@@ -33,7 +33,7 @@ export function Pager({ state, total, t, hrefFor = searchHref }: {
   if (state.page > pages) {
     return (
       <nav className={styles.pager} aria-label={t('pager.label')}>
-        <Link className={styles.step} href={localeHref(t.locale, hrefFor(at(1)))}>{t('pager.first')}</Link>
+        <SiteLink className={styles.step} href={localeHref(t.locale, hrefFor(at(1)))}>{t('pager.first')}</SiteLink>
       </nav>
     );
   }
@@ -42,26 +42,26 @@ export function Pager({ state, total, t, hrefFor = searchHref }: {
   return (
     <nav className={styles.pager} aria-label={t('pager.label')}>
       {state.page > 1 && (
-        <Link className={styles.step} rel="prev" href={localeHref(t.locale, hrefFor(at(state.page - 1)))}><span aria-hidden="true">{'‹\u00a0'}</span>{t('pager.prev')}</Link>
+        <SiteLink className={styles.step} rel="prev" href={localeHref(t.locale, hrefFor(at(state.page - 1)))}><span aria-hidden="true">{'‹\u00a0'}</span>{t('pager.prev')}</SiteLink>
       )}
       <ul className={styles.numbers}>
         {pageNumbers(state.page, pages).map((n, i) => (n === null ? (
           <li key={`gap-${i}`} className={styles.gap} aria-hidden="true">…</li>
         ) : (
           <li key={n}>
-            <Link
+            <SiteLink
               className={styles.number} href={localeHref(t.locale, hrefFor(at(n)))} aria-label={t('pager.goTo', { page: n })}
               aria-current={n === state.page ? 'page' : undefined}
             >
               {n}
-            </Link>
+            </SiteLink>
           </li>
         )))}
       </ul>
       {/* Shown instead of the numbers on a phone (CSS hides one or the other, for every reader alike). */}
       <span className={styles.where}>{t('pager.page', { page: state.page, pages })}</span>
       {state.page < pages && (
-        <Link className={styles.step} rel="next" href={localeHref(t.locale, hrefFor(at(state.page + 1)))}>{t('pager.next')}<span aria-hidden="true">{'\u00a0›'}</span></Link>
+        <SiteLink className={styles.step} rel="next" href={localeHref(t.locale, hrefFor(at(state.page + 1)))}>{t('pager.next')}<span aria-hidden="true">{'\u00a0›'}</span></SiteLink>
       )}
     </nav>
   );

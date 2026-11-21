@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import Link from 'next/link';
+import { SiteLink } from './SiteLink';
 import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
 import { TOURS_PATH } from '../lib/destinations';
@@ -32,7 +32,7 @@ function SavedLink({ current, t }: { current: boolean; t: T }) {
   const saved = useSyncExternalStore(subscribeSaved, getSavedTours, getNoSavedTours);
   const count = saved?.available ? saved.tours.length : null;
   return (
-    <Link
+    <SiteLink
       href={localeHref(t.locale, '/saved')}
       prefetch={false}
       className={`${styles.link} ${styles.savedLink}${current ? ` ${styles.current}` : ''}`}
@@ -44,7 +44,7 @@ function SavedLink({ current, t }: { current: boolean; t: T }) {
         </span>
         <span className={styles.savedRoom} aria-hidden="true">{t('nav.saved')} {t('nav.savedCount', { n: SAVED_CAP })}</span>
       </span>
-    </Link>
+    </SiteLink>
   );
 }
 
@@ -60,17 +60,17 @@ export function NavBar({ current, t }: { current?: NavPage; t: T }) {
   return (
     <nav className={styles.bar}>
       <div className={styles.inner}>
-        <Link href={localeHref(t.locale, '/')} className={styles.name}><Mark className={styles.mark} />{t('site.name')}</Link>
+        <SiteLink href={localeHref(t.locale, '/')} className={styles.name}><Mark className={styles.mark} />{t('site.name')}</SiteLink>
         <div className={styles.links}>
           {links.map(({ page, path, label }) => (
-            <Link
+            <SiteLink
               key={page}
               href={localeHref(t.locale, path)}
               className={page === current ? `${styles.link} ${styles.current}` : styles.link}
               aria-current={page === current ? 'page' : undefined}
             >
               {t(label)}
-            </Link>
+            </SiteLink>
           ))}
           <SavedLink current={current === 'saved'} t={t} />
         </div>

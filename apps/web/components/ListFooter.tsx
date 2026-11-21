@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { SiteLink } from './SiteLink';
 import { PAGE_SIZES } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
@@ -33,12 +33,12 @@ export function ListFooter({ state, total, t, hrefFor = searchHref }: {
           <span id="rows-per-page" className={styles.sizeLabel}>{t('pager.size')}</span>
           <div role="group" aria-labelledby="rows-per-page" className={styles.sizes}>
             {PAGE_SIZES.map(n => (
-              <Link
+              <SiteLink
                 key={n} className={styles.sizeOption} aria-current={n === size ? 'true' : undefined}
                 href={localeHref(t.locale, hrefFor(withPageSize(state, n, total)))}
               >
                 {n}
-              </Link>
+              </SiteLink>
             ))}
           </div>
         </div>
