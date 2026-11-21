@@ -58,5 +58,6 @@ export function ListFooter({ state, total, t, hrefFor = searchHref }: {
  */
 export function UpdatedNote({ operators, t }: { operators: { lastGoodRunAt: string | null }[]; t: T }) {
   const date = lastUpdateDay(operators, t);
-  return date === null ? null : <p className={styles.updated}>{t('list.updated', { date })}</p>;
+  // Each " · " keeps its dot with the words before it (a no-break space), so a wrapped line never starts with "·".
+  return date === null ? null : <p className={styles.updated}>{t('list.updated', { date }).replaceAll(' · ', '\u00a0· ')}</p>;
 }

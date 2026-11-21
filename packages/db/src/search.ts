@@ -86,7 +86,7 @@ const IN_WINDOW = inWindow('$1', '$2', '$3', '$13', '$14');
 /** A departure's own price, or the tour's from-price when it has none. */
 const EFFECTIVE_PRICE = `coalesce(d.price_hkd, t.from_price_hkd)`;
 /** UTC ISO-8601 with milliseconds, the same text Date#toISOString gives, on every driver. */
-const isoUtc = (col: string) => `to_char(${col} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+export const isoUtc = (col: string) => `to_char(${col} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 
 /** Active tours with at least one departure in the window that pass every filter, as CTE `matched`. */
 const MATCHED_CTE = `

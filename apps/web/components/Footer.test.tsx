@@ -23,7 +23,7 @@ it.each([
   expect(link).toHaveAttribute('href', 'mailto:bot@example.invalid');
   expect(link).toHaveClass(styles.link);
   expect(line).toContainElement(link);
-  expect(screen.getAllByRole('link')).toHaveLength(3);
+  expect(screen.getAllByRole('link')).toHaveLength(4);
   // The disclaimer comes first; the contact line follows it.
   const paragraphs = [...container.querySelectorAll('footer > p')];
   expect(paragraphs).toHaveLength(2);
@@ -37,10 +37,11 @@ it('its links are in the footer\'s text colour, so they are underlined to read a
 });
 
 it.each([
-  ['zh-Hant', '網站資訊', [['所有目的地', '/tours'], ['關於本網站', '/about']]],
-  ['zh-Hans', '网站信息', [['所有目的地', '/zh-hans/tours'], ['关于本网站', '/zh-hans/about']]],
-  ['en', 'Site links', [['All destinations', '/en/tours'], ['About this site', '/en/about']]],
-] as const)('in %s: after the contact line, links to the destinations index and the about page in that language', (locale, label, links) => {
+  ['zh-Hant', '網站資訊', [['所有目的地', '/tours'], ['所有旅行社', '/operators'], ['關於本網站', '/about']]],
+  ['zh-Hans', '网站信息', [['所有目的地', '/zh-hans/tours'], ['所有旅行社', '/zh-hans/operators'], ['关于本网站', '/zh-hans/about']]],
+  // English says "Destinations" and "Operators", so the three links keep to one line on a 320px phone.
+  ['en', 'Site links', [['Destinations', '/en/tours'], ['Operators', '/en/operators'], ['About this site', '/en/about']]],
+] as const)('in %s: after the contact line, links to the destinations index, the operators index and the about page in that language', (locale, label, links) => {
   const { container } = render(<Footer t={makeT(locale)} />);
   const nav = screen.getByRole('navigation', { name: label });
   expect([...nav.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href')])).toEqual(links);

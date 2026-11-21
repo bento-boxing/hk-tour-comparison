@@ -36,7 +36,27 @@ const zh = {
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
+  'tours.byOperator': '按旅行社瀏覽', // after the index's line of counts: the operators index
+  // An operator's page (/operators/<id>). {operator} is its name as the rows show it (lib/place-names.ts operatorName).
+  'operator.title': '{operator}旅行團一覽｜{site}', // the whole <title> (the owner's form, full-width bar); {site} is site.name
+  // The description (search results show it under the title): first what the site is, then the data. {places}: the
+  // operator's top countries, '日本、韓國及台灣'.
+  'operator.description': '跟邊團是個人製作的旅行團比較網站，並非{operator}官方網站。現時列出{operator}的 {tours} 個旅行團，目的地包括{places}。',
+  'operator.descriptionNoPlaces': '跟邊團是個人製作的旅行團比較網站，並非{operator}官方網站。現時列出{operator}的 {tours} 個旅行團。',
+  'operator.descriptionNone': '跟邊團是個人製作的旅行團比較網站，並非{operator}官方網站。現時沒有列出{operator}的旅行團。',
+  'operator.heading': '{operator}的旅行團', // the page's <h1>, on the gold band
+  'operator.count': '現時列出 {tours} 個旅行團。', // beside the <h1>, before any filter
+  'operator.notOfficial': '本頁並非{operator}的網站，本網站與{operator}並無任何關連。', // under the <h1>
+  'operator.official': '去{operator}的官方網站 ↗', // the link to the operator's own home page
+  'operator.none': '現時沒有列出{operator}的旅行團。', // the page of an operator listing no tours now, under the band
+  'operator.allTours': '查看所有旅行團', // … then a link to the search page
+  // The operators index (/operators).
+  'operators.heading': '旅行社一覽', // its <h1>, and its <title> before ' | 跟邊團'
+  'operators.description': '按旅行社瀏覽香港多間旅行社的旅行團，並查看每間旅行社現時列出多少個旅行團。',
+  'operators.notOfficial': '本網站並非任何旅行社的網站，與各旅行社並無任何關連。',
+  'operators.byDestination': '按目的地瀏覽', // after the index's line of counts: the destinations index
   'footer.links': '網站資訊', // the footer's links' accessible name
+  'footer.operators': '所有旅行社',
   'footer.destinations': '所有目的地',
   'footer.about': '關於本網站',
   // The about page (/about). The wording follows 給旅行社的說明 in README.md.

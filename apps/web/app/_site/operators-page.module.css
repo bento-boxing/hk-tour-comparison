@@ -1,0 +1,39 @@
+/*
+ * The operators index: under the destinations index's heading and count line (tours-page.module.css), the line saying
+ * this site is no operator's, then the operators as plain boxes in a grid, as the destinations index's countries: each
+ * box one link, the operator's name in its coloured tag (the rows' tag: TourCard.module.css .op) and its count.
+ */
+.notOfficial { margin: -12px 0 20px; font-size: 14px; color: var(--text-muted); }
+
+/*
+ * Fixed columns, so eight operators never leave an empty slot, and every box is one line high: a name never wraps in
+ * its tag (as the rows' English tags) and its count stays beside it. The widest pair, "Charming Holidays" and its
+ * count, needs about 247px inside a box. One column on phones (half a 320px screen is about 130px), two up to
+ * 1279px (half the column at 640px leaves about 257px inside), four from 1280px (about 268px inside; at 1180px it
+ * would be about 243px, too narrow for English).
+ */
+.operators {
+  display: grid; grid-template-columns: 1fr; gap: 10px 14px;
+  margin: 0 0 8px; padding: 0; list-style: none;
+}
+@media (min-width: 640px) { .operators { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .operators { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.operator {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; min-height: 60px; height: 100%;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface);
+  color: var(--ink); text-decoration: none;
+}
+.operator:hover { background: var(--hit); }
+.operator:hover .tag { text-decoration: underline; text-underline-offset: 3px; }
+.operator:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/*
+ * The operator's tag, as on a row: its colour behind light text, or dark text on a light colour (lib/contrast.ts).
+ * Always one line: the columns above leave room for the longest name beside its count.
+ */
+.tag {
+  display: inline-block; padding: 2px 9px; border-radius: 4px; white-space: nowrap;
+  background: var(--c); color: var(--on-operator-light); font-size: 15px; font-weight: 700; line-height: 1.45;
+}
+.tagDark { color: var(--on-operator-dark); }
+.count { font-size: 14px; color: var(--text-muted); white-space: nowrap; }

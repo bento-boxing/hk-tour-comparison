@@ -17,8 +17,11 @@ export interface FilterBarProps {
   state: SearchState; operators: OperatorInfo[]; places: PlacesIndex; t: T;
   /** Called with the whole next state, always back on page 1. */
   onChange: (next: SearchState) => void;
-  /** dates (both the departure and the travel window) defaults to true, exclude to false; the chain page flips both. */
-  show?: { dates?: boolean; exclude?: boolean };
+  /**
+   * dates (both the departure and the travel window) defaults to true, exclude to false; the chain page flips both.
+   * operators defaults to true; an operator's page, whose operator is fixed by its path, turns it off.
+   */
+  show?: { dates?: boolean; exclude?: boolean; operators?: boolean };
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
 }
@@ -71,12 +74,13 @@ function priceText(f: TourFilters, t: T): string | null {
 
 /**
  * The filter row (mock-up Rows): outlined boxes in this order: destination (only when set, with ✕ to clear),
- * departure dates, travel dates, length, price, operators, exclusions (only when asked); a box whose filter is set
+ * departure dates, travel dates, length, price, operators (unless turned off), exclusions (only when asked); a box whose filter is set
  * is filled. Then, at the right end of the row, the sort control, set apart by its heavier outline.
  */
 export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong() }: FilterBarProps) {
   const showDates = show?.dates ?? true;
   const showExclude = show?.exclude ?? false;
+  const showOperators = show?.operators ?? true;
   const f = state.filters;
   const barRef = useRef<HTMLDivElement>(null);
   const groupIdPrefix = useId();
@@ -206,30 +210,32 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
         )}
       </FilterPopover>
 
-      <FilterPopover
-        {...popover('operators')}
-        label={pillLabel('filter.operators', selectedOperators.length > 0 ? selectedOperators.map(operatorNameOf).join(separator) : null)}
-        title={t('filter.operators')}
-        on={selectedOperators.length > 0}
-      >
-        {() => (
-          <ul className={styles.checks}>
-            {operators.map(op => (
-              <li key={op.id}>
-                <label className={styles.check}>
-                  <input type="checkbox" checked={selectedOperators.includes(op.id)} onChange={() => toggleOperator(op.id)} />
-                  <span
-                    data-dot=""
-                    className={styles.dot}
-                    style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--op-fallback)' } as CSSProperties}
-                  />
-                  {operatorName(op, t.locale)}
-                </label>
-              </li>
-            ))}
-          </ul>
-        )}
-      </FilterPopover>
+      {showOperators && (
+        <FilterPopover
+          {...popover('operators')}
+          label={pillLabel('filter.operators', selectedOperators.length > 0 ? selectedOperators.map(operatorNameOf).join(separator) : null)}
+          title={t('filter.operators')}
+          on={selectedOperators.length > 0}
+        >
+          {() => (
+            <ul className={styles.checks}>
+              {operators.map(op => (
+                <li key={op.id}>
+                  <label className={styles.check}>
+                    <input type="checkbox" checked={selectedOperators.includes(op.id)} onChange={() => toggleOperator(op.id)} />
+                    <span
+                      data-dot=""
+                      className={styles.dot}
+                      style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--op-fallback)' } as CSSProperties}
+                    />
+                    {operatorName(op, t.locale)}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </FilterPopover>
+      )}
 
       {showExclude && (
         <FilterPopover

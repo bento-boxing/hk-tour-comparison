@@ -3,7 +3,7 @@
 .text { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-muted); }
 /* The contact line sits right under the disclaimer, inside the same rule. */
 .contact { padding-top: 4px; border-top: 0; }
-/* Then the links to the destinations index and the about page. */
+/* Then the links to the destinations and operators indexes and the about page. */
 .links { display: flex; flex-wrap: wrap; gap: 0 18px; padding-top: 6px; font-size: 13px; color: var(--text-muted); }
 .links .link { display: inline-flex; align-items: center; min-height: 36px; }
 .link { color: inherit; text-decoration: underline; }
@@ -11,5 +11,7 @@
 
 @media (max-width: 639px) {
   .footer { padding: 0 16px 24px; }
+  /* English: the three links on one line down to 320px (each is 44px tall for touch). Chinese fits with the usual gap. */
+  .links:lang(en) { gap: 0 12px; }
   .links .link { min-height: 44px; }
 }

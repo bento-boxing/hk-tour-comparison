@@ -1,0 +1,2 @@
+/* One clause of a Chinese sentence, kept on one line (keep-clauses.tsx); the line breaks between clauses. */
+.clause { white-space: nowrap; }

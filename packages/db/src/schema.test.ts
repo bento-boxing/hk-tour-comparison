@@ -44,6 +44,17 @@ it('records each applied migration once', async () => {
   expect(rows).toEqual([
     { name: '0001_init.sql' }, { name: '0002_charming_operator.sql' }, { name: '0003_tour_deactivated_on.sql' },
     { name: '0004_yummy_operator.sql' }, { name: '0005_sunflower_operator.sql' }, { name: '0006_taste_operator.sql' },
+    { name: '0007_bigline_site_url.sql' },
+  ]);
+});
+
+it('stores each operator\'s home address as the scrapers read it: Big Line on bigline.hk (0007), not www.bigline.hk', async () => {
+  const rows = await db.query<{ id: string; site_url: string }>('select id, site_url from operators order by id');
+  expect(rows).toEqual([
+    { id: 'bigline', site_url: 'https://bigline.hk/' }, { id: 'charming', site_url: 'https://www.charming-online.com' },
+    { id: 'egl', site_url: 'https://www.egltours.com' }, { id: 'jetour', site_url: 'https://www.jetour.com.hk' },
+    { id: 'sunflower', site_url: 'https://www.sunflower.com.hk' }, { id: 'taste', site_url: 'https://tastetravel.com.hk' },
+    { id: 'texpert', site_url: 'https://www.texpert.com' }, { id: 'yummy', site_url: 'https://www.yummyholiday.net' },
   ]);
 });
 
@@ -96,6 +107,7 @@ it('migration 0003 applies on top of 0001 and 0002 with data, starting the clock
   try {
     expect(await migrate(old)).toEqual([
       '0003_tour_deactivated_on.sql', '0004_yummy_operator.sql', '0005_sunflower_operator.sql', '0006_taste_operator.sql',
+      '0007_bigline_site_url.sql',
     ]);
 
     // The Hong Kong date when the migration ran, read from the database rather than the test's clock.

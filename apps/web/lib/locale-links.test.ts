@@ -34,6 +34,7 @@ const EXTERNAL_HREFS: Record<string, string[]> = {
   'components/Footer.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
   'components/TourCard.tsx': ['href: tour.url'], // the operator's own page
   'app/_site/about-page.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
+  'app/_site/operator-page.tsx': ['href={officialSite}'], // the operator's own home page (lib/operators.ts officialSiteUrl)
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);
@@ -136,7 +137,8 @@ it('every internal link and navigation in the site goes through localeHref, in t
   const files = sourceFiles();
   // The walk sees the files that make links, so an empty or wrong walk cannot pass.
   for (const path of ['components/NavBar.tsx', 'components/Pager.tsx', 'app/_site/chain-page.tsx', 'app/en/page.tsx', 'lib/chain-href.ts',
-    'components/SavedConnected.tsx', 'app/_site/saved-page.tsx', 'app/en/saved/page.tsx', 'lib/saved-list.ts']) {
+    'components/SavedConnected.tsx', 'app/_site/saved-page.tsx', 'app/en/saved/page.tsx', 'lib/saved-list.ts',
+    'app/_site/operator-page.tsx', 'app/_site/operators-page.tsx', 'app/en/operators/[id]/page.tsx', 'lib/operators.ts', 'lib/search-address.tsx']) {
     expect(files, path).toContain(path);
   }
   expect(files.flatMap(path => problems(path, readFileSync(join(WEB, path), 'utf8')))).toEqual([]);
@@ -193,6 +195,10 @@ describe('it catches', () => {
     ['components/X.tsx', 'router.push(localeHref(locale, \'/\') + x);'],
     ['components/X.tsx', 'router.replace(localeHref(t.locale, a) + b, { scroll: false });'],
     ['components/X.tsx', '<Link href={localeHref(t.locale, \'/\') + q}>x</Link>'],
+    // An operator's page (task 51): its address or its official-site link anywhere but where it is listed.
+    ['components/X.tsx', '<Link href={operatorPath(id)}>x</Link>'],
+    ['components/X.tsx', 'router.push(operatorSearchHref(id, next), { scroll: false });'],
+    ['components/X.tsx', '<a href={officialSite}>x</a>'],
     // The saved page (task 50): its address built without the language, or the language added by hand.
     ['components/X.tsx', '<Link href={savedHref(keys)}>x</Link>'],
     ['components/X.tsx', 'router.replace(savedHref(own), { scroll: false });'],

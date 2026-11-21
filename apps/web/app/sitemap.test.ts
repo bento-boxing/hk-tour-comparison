@@ -2,14 +2,17 @@ import { it, expect, vi, beforeEach } from 'vitest';
 // Next.js's own step that turns sitemap()'s list into the served XML, so the text below is what /sitemap.xml serves.
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data';
 import { isIsoDate } from '@hktours/core';
-import type { Db, DestinationCounts } from '@hktours/db/read';
+import type { Db, DestinationCounts, OperatorListing } from '@hktours/db/read';
 
 const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
   countToursByDestination: vi.fn<(db: Db, today: string) => Promise<DestinationCounts>>(),
+  getOperatorListings: vi.fn<(db: Db, today: string) => Promise<OperatorListing[]>>(),
 }));
 vi.mock('../lib/db', () => ({ requestDb: mocks.requestDb }));
-vi.mock('../lib/search-page-data', () => ({ cachedReads: { countToursByDestination: mocks.countToursByDestination } }));
+vi.mock('../lib/search-page-data', () => ({
+  cachedReads: { countToursByDestination: mocks.countToursByDestination, getOperatorListings: mocks.getOperatorListings },
+}));
 
 const { default: sitemap } = await import('./sitemap');
 
@@ -28,9 +31,19 @@ const counts: DestinationCounts = {
   ],
 };
 
+/**
+ * Invented listings: two operators with tours (in the site's order), one with a good run but no tours now, and one
+ * never scraped (the database leaves such an operator out; if one came through, it would still not be listed).
+ */
+const listing = (id: OperatorListing['id'], tours: number, lastGoodRunAt: string | null = '2026-11-12T18:00:00.000Z'): OperatorListing => ({
+  id, nameZh: id, nameEn: id, color: '#000000', siteUrl: 'https://example.test', lastGoodRunAt, tours, countries: [],
+});
+const operators = [listing('egl', 5), listing('jetour', 0), listing('texpert', 4), listing('bigline', 3, null)];
+
 beforeEach(() => {
   mocks.requestDb.mockReset().mockResolvedValue(fakeDb);
   mocks.countToursByDestination.mockReset().mockResolvedValue(counts);
+  mocks.getOperatorListings.mockReset().mockResolvedValue(operators);
 });
 
 const languages = (path: string) => {
@@ -47,19 +60,22 @@ const entries = (path: string) => {
   return [a['zh-Hant'], a['zh-Hans'], a.en].map(url => ({ url, alternates: { languages: a } }));
 };
 
-it('lists the fixed pages, then each destination with a page of its own, in all three languages, absolute, with alternates, without a query string or a lastModified', async () => {
+it('lists the fixed pages, then each destination with a page of its own, then each operator listing tours, in all three languages, absolute, with alternates, without a query string or a lastModified', async () => {
   expect(await sitemap()).toEqual([
-    ...entries('/'), ...entries('/chain'), ...entries('/tours'), ...entries('/about'),
+    ...entries('/'), ...entries('/chain'), ...entries('/tours'), ...entries('/about'), ...entries('/operators'),
     // The index's order: parts of the world (中國內地及港澳台 first), countries, then their regions in data order.
     // Not listed: the area china-area-east, France's only region, and every destination without tours.
     ...entries('/tours/china'),
     ...entries('/tours/japan'), ...entries('/tours/japan-kanto'), ...entries('/tours/japan-kansai'),
     ...entries('/tours/france'),
+    // The operators in the site's order; jetour lists no tours now (its page is noindex); bigline was never scraped.
+    ...entries('/operators/egl'), ...entries('/operators/texpert'),
   ]);
   expect(mocks.countToursByDestination).toHaveBeenCalledTimes(1);
   const [db, today] = mocks.countToursByDestination.mock.calls[0];
   expect(db).toBe(fakeDb);
   expect(isIsoDate(today)).toBe(true);
+  expect(mocks.getOperatorListings.mock.calls).toEqual([[fakeDb, today]]);
 });
 
 it('still starts with the six addresses it had before destinations had pages', async () => {
@@ -72,12 +88,16 @@ it('still starts with the six addresses it had before destinations had pages', a
 
 it('with no tours at all, lists only the fixed pages', async () => {
   mocks.countToursByDestination.mockResolvedValue({ all: { tours: 0, operators: 0 }, destinations: [] });
-  expect((await sitemap()).map(e => e.url)).toHaveLength(12);
+  mocks.getOperatorListings.mockResolvedValue(operators.map(o => ({ ...o, tours: 0 })));
+  expect((await sitemap()).map(e => e.url)).toHaveLength(15);
 });
 
 it('a database that cannot be read fails the sitemap (the route answers 500) rather than giving a short one', async () => {
   const error = new Error('connection refused');
   mocks.countToursByDestination.mockRejectedValue(error);
+  await expect(sitemap()).rejects.toBe(error);
+  mocks.countToursByDestination.mockResolvedValue(counts);
+  mocks.getOperatorListings.mockRejectedValue(error);
   await expect(sitemap()).rejects.toBe(error);
   mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set'));
   await expect(sitemap()).rejects.toThrow('DATABASE_URL is not set');
@@ -93,6 +113,7 @@ it('/sitemap.xml reads exactly so', async () => {
   mocks.countToursByDestination.mockResolvedValue({
     all: { tours: 1, operators: 1 }, destinations: [{ countryId: 'japan', regionId: null, tours: 1, operators: 1 }],
   });
+  mocks.getOperatorListings.mockResolvedValue([listing('egl', 1)]);
   const url = (path: string) => {
     const a = languages(path);
     return [a['zh-Hant'], a['zh-Hans'], a.en].map(loc => `<url>\n<loc>${loc}</loc>\n${links(a)}</url>\n`).join('');
@@ -100,7 +121,7 @@ it('/sitemap.xml reads exactly so', async () => {
   expect(resolveRouteData(await sitemap(), 'sitemap')).toBe(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' +
-    url('/') + url('/chain') + url('/tours') + url('/about') + url('/tours/japan') +
+    url('/') + url('/chain') + url('/tours') + url('/about') + url('/operators') + url('/tours/japan') + url('/operators/egl') +
     '</urlset>\n',
   );
 });

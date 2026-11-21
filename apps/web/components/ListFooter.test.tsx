@@ -91,7 +91,10 @@ it('under the list, one line says when the data was last updated: the latest goo
   expect(screen.getByText('資料更新：11月19日 · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準')).toBeInTheDocument();
   unmount();
   const english = render(<UpdatedNote operators={operators} t={makeT('en')} />);
-  expect(screen.getByText(/^Data updated 19 Nov · /)).toBeInTheDocument();
+  const note = screen.getByText(/^Data updated 19 Nov · /);
+  // Each "·" is held to the word before it (a no-break space), so a wrapped line never starts with one.
+  expect(note.textContent).toContain('19 Nov\u00a0· each');
+  expect(note.textContent).not.toMatch(/ ·/);
   english.unmount();
   // No operator has run: nothing to say.
   const { container } = render(<UpdatedNote operators={[{ lastGoodRunAt: null }]} t={t} />);

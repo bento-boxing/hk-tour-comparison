@@ -6,6 +6,7 @@ import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { placeName } from '../../lib/place-names';
 import { TOURS_PATH, destinationIndex, destinationPath } from '../../lib/destinations';
+import { OPERATORS_PATH } from '../../lib/operators';
 import { loadCounts } from './page-data';
 import frame from './site-frame.module.css';
 import styles from './tours-page.module.css';
@@ -20,7 +21,8 @@ export async function toursPageMetadata(locale: Locale): Promise<Metadata> {
 /**
  * The destinations index in `locale` (/tours: app/(zh-hant)/tours/page.tsx and the same in app/zh-hans and app/en):
  * every destination with a page of its own (lib/destinations.ts isListed), arranged as the country picker arranges
- * countries, each a link with its count of tours. This is how people and crawlers reach the destination pages.
+ * countries, each a link with its count of tours. This is how people and crawlers reach the destination pages. The
+ * line of counts ends with a link to the operators index.
  */
 export async function ToursPage({ locale }: { locale: Locale }) {
   const t = makeT(locale);
@@ -39,6 +41,8 @@ export async function ToursPage({ locale }: { locale: Locale }) {
     <div className={`${frame.wrap} ${frame.page}`}>
       <h1 className={styles.heading}>{t('tours.title')}</h1>
       <p className={styles.summary}>{all.tours > 0 ? t('dest.count', { tours: all.tours, operators: all.operators }) : t('dest.countNone')}</p>
+      {/* On its own line, at every width: no line ever starts with a separator. */}
+      <p className={styles.browseLine}><Link className={styles.browse} href={localeHref(t.locale, OPERATORS_PATH)}>{t('tours.byOperator')}</Link></p>
       {groups.map(group => (
         <section key={group.id} className={styles.group} aria-labelledby={`group-${group.id}`}>
           <h2 id={`group-${group.id}`} className={styles.groupHeading}>{t(`countryGroup.${group.id}`)}</h2>

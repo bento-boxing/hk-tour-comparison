@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { permanentRedirect } from 'next/navigation';
-import { places, type Destination } from '@hktours/core';
+import { places, type Destination, type IsoDate } from '@hktours/core';
 import { makeT, type Locale, type T } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
@@ -14,6 +14,7 @@ import { placeName } from '../../lib/place-names';
 import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
+import type { StateHref } from '../../components/Pager';
 import { loadSearch, queryOf, type Loaded, type SearchParams } from './page-data';
 import { SearchBand } from './search-band';
 import frame from './site-frame.module.css';
@@ -65,14 +66,12 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
     return (
       <>
         <SearchBand t={t} heading={place ? t('dest.heading', { place }) : t('home.heading')} />
-        <div className={`${frame.wrap} ${frame.page}`}>
-          <p className={styles.error} role="alert">{t('search.error')}</p>
-        </div>
+        <SearchError t={t} />
       </>
     );
   }
 
-  const { state, tours, total, operators, filterOperators, counts } = load.data;
+  const { state, counts } = load.data;
   const { all } = counts;
   const listed = destination ? countOf(destination, counts) : all;
   const [heading, line] = place !== null
@@ -86,16 +85,40 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
         t={t} heading={heading} line={line} state={state} shortcuts={topDestinations(places, counts)}
         related={destination && <Related t={t} destination={destination} data={load.data} />}
       />
-      <div className={`${frame.wrap} ${frame.page}`}>
-        <FilterBarConnected state={state} operators={filterOperators} today={load.today} />
-        {/* On a destination's page, clearing every filter keeps the destination. */}
-        <ResultsConnected
-          tours={tours} total={total} operators={operators} today={load.today} now={load.now} clearPath={destinationPath(destination)}
-        />
-        <ListFooter state={state} total={total} t={t} />
-        <UpdatedNote operators={operators} t={t} />
-      </div>
+      {/* On a destination's page, clearing every filter keeps the destination. */}
+      <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} />
     </>
+  );
+}
+
+/** In place of the list when the tours could not be read: the visitor's message. */
+export function SearchError({ t }: { t: T }) {
+  return (
+    <div className={`${frame.wrap} ${frame.page}`}>
+      <p className={styles.error} role="alert">{t('search.error')}</p>
+    </div>
+  );
+}
+
+/**
+ * Every search page's list, under its band (the search page, a destination's page, an operator's page): the filter
+ * row, the tours, and under them the rows-per-page choice, the count, the pager and when the data was last updated.
+ * `clearPath` is where the empty state's "clear all filters" goes; `hrefFor` how the choice of rows and the pager
+ * build their addresses (the search page's, searchHref, by default; the filter row reads its page from
+ * lib/search-address.tsx); `updatedFrom` the operators whose last update the note gives (all of them by default).
+ */
+export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFrom = data.operators }: {
+  t: T; data: SearchPageData; today: IsoDate; now: string; clearPath: string; hrefFor?: StateHref;
+  updatedFrom?: { lastGoodRunAt: string | null }[];
+}) {
+  const { state, tours, total, operators, filterOperators } = data;
+  return (
+    <div className={`${frame.wrap} ${frame.page}`}>
+      <FilterBarConnected state={state} operators={filterOperators} today={today} />
+      <ResultsConnected tours={tours} total={total} operators={operators} today={today} now={now} clearPath={clearPath} />
+      <ListFooter state={state} total={total} t={t} hrefFor={hrefFor} />
+      <UpdatedNote operators={updatedFrom} t={t} />
+    </div>
   );
 }
 

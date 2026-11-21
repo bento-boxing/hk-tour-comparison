@@ -1,12 +1,13 @@
 import { cache } from 'react';
 import { unstable_rethrow } from 'next/navigation';
-import { todayInHongKong, type IsoDate } from '@hktours/core';
-import type { DestinationCounts } from '@hktours/db/read';
+import { todayInHongKong, type IsoDate, type OperatorId } from '@hktours/core';
+import type { DestinationCounts, OperatorListing } from '@hktours/db/read';
 import type { Locale } from '../../lib/i18n';
 import { requestDb } from '../../lib/db';
 import { cachedReads, loadSearchPage, type SearchPageData } from '../../lib/search-page-data';
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
 import { loadSavedPage, type SavedPageData } from '../../lib/saved-page-data';
+import { shownOperators } from '../../lib/operators';
 
 // Each page's database load, made once per request: the page renders from it, and its metadata marks the page
 // noindex when it failed (or, for a destination, when it has no tours). React's cache (the way the Next.js docs give
@@ -85,4 +86,38 @@ export const loadSaved = cache(async (query: string): Promise<Loaded<SavedPageDa
 export const loadCounts = cache(async (): Promise<Loaded<DestinationCounts>> => {
   const today = todayInHongKong();
   return attempt('destinations index', today, async () => cachedReads.countToursByDestination(await requestDb(), today));
+});
+
+/** An operator's page's data: the operator's own listing, and its tours as the search page reads them. */
+export interface OperatorPageData {
+  /**
+   * The operator: names, colour, home address, last good run and listed tours; undefined when the site does not list
+   * it (not in the database, or never had a good run: lib/operators.ts), and the page is then a 404.
+   */
+  listing: OperatorListing | undefined;
+  /** Its tours; null when there is nothing to search: no listing, or no tours listed now. */
+  search: SearchPageData | null;
+}
+
+/**
+ * An operator's page's data: first the operator's listing (one cached read shared with the index and the sitemap);
+ * then, only for an operator the site lists that has tours now, the search page's data with the operator fixed by
+ * the path (its id already checked by the caller). An `op` in the query is ignored, so no address can show another
+ * operator's tours here; every other filter (the destination among them, as `dest`) is read as on the search page.
+ */
+export const loadOperator = cache(async (locale: Locale, operatorId: OperatorId, query: string): Promise<Loaded<OperatorPageData>> => {
+  const today = todayInHongKong();
+  const { op: _ignored, ...rest } = paramsOf(query);
+  return attempt('operator page', today, async () => {
+    const db = await requestDb();
+    const listing = shownOperators(await cachedReads.getOperatorListings(db, today)).find(o => o.id === operatorId);
+    if (!listing || listing.tours === 0) return { listing, search: null };
+    return { listing, search: await loadSearchPage(db, { ...rest, op: operatorId }, today, locale, cachedReads) };
+  });
+});
+
+/** Every operator the site lists, with its tours now: the operators index's data. */
+export const loadOperatorListings = cache(async (): Promise<Loaded<OperatorListing[]>> => {
+  const today = todayInHongKong();
+  return attempt('operators index', today, async () => shownOperators(await cachedReads.getOperatorListings(await requestDb(), today)));
 });

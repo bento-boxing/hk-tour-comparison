@@ -1,0 +1,36 @@
+/*
+ * An operator's page: what sits under the heading on the gold band (search-band.module.css), in the band's text
+ * colour. A plain line saying this is not the operator's website, then the way to it: an outlined button in the
+ * band's ink (the weight of the sort control's outline), on the band's own gold, so it reads as an action without
+ * competing with the search box under it. Beside it, when the operator's data is old, the rows' note as a small
+ * outlined tag in the band's colours (the rows' warning colour does not read on gold).
+ */
+.notes { display: flex; flex-direction: column; gap: 10px; margin: -4px 0 0; }
+.notOfficial { margin: 0; font-size: 15px; font-weight: 500; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; }
+.official {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 6px 18px;
+  border: 2px solid var(--on-gold); border-radius: var(--radius-card);
+  color: inherit; font-size: 16px; font-weight: 700; line-height: 1.35; text-decoration: none;
+}
+/* The words after the operator's name ('official site ↗') stay together: a wrap comes after the name. */
+.keep { white-space: nowrap; }
+.official:hover { text-decoration: underline; text-underline-offset: 4px; }
+.official:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+
+.stale {
+  padding: 0 6px; border: 1px solid var(--on-gold); border-radius: 4px;
+  font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap;
+}
+
+/* An operator listing no tours now: under the band, one plain line and the way to every tour. */
+.none { margin: 8px 0 24px; font-size: 16px; }
+.allTours { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.allTours:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 639px) {
+  .notes { gap: 8px; }
+  .notOfficial { font-size: 14px; }
+  .official { font-size: 15px; padding: 6px 14px; }
+}

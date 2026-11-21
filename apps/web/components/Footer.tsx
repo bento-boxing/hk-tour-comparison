@@ -3,11 +3,15 @@ import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
 import { siteIdentity } from '../lib/site-identity';
 import { TOURS_PATH } from '../lib/destinations';
+import { OPERATORS_PATH } from '../lib/operators';
 import styles from './Footer.module.css';
 
-/** The footer's links (in the footer's language): the destinations index and the about page, on every page. */
+/** The footer's links (in the footer's language): the destinations and operators indexes and the about page, on every page. */
 const LINKS = [
-  { path: TOURS_PATH, label: 'footer.destinations' },
+  // The header's label: the same words in Chinese (所有目的地), and short in English (Destinations), so the three links
+  // keep to one line on a 320px phone.
+  { path: TOURS_PATH, label: 'nav.destinations' },
+  { path: OPERATORS_PATH, label: 'footer.operators' },
   { path: '/about', label: 'footer.about' },
 ] as const;
 

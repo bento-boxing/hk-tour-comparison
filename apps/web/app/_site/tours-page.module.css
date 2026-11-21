@@ -5,6 +5,10 @@
  */
 .heading { margin: 0 0 4px; font-size: 28px; font-weight: 900; line-height: 1.3; }
 .summary { margin: 0 0 20px; font-size: 15px; color: var(--text-muted); }
+/* Under the count line, on its own line: the link to the other index (by operator here, by destination on /operators). */
+.browseLine { margin: -18px 0 20px; font-size: 15px; }
+.browse { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.browse:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .group { margin: 0 0 22px; }
 .groupHeading { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--text-muted); }

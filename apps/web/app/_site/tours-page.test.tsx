@@ -56,6 +56,13 @@ it('lists every destination with a page of its own, grouped as the country picke
   const { container } = await renderPage('zh-Hant');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('旅行團目的地');
   expect(screen.getByText('現時列出 20 個旅行團，來自 3 間旅行社。')).toBeInTheDocument();
+  // Under the line of counts, on a line of its own, the way to the operators index (outside the sections, so not in
+  // the outline); no separator that could start a line.
+  const browse = screen.getByRole('link', { name: '按旅行社瀏覽' });
+  expect(browse).toHaveAttribute('href', '/operators');
+  expect(browse.parentElement?.tagName).toBe('P');
+  expect(browse.parentElement?.textContent).toBe('按旅行社瀏覽');
+  expect(container.textContent).not.toContain('·');
   expect(outline(container)).toEqual([
     ['中國內地及港澳台', [['中國', '/tours/china', '2 團'], ['北京', '/tours/china-beijing', '1 團']]],
     ['日本及韓國', [
@@ -114,5 +121,6 @@ it('with no tours at all, the index says so and lists nothing', async () => {
   mocks.countToursByDestination.mockResolvedValue({ all: { tours: 0, operators: 0 }, destinations: [] });
   await renderPage('en');
   expect(screen.getByText('No tours are listed right now.')).toBeInTheDocument();
-  expect(screen.queryAllByRole('link')).toEqual([]);
+  // No destination; only the line's way to the operators index.
+  expect(screen.getAllByRole('link').map(a => [a.textContent, a.getAttribute('href')])).toEqual([['Browse by tour operator', '/en/operators']]);
 });

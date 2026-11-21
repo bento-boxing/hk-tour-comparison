@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import { I18nProvider } from '../lib/i18n-client';
 import { parseSearchParams } from '../lib/search-params';
+import { FixedOperatorProvider } from '../lib/search-address';
 import { DestinationSearchConnected, DestinationPanelsConnected } from './DestinationConnected';
 
 const push = vi.fn<(href: string) => void>();
@@ -69,4 +70,37 @@ it.each([
   render(<I18nProvider locale={locale}><DestinationSearchConnected state={state('dest=japan&sort=days')} /></I18nProvider>);
   await user.click(screen.getByRole('button', { name: /^(清除|Clear)$/ }));
   expect(push).toHaveBeenCalledWith(href);
+});
+
+it.each([
+  ['zh-Hant', '/operators/texpert?dest=japan-kansai&dmin=5', '/operators/texpert?dmin=5', '/operators/texpert?dest=japan&dmin=5'],
+  ['zh-Hans', '/zh-hans/operators/texpert?dest=japan-kansai&dmin=5', '/zh-hans/operators/texpert?dmin=5', '/zh-hans/operators/texpert?dest=japan&dmin=5'],
+  ['en', '/en/operators/texpert?dest=japan-kansai&dmin=5', '/en/operators/texpert?dmin=5', '/en/operators/texpert?dest=japan&dmin=5'],
+] as const)('in %s on an operator\'s page, choosing and clearing a destination stays on that page, the destination in the query', async (locale, chosen, cleared, country) => {
+  const user = userEvent.setup();
+  const onPage = state('op=texpert&dmin=5&page=2');
+  render(
+    <I18nProvider locale={locale}>
+      <FixedOperatorProvider operator="texpert">
+        <DestinationSearchConnected state={onPage} />
+        <DestinationPanelsConnected state={onPage} />
+      </FixedOperatorProvider>
+    </I18nProvider>,
+  );
+  await user.type(screen.getByRole('combobox'), 'Osaka');
+  await user.keyboard('{Enter}');
+  expect(push).toHaveBeenLastCalledWith(chosen);
+  await user.click(screen.getByRole('button', { name: /^(按國家選擇|按国家选择|Browse by country)$/ }));
+  await user.click(screen.getByRole('button', { name: /^(日本|Japan)$/ }));
+  await user.click(screen.getByRole('button', { name: /^(全部地區|全部地区|All regions)$/ }));
+  expect(push).toHaveBeenLastCalledWith(country);
+
+  push.mockReset();
+  render(
+    <I18nProvider locale={locale}>
+      <FixedOperatorProvider operator="texpert"><DestinationSearchConnected state={state('op=texpert&dest=japan&dmin=5')} /></FixedOperatorProvider>
+    </I18nProvider>,
+  );
+  await user.click(screen.getAllByRole('button', { name: /^(清除|Clear)$/ }).at(-1)!);
+  expect(push).toHaveBeenLastCalledWith(cleared);
 });

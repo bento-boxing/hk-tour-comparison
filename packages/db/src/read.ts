@@ -6,3 +6,4 @@ export {
   type TourFilters, type SortKey, type PageSize, type TourCardData, type SearchInput, type OperatorInfo,
 } from './search';
 export { countToursByDestination, type DestinationCount, type DestinationCounts, type ListedCount } from './destinations';
+export { getOperatorListings, type OperatorListing } from './operators';
