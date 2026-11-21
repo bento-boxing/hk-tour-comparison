@@ -111,7 +111,7 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
             <>
               {' '}
               {/* Plain /saved, never prefetched: the visitor's list is sent only when they open it. */}
-              <Link href={localeHref(t.locale, '/saved')} prefetch={false} className={styles.link}>{t('saved.yours', { n: own.length })}</Link>
+              <Link href={localeHref(t.locale, '/saved')} prefetch={false} className={`${styles.link} ${styles.yours}`}>{t('saved.yours', { n: own.length })}</Link>
             </>
           )}
         </p>
@@ -146,7 +146,7 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
               const label = labels.get(key) ?? t('saved.goneUnnamed');
               return (
                 <li key={key} className={styles.goneItem}>
-                  <span className={styles.goneLabel}>{label}</span>
+                  <span className={styles.goneLabel}><span className={styles.goneText}>{label}</span></span>
                   <button
                     type="button" className={styles.remove} data-remove=""
                     aria-label={t('saved.removeName', { tour: label })}

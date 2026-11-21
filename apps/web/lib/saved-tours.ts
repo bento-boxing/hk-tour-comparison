@@ -19,10 +19,11 @@ export const SAVED_KEY = 'hktours.savedTours';
 export const SAVED_LABEL_MAX = 400;
 /**
  * A label with an unbroken run of more characters than this (a line can break at a space, a hyphen or in Chinese text,
- * never inside a word) is not kept: 16 of the widest letter (W) still fit a 320px phone's line; the longest run in the
- * site's place names is 14 (Amanohashidate; Garmisch-Partenkirchen breaks at its hyphen).
+ * never inside a word) is not kept. The longest run in the site's place names is 19 (Kirkjubæjarklaustur, 20 with the
+ * comma after it); 22 leaves room. A run that is wider than a phone's line (22 of the widest letter, W, are) scrolls
+ * inside its own line on the saved page (SavedConnected), never the page.
  */
-export const SAVED_LABEL_WORD_MAX = 16;
+export const SAVED_LABEL_WORD_MAX = 22;
 
 /**
  * A saved tour: its key, when it was saved and, from the saving row, a short label made only from the site's own data

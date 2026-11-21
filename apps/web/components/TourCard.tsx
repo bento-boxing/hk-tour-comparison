@@ -128,13 +128,14 @@ function SaveButton({ tourKey, tour, t }: { tourKey: string; tour: string; t: T 
 }
 
 /**
- * One tour as a row of the list (the owner's final row, mock-up RowsB13). On a wide screen (Chinese pages) every row
+ * One tour as a row of the list (the owner's final row, mock-up RowsB13). On a wide screen every Chinese row
  * has the same seven columns, so each starts at the same x down the page: the operator's tag | the days | the region (the country,
  * then its regions; or the countries) | the route, after a thin line, every stop, wrapping and never cut | the dates,
  * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程 and 收藏, two
  * equal buttons side by side (each as wide as the column allows, 加入行程 never narrower than its words). No tour code
- * and no tour name. On a phone the row becomes a stacked block in the same order of importance; from 640px (and on
- * English pages at every width from there) a two-column block.
+ * and no tour name. On an English page's wide screen (the owner's drawing E1) the same, in six columns: the region
+ * sits above the route, smaller and muted, and each 'place →' is one unit. On a phone the row becomes a stacked block
+ * in the same order of importance; from 640px a two-column block.
  *
  * The list is an ARIA table (Results): each row is a `row`, each column a `cell`, and the column names are in a
  * visually hidden header row.
@@ -257,10 +258,18 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
         {/*
           Each stop's name is one unit, and the arrows sit between them with a space on each side, so a line breaks
           only beside an arrow (after it; or before it, when the name fits the line but its arrow does not). Only a
-          single name wider than the whole column breaks inside itself.
+          single name wider than the whole column breaks inside itself, between its words.
+          English pages wrap each arrow's glyph in its own element: in the wide row (the drawing E1) it is hidden, its
+          spaces stay (as one), and the arrow is drawn at the end of the unit before it instead, after a no-break space
+          (CSS), so each 'place →' is one unit and a line breaks only after an arrow. The block layouts are as above.
         */}
         <h3 className={styles.route}>
-          {route.map((name, i) => (
+          {route.map((name, i) => t.locale === 'en' ? (
+            <Fragment key={i}>
+              {i > 0 && <span className={styles.arrow}>{' '}<span className={styles.arrowBetween}>→</span>{' '}</span>}
+              <span className={styles.stop}>{name}</span>
+            </Fragment>
+          ) : (
             <Fragment key={i}>
               {i > 0 && <span className={styles.arrow}>{' → '}</span>}
               <span className={styles.stop}>{name}</span>

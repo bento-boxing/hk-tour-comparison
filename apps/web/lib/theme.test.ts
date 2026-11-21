@@ -155,7 +155,9 @@ const PAIRS: { what: string; fg: string; bg: string; min: number }[] = [
   { what: 'text on gold: the band, the gold button, the 上次打開 tag', fg: 'on-gold', bg: 'gold', min: 4.5 },
   { what: 'the band\'s search box: its text', fg: 'on-gold', bg: 'band-field-bg', min: 4.5 },
   { what: 'the band\'s search box: its placeholder', fg: 'band-field-muted', bg: 'band-field-bg', min: 4.5 },
-  { what: 'the header, and the band\'s 按國家選擇 button', fg: 'header-text', bg: 'header-bg', min: 4.5 },
+  { what: 'the header, and the band\'s 按國家選擇 button and destination boxes', fg: 'header-text', bg: 'header-bg', min: 4.5 },
+  // The band's destination boxes (and its 按國家選擇 button) stand out from the gold around them.
+  { what: 'the band\'s destination boxes against the gold', fg: 'header-bg', bg: 'gold', min: 3 },
   { what: 'a chosen control (set filter, current page, rows per page) and the 已看過 tag', fg: 'on-selected', bg: 'selected-bg', min: 4.5 },
   { what: 'price went down', fg: 'price-down', bg: 'surface', min: 4.5 },
   { what: 'price went up', fg: 'price-up', bg: 'surface', min: 4.5 },

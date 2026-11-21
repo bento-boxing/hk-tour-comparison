@@ -238,10 +238,12 @@ it('routeNames and the region label name the places in the visitor\'s language',
 });
 
 it.each([
-  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 over 7 days'],
-  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 over 1 day'],
-])('priceChangeText in English (%j)', (change, text) => {
-  expect(priceChangeText(change as PriceChange, '2026-11-12', tEn)?.text).toBe(text);
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ HK$500 less than 7 days ago'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-11' }, '↑ HK$300 more than 1 day ago'],
+])('priceChangeText in English (%j): the drawing E1\'s wording, one breakable space (before "than")', (change, text) => {
+  const got = priceChangeText(change as PriceChange, '2026-11-12', tEn)?.text;
+  expect(got?.replace(/\u00a0/g, ' ')).toBe(text);
+  expect(got?.split(' ')).toHaveLength(2);
 });
 
 it('priceChangeText in Simplified Chinese', () => {

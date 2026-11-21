@@ -76,8 +76,10 @@ const en = {
   'countryGroup.oceania': 'Oceania',
   'countryGroup.polar': 'Arctic and Antarctic',
   'card.priceFrom': 'from {price}',
-  'card.lower': '↓ {amount} over {days} [days:day|days]', // the price change under the price: one line in its column
-  'card.higher': '↑ {amount} over {days} [days:day|days]',
+  // The price change under the price (the drawing E1's wording). Its spaces are no-break spaces but one, so where the
+  // line is too short it takes two lines, breaking only there: '↓ HK$100 less' / 'than 7 days ago'.
+  'card.lower': '↓\u00a0{amount}\u00a0less than\u00a0{days}\u00a0[days:day|days]\u00a0ago',
+  'card.higher': '↑\u00a0{amount}\u00a0more than\u00a0{days}\u00a0[days:day|days]\u00a0ago',
   'card.moreDates': '+{n} more [n:date|dates]',
   'card.dates': 'Departure dates',
   'card.openedEarlier': 'Viewed',

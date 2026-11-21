@@ -69,6 +69,8 @@ function parseCss(source: string): Record<string, Record<string, Declarations>> 
       for (; depth > 0; j++) depth += text[j] === '{' ? 1 : text[j] === '}' ? -1 : 0;
       const body = text.slice(open + 1, j - 1);
       if (prelude.startsWith('@media')) read(body, prelude.slice('@media'.length).trim());
+      // @supports inside a layout: its own key, after the layout's ('(min-width: 1280px) @supports (…)').
+      else if (prelude.startsWith('@supports')) read(body, `${media} ${prelude}`.trim());
       else {
         // A selector list ('.add, .save') gives each of its selectors these declarations.
         const rules = (sheet[media] ??= {});
@@ -91,8 +93,13 @@ const PHONE = '';
 const ZOOMED = '(max-width: 319px)';
 const TABLET = '(min-width: 640px)';
 const WIDE = '(min-width: 1280px)';
-/** The row's rule in each layout: the seven columns apply to Chinese pages only. */
+/** The row's rule in each layout: from 1280px, the seven columns on Chinese pages, the six of drawing E1 on English ones. */
 const ROW: Record<string, string> = { [PHONE]: '.row', [TABLET]: '.row', [WIDE]: '.row:lang(zh)' };
+const EN_ROW = '.row:lang(en)';
+/** The English wide row's tracks in ch, ex and cap, where the browser has the cap unit. */
+const CAP = '(min-width: 1280px) @supports (width: 1cap)';
+/** The English wide row's track lists: in ch alone (any browser), then in ch, ex and cap (with the cap unit). */
+const enTrackDeclarations = () => [rule(WIDE, EN_ROW), rule(CAP, EN_ROW)].map(d => d['grid-template-columns']);
 const rule = (media: string, selector: string): Declarations => sheet[media]?.[selector] ?? {};
 const allRules = () => Object.entries(sheet).flatMap(([media, rules]) => Object.entries(rules).map(([selector, d]) => ({ media, selector, d })));
 const SEVEN = ['tag', 'days', 'region', 'route', 'dates', 'price', 'actions'];
@@ -155,10 +162,23 @@ describe('what a row shows, column by column', () => {
     expect(screen.getByText('↑ 比7日前貴 HK$2,000').className).toMatch(/up/);
     up.unmount();
     const en = render(<TourCard {...props} t={makeT('en')} />);
-    expect(screen.getByText('↓ HK$500 over 7 days').className).toMatch(/down/);
+    expect(screen.getByText('↓ HK$500 less than 7 days ago').className).toMatch(/down/);
     en.unmount();
     render(<TourCard {...props} t={makeT('zh-Hans')} />);
     expect(screen.getByText('↓ 比7天前便宜 HK$500')).toBeInTheDocument();
+  });
+
+  it('in English the change may take two lines, breaking only between "less" (or "more") and "than … ago" (drawing E1)', () => {
+    const { unmount } = render(<TourCard {...props} t={makeT('en')} />);
+    const down = screen.getByText(/^↓/).textContent!;
+    // One ordinary space, the only place a line may break; every other space is a no-break space.
+    expect(down.split(' ')).toEqual(['↓\u00a0HK$500\u00a0less', 'than\u00a07\u00a0days\u00a0ago']);
+    unmount();
+    render(<TourCard {...props} t={makeT('en')} tour={{ ...tour, priceChange: { kind: 'higher', diffHkd: 12300, sinceDate: '2026-11-11' } }} />);
+    expect(screen.getByText(/^↑/).textContent!.split(' ')).toEqual(['↑\u00a0HK$12,300\u00a0more', 'than\u00a01\u00a0day\u00a0ago']);
+    // English lets the note wrap there; Chinese keeps it to one line.
+    expect(rule(PHONE, '.delta:lang(en)')).toEqual({ 'white-space': 'normal' });
+    expect(rule(PHONE, '.delta')['white-space']).toBe('nowrap');
   });
 
   it('hides the price change when the window price differs from the from-price', () => {
@@ -241,7 +261,7 @@ describe('the route', () => {
     }
   });
 
-  it('each stop\'s name is one unit, the arrows between them: a line breaks only beside an arrow, never inside a name ("聖 / 地牙哥")', () => {
+  it('in Chinese each stop\'s name is one unit, the arrows between them: a line breaks only beside an arrow, never inside a name ("聖 / 地牙哥")', () => {
     render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
     const heading = screen.getByRole('heading');
     const stops = [...heading.querySelectorAll(`.${styles.stop}`)];
@@ -253,6 +273,24 @@ describe('the route', () => {
     expect(heading.childNodes).toHaveLength(eleven.length * 2 - 1);
     // A name wider than the whole column wraps between its words, never inside one.
     expect(rule(PHONE, '.stop')).toEqual({ display: 'inline-block', 'max-width': '100%' });
+  });
+
+  it('in English, in the wide row, each "place →" is one unit: the arrow is drawn at the end of the name before it (drawing E1)', () => {
+    render(<TourCard {...props} t={makeT('en')} />);
+    const heading = screen.getByRole('heading');
+    expect(heading).toHaveTextContent('Osaka → Kyoto → Nara → Kobe');
+    // In the text once, between the names: a plain space, the arrow in its own element, a plain space. The block
+    // layouts break the route there, as on Chinese pages.
+    const between = [...heading.children].filter(el => !el.classList.contains(styles.stop));
+    expect(between).toHaveLength(3);
+    for (const el of between) {
+      expect([...el.childNodes].map(n => (n instanceof Element ? n.className : n.textContent))).toEqual([' ', styles.arrowBetween, ' ']);
+    }
+    // The wide row hides that arrow (its spaces stay: a line may break there, after the arrow) and draws it at the end
+    // of the name before it, after a no-break space, so it never starts a line.
+    expect(rule(WIDE, '.arrowBetween:lang(en)')).toEqual({ display: 'none' });
+    expect(rule(WIDE, '.stop:lang(en):not(:last-child)::after')).toEqual({ content: "'\\a0→'", 'font-weight': '400', color: 'var(--text-muted)' });
+    expect(rule(PHONE, '.arrow')).toEqual({ 'font-weight': '400', color: 'var(--text-muted)' });
   });
 
   it('in English, the route joined with the dictionary separator in the link\'s name; on screen the arrows', () => {
@@ -448,6 +486,13 @@ describe('an operator whose data is old', () => {
     // of the least row, so the tag never makes a row taller.
     const content = px(rule(WIDE, ROW[WIDE])['min-height']) - 2 * Number(/^(\d+)px/.exec(rule(WIDE, ROW[WIDE]).padding)![1]);
     expect(21 * 1.35 + 12 * 1.4 + (4 + 12 * 1.4 + 2)).toBeLessThanOrEqual(content);
+    // English, from 1280px (drawing E1): the same, under 'from HK$…' and its note in two lines.
+    expect(rule(WIDE, '.staleInTag:lang(en)')).toEqual({ display: 'none' });
+    expect(rule(WIDE, '.staleInPrice:lang(en)')).toEqual({ display: 'block', margin: '3px 0 0 auto', 'line-height': '1.3' });
+    const en = rule(WIDE, EN_ROW);
+    const enContent = px(en['min-height']) - 2 * Number(/^(\d+)px/.exec(en.padding)![1]);
+    const lh = (selector: string) => Number(rule(WIDE, selector)['line-height']);
+    expect(21 * lh('.price:lang(en)') + 2 * 12 * lh('.delta:lang(en)') + (3 + 12 * lh('.staleInPrice:lang(en)') + 2)).toBeLessThanOrEqual(enContent);
   });
 
   it('within 36 hours, or without the render\'s time, or with an unreadable time: nothing', () => {
@@ -610,8 +655,8 @@ describe('rows opened this session are tinted', () => {
 
 describe('three layouts, switched by the window\'s width', () => {
   /** Where each of the seven cells sits in a layout's grid: each must be one rectangle. */
-  function placements(media: string) {
-    const grid = areaGrid(rule(media, ROW[media])['grid-template-areas']);
+  function placements(media: string, row = ROW[media]) {
+    const grid = areaGrid(rule(media, row)['grid-template-areas']);
     const at: Record<string, { rows: Set<number>; cols: Set<number>; count: number }> = {};
     grid.forEach((line, r) => line.forEach((name, c) => {
       const p = (at[name] ??= { rows: new Set(), cols: new Set(), count: 0 });
@@ -620,16 +665,21 @@ describe('three layouts, switched by the window\'s width', () => {
     return { grid, at };
   }
 
-  it('below 640px a block; from 640px two columns; from 1280px the seven columns on Chinese pages only', () => {
-    expect(Object.keys(sheet)).toEqual([PHONE, ZOOMED, TABLET, WIDE]);
+  it('below 640px a block; from 640px two columns; from 1280px one aligned row: seven columns in Chinese, six in English with the region above the route', () => {
+    expect(Object.keys(sheet)).toEqual([PHONE, ZOOMED, TABLET, WIDE, CAP]);
     expect(placements(PHONE).grid[0]).toHaveLength(2);
     expect(placements(TABLET).grid[0]).toHaveLength(3);
     expect(placements(WIDE).grid).toEqual([SEVEN]);
+    // The drawing E1: the region over the route in one column; every other cell spans both lines.
+    expect(placements(WIDE, EN_ROW).grid).toEqual([
+      ['tag', 'days', 'region', 'dates', 'price', 'actions'],
+      ['tag', 'days', 'route', 'dates', 'price', 'actions'],
+    ]);
   });
 
   it('every layout places each of the seven cells exactly once, as one rectangle, with as many tracks as its areas have columns', () => {
-    for (const media of [PHONE, TABLET, WIDE]) {
-      const { grid, at } = placements(media);
+    for (const [media, selector] of [[PHONE, ROW[PHONE]], [TABLET, ROW[TABLET]], [WIDE, ROW[WIDE]], [WIDE, EN_ROW]]) {
+      const { grid, at } = placements(media, selector);
       expect(grid.every(line => line.length === grid[0].length), media).toBe(true);
       expect(Object.keys(at).sort(), media).toEqual([...SEVEN].sort());
       for (const [name, p] of Object.entries(at)) {
@@ -638,7 +688,7 @@ describe('three layouts, switched by the window\'s width', () => {
         expect(Math.max(...cols) - Math.min(...cols) + 1, `${media} ${name}`).toBe(cols.length);
         expect(p.count, `${media} ${name}`).toBe(rows.length * cols.length);
       }
-      const row = rule(media, ROW[media]);
+      const row = rule(media, selector);
       expect(trackList(withVars(row['grid-template-columns'], row)), media).toHaveLength(grid[0].length);
     }
   });
@@ -676,15 +726,67 @@ describe('three layouts, switched by the window\'s width', () => {
     // The tracks are the row's alone (the dates' own grid is inside their cell): nothing a row holds can change them,
     // so every row has the same ones.
     const setters = allRules().filter(({ d }) => 'grid-template-columns' in d || Object.keys(d).some(p => p.startsWith('--col-')));
-    expect(setters.map(r => `${r.media} ${r.selector}`)).toEqual([' .row', ' .dates', `${ZOOMED} .dates`, `${TABLET} .row`, `${WIDE} .row:lang(zh)`]);
+    expect(setters.map(r => `${r.media} ${r.selector}`)).toEqual([' .row', ' .dates', `${ZOOMED} .dates`, `${TABLET} .row`, `${WIDE} .row:lang(zh)`, `${WIDE} .row:lang(en)`, `${CAP} .row:lang(en)`]);
   });
 
-  it('English pages keep the two-column block at every width from 640px: every seven-column rule is for Chinese pages only', () => {
+  it('from 1280px, on English pages (drawing E1): six tracks, the same on every row, in the row font\'s own units with the drawing\'s px as floors', () => {
+    const row = rule(WIDE, EN_ROW);
+    const SIX = ['tag', 'days', 'route', 'dates', 'price', 'actions'];
+    const [fallback, tracks] = enTrackDeclarations().map(trackList);
+    // Each track: the drawing's px at least, else the narrowest of three lengths in the row font's units (ch, ex,
+    // cap), each factor the least that holds the column's longest text in Arimo, Inter, Roboto and DejaVu Sans (+1%).
+    expect(Object.fromEntries(SIX.map((name, i) => [name, tracks[i]]))).toEqual({
+      tag: 'max(148px, min(15.3ch, 19.4ex, 12.4cap))',
+      days: 'max(76px, min(7.8ch, 9.9ex, 6.3cap))',
+      route: 'minmax(0, 1fr)',
+      dates: 'max(264px, min(30.1ch, 37.9ex, 24.4cap))',
+      price: 'max(164px, min(18.1ch, 23ex, 14.9cap))',
+      actions: 'max(182px, min(21.3ch, 26.5ex, 17.2cap))',
+    });
+    // Outside @supports, for a browser without the cap unit: the same, in ch alone.
+    SIX.forEach((name, i) => {
+      if (name === 'route') return expect(fallback[i]).toBe('minmax(0, 1fr)');
+      const [, floor, ch] = /^max\((\d+px), min\(([\d.]+ch),/.exec(tracks[i])!;
+      expect(fallback[i], name).toBe(`max(${floor}, ${ch})`);
+    });
+    // Nothing a row holds sizes another row: the wide tracks are lengths, no content-sized track and no subgrid.
+    for (const declaration of enTrackDeclarations()) expect(declaration).not.toMatch(/subgrid|max-content|min-content|fit-content|auto/);
+    expect(JSON.stringify([sheet[WIDE], sheet[CAP]])).not.toMatch(/subgrid|grid-column/);
+    expect(sheet[CAP]).toEqual({ '.row:lang(en)': { 'grid-template-columns': tracks.join(' ') } });
+    // The region's line, then the route; the Chinese row's least height and top and bottom padding; at every wide
+    // width one tighter spacing than the drawing's (16px gap, 18px sides), so the route keeps its room: a 12px gap and
+    // 12px at the sides.
+    expect(row).toMatchObject({ 'grid-template-rows': 'auto 1fr', 'column-gap': '12px', padding: '12px', 'min-height': '102px' });
+    expect(Number.parseFloat(rule(WIDE, ROW[WIDE]).padding)).toBe(Number.parseFloat(row.padding));
+    // No line before the route, unlike the Chinese row.
+    expect(rule(WIDE, '.routeCell:lang(en)')).toEqual({});
+  });
+
+  it('in the English wide row the price change is as narrow as its longest unbreakable part: two lines, a column gap from the buttons', () => {
+    expect(rule(WIDE, '.delta:lang(en)')).toEqual({ width: 'min-content', 'margin-left': 'auto', 'line-height': '1.25' });
+    // The pair's columns are equal and never narrower than a button's words with its 8px padding.
+    expect(rule(PHONE, '.add').padding).toBe('0 8px');
+    expect(rule(PHONE, '.pair')).toMatchObject({ 'grid-auto-columns': '1fr' });
+    // The change's right edge is the price column's: a column gap, at least 12px, from the buttons.
+    expect(Number.parseFloat(rule(WIDE, EN_ROW)['column-gap'])).toBeGreaterThanOrEqual(12);
+  });
+
+  it('every wide rule is for one language: :lang(zh) (both Chinese pages) or :lang(en); no rule names another language', () => {
     const wide = Object.keys(sheet[WIDE]);
-    expect(wide.length).toBeGreaterThan(5);
-    for (const selector of wide) expect(selector).toMatch(/:lang\(zh\)/);
+    for (const selector of wide) expect(selector).toMatch(/:lang\((zh|en)\)/);
+    expect(wide.filter(s => s.includes(':lang(en)')).length).toBeGreaterThan(5);
     // :lang(zh) matches both Chinese pages (<html lang="zh-Hant-HK">, <html lang="zh-Hans">), never lang="en".
     for (const { selector } of allRules()) expect(selector).not.toMatch(/:lang\((?!zh\)|en\))/);
+  });
+
+  it('in the English wide row: the drawing E1\'s type: the operator 13px on one line; the region 14px, muted, over the route 17px', () => {
+    expect(rule(WIDE, '.op:lang(en)')).toMatchObject({ 'font-size': '13px', 'white-space': 'nowrap' });
+    expect(rule(WIDE, '.region:lang(en)')).toMatchObject({ 'font-size': '14px' });
+    expect(rule(WIDE, '.region:lang(en) .place')).toEqual({ color: 'var(--text-muted)' });
+    expect(rule(WIDE, '.route:lang(en)')).toEqual({ 'font-size': '17px' });
+    // The dates as in the Chinese row: one 3 × 2 grid as wide as the track, boxes as tall as their text.
+    expect(rule(WIDE, '.dates:lang(en)')).toEqual(rule(WIDE, '.dates:lang(zh)'));
+    expect(rule(WIDE, '.d:lang(en)')).toEqual({ 'min-height': '0' });
   });
 
   it('a zoomed phone (below 320px): two dates a line, so no chip spills', () => {
@@ -692,20 +794,24 @@ describe('three layouts, switched by the window\'s width', () => {
   });
 
   it('from 1280px every row is as tall as its stacked buttons at least; the thin line before the route spans the row', () => {
-    const vertical = Number(/^(\d+)px/.exec(rule(WIDE, ROW[WIDE]).padding)![1]);
-    const stacked = px(rule(WIDE, '.go:lang(zh)')['min-height']) + px(rule(TABLET, '.actions').gap) + px(rule(WIDE, '.add:lang(zh)')['min-height']);
-    expect(px(rule(WIDE, ROW[WIDE])['min-height'])).toBe(stacked + 2 * vertical);
+    for (const lang of ['zh', 'en']) {
+      const vertical = Number(/^(\d+)px/.exec(rule(WIDE, `.row:lang(${lang})`).padding)![1]);
+      const stacked = px(rule(WIDE, `.go:lang(${lang})`)['min-height']) + px(rule(TABLET, '.actions').gap) + px(rule(WIDE, `.add:lang(${lang})`)['min-height']);
+      expect(px(rule(WIDE, `.row:lang(${lang})`)['min-height']), lang).toBe(stacked + 2 * vertical);
+    }
     expect(rule(WIDE, '.routeCell:lang(zh)')).toMatchObject({ 'align-self': 'stretch', 'border-left': '1px solid var(--line)' });
   });
 
-  it('text never shrinks to fit: no layout changes a font size, and no size follows the window', () => {
+  it('text never shrinks to fit: no layout changes a font size but the English wide row\'s, to the drawing E1\'s fixed sizes; no size follows the window', () => {
     for (const { media, selector, d } of allRules()) {
       if (media !== PHONE) {
-        expect(d, `${media} ${selector}`).not.toHaveProperty('font-size');
         expect(d, `${media} ${selector}`).not.toHaveProperty('font');
+        if (!(media === WIDE && selector.includes(':lang(en)'))) expect(d, `${media} ${selector}`).not.toHaveProperty('font-size');
       }
       expect(d['font-size'] ?? '', selector).not.toMatch(/vw|vh|clamp|%/);
     }
+    const sized = Object.entries(sheet[WIDE]).filter(([, d]) => 'font-size' in d).map(([selector, d]) => `${selector} ${d['font-size']}`);
+    expect(sized).toEqual(['.op:lang(en) 13px', '.region:lang(en) 14px', '.route:lang(en) 17px']);
   });
 
   it('nothing is cut off: only the visually hidden helpers clip; no ellipsis or line clamp anywhere', () => {
@@ -718,17 +824,22 @@ describe('three layouts, switched by the window\'s width', () => {
     }
   });
 
-  it('only the route and the region may take more lines: every other cell\'s text keeps to one line', () => {
+  it('only the route and the region may take more lines (and the English price change two): every other cell\'s text keeps to one line', () => {
     for (const selector of ['.days', '.price', '.delta', '.stale', '.chip', '.more', '.go', '.add', '.save']) {
       expect(rule(PHONE, selector)['white-space'], selector).toBe('nowrap');
     }
+    // The English change breaks at its one ordinary space only (the dictionary's no-break spaces; tested above).
+    const wraps = allRules().filter(({ d }) => d['white-space'] === 'normal').map(r => `${r.media} ${r.selector}`);
+    expect(wraps).toEqual([' .region:lang(en) .place', ' .delta:lang(en)']);
   });
 
-  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程, 收藏); 36px buttons in the seven columns', () => {
+  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程, 收藏); 36px buttons in the wide rows', () => {
     for (const selector of ['.d', '.go', '.add', '.save']) expect(rule(PHONE, selector)['min-height'], selector).toBe('44px');
-    expect(rule(WIDE, '.go:lang(zh)')['min-height']).toBe('36px');
-    expect(rule(WIDE, '.add:lang(zh)')['min-height']).toBe('36px');
-    expect(rule(WIDE, '.save:lang(zh)')['min-height']).toBe('36px');
+    for (const lang of ['zh', 'en']) {
+      expect(rule(WIDE, `.go:lang(${lang})`)['min-height']).toBe('36px');
+      expect(rule(WIDE, `.add:lang(${lang})`)['min-height']).toBe('36px');
+      expect(rule(WIDE, `.save:lang(${lang})`)['min-height']).toBe('36px');
+    }
   });
 
   it('the actions: the gold button, then 加入行程 and 收藏 side by side on one line (the drawing\'s second line)', () => {

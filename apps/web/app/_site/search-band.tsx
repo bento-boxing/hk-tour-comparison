@@ -27,9 +27,9 @@ export interface SearchBandProps {
 
 /**
  * The gold band under the header on the home page and on a destination's page (mock-up Rows): the page's heading
- * with its line of numbers, the destination search box with the 按國家選擇 button, and a row of links to the
- * destinations with the most tours now, ending with the destinations index. Spans the window; its content sits in the
- * page's column.
+ * with its line of numbers, the destination search box with the 按國家選擇 button, and a row of boxes linking to the
+ * destinations with the most tours now (the owner's drawing E1), ending with a text link to the destinations index.
+ * Spans the window; its content sits in the page's column.
  */
 export function SearchBand({ t, heading, line, related, state, shortcuts }: SearchBandProps) {
   return (
@@ -52,13 +52,16 @@ export function SearchBand({ t, heading, line, related, state, shortcuts }: Sear
               {shortcuts.map(({ destination, count }) => (
                 <li key={destinationPath(destination)}>
                   <Link className={styles.shortcut} href={localeHref(t.locale, destinationPath(destination))}>
-                    {destinationName(destination, places, t)}
-                    {' '}<span className={styles.count}>{formatCount(count.tours)}</span>
+                    {/* One line box, so the name and its smaller count share a baseline. */}
+                    <span>
+                      {destinationName(destination, places, t)}
+                      {' '}<span className={styles.count}>{formatCount(count.tours)}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
               <li>
-                <Link className={`${styles.shortcut} ${styles.all}`} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</Link>
+                <Link className={styles.all} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</Link>
               </li>
             </ul>
           </nav>

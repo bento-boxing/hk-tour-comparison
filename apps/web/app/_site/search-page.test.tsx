@@ -241,6 +241,62 @@ it('the 按國家選擇 button sits in the positioned search row, with the searc
   expect(css).toMatch(/\.searchRow \{[^}]*position: relative;/);
 });
 
+/** search-band.module.css's rules: { media: { selector: declarations } } ('' outside any @media). */
+function bandRules(): Record<string, Record<string, Record<string, string>>> {
+  const out: Record<string, Record<string, Record<string, string>>> = {};
+  const source = readFileSync(join(__dirname, 'search-band.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = (text: string, media: string) => {
+    for (const m of text.matchAll(/([^{}]+)\{((?:[^{}]|\{[^{}]*\})*)\}/g)) {
+      const prelude = m[1].trim().replace(/\s+/g, ' ');
+      if (prelude.startsWith('@media')) { read(m[2], prelude.slice(6).trim()); continue; }
+      for (const selector of prelude.split(',').map(s => s.trim())) {
+        const d = ((out[media] ??= {})[selector] ??= {});
+        for (const part of m[2].split(';')) {
+          const colon = part.indexOf(':');
+          if (colon > 0) d[part.slice(0, colon).trim()] = part.slice(colon + 1).trim().replace(/\s+/g, ' ');
+        }
+      }
+    }
+  };
+  read(source, '');
+  return out;
+}
+
+// The owner's drawing E1: the destinations with the most tours are boxes, the index after them a text link.
+it('the band\'s shortcuts are boxes (ink, the name bold, its count lighter and smaller); the index stays a text link', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(homeData);
+  await renderPage({});
+  const links = within(screen.getByRole('navigation', { name: '旅行團最多的目的地' })).getAllByRole('link');
+  for (const link of links.slice(0, -1)) {
+    expect(link).toHaveClass(band.shortcut);
+    expect(link.querySelector(`.${band.count}`)).not.toBeNull();
+  }
+  expect(links.at(-1)).toHaveClass(band.all);
+  expect(links.at(-1)).not.toHaveClass(band.shortcut);
+  const rules = bandRules();
+  // The header's ink and text, as the band's 按國家選擇 button (lib/theme.test.ts checks both themes' contrast).
+  expect(rules['']['.shortcut']).toMatchObject({
+    background: 'var(--header-bg)', color: 'var(--header-text)', 'border-radius': '6px', 'font-weight': '700',
+    'text-decoration': 'none', 'min-height': '32px',
+  });
+  expect(rules['']['.count']).toMatchObject({ 'font-weight': '500', 'font-size': '13px' });
+  expect(Number.parseInt(rules['']['.shortcut']['font-size'], 10)).toBeGreaterThan(13);
+  // The index: no box, underlined.
+  expect(rules['']['.all']).not.toHaveProperty('background');
+  expect(rules['']['.all']['text-decoration']).toBe('underline');
+  // The words in a box keep 12px from its sides (the drawing's padding), so a name never touches its box's edge.
+  const [, side] = rules['']['.shortcut'].padding.split(' ').map(v => Number.parseFloat(v));
+  expect(side).toBeGreaterThanOrEqual(12);
+  // On a line of its own, the index starts where the boxes do: no padding before its words.
+  expect(Number.parseFloat(rules['']['.all'].padding.split(' ').at(-1)!)).toBe(0);
+  // They wrap onto more lines, never scroll sideways; 44px to touch on a phone.
+  expect(rules['']['.shortcutList']).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
+  expect(Object.values(rules).flatMap(r => Object.values(r)).some(d => /auto|scroll/.test(d['overflow-x'] ?? d.overflow ?? ''))).toBe(false);
+  expect(rules['(max-width: 639px)']['.shortcut']).toMatchObject({ 'min-height': '44px' });
+  expect(rules['(max-width: 639px)']['.all']).toMatchObject({ 'min-height': '44px' });
+});
+
 const languages = {
   'zh-Hant': 'https://example.invalid',
   'zh-Hans': 'https://example.invalid/zh-hans',

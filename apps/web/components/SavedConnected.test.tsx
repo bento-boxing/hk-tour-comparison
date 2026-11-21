@@ -11,6 +11,9 @@ import type { Locale } from '../lib/i18n';
 import { resetSavedCache, SAVED_KEY } from '../lib/saved-tours';
 import { parseSavedKeys, savedHref } from '../lib/saved-list';
 import { SavedConnected } from './SavedConnected';
+import styles from './SavedConnected.module.css';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const router = vi.hoisted(() => ({ push: vi.fn<(href: string) => void>(), replace: vi.fn<(href: string, opts?: unknown) => void>() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -153,6 +156,25 @@ describe('the visitor\'s own list', () => {
     expect(address()).toBe(savedHref(['egl:KIX5']));
   });
 
+  it('a label with a run too wide for a phone\'s line (22 of the widest letter are kept) scrolls inside its own line, never the page', () => {
+    const run = `EGL Tours: ${'W'.repeat(21)}, 5 days`;
+    store(['egl:GONE1', 'egl:KIX5'], { 'egl:GONE1': run });
+    render(<Page initial={savedHref(['egl:KIX5', 'egl:GONE1'])} />);
+    const text = within(screen.getByRole('region', { name: '已不再列出' })).getByText(run);
+    // The label's text sits in a block of its own inside the line's label.
+    expect(text).toHaveClass(styles.goneText);
+    expect(text.parentElement).toHaveClass(styles.goneLabel);
+    const css = readFileSync(join(__dirname, 'SavedConnected.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
+    const rule = (selector: string) => new RegExp(`(^|[ }])${selector.replace('.', '\\.')} \\{([^}]*)\\}`).exec(css)?.[2] ?? '';
+    // The label is never wider than its line (so its least width, its longest word, is too), and so 移除 still moves
+    // under a label whose longest word does not fit beside it; the text inside scrolls sideways when a run is wider
+    // than the line, rather than breaking inside a word or scrolling the page.
+    expect(rule('.goneLabel')).toMatch(/max-width: 100%/);
+    expect(rule('.goneLabel')).not.toMatch(/min-width|overflow/);
+    expect(rule('.goneText')).toMatch(/display: block/);
+    expect(rule('.goneText')).toMatch(/overflow-x: auto/);
+  });
+
   it('an old entry kept without a label: a plain line, still with 移除', () => {
     store(['egl:GONE1', 'egl:KIX5']);
     render(<Page initial={savedHref(['egl:KIX5', 'egl:GONE1'])} />);
@@ -190,6 +212,15 @@ describe('the other states', () => {
     expect(storedKeys()).toEqual(['egl:KIX5', 'jetour:THB']);
     expect(rowNames()).toEqual(['捷旅']);
     expect(address()).toBe(savedHref(['jetour:THB']));
+  });
+
+  it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s the link to the visitor\'s own list keeps its text on one line: its count never wraps away from it', locale => {
+    store(['egl:KIX5']);
+    render(<Page initial={savedHref(['jetour:THB'])} locale={locale} />);
+    const yours = screen.getByRole('link', { name: /\(1\)$/ });
+    expect(yours).toHaveClass(styles.yours);
+    const css = readFileSync(join(__dirname, 'SavedConnected.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
+    expect(/(^|[ }])\.yours \{([^}]*)\}/.exec(css)?.[2]).toMatch(/white-space: nowrap/);
   });
 
   it('a visitor with nothing saved is not offered "your saved tours (0)"', () => {

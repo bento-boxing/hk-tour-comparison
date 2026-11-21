@@ -5,11 +5,11 @@
  *   below 640px (phones): a block. The operator with the days; the price (its note beside it, or under it when the
  *     line is too short); the region; the route; the dates, three by two; the two buttons.
  *   from 640px: two columns. The facts on the left (operator, days and region, route, dates); the price and the
- *     buttons in a 210px column on the right. English pages keep this layout at every width: with English labels the
- *     seven columns would leave the route about 150px.
- *   from 1280px, Traditional and Simplified Chinese pages only: the seven columns, the same tracks on every row, so
- *     each column starts at the same x down the page: operator | days | region | route (1fr, after a thin line) |
- *     dates | price | actions.
+ *     buttons in a 210px column on the right.
+ *   from 1280px, one aligned row, the same tracks on every row, so each column starts at the same x down the page.
+ *     Traditional and Simplified Chinese pages: seven columns, operator | days | region | route (1fr, after a thin
+ *     line) | dates | price | actions. English pages (the owner's drawing E1): six, the region above the route in the
+ *     flexible one, operator | days | region over route | dates | price | actions.
  *
  * Text never shrinks to fit: the tracks are sized for the longest text they hold (measured: a chip with its weekday,
  * HK$999,999 with 起, the price note at its longest). No text breaks inside a word anywhere: the operator's name and
@@ -129,6 +129,8 @@ a.d { cursor: pointer; }
 .price { font-size: 21px; font-weight: 900; line-height: 1.35; white-space: nowrap; }
 .from { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 .delta { font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+/* English: '↓ HK$100 less than 7 days ago' may take two lines, at its one breaking space (the dictionary's). */
+.delta:lang(en) { white-space: normal; }
 .down { color: var(--price-down); }
 .up { color: var(--price-up); }
 
@@ -223,4 +225,72 @@ a.d { cursor: pointer; }
   .more:lang(zh) { padding: 4px 0; }
   .go:lang(zh) { min-height: 36px; }
   .add:lang(zh), .save:lang(zh) { min-height: 36px; }
+}
+
+/*
+ * From 1280px, on English pages: one aligned row of six columns (the owner's drawing E1), the same on every row:
+ * operator | days | the region above the route (1fr, no line before it) | dates | price | actions. The drawing's
+ * other sizes, and its least height and buttons as in the Chinese row. Each row is its own grid with the same track
+ * list, so nothing a row holds, and nothing that arrives later, can change another row's columns.
+ *
+ * The tracks follow the visitor's font without measuring any content: each is a length in the units of the row's own
+ * font (ch, the width of its "0"; ex, its x-height; cap, its capital height), never narrower than the drawing's px
+ * (operator 148, days 76, dates 264, price 164, actions 182). Each unit's factor is the least that holds the column's
+ * longest text in every font measured (Arimo for Arial, Inter, Roboto, and DejaVu Sans, the fallback), with 1% to
+ * spare; and of the three lengths the narrowest is taken, which is still enough in each of those fonts:
+ *   operator: Charming Holidays (13px) on one line, with the tag's padding;
+ *   days: 30 days (18px);
+ *   dates: three boxes with at least 6px each side of the widest date of the year (e.g. 11 May Wed) and 4px gaps;
+ *   price: from HK$999,999 on one line; its change in two lines; the old-data tag;
+ *   actions: + Add to trip and Save as two equal buttons with 8px inside each, 6px apart; the gold button's words.
+ * A browser without the cap unit gets the same tracks in ch alone (wider in some fonts, never too narrow).
+ * At every wide width the gap and the side padding are 12px (the drawing has 16 and 18), so the route keeps its room
+ * and never narrows as the window widens; the price change stays 12px from the buttons.
+ */
+@media (min-width: 1280px) {
+  .row:lang(en) {
+    /* In ch alone: for a browser without the cap unit (below); wider in some fonts, never too narrow. */
+    grid-template-columns:
+      max(148px, 15.3ch) max(76px, 7.8ch) minmax(0, 1fr) max(264px, 30.1ch) max(164px, 18.1ch) max(182px, 21.3ch);
+    /* The region's line, then the route under it; every other cell spans both (the second takes what is left). */
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'tag days region dates price actions' 'tag days route dates price actions';
+    column-gap: 12px; row-gap: 2px;
+    min-height: 102px; padding: 12px;
+  }
+  .tagCell:lang(en) { padding-top: 2px; }
+  .op:lang(en) { padding: 2px 8px; font-size: 13px; white-space: nowrap; }
+  /* The old-data tag under the price and its two-line note (26 + 30 + 21 px: within the 78 px of content). */
+  .staleInTag:lang(en) { display: none; }
+  .staleInPrice:lang(en) { display: block; margin: 3px 0 0 auto; line-height: 1.3; }
+  /* The region: smaller, in the muted colour, over the route. */
+  .region:lang(en) { padding-top: 2px; font-size: 14px; }
+  .region:lang(en) .place { color: var(--text-muted); }
+  .route:lang(en) { font-size: 17px; }
+  /*
+   * Each 'place →' one unit: the arrow between the units goes (its spaces stay, as one, where the line may break) and
+   * is drawn at the end of the unit before it, after a no-break space, so it never starts a line. A unit wider than
+   * the route column wraps between its words.
+   */
+  .arrowBetween:lang(en) { display: none; }
+  .stop:lang(en):not(:last-child)::after { content: '\a0→'; font-weight: 400; color: var(--text-muted); }
+  .dates:lang(en) { padding-top: 2px; max-width: none; }
+  .d:lang(en) { min-height: 0; }
+  .more:lang(en) { padding: 4px 0; }
+  /*
+   * 'from HK$…' on one line; the change under it as narrow as its longest unbreakable part, so in two lines that break
+   * only before 'than … ago' (the dictionary's no-break spaces), right-aligned: a column gap from the buttons.
+   */
+  .price:lang(en) { line-height: 1.25; }
+  .delta:lang(en) { width: min-content; margin-left: auto; line-height: 1.25; }
+  .go:lang(en) { min-height: 36px; }
+  .add:lang(en), .save:lang(en) { min-height: 36px; }
+
+  @supports (width: 1cap) {
+    .row:lang(en) {
+      grid-template-columns:
+        max(148px, min(15.3ch, 19.4ex, 12.4cap)) max(76px, min(7.8ch, 9.9ex, 6.3cap)) minmax(0, 1fr)
+        max(264px, min(30.1ch, 37.9ex, 24.4cap)) max(164px, min(18.1ch, 23ex, 14.9cap)) max(182px, min(21.3ch, 26.5ex, 17.2cap));
+    }
+  }
 }

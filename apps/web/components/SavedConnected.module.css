@@ -5,6 +5,8 @@
 }
 .link { color: var(--ink); font-weight: 700; }
 .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* 查看你的收藏 (N): one unit, so its count never wraps onto a line of its own (it fits a 300px line in every language). */
+.yours { white-space: nowrap; }
 
 /* Nothing saved: two lines on what saving does, and the way to the search (as the chain page's empty state). */
 .empty {
@@ -32,9 +34,12 @@
 .goneItem:last-child { border-bottom: 0; }
 /*
  * The label kept when the tour was saved: it wraps between words (and in Chinese between characters). Never narrower
- * than its longest word, so 移除 moves to the next line rather than the label sticking out of the line.
+ * than its longest word, so 移除 moves to the next line rather than the label sticking out of the line; and never
+ * wider than the line, so a word wider than a phone's line (a kept label may hold 22 letters without a break) scrolls
+ * sideways inside the label's own block, never breaking inside itself and never scrolling the page.
  */
-.goneLabel { flex: 1 1 12em; }
+.goneLabel { flex: 1 1 12em; max-width: 100%; }
+.goneText { display: block; overflow-x: auto; }
 /* A link's tours no longer listed: only how many. */
 .goneCount { margin: 16px 0 8px; font-size: 14px; color: var(--text-muted); }
 .remove {

@@ -3,6 +3,7 @@ import {
   getNoSavedTours, getSavedTours, newestFirst, resetSavedCache, saveTour, subscribeSaved, unsaveTour,
   SAVED_KEY, SAVED_LABEL_MAX, SAVED_LABEL_WORD_MAX,
 } from './saved-tours';
+import { places } from '@hktours/core';
 import { SAVED_CAP } from './saved-list';
 
 beforeEach(() => { window.localStorage.clear(); window.sessionStorage.clear(); resetSavedCache(); });
@@ -164,6 +165,25 @@ it('storage full when saving: the list stays as it was (still shown and counted)
   setItem.mockRestore();
   expect(unsaveTour('egl:T1')).toBe(true);
   expect(keys()).toEqual([]);
+});
+
+it('keeps a label holding any of the site\'s place names: the longest unbroken run allowed is 22 (Kirkjubæjarklaustur and its comma are 20)', () => {
+  expect(SAVED_LABEL_WORD_MAX).toBe(22);
+  // Every English name in the places data, with the comma that follows it in a label, is a run a label may hold.
+  const data = places.data as unknown as Record<'countries' | 'regions' | 'cities', { nameEn?: string }[]>;
+  const runs = (['countries', 'regions', 'cities'] as const).flatMap(k => data[k].flatMap(p => (p.nameEn ?? '').split(/[\s-]+/)));
+  const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
+  expect(longest).toBe('Kirkjubæjarklaustur');
+  expect(longest.length + 1).toBeLessThanOrEqual(SAVED_LABEL_WORD_MAX);
+  saveTour('egl:T1', { label: 'EGL Tours: Reykjavik, Kirkjubæjarklaustur, Vik, 6 days, 5 nights', now: 1 });
+  saveTour('egl:T2', { label: `EGL Tours: ${'W'.repeat(SAVED_LABEL_WORD_MAX)}, 5 days`, now: 2 });
+  saveTour('egl:T3', { label: `EGL Tours: ${'W'.repeat(SAVED_LABEL_WORD_MAX + 1)}, 5 days`, now: 3 });
+  expect(getSavedTours().tours.map(t => t.label)).toEqual([
+    'EGL Tours: Reykjavik, Kirkjubæjarklaustur, Vik, 6 days, 5 nights', undefined, undefined,
+  ]);
+  // 21 letters and the comma: kept.
+  saveTour('egl:T4', { label: `EGL Tours: ${'W'.repeat(SAVED_LABEL_WORD_MAX - 1)}, 5 days`, now: 4 });
+  expect(getSavedTours().tours.at(-1)?.label).toBe(`EGL Tours: ${'W'.repeat(SAVED_LABEL_WORD_MAX - 1)}, 5 days`);
 });
 
 it('keeps each tour\'s label (the site\'s own text, for a tour that is no longer listed), cleaned and bounded', () => {
