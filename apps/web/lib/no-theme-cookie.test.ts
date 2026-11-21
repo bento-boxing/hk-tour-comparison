@@ -81,3 +81,12 @@ it('nothing in the website reads or writes document.cookie (the theme lives in l
 it('no file reads the request\'s cookies or headers at all', () => {
   expect(files.filter(f => readsRequest(text(f))).map(f => relative(WEB, f))).toEqual([]);
 });
+
+/**
+ * The theme script's component must be a client component: only then can it give the script the text/plain type
+ * when React builds the document in the browser (a language's not-found page), where a plain script tag makes
+ * React log an error on the dev server. Without the directive every other test still passes.
+ */
+it('the theme script is a client component', () => {
+  expect(text(join(WEB, 'components/ThemeScript.tsx')).trimStart()).toMatch(/^'use client';/);
+});
