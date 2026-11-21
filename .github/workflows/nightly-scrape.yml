@@ -83,3 +83,23 @@ jobs:
           # before any request. GitHub shows their values as *** in the public log.
           SITE_URL: ${{ secrets.SITE_URL }}
           CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+
+  # After the crawl, ask for the three stored home pages once, so each language's stored copy is made again
+  # from tonight's data even when nobody visits it for days (a stored copy older than an hour is made again
+  # in the background by the next request). Plain page requests to the site itself: no secret is sent, only
+  # status codes are printed, and a failed request never fails the workflow.
+  refresh:
+    needs: scrape
+    if: ${{ !cancelled() }} # also when one operator's crawl failed: the others' data is new
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request the stored home pages
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          [ -n "$SITE_URL" ] || { echo "SITE_URL not set: skipped"; exit 0; }
+          for path in / /zh-hans /en; do
+            code=$(curl -s -o /dev/null -m 60 -w '%{http_code}' "$SITE_URL$path" || true)
+            echo "$path $code"
+          done
