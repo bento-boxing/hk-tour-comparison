@@ -4,8 +4,8 @@ import type { DestinationCounts } from '@hktours/db/read';
 import { makeT } from './i18n';
 import { retiredRegion } from './place-names';
 import {
-  countOf, destinationFromId, destinationId, destinationIndex, destinationName, destinationPath, isArea, isListed,
-  isOnlyRegion, listedDestinations, topDestinations, SHORTCUT_COUNT,
+  countOf, destinationDirectory, destinationFromId, destinationId, destinationIndex, destinationName, destinationPath, isArea,
+  isListed, isOnlyRegion, listedDestinations, topDestinations, SHORTCUT_COUNT, type IndexCountry,
 } from './destinations';
 
 const japan = { countryId: 'japan', regionId: null };
@@ -94,6 +94,52 @@ it('the index arranges the listed destinations as the country picker does: parts
     'china', 'china-beijing', 'china-shanghai', 'japan', 'japan-kanto', 'japan-kansai', 'korea', 'korea-seoul', 'france',
   ]);
   expect(destinationIndex(places, { all: { tours: 0, operators: 0 }, destinations: [] })).toEqual([]);
+});
+
+it('the directory: in each part of the world, countries with listed regions, then those without; most tours first, ties in the index\'s order', () => {
+  /** Invented: China outnumbers Taiwan (first in the data); Beijing and Shanghai tie; so do Hong Kong and Macau. */
+  const many: DestinationCounts = {
+    all: { tours: 60, operators: 4 },
+    destinations: [
+      { countryId: 'china', regionId: null, tours: 10, operators: 2 },
+      { countryId: 'china', regionId: 'china-area-east', tours: 9, operators: 1 },
+      { countryId: 'china', regionId: 'china-beijing', tours: 3, operators: 2 },
+      { countryId: 'china', regionId: 'china-guangdong', tours: 1, operators: 1 },
+      { countryId: 'china', regionId: 'china-shanghai', tours: 3, operators: 1 },
+      { countryId: 'france', regionId: null, tours: 4, operators: 1 },
+      { countryId: 'france', regionId: 'france-france', tours: 4, operators: 1 },
+      { countryId: 'germany', regionId: null, tours: 6, operators: 1 },
+      { countryId: 'hongkong', regionId: null, tours: 7, operators: 1 },
+      { countryId: 'japan', regionId: null, tours: 12, operators: 3 },
+      { countryId: 'japan', regionId: 'japan-kansai', tours: 7, operators: 3 },
+      { countryId: 'japan', regionId: 'japan-kanto', tours: 5, operators: 2 },
+      { countryId: 'korea', regionId: null, tours: 8, operators: 2 },
+      { countryId: 'korea', regionId: 'korea-seoul', tours: 8, operators: 2 },
+      { countryId: 'macau', regionId: null, tours: 7, operators: 1 },
+      { countryId: 'taiwan', regionId: null, tours: 9, operators: 1 },
+      { countryId: 'taiwan', regionId: 'taiwan-north', tours: 4, operators: 1 },
+      { countryId: 'taiwan', regionId: 'taiwan-south', tours: 5, operators: 1 },
+      { countryId: 'thailand', regionId: null, tours: 2, operators: 1 }, // tours only at the country's level: no region listed
+    ],
+  };
+  const shape = (c: IndexCountry) => [`${c.country.id} ${c.count.tours}`, c.regions.map(r => `${r.region.id} ${r.count.tours}`)];
+  const directory = destinationDirectory(places, many);
+  expect(directory.map(g => [g.id, g.withRegions.map(shape), g.withoutRegions.map(shape)])).toEqual([
+    ['china', [
+      ['china 10', ['china-beijing 3', 'china-shanghai 3', 'china-guangdong 1']],
+      ['taiwan 9', ['taiwan-south 5', 'taiwan-north 4']],
+    ], [['hongkong 7', []], ['macau 7', []]]],
+    ['northeast-asia', [['japan 12', ['japan-kansai 7', 'japan-kanto 5']], ['korea 8', ['korea-seoul 8']]], []],
+    ['southeast-asia', [], [['thailand 2', []]]],
+    ['europe', [], [['germany 6', []], ['france 4', []]]],
+  ]);
+  // Exactly the index's destinations (so the sitemap's), each once, only in another order.
+  const all = directory.flatMap(g => [...g.withRegions, ...g.withoutRegions]).flatMap(c => [c.destination, ...c.regions.map(r => r.destination)]);
+  expect(all.map(destinationId).sort()).toEqual(listedDestinations(places, many).map(destinationId).sort());
+  expect(new Set(all.map(destinationId)).size).toBe(all.length);
+  expect(destinationDirectory(places, { all: { tours: 0, operators: 0 }, destinations: [] })).toEqual([]);
+  // The index itself keeps the data's order (the sitemap, and the band's ties, follow it).
+  expect(destinationIndex(places, many)[0].countries.map(c => c.country.id)).toEqual(['taiwan', 'china', 'hongkong', 'macau']);
 });
 
 it('the band\'s shortcuts: listed countries only, most tours first, equal counts in the index\'s order, at most seven', () => {

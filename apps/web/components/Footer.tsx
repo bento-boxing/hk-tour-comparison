@@ -13,9 +13,9 @@ import styles from './Footer.module.css';
  * well; they are not, until that is decided.
  */
 const LINKS = [
-  // The header's label: the same words in Chinese (所有目的地), and short in English (Destinations), so the three links
-  // keep to one line on a 320px phone.
-  { path: TOURS_PATH, label: 'nav.destinations', prefetch: false },
+  // Short in English (Destinations, where footer.destinations says All destinations), so the three links keep to one
+  // line on a 320px phone. Since task 58 the header has no link to the index: this and the band's are the ways there.
+  { path: TOURS_PATH, label: 'footer.destinationsShort', prefetch: false },
   { path: OPERATORS_PATH, label: 'footer.operators', prefetch: false },
   { path: '/about', label: 'footer.about', prefetch: 'auto' },
 ] as const;

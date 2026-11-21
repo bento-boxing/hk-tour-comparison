@@ -37,9 +37,9 @@
 .tools { margin-left: auto; display: flex; align-items: center; column-gap: 6px; }
 
 /*
- * Tablets and small laptops (640–1023px): the gaps closer and the links at the phones' 14px, so the Chinese bar keeps
- * one row from 768px with the fourth link, as on main (measured: about 700 of the 708px at 768). English, longer,
- * still wraps its switches to a second row below about 860px, as on main.
+ * Tablets and small laptops (640–1023px): the gaps closer and the links at the phones' 14px. With the three links
+ * (task 58) the bar is one row from about 680px in Chinese and 700px in English (measured 663–700px across the
+ * container's font and Arial/Inter/Roboto stand-ins); below that its switches wrap to a second row, nothing overlaps.
  */
 @media (min-width: 640px) and (max-width: 1023px) {
   .inner { column-gap: 12px; }
@@ -48,9 +48,9 @@
 }
 
 /*
- * Phones: the name with the switches at the right, then the four links (14px, 44px tall) on a line of their own: one
- * line where they fit with their gaps, two by two below that. Chinese takes about 280px for the four (with room for
- * '(100)'), so one line down to 360px; English about 325px, so one line from 430px.
+ * Phones: the name with the switches at the right, then the three links (14px, 44px tall) on a line of their own.
+ * Since the destinations link left the header (task 58), one line holds them down to 320px in every language (with
+ * room for '(100)'); the two-by-two layout the four links needed below 360px (Chinese) and 430px (English) is gone.
  */
 @media (max-width: 639px) {
   .inner { padding: 0 16px; min-height: 0; column-gap: 8px; }
@@ -62,10 +62,4 @@
 }
 @media (max-width: 399px) {
   .inner { padding: 0 12px; }
-}
-@media (max-width: 429px) {
-  .links:lang(en) { display: grid; grid-template-columns: repeat(2, max-content); column-gap: 24px; }
-}
-@media (max-width: 359px) {
-  .links:lang(zh) { display: grid; grid-template-columns: repeat(2, max-content); column-gap: 24px; }
 }

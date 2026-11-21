@@ -10,7 +10,6 @@ const zh = {
   'notice.cantonese': '旅行團一般以粵語進行，詳情請向旅行社查詢。', // shown only in the other languages
   'nav.search': '搜尋旅行團',
   'nav.chain': '連續行程',
-  'nav.destinations': '所有目的地', // the header's link to the destinations index
   'nav.saved': '已收藏', // the header's link to the saved tours, their number after it
   'nav.savedCount': '({n})',
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
@@ -42,6 +41,7 @@ const zh = {
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
   'tours.byOperator': '按旅行社瀏覽', // after the index's line of counts: the operators index
+  'tours.jumpTo': '跳到', // the accessible name of the row of links to each part of the world on the page
   // An operator's page (/operators/<id>). {operator} is its name as the rows show it (lib/place-names.ts operatorName).
   'operator.title': '{operator}旅行團一覽｜{site}', // the whole <title> (the owner's form, full-width bar); {site} is site.name
   // The description (search results show it under the title): first what the site is, then the data. {places}: the
@@ -63,6 +63,9 @@ const zh = {
   'footer.links': '網站資訊', // the footer's links' accessible name
   'footer.operators': '所有旅行社',
   'footer.destinations': '所有目的地',
+  // The footer's link to the destinations index; footer.destinations is the 404 page's. The same here; English
+  // keeps this one short (Destinations) so the footer's three links stay on one line on a 320px phone.
+  'footer.destinationsShort': '所有目的地',
   'footer.about': '關於本網站',
   // The about page (/about). The wording follows 給旅行社的說明 in README.md.
   'about.title': '關於本網站',

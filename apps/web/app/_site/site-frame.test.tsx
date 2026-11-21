@@ -48,10 +48,10 @@ it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('%s: the address alone decides th
 const headerLinks = (html: string) => [...new DOMParser().parseFromString(html, 'text/html').querySelector('nav')!.querySelectorAll('a:not([hreflang])')];
 
 it.each([
-  ['zh-Hant', '/', ['/', '/', '/chain', '/tours', '/saved']],
-  ['zh-Hans', '/zh-hans', ['/zh-hans', '/zh-hans', '/zh-hans/chain', '/zh-hans/tours', '/zh-hans/saved']],
-  ['en', '/en/chain', ['/en', '/en', '/en/chain', '/en/tours', '/en/saved']],
-] as const)('%s at %s: the header\'s links (the name, then the three pages and the saved page) stay in the language', async (locale, pathname, hrefs) => {
+  ['zh-Hant', '/', ['/', '/', '/chain', '/saved']],
+  ['zh-Hans', '/zh-hans', ['/zh-hans', '/zh-hans', '/zh-hans/chain', '/zh-hans/saved']],
+  ['en', '/en/chain', ['/en', '/en', '/en/chain', '/en/saved']],
+] as const)('%s at %s: the header\'s links (the name, then the two pages and the saved page) stay in the language', async (locale, pathname, hrefs) => {
   address.pathname = pathname;
   expect(headerLinks(await renderLayout(locale)).map(a => a.getAttribute('href'))).toEqual(hrefs);
 });
@@ -61,8 +61,8 @@ it.each([
   ['/tours/japan', 'zh-Hant', '搜尋旅行團'], // a destination's page is the search page with the destination chosen
   ['/zh-hans/tours/japan-kansai', 'zh-Hans', '搜索旅行团'],
   ['/en/chain', 'en', 'Plan a trip'],
-  ['/en/tours', 'en', 'Destinations'],
-  ['/tours', 'zh-Hant', '所有目的地'],
+  ['/en/tours', 'en', null], // the destinations index has no link in the header
+  ['/tours', 'zh-Hant', null],
   ['/en/saved', 'en', 'Saved'], // served without the number: the browser adds it
   ['/about', 'zh-Hant', null],
 ] as const)('at %s the header marks the page the address shows', async (pathname, locale, current) => {

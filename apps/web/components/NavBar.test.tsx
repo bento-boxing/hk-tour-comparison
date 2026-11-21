@@ -31,28 +31,34 @@ const shown = (link: Element) => {
 };
 const css = () => readFileSync(join(__dirname, 'NavBar.module.css'), 'utf8').replace(/\s+/g, ' ');
 
-it('shows the site name, linking to the search page, the three page links and 已收藏 with its number', () => {
+it('shows the site name, linking to the search page, the two page links and 已收藏 with its number', () => {
   render(<NavBar current="search" t={tZh} />);
   expect(screen.getByRole('link', { name: '跟邊團' })).toHaveAttribute('href', '/');
   expect(pageLinks().map(l => [shown(l), l.getAttribute('href')])).toEqual([
-    ['搜尋旅行團', '/'], ['連續行程', '/chain'], ['所有目的地', '/tours'], ['已收藏 (0)', '/saved'],
+    ['搜尋旅行團', '/'], ['連續行程', '/chain'], ['已收藏 (0)', '/saved'],
   ]);
   expect(savedLink()).toHaveAccessibleName('已收藏 (0)');
 });
 
 it.each([
-  ['zh-Hans', ['/zh-hans', '/zh-hans/chain', '/zh-hans/tours', '/zh-hans/saved'], '/zh-hans'],
-  ['en', ['/en', '/en/chain', '/en/tours', '/en/saved'], '/en'],
+  ['zh-Hans', ['/zh-hans', '/zh-hans/chain', '/zh-hans/saved'], '/zh-hans'],
+  ['en', ['/en', '/en/chain', '/en/saved'], '/en'],
 ] as const)('in %s, every link stays in the language', (locale, hrefs, home) => {
   render(<NavBar current="search" t={makeT(locale)} />);
   expect(pageLinks().map(l => l.getAttribute('href'))).toEqual(hrefs);
   expect(screen.getByRole('link', { name: '跟邊團' })).toHaveAttribute('href', home);
 });
 
-it.each(['search', 'chain', 'destinations', 'saved'] as const)('marks the current page (%s) and only it', current => {
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s, no link to the destinations index (所有目的地): the footer and the band have it', locale => {
+  const { container } = render(<NavBar current="search" t={makeT(locale)} />);
+  expect([...container.querySelectorAll('a')].filter(a => /\/tours$/.test(a.getAttribute('href') ?? ''))).toEqual([]);
+  expect(container.textContent).not.toMatch(/所有目的地|Destinations/);
+});
+
+it.each(['search', 'chain', 'saved'] as const)('marks the current page (%s) and only it', current => {
   render(<NavBar current={current} t={tZh} />);
-  const index = ['search', 'chain', 'destinations', 'saved'].indexOf(current);
-  expect(pageLinks().map(l => l.getAttribute('aria-current'))).toEqual([0, 1, 2, 3].map(i => (i === index ? 'page' : null)));
+  const index = ['search', 'chain', 'saved'].indexOf(current);
+  expect(pageLinks().map(l => l.getAttribute('aria-current'))).toEqual([0, 1, 2].map(i => (i === index ? 'page' : null)));
 });
 
 it('marks no page on the pages that have no link (the about page, a 404)', () => {
@@ -90,8 +96,8 @@ it('ends with the language switch, labelled in the current language', () => {
   const group = screen.getByRole('group', { name: 'Language' });
   expect(nav).toContainElement(group);
   const links = pageLinks();
-  expect(links.map(shown)).toEqual(['Find tours', 'Plan a trip', 'Destinations', 'Saved (0)']);
-  expect(links[3].compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(links.map(shown)).toEqual(['Find tours', 'Plan a trip', 'Saved (0)']);
+  expect(links[2].compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(group).getByRole('link', { name: 'English' })).toHaveAttribute('aria-current', 'true');
   expect(screen.getByText('跟邊團')).toBeInTheDocument(); // the brand stays 跟邊團 in English
 });
@@ -106,13 +112,11 @@ it('ends with the theme switch, after the language switch, named in the current 
   expect(group.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-it('on a phone: the name and the switches, then the four links on a line of their own; two by two only where one line cannot hold them', () => {
+it('on a phone: the name and the switches, then the three links on a line of their own, one line down to 320px', () => {
   expect(css()).toMatch(/\.inner \{[^}]*flex-wrap: wrap/);
   expect(css()).toMatch(/@media \(max-width: 639px\) \{.*\.tools \{ order: 2;[^}]*\}.*\.links \{ order: 3; flex-basis: 100%;/);
-  // Chinese: one line down to 360px; English (longer) from 430px.
-  expect(css()).toMatch(/@media \(max-width: 359px\) \{ \.links:lang\(zh\) \{ display: grid; grid-template-columns: repeat\(2, max-content\);/);
-  expect(css()).toMatch(/@media \(max-width: 429px\) \{ \.links:lang\(en\) \{ display: grid; grid-template-columns: repeat\(2, max-content\);/);
-  expect(css()).not.toMatch(/@media \(max-width: 479px\)/);
+  // The two-by-two layout four links needed (Chinese below 360px, English below 430px) is gone with the fourth link.
+  expect(css()).not.toMatch(/grid-template-columns: repeat\(2, max-content\)|@media \(max-width: (359|429|479)px\)/);
 });
 
 it('the saved link is always plain /saved in the page\'s language and never prefetched: the list never leaves the browser from here', () => {
@@ -127,10 +131,10 @@ it('the saved link is always plain /saved in the page\'s language and never pref
   }
 });
 
-it('no header link pre-loads its page (each is made per request): the name, the three page links and the saved link', () => {
+it('no header link pre-loads its page (each is made per request): the name, the two page links and the saved link', () => {
   render(<NavBar current="search" t={tZh} />);
   const links = [screen.getByRole('link', { name: '跟邊團' }), ...pageLinks()];
-  expect(links).toHaveLength(5);
+  expect(links).toHaveLength(4);
   for (const link of links) expect(link, link.getAttribute('href') ?? '').toHaveAttribute('data-prefetch', 'false');
 });
 

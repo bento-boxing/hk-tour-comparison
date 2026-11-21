@@ -1,8 +1,10 @@
 /*
- * The destinations index: the heading and its line of counts, then each part of the world (a small muted label, as
- * in the country panel) with its countries as plain boxes in a grid, each the country's link and count with its
- * regions' links under it.
+ * The destinations index as a directory (drawing D1: Dest1 at 1366px, Dest1Phone at 375px): the heading with its line
+ * of counts beside it, a row of jump links, then each part of the world under a 2px ink rule. No boxes or card
+ * backgrounds: names are ink links, underlined only under the pointer; counts are muted, in tabular figures.
  */
+
+/* The heading and its line of counts; the operators index (operators-page.tsx) uses these three as they are. */
 .heading { margin: 0 0 4px; font-size: 28px; font-weight: 900; line-height: 1.3; }
 .summary { margin: 0 0 20px; font-size: 15px; color: var(--text-muted); }
 /* Under the count line, on its own line: the link to the other index (by operator here, by destination on /operators). */
@@ -10,22 +12,111 @@
 .browse { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .browse:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.group { margin: 0 0 22px; }
-.groupHeading { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+/*
+ * The columns, per language, in ems of each grid's own font (so they grow with the text when a visitor enlarges it):
+ * each the longest name of its kind in the places data with a four-digit count, plus at least 12px of clear space
+ * before the next column, in the widest of the container's DejaVu and Arial/Inter/Roboto stand-ins:
+ *   country (with regions, 19px)   印度尼西亞 8888 團 153px → 172px; United States 8888 tours 225px → 240px
+ *   region (15px)                  首爾及京畿 8888 115px → 130px; Bangkok & Central Thailand 8888 249px → 262px
+ *   country without regions (19px) 巴布亞新畿內亞 9999 團 191px → 204px; Bosnia and Herzegovina 9999 tours 338px → 350px
+ * The tracks repeat as many times as fit (auto-fill), so every country's regions, and every grid of countries
+ * without regions, have the same columns at a given width: they line up down the page. A custom property holding
+ * ems is resolved in the grid that uses it, against that grid's font size.
+ */
+.page { --col-country: 9.053em; --col-region: 8.667em; --col-plain: 10.737em; }
+.page:lang(en) { --col-country: 12.632em; --col-region: 17.467em; --col-plain: 18.421em; }
 
-.countries {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 10px 14px;
-  margin: 0; padding: 0; list-style: none;
+/* Here the three sit in one row (wrapping as whole items), with no margins of their own. */
+.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.top > .heading, .top > .summary, .top > .browseLine { margin: 0; }
+
+/*
+ * The jump links: one box per part of the world, to its section below (an in-page anchor). The boxes of one row are
+ * as tall as its tallest (a flex line stretches its items), so a label wrapped to two lines makes its whole row taller.
+ */
+.jump { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 16px 0 30px; }
+.jumpLink {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 5px 12px;
+  border: 1px solid var(--line-control); border-radius: var(--radius-control); background: var(--surface);
+  font-size: 14px; font-weight: 700; line-height: 1.3;
 }
-.country { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); font-size: 14px; }
-.countryLink { font-size: 17px; font-weight: 700; color: var(--ink); }
-.regionLink { color: var(--ink); }
-.countryLink:focus-visible, .regionLink:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.count { color: var(--text-muted); white-space: nowrap; }
 
-/* The regions under their country, wrapping as a line of text. */
-.regions { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; padding: 0; list-style: none; line-height: 1.8; }
+/*
+ * A part of the world: the rule, its name, then its countries. A jump leaves a little room above the rule and moves
+ * the keyboard's focus here (tabindex -1), so the next Tab goes on from the section; the section draws no ring.
+ */
+.group { border-top: 2px solid var(--ink); padding: 12px 0 0; margin: 0 0 30px; scroll-margin-top: 12px; }
+.group:focus { outline: none; }
+.groupHeading { margin: 0 0 4px; font-size: 15px; font-weight: 900; line-height: 1.6; }
 
+.countries, .regions, .plain { margin: 0; padding: 0; list-style: none; }
+/* A country with regions: its name and count, then its regions. A hairline between countries. */
+.country { padding: 6px 0; font-size: 19px; }
+.country + .country, .countries + .plain { border-top: 1px solid var(--line); }
+/*
+ * Name and count on one baseline. The columns hold every name with its count at the normal text size; with the text
+ * made much larger the count goes under the name, and a name of several words wraps between them, rather than run
+ * into the next column (no word or number is ever split).
+ */
+.countryLine { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; column-gap: 8px; min-height: 34px; margin: 0; }
+.countryLink { font-size: 19px; font-weight: 900; }
+.regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--col-region), 100%), 1fr)); font-size: 15px; }
+.region { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; column-gap: 6px; min-height: 34px; }
+.regionLink { font-weight: 500; }
+
+/* The countries without regions, together in one grid at the end of their part of the world. */
+.plain { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--col-plain), 100%), 1fr)); padding: 6px 0; font-size: 19px; }
+.plainCountry { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; column-gap: 8px; min-height: 38px; }
+
+.countryLink, .regionLink, .jumpLink { color: var(--ink); text-decoration: none; }
+.countryLink:hover, .regionLink:hover, .jumpLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.countryLink:focus-visible, .regionLink:focus-visible, .jumpLink:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.count, .regionCount { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/*
+ * Wide screens: the part of the world's name in a column at the left (wider with larger text, so its longest word
+ * still fits), and each country's name in a column of its own before its regions, on the baseline of their first row.
+ */
+@media (min-width: 1024px) {
+  .group { display: grid; grid-template-columns: max(170px, 7em) minmax(0, 1fr); column-gap: 24px; }
+  .groupHeading { margin: 0; padding-top: 8px; }
+  .country { display: grid; grid-template-columns: var(--col-country) minmax(0, 1fr); align-items: baseline; }
+}
+
+/*
+ * Phones (Dest1Phone): the count line under the heading, then the link on a line of its own; everything 44px tall to
+ * touch; the part's name small and muted; regions at 14px; a country without regions with its count under its name.
+ * The columns, in ems as above, are sized for the ordinary names: three columns of Chinese regions on a 375px phone
+ * (114px); two of English regions, and of countries without regions, on a 320px one (148px; Chinese 146px holds
+ * 巴布亞新畿內亞). A cell whose name and count need more than that is marked .long on the server
+ * (lib/directory-cells.ts, from measured name widths and its count's digits) and takes the whole row, in its place,
+ * except where its column is wide enough: each grid is a query container, and the page's own container queries (in ems
+ * of the grid's font, so they hold at any text size) put such a cell back in its column there. A browser without
+ * container queries keeps every .long cell on a whole row.
+ */
 @media (max-width: 639px) {
+  .page { --col-region: 8.143em; --col-plain: 7.685em; }
+  .page:lang(en) { --col-region: 10.571em; --col-plain: 7.789em; }
   .heading { font-size: 24px; }
+  .top { display: block; }
+  .top > .summary { margin-top: 2px; font-size: 14px; }
+  .top > .browseLine { display: flex; align-items: center; }
+  .jump { margin: 4px 0 8px; }
+  .jumpLink { min-height: 44px; }
+  .group { padding-top: 10px; margin: 14px 0 0; }
+  .groupHeading { margin: 0 0 2px; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+  .country { padding: 2px 0 6px; }
+  .countryLine, .region, .plainCountry, .top > .browseLine { min-height: 44px; }
+  .regions { font-size: 14px; }
+  .region { column-gap: 5px; }
+  .plain { padding: 0; }
+  .regions, .plain { container-type: inline-size; }
+  /*
+   * Name over count, close together, with more room above and below (in ems: it grows with the text) so a count reads
+   * with its own name, never the next one's. The name's focus ring sits on its line box here (no offset), 2px outside
+   * it, so it stays over 4px clear of the count's digits.
+   */
+  .plainCountry { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; row-gap: 2px; padding: 0.32em 0; }
+  .plainCountry > .countryLink:focus-visible { outline-offset: 0; }
+  .long { grid-column: 1 / -1; }
 }

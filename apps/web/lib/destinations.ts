@@ -80,6 +80,31 @@ export function destinationIndex(places: PlacesIndex, counts: DestinationCounts)
   });
 }
 
+/** A part of the world in the directory (destinationDirectory): its countries with listed regions, then those without. */
+export interface DirectoryGroup { id: CountryGroupId; withRegions: IndexCountry[]; withoutRegions: IndexCountry[] }
+
+/** Most tours first; equal counts keep their order (the sort is stable). */
+function byMostTours<T extends { count: ListedCount }>(list: readonly T[]): T[] {
+  return [...list].sort((a, b) => b.count.tours - a.count.tours);
+}
+
+/**
+ * The destinations index's page (/tours): the index's destinations, the same ones, arranged as a directory. Parts of
+ * the world in their order; in each, the countries with at least one listed region (each a line with its regions),
+ * then the countries with none (together in one grid); countries and regions most tours first, ties in the index's
+ * order. The index itself (destinationIndex) keeps the data's order for the sitemap and the band.
+ */
+export function destinationDirectory(places: PlacesIndex, counts: DestinationCounts): DirectoryGroup[] {
+  return destinationIndex(places, counts).map(group => {
+    const countries = byMostTours(group.countries).map(country => ({ ...country, regions: byMostTours(country.regions) }));
+    return {
+      id: group.id,
+      withRegions: countries.filter(country => country.regions.length > 0),
+      withoutRegions: countries.filter(country => country.regions.length === 0),
+    };
+  });
+}
+
 /** Every listed destination, in the index's order: each country, then its regions. */
 export function listedDestinations(places: PlacesIndex, counts: DestinationCounts): Destination[] {
   return destinationIndex(places, counts).flatMap(g => g.countries.flatMap(c => [c.destination, ...c.regions.map(r => r.destination)]));
