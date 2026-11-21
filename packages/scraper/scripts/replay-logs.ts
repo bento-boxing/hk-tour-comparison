@@ -8,6 +8,9 @@
  *   pnpm replay --before <file>       compares with a replay saved earlier instead of a commit
  *   --logs <dir>                      where the logs are (default .superpowers/raw-pages, git-ignored)
  *
+ * Relative paths are read from where the command was typed (pnpm runs the script in packages/scraper). Finding no
+ * log at all exits 1: nothing was replayed, which must not read as a replay that changed nothing.
+ *
  * For each operator directory the newest `dry-run-<n>.log` or `dry-run-<YYYY-MM-DD>.log` is read (newestLogName: a
  * dated log is newer than any numbered one). Nothing is fetched. A page whose log gives no days
  * (logged, stated in the fallback text or in the code) is given one per day heading, counted per operator and marked
@@ -78,16 +81,22 @@ function printCounts(label: string, result: Replay): void {
 }
 
 async function main(args: string[]): Promise<number> {
-  const logsDir = resolve(option(args, '--logs') ?? join(REPO, '.superpowers/raw-pages'));
+  // pnpm runs package scripts in the package directory; INIT_CWD is where the command was typed.
+  const typedIn = process.env.INIT_CWD ?? process.cwd();
+  const path = (name: string): string | undefined => {
+    const value = option(args, name);
+    return value === undefined ? undefined : resolve(typedIn, value);
+  };
+  const logsDir = path('--logs') ?? join(REPO, '.superpowers/raw-pages');
   const base = option(args, '--base');
-  const beforeFile = option(args, '--before');
-  const saveFile = option(args, '--save');
+  const beforeFile = path('--before');
+  const saveFile = path('--save');
   if (base !== undefined && beforeFile !== undefined) throw new Error(`--base and --before do not go together\n${USAGE}`);
 
   const logs = newestLogs(logsDir);
   if (logs.size === 0) {
-    console.log(`no saved crawl logs (<operator>/dry-run-<n>.log or dry-run-<YYYY-MM-DD>.log) found under ${logsDir}`);
-    return 0;
+    console.error(`no saved crawl logs (<operator>/dry-run-<n>.log or dry-run-<YYYY-MM-DD>.log) found under ${logsDir}`);
+    return 1;
   }
   for (const [operator, { file }] of logs) console.log(`${operator}: ${file}`);
 

@@ -117,8 +117,10 @@ export function publicTourPage(html: string): string {
   return parts.join('\n');
 }
 
-/** `團號：CAK03`: the tour code, as plain letters, digits, `_` and `-`. */
-const CODE = /^團號\s*[:：]\s*([A-Za-z0-9_-]{1,40})$/;
+/** A tour code (`CAK03`): plain letters, digits, `_` and `-`, 1 to 40 of them. The same on a list card (discover.ts). */
+export const TOUR_CODE = /[A-Za-z0-9_-]{1,40}/;
+/** `團號：CAK03`: the tour code. */
+const CODE = new RegExp(`^團號\\s*[:：]\\s*(${TOUR_CODE.source})$`);
 
 /** The tour code of a page (raw or trimmed), or null. */
 export function codeOf(html: string): string | null {

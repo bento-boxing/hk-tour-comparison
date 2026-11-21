@@ -1,11 +1,14 @@
 name: nightly-scrape
 
-# Each night, aiming for 02:00 to 05:00 Hong Kong time (see the cron line): apply pending migrations, then scrape
-# every approved operator. A job killed by its timeout has saved nothing (saving is one
+# Each night: apply pending migrations, then scrape every approved operator, each in its own job with its own time
+# limit (the matrix below). A job killed by its limit has saved nothing for that operator (saving is one
 # transaction at the end), so last night's data stays. A failed job makes GitHub email the owner.
 on:
   schedule:
-    - cron: '17 12 * * *'   # 12:17 UTC, six hours early on purpose: GitHub has started this job about six hours late every night, and the aim is 02:00-05:00 Hong Kong (off the hour: GitHub delays or drops jobs scheduled on it)
+    # Scheduled for 12:17 UTC (20:17 Hong Kong), hours early on purpose: GitHub starts this job hours late (on 20 and
+    # 21 November 2026 it started at 04:29 and 03:25 Hong Kong, seven to eight hours late), so it runs in the small
+    # hours. Off the hour: GitHub delays or drops jobs scheduled on it.
+    - cron: '17 12 * * *'
   workflow_dispatch:
 
 permissions:
@@ -51,14 +54,26 @@ jobs:
           echo "CONTACT_EMAIL set: $([ -n "$CONTACT_EMAIL" ] && echo yes || echo no)"
 
   scrape:
+    name: scrape (${{ matrix.operator }})
     needs: migrate
     runs-on: ubuntu-latest
-    timeout-minutes: 170 # must be finished by 05:00 Hong Kong
+    # Each operator's limit, in minutes (the matrix below). A crawl keeps its polite pace however long that takes,
+    # and one killed by its limit has saved nothing for its operator that night, so each limit sits well above a
+    # normal run: Big Line's runs took 142 to 164 minutes (November 2026), the others' at most about 90.
+    timeout-minutes: ${{ matrix.minutes }}
     strategy:
       fail-fast: false # one operator failing must not stop the others
       matrix:
-        # Every key of SCRAPERS in packages/scraper/src/operators/index.ts.
-        operator: [egl, jetour, texpert, charming, yummy, bigline, sunflower, taste]
+        # Every key of SCRAPERS in packages/scraper/src/operators/index.ts, each with its limit.
+        include:
+          - { operator: egl, minutes: 170 }
+          - { operator: jetour, minutes: 170 }
+          - { operator: texpert, minutes: 170 }
+          - { operator: charming, minutes: 170 }
+          - { operator: yummy, minutes: 170 }
+          - { operator: bigline, minutes: 210 }
+          - { operator: sunflower, minutes: 170 }
+          - { operator: taste, minutes: 170 }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -84,22 +99,26 @@ jobs:
           SITE_URL: ${{ secrets.SITE_URL }}
           CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
 
-  # After the crawl, ask for the three stored home pages once, so each language's stored copy is made again
-  # from tonight's data even when nobody visits it for days (a stored copy older than an hour is made again
-  # in the background by the next request). Plain page requests to the site itself: no secret is sent, only
-  # status codes are printed, and a failed request never fails the workflow.
+  # After the crawl, ask once for each stored page: the home page, the destinations index (/tours) and the
+  # operators index (/operators), in each language, so their stored copies are made again from tonight's data
+  # even when nobody visits them for days. A request that finds a stored copy made more than an hour ago is
+  # answered with that copy and has it made again in the background. A copy made less than an hour ago (a visit
+  # or a deployment during the last hour made it) is served as it is and not made again: the first request after
+  # it turns an hour old does that. The site also reuses its database reads for up to an hour.
+  # Plain page requests to the site itself: no secret is sent, only status codes are printed, and a failed
+  # request never fails the workflow (each gives up after 60 seconds; nine of them fit inside the limit).
   refresh:
     needs: scrape
     if: ${{ !cancelled() }} # also when one operator's crawl failed: the others' data is new
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
-      - name: Request the stored home pages
+      - name: Request the stored pages
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
         run: |
           [ -n "$SITE_URL" ] || { echo "SITE_URL not set: skipped"; exit 0; }
-          for path in / /zh-hans /en; do
+          for path in / /zh-hans /en /tours /zh-hans/tours /en/tours /operators /zh-hans/operators /en/operators; do
             code=$(curl -s -o /dev/null -m 60 -w '%{http_code}' "$SITE_URL$path" || true)
             echo "$path $code"
           done

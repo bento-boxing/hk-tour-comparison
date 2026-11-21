@@ -56,6 +56,10 @@ describe('the tour', () => {
     expect(tourOf({ title: '<全包價>埃及 開羅 9天 <br />新線' }).title).toBe('<全包價>埃及 開羅 9天 新線');
     expect(tourOf({ title: '  ' }).title).toBe('');
   });
+
+  it.each(['CAK-03', 'CAK_03', 'A', 'A'.repeat(40)])('reads the code %j, as a list card does (discover.ts)', code => {
+    expect(tourOf({ number: `團號：${code}` }).code).toBe(code);
+  });
 });
 
 describe('a parse failure: no guessing from other fields', () => {

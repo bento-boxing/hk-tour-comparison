@@ -64,6 +64,34 @@ describe('readListPage', () => {
     expect(page.total).toBe(311);
   });
 
+  // The same codes as a tour page's `團號：` (public.ts): letters, digits, `_` and `-`, 1 to 40 of them.
+  it.each([
+    ['FYA10 - 雲南十天', 'FYA10'],
+    ['SJS12 - ', 'SJS12'],
+    ['SJS12 -', 'SJS12'],
+    ['CAK-03 - 江門3天', 'CAK-03'],
+    ['CAK_03 - 江門3天', 'CAK_03'],
+    ['A - 江門3天', 'A'],
+    ['CAK03 - 江門-開平3天', 'CAK03'],
+    ['CAK03 - 江門 - 開平3天', 'CAK03'],
+    ['CAK-03 - 江門 - 開平3天', 'CAK-03'],
+    ['CAK03  -  江門3天', 'CAK03'],
+    [`${'A'.repeat(40)} - 江門3天`, 'A'.repeat(40)],
+  ])('reads the tour code of a card titled %j as %j', (title, code) => {
+    const page = readListPage(rawListPage({ cards: [{ href: 1159, title, days: '3天' }] }));
+    expect(page.tours).toEqual([{ id: '1159', code }]);
+    expect(page.leftOut).toEqual({});
+  });
+
+  it.each([
+    '郵輪套票', '江門3天', 'CAK03-江門3天', 'CAK03 -江門3天', 'CAK03 江門3天', 'CAK.03 - 江門3天', '團號 CAK03 - 江門3天',
+    `${'A'.repeat(41)} - 江門3天`, ' - 江門3天',
+  ])('finds no tour code in a card titled %j', title => {
+    const page = readListPage(rawListPage({ cards: [{ href: 1159, title, days: '3天' }] }));
+    expect(page.tours).toEqual([]);
+    expect(page.leftOut).toEqual({ 'no tour code': 1 });
+  });
+
   it('sees the last page by its missing next-page link (下一頁)', () => {
     expect(readListPage(rawListPage({ offset: 310, next: false })).next).toBe(false);
     expect(readListPage(rawListPage({ offset: 150, next: true })).next).toBe(true);
@@ -127,6 +155,18 @@ describe('discoverTours', () => {
       'taste: 1 tour listed on more than one page, kept once',
       'taste: the list says 5 products, 5 entries found; 2 pages read, 2 tours, 2 left out',
     ]);
+  });
+
+  it('keeps a tour whose code has `-` or `_` or one character, asking only for its page by tour id', async () => {
+    const { fetcher, asked } = listFetcher({
+      0: rawListPage({ total: 3, cards: [
+        { href: 701, title: 'CAK-03 - 江門3天' }, { href: 702, title: 'CAK_03 - 江門3天' }, { href: 703, title: 'A - 江門3天' },
+      ] }),
+    });
+    const logs: string[] = [];
+    expect(await discoverTours(fetcher, line => logs.push(line))).toEqual([tourPageUrl('701'), tourPageUrl('702'), tourPageUrl('703')]);
+    expect(asked).toEqual([listUrl(0)]);
+    expect(logs).toEqual(['taste: the list says 3 products, 3 entries found; 1 page read, 3 tours, 0 left out']);
   });
 
   it('ends at an empty page only when it links no next page', async () => {

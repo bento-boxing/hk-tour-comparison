@@ -148,6 +148,15 @@ describe('either/or flight city next to 香港', () => {
   it('drops an X/Y leg right after 香港 on day 1 and right before 香港 on the last day', () => {
     expect(headingsOf(['香港 ~ 甲/乙 ~ 丙', '丙 ~ 丁', '丁 ~ 戊/己 ~ 香港'])).toEqual(['香港 ~ 丙', '丙 ~ 丁', '丁 ~ 香港']);
   });
+  it('reads a full-width slash as a half-width one, mixed or alone', () => {
+    expect(headingsOf(['香港 ~ 杭州／上海 ~ 烏鎮', '烏鎮 ~ 蘇州', '蘇州 ~ 上海／杭州/南京 ~ 香港']))
+      .toEqual(['香港 ~ 烏鎮', '烏鎮 ~ 蘇州', '蘇州 ~ 香港']);
+    expect(headingsOf(['香港 ~ 烏鎮 ~ 杭州／上海', '杭州／上海 ~ 烏鎮 ~ 香港']))
+      .toEqual(['香港 ~ 烏鎮 ~ 杭州／上海', '杭州／上海 ~ 烏鎮 ~ 香港']);
+  });
+  it('keeps a stop that only starts or ends with a slash', () => {
+    expect(headingsOf(['香港 ~ ／杭州 ~ 烏鎮', '烏鎮 ~ 杭州/ ~ 香港'])).toEqual(['香港 ~ ／杭州 ~ 烏鎮', '烏鎮 ~ 杭州/ ~ 香港']);
+  });
   it('keeps an X/Y segment anywhere else', () => {
     expect(headingsOf(['香港 ~ 丙 ~ 甲/乙', '丙 ~ 甲/乙 ~ 丁', '丁 ~ 甲/乙 ~ 戊 ~ 香港']))
       .toEqual(['香港 ~ 丙 ~ 甲/乙', '丙 ~ 甲/乙 ~ 丁', '丁 ~ 甲/乙 ~ 戊 ~ 香港']);

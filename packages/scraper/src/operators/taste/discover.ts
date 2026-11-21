@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
+import { TOUR_CODE } from './public';
 
 /**
  * The only three path shapes ever requested on the site (docs/operators/taste.md), all by plain GET with no extra
@@ -77,8 +78,12 @@ export interface ListPage {
   pagerLinks: number;
 }
 
-/** A card's title, `CAK03 - <title>`: the tour code before ` - `. The title may be empty (`SJS12 - `). */
-const CARD_CODE = /^([A-Za-z0-9]{2,40})\s+-(?:\s|$)/;
+/**
+ * A card's title, `CAK03 - <title>`: the tour code (TOUR_CODE, as on the tour page) before ` - `. A code may hold `-`
+ * itself (`CAK-03 - <title>`) but no space, so it ends at the first space, and the ` - ` after it is the title's. The
+ * title may be empty (`SJS12 - `). The code only tells a group tour from other products: no request URL holds it.
+ */
+const CARD_CODE = new RegExp(`^(${TOUR_CODE.source})\\s+-(?:\\s|$)`);
 const CARD_DAYS = /^(\d+)\s*天$/;
 const NEXT_PAGE = '下一頁';
 

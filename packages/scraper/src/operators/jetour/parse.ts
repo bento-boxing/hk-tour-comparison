@@ -24,8 +24,8 @@ const MAX_GATHERING_LENGTH = 12;
 const STOP_SEPARATOR = /[~～]/;
 const ACTIVITIES = /[：:].*$/;
 const BRACKETED = /\([^)]*\)/g;
-/** `杭州/上海`: either city, as in a flight leg into or out of one of two airports. */
-const EITHER_OR = /^[^/]+(?:\/[^/]+)+$/;
+/** `杭州/上海` or `杭州／上海`: either city, as in a flight leg into or out of one of two airports. */
+const EITHER_OR = /^[^/／]+(?:[/／][^/／]+)+$/;
 const HONG_KONG = '香港';
 
 /** Text without zero-width characters, with runs of whitespace (including no-break spaces) as one space. */

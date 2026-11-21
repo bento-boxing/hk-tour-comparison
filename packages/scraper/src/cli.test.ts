@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { rootCertificates } from 'node:tls';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ScrapedTour } from '@hktours/core';
@@ -21,6 +21,35 @@ function tour(code: string, patch: Partial<ScrapedTour> = {}): ScrapedTour {
     departures: [{ date: '2026-12-18', priceHkd: 7999 }],
     ...patch,
   };
+}
+
+const nightlyWorkflow = () => readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
+
+/** One job of a workflow, as text: from its `  <id>:` line to the next line indented two spaces or less. */
+function jobOf(workflow: string, id: string): string {
+  const lines = workflow.split('\n');
+  const start = lines.indexOf(`  ${id}:`);
+  if (start === -1) throw new Error(`no job ${id}`);
+  const end = lines.findIndex((line, i) => i > start && /^ {0,2}\S/.test(line));
+  return lines.slice(start, end === -1 ? undefined : end).join('\n');
+}
+
+/**
+ * The matrix of a job, which must be a list of `include` entries `- { operator: <id>, minutes: <n> }` and nothing
+ * else: any other line in it fails the test, rather than being skipped.
+ */
+function matrixEntries(job: string): { operator: string; minutes: number }[] {
+  const lines = job.split('\n');
+  const at = lines.indexOf('      matrix:');
+  if (at === -1) throw new Error('no matrix');
+  const block = lines.slice(at + 1, lines.findIndex((line, i) => i > at && /^ {0,6}\S/.test(line)));
+  const body = block.filter(line => !/^\s*(#.*)?$/.test(line));
+  expect(body[0]).toBe('        include:');
+  return body.slice(1).map(line => {
+    const entry = /^ {10}- \{ operator: ([a-z]+), minutes: ([1-9]\d*) \}$/.exec(line);
+    if (!entry) throw new Error(`not a matrix entry: ${line}`);
+    return { operator: entry[1], minutes: Number(entry[2]) };
+  });
 }
 
 /** Each URL's page: the JSON of a ScrapedTour, or the string "null" for a page the parser rejects. */
@@ -546,11 +575,48 @@ describe('SCRAPERS', () => {
   it('the nightly workflow scrapes every registered operator, except those awaiting their measured crawl', async () => {
     /** Registered, but added to the nightly matrix only after a measured crawl has set its first-run floor. */
     const awaitingMeasuredCrawl: string[] = [];
-    const workflow = await readFile(new URL('../../../.github/workflows/nightly-scrape.yml', import.meta.url), 'utf8');
-    const matrix = /^\s+operator: \[([^\]]*)\]\s*$/m.exec(workflow);
-    expect(matrix, 'operator matrix line').not.toBeNull();
-    expect(matrix![1].split(',').map(id => id.trim()).sort())
+    const entries = matrixEntries(jobOf(await nightlyWorkflow(), 'scrape'));
+    expect(entries.map(entry => entry.operator).sort())
       .toEqual(Object.keys(SCRAPERS).filter(id => !awaitingMeasuredCrawl.includes(id)).sort());
+  });
+
+  it('each nightly crawl job has its own time limit: Big Line 210 minutes (its runs took 142 to 164), the others 170', async () => {
+    const scrape = jobOf(await nightlyWorkflow(), 'scrape');
+    expect(Object.fromEntries(matrixEntries(scrape).map(entry => [entry.operator, entry.minutes])))
+      .toEqual(Object.fromEntries(Object.keys(SCRAPERS).map(id => [id, id === 'bigline' ? 210 : 170])));
+    expect(scrape.match(/^ {4}timeout-minutes:.*$/gm)).toEqual(['    timeout-minutes: ${{ matrix.minutes }}']);
+    // The job keeps its name in the Actions tab, `scrape (bigline)`, rather than `scrape (bigline, 210)`.
+    expect(scrape).toMatch(/^ {4}name: scrape \(\$\{\{ matrix\.operator \}\}\)$/m);
+    expect(scrape).toMatch(/^ {6}- run: pnpm scrape --operator \$\{\{ matrix\.operator \}\}$/m);
+  });
+
+  it('after the crawl, the workflow asks once for every stored page of the site, in each language', async () => {
+    const refresh = jobOf(await nightlyWorkflow(), 'refresh');
+    const paths = /^ {10}for path in ([^;]+); do$/m.exec(refresh)?.[1].trim().split(/ +/);
+    expect(paths).toEqual(['/', '/zh-hans', '/en', '/tours', '/zh-hans/tours', '/en/tours', '/operators', '/zh-hans/operators', '/en/operators']);
+    // The stored pages are the route files with a `revalidate`: all of them, and only them, are asked for.
+    const app = new URL('../../../apps/web/app/', import.meta.url);
+    const stored: string[] = [];
+    for (const file of await readdir(app, { recursive: true })) {
+      if (!/(^|\/)page\.tsx$/.test(file)) continue;
+      const source = await readFile(new URL(file, app), 'utf8');
+      if (!/^export const revalidate = 3600;$/m.test(source)) continue;
+      stored.push(`/${file.split('/').filter(part => !/^\(.*\)$/.test(part) && part !== 'page.tsx').join('/')}`);
+    }
+    expect(stored.sort()).toEqual([...paths!].sort());
+  });
+
+  it('the refresh prints only status codes, sends no secret, and a failed or slow request never fails the workflow', async () => {
+    const refresh = jobOf(await nightlyWorkflow(), 'refresh');
+    expect([...refresh.matchAll(/\$\{\{([^}]*)\}\}/g)].map(match => match[1].trim())).toEqual(['!cancelled()', 'secrets.SITE_URL']);
+    expect(refresh).toMatch(/^ {10}\[ -n "\$SITE_URL" \] \|\| \{ echo "SITE_URL not set: skipped"; exit 0; \}$/m);
+    expect(refresh).toContain(`code=$(curl -s -o /dev/null -m 60 -w '%{http_code}' "$SITE_URL$path" || true)`);
+    expect([...refresh.matchAll(/^.*\b(?:echo|printf|cat|tee)\b.*$/gm)].map(match => match[0].trim()))
+      .toEqual(['[ -n "$SITE_URL" ] || { echo "SITE_URL not set: skipped"; exit 0; }', 'echo "$path $code"']);
+    expect(refresh.match(/curl/g)).toHaveLength(1);
+    // Nine requests of at most 60 seconds each fit well inside the job's limit, so the job is never killed by it.
+    const minutes = Number(/^ {4}timeout-minutes: (\d+)$/m.exec(refresh)?.[1]);
+    expect(9 * 60).toBeLessThan((minutes - 2) * 60);
   });
 
   it('the nightly schedule is on, once a day at 12:17 UTC (early on purpose: GitHub starts it hours late), off the hour', async () => {
@@ -559,5 +625,127 @@ describe('SCRAPERS', () => {
     const crons = [...workflow.matchAll(/^\s*-\s*cron:\s*'([^']*)'/gm)].map(match => match[1]);
     expect(crons).toEqual(['17 12 * * *']);
     expect(workflow).not.toMatch(/^\s*#\s*-\s*cron:/m);
+  });
+});
+
+/**
+ * What can be checked of a workflow file without GitHub or a YAML library: no tabs, indentation in steps of two, no
+ * key given twice in one mapping, every quote, bracket and `${{ … }}` closed on its line, no plain value that YAML
+ * would read as something else (`!`, `&`, `*` at its start; `: ` inside it), and each expression made only of
+ * known contexts, known functions, operators and literals. Lines inside a block scalar (`run: |`) are shell, not
+ * YAML, and are skipped except for their expressions. Returns the problems, each with its line number.
+ */
+function workflowProblems(text: string): string[] {
+  const problems: string[] = [];
+  const CONTEXTS = new Set(['github', 'env', 'vars', 'job', 'jobs', 'steps', 'runner', 'secrets', 'strategy', 'matrix', 'needs', 'inputs']);
+  const FUNCTIONS = new Set(['contains', 'startsWith', 'endsWith', 'format', 'join', 'toJSON', 'fromJSON', 'hashFiles',
+    'success', 'always', 'cancelled', 'failure']);
+  const expressionProblem = (expression: string): string | null => {
+    let depth = 0;
+    const tokens = expression.match(/'(?:[^']|'')*'|\d+(?:\.\d+)?|[A-Za-z_][\w-]*(?:\.[A-Za-z_*][\w-]*)*|==|!=|<=|>=|&&|\|\||[!()<>,]|\S/g) ?? [];
+    for (const [i, token] of tokens.entries()) {
+      if (token === '(') depth++;
+      else if (token === ')') { if (--depth < 0) return 'a ) with no ('; }
+      else if (/^[A-Za-z_]/.test(token)) {
+        const root = token.split('.')[0];
+        if (tokens[i + 1] === '(') { if (!FUNCTIONS.has(token)) return `unknown function ${token}`; }
+        else if (!['true', 'false', 'null'].includes(token) && !CONTEXTS.has(root)) return `unknown context ${root}`;
+      } else if (!/^(?:'.*'|\d.*|==|!=|<=|>=|&&|\|\||[!<>,])$/s.test(token)) return `unexpected ${token}`;
+    }
+    return depth === 0 ? null : 'a ( with no )';
+  };
+  const stack: { indent: number; keys: Set<string> }[] = [];
+  let blockAt: number | null = null;
+  text.split('\n').forEach((line, i) => {
+    const at = `line ${i + 1}`;
+    if (line.includes('\t')) problems.push(`${at}: a tab`);
+    for (const piece of line.split('${{').slice(1)) {
+      const end = piece.indexOf('}}');
+      if (end === -1) { problems.push(`${at}: \${{ not closed`); continue; }
+      const why = expressionProblem(piece.slice(0, end));
+      if (why !== null) problems.push(`${at}: ${why}`);
+    }
+    if (line.trim() === '' || /^ *\t/.test(line)) return;
+    const indent = line.length - line.trimStart().length;
+    if (blockAt !== null) {
+      if (indent > blockAt) return;
+      blockAt = null;
+    }
+    if (line.trimStart().startsWith('#')) return;
+    if (indent % 2 !== 0) problems.push(`${at}: indented by an odd number of spaces`);
+    let rest = line.slice(indent);
+    let keyIndent = indent;
+    if (rest === '-' || rest.startsWith('- ')) {
+      keyIndent = indent + 2;
+      rest = rest.slice(2);
+      while (stack.length > 0 && stack[stack.length - 1].indent >= keyIndent) stack.pop();
+      stack.push({ indent: keyIndent, keys: new Set() });
+    }
+    const key = /^([A-Za-z_][\w-]*):(?: +|$)(.*)$/.exec(rest);
+    const value = (key ? key[2] : rest).replace(/(^| )#.*$/, '').trim();
+    if (key) {
+      while (stack.length > 0 && stack[stack.length - 1].indent > keyIndent) stack.pop();
+      if (stack.length === 0 || stack[stack.length - 1].indent < keyIndent) stack.push({ indent: keyIndent, keys: new Set() });
+      const keys = stack[stack.length - 1].keys;
+      if (keys.has(key[1])) problems.push(`${at}: ${key[1]} given twice`);
+      keys.add(key[1]);
+      if (/^[|>][-+]?$/.test(value)) { blockAt = keyIndent; return; }
+    }
+    if (value === '') return;
+    if (/^[!&*@`%]/.test(value)) problems.push(`${at}: a plain value may not start with ${value[0]}`);
+    else if (value.startsWith("'")) { if (!/^'(?:[^']|'')*'$/.test(value)) problems.push(`${at}: a quote not closed`); }
+    else if (value.startsWith('"')) { if (!/^"(?:[^"\\]|\\.)*"$/.test(value)) problems.push(`${at}: a quote not closed`); }
+    else if (value.startsWith('[') || value.startsWith('{')) {
+      const outside = value.replace(/\$\{\{.*?\}\}/g, 'x').replace(/'(?:[^']|'')*'/g, 'x');
+      const opened = (outside.match(/[[{]/g) ?? []).length;
+      if (opened !== (outside.match(/[\]}]/g) ?? []).length || !/[\]}]$/.test(outside)) problems.push(`${at}: a bracket not closed`);
+    } else if (/: /.test(value.replace(/\$\{\{.*?\}\}/g, 'x'))) problems.push(`${at}: ": " inside a plain value`);
+  });
+  return problems;
+}
+
+describe('the workflow files', () => {
+  const dir = new URL('../../../.github/workflows/', import.meta.url);
+
+  it('finds the faults it looks for (the check itself)', () => {
+    const bad = (yaml: string) => workflowProblems(yaml);
+    expect(bad('jobs:\n  a:\n    if: ${{ !cancelled() }}\n    run: |\n      echo "a: b" # odd:  indent\n')).toEqual([]);
+    expect(bad('a:\n\tb: 1')).toEqual(['line 2: a tab']);
+    expect(bad('a:\n   b: 1')).toEqual(['line 2: indented by an odd number of spaces']);
+    expect(bad('a:\n  b: 1\n  c: 2\n  b: 3')).toEqual(['line 4: b given twice']);
+    expect(bad('a:\n  - b: 1\n    c: 2\n  - b: 3\n    c: 4')).toEqual([]);
+    expect(bad('a:\n  - b: 1\n    b: 2')).toEqual(['line 3: b given twice']);
+    expect(bad('if: !cancelled()')).toEqual(['line 1: a plain value may not start with !']);
+    expect(bad('run: echo a: b')).toEqual(['line 1: ": " inside a plain value']);
+    expect(bad("cron: '17 12 * * *")).toEqual(['line 1: a quote not closed']);
+    expect(bad('operator: [egl, jetour')).toEqual(['line 1: a bracket not closed']);
+    expect(bad('- { operator: egl, minutes: 170 }')).toEqual([]);
+    expect(bad('t: ${{ matrix.minutes }')).toEqual(['line 1: ${{ not closed']);
+    expect(bad('t: ${{ matrx.minutes }}')).toEqual(['line 1: unknown context matrx']);
+    expect(bad('t: ${{ !canceled() }}')).toEqual(['line 1: unknown function canceled']);
+    expect(bad('t: ${{ (success() }}')).toEqual(['line 1: a ( with no )']);
+    expect(bad("t: ${{ matrix.operator == 'bigline' && 210 || 170 }}")).toEqual([]);
+  });
+
+  it.each(['ci.yml', 'check-settings.yml', 'nightly-scrape.yml'])('%s has none of those faults', async name => {
+    expect(workflowProblems(await readFile(new URL(name, dir), 'utf8'))).toEqual([]);
+  });
+
+  it('are the three checked above', async () => {
+    expect((await readdir(dir)).sort()).toEqual(['check-settings.yml', 'ci.yml', 'nightly-scrape.yml']);
+  });
+
+  it('the nightly workflow uses only its own secrets, only the matrix keys it defines, and needs only earlier jobs', async () => {
+    const workflow = await nightlyWorkflow();
+    expect([...new Set([...workflow.matchAll(/\bsecrets\.([A-Za-z_]+)/g)].map(match => match[1]))].sort())
+      .toEqual(['CONTACT_EMAIL', 'DATABASE_CA_CERT', 'DATABASE_URL', 'SITE_URL']);
+    const scrape = jobOf(workflow, 'scrape');
+    expect([...new Set([...scrape.matchAll(/\bmatrix\.([A-Za-z_]+)/g)].map(match => match[1]))].sort()).toEqual(['minutes', 'operator']);
+    expect(workflow.replace(scrape, '')).not.toMatch(/\bmatrix\./);
+    const jobs = [...workflow.slice(workflow.indexOf('\njobs:\n')).matchAll(/^ {2}([a-z][\w-]*):$/gm)].map(match => match[1]);
+    expect(jobs).toEqual(['migrate', 'scrape', 'refresh']);
+    expect([...workflow.matchAll(/^ {4}needs: (\S+)$/gm)].map(match => match[1])).toEqual(['migrate', 'scrape']);
+    for (const job of jobs) expect(jobOf(workflow, job), job).toMatch(/^ {4}timeout-minutes: (?:\d+|\$\{\{ matrix\.minutes \}\})$/m);
+    expect([...workflow.matchAll(/^([a-z][\w-]*):/gm)].map(match => match[1])).toEqual(['name', 'on', 'permissions', 'concurrency', 'jobs']);
   });
 });
