@@ -1,8 +1,8 @@
 'use client';
 
+import { useLayoutEffect } from 'react';
 import type { T } from '../lib/i18n';
-import type { Theme } from '../lib/theme';
-import { setTheme } from '../lib/theme-action';
+import { chooseTheme, keepThemeInStep } from '../lib/theme-choice';
 import styles from './ThemeSwitch.module.css';
 
 /** A moon: what the page turns into. Drawn in the button's text colour. */
@@ -28,28 +28,31 @@ function Sun() {
 }
 
 /**
- * The theme switch in the nav bar: a form whose action stores the choice in a cookie, so the server renders
- * <html data-theme> from then on and no page ever paints in the wrong theme. Two submit buttons, "switch to dark"
- * and "switch to light"; theme.css shows only the one for the theme the page is not in (whether that came from
- * the cookie or from the system setting), so the server need not know the system setting. A click also sets
- * data-theme at once, so the page changes before the server answers.
+ * The theme switch in the nav bar: two buttons, "switch to dark" and "switch to light". A click sets
+ * <html data-theme> at once and remembers the choice in this browser (lib/theme-choice.ts); the script in <head>
+ * applies it on every later page before anything is drawn. theme.css shows only the button for the theme the page
+ * is not in (whether chosen or from the system setting), so the server need not know the theme and the right icon
+ * is drawn from the first paint. With JavaScript off the switch is hidden (it could not work); the page then
+ * follows the system setting.
  */
 export function ThemeSwitch({ t }: { t: T }) {
-  const choose = (theme: Theme) => () => { document.documentElement.setAttribute('data-theme', theme); };
+  // Before paint: the stored choice back on <html> should React's development remount clear it (Next.js's guide
+  // says it can; not seen with React 19.3 and Next.js 16.4), then in step with the other tabs.
+  useLayoutEffect(() => keepThemeInStep(), []);
   return (
-    <form action={setTheme} className={styles.form}>
+    <div className={styles.switch}>
       <button
-        type="submit" name="theme" value="dark" onClick={choose('dark')}
+        type="button" onClick={() => chooseTheme('dark')}
         className={`${styles.option} ${styles.toDark}`} aria-label={t('theme.toDark')} title={t('theme.toDark')}
       >
         <Moon />
       </button>
       <button
-        type="submit" name="theme" value="light" onClick={choose('light')}
+        type="button" onClick={() => chooseTheme('light')}
         className={`${styles.option} ${styles.toLight}`} aria-label={t('theme.toLight')} title={t('theme.toLight')}
       >
         <Sun />
       </button>
-    </form>
+    </div>
   );
 }

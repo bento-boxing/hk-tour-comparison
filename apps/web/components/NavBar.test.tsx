@@ -11,7 +11,6 @@ import { resetSavedCache, saveTour, SAVED_KEY } from '../lib/saved-tours';
 // The language switch inside reads the address.
 const address = vi.hoisted(() => ({ pathname: '/', search: '' }));
 vi.mock('next/navigation', () => ({ usePathname: () => address.pathname, useSearchParams: () => new URLSearchParams(address.search) }));
-vi.mock('../lib/theme-action', () => ({ setTheme: vi.fn() }));
 // next/link as a plain <a> that shows the prefetch setting it was given (data-prefetch), so the tests can check it.
 vi.mock('next/link', () => ({
   default: ({ href, prefetch, children, ...rest }: { href: string; prefetch?: boolean | null; children: React.ReactNode }) =>

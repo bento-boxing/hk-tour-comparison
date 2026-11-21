@@ -4,24 +4,20 @@ import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useT } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
+import { THEME_SCRIPT } from '../../lib/theme';
 import { SiteFrame, siteFrameMetadata } from './site-frame';
 import styles from './site-frame.module.css';
 
-// `value` is a leftover language cookie from before the language moved into the address: it must be ignored.
-const cookie = vi.hoisted(() => ({ value: undefined as string | undefined, theme: undefined as string | undefined }));
+// Nothing in the frame reads the request: a call to cookies() or headers() fails the test. (Before, an old language
+// cookie and then the theme cookie were read here; both must be ignored now.)
 vi.mock('next/headers', () => ({
-  cookies: async () => ({
-    get: (name: string) => {
-      const value = name === 'locale' ? cookie.value : name === 'theme' ? cookie.theme : undefined;
-      return value === undefined ? undefined : { name, value };
-    },
-  }),
+  cookies: () => { throw new Error('the frame read the cookies'); },
+  headers: () => { throw new Error('the frame read the headers'); },
 }));
 const address = vi.hoisted(() => ({ pathname: '/', search: '' }));
 vi.mock('next/navigation', () => ({ usePathname: () => address.pathname, useSearchParams: () => new URLSearchParams(address.search) }));
-vi.mock('../../lib/theme-action', () => ({ setTheme: vi.fn() }));
 
-beforeEach(() => { cookie.value = undefined; cookie.theme = undefined; address.pathname = '/'; address.search = ''; });
+beforeEach(() => { address.pathname = '/'; address.search = ''; });
 
 /** A client component inside the layout: it sees the provider's locale. */
 function ClientText() {
@@ -29,7 +25,7 @@ function ClientText() {
 }
 
 async function renderLayout(locale: Locale = 'zh-Hant'): Promise<string> {
-  return renderToStaticMarkup(await SiteFrame({ locale, children: <ClientText /> }));
+  return renderToStaticMarkup(SiteFrame({ locale, children: <ClientText /> }));
 }
 
 it.each([
@@ -43,13 +39,7 @@ it.each([
   expect(html).toContain(disclaimer); // server: the footer
 });
 
-it.each([
-  ['zh-Hant', 'en'],
-  ['zh-Hant', 'zh-Hans'],
-  ['en', 'zh-Hant'],
-  ['zh-Hans', 'en'],
-] as const)('a page in %s ignores an old language cookie that says %s: the address alone decides', async (locale, oldCookie) => {
-  cookie.value = oldCookie;
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('%s: the address alone decides the language (no cookie is read)', async locale => {
   const html = await renderLayout(locale);
   expect(html).toMatch(new RegExp(`^<html lang="${{ 'zh-Hant': 'zh-Hant-HK', 'zh-Hans': 'zh-Hans', en: 'en' }[locale]}"`));
 });
@@ -117,20 +107,25 @@ it.each([
   expect(css).toMatch(/\.withNotice \{ scroll-padding-top: 5rem; \}/);
 });
 
-it.each([
-  ['dark', ' data-theme="dark"'],
-  ['light', ' data-theme="light"'],
-])('theme cookie %j: the server renders <html%s>, so the first paint is in the chosen theme', async (value, attr) => {
-  cookie.theme = value;
-  const html = await renderLayout();
-  expect(html).toMatch(new RegExp(`^<html lang="zh-Hant-HK"${attr}>`));
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('%s: no data-theme from the server; the script in <head> sets it in the browser, before <body>', async locale => {
+  const html = await renderLayout(locale);
+  expect(html).not.toContain('data-theme=');
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const scripts = [...doc.querySelectorAll('script')];
+  expect(scripts).toHaveLength(1);
+  expect(scripts[0].parentElement?.tagName).toBe('HEAD');
+  expect(scripts[0].textContent).toBe(THEME_SCRIPT);
+  expect(html.indexOf('<script')).toBeGreaterThan(-1);
+  expect(html.indexOf('<script')).toBeLessThan(html.indexOf('<body>'));
+  // Its type (none on the server, text/plain in the browser): components/ThemeScript*.test.tsx.
 });
 
-it.each([undefined, '', 'system', 'Dark'])('theme cookie %j: no data-theme, so the visitor\'s system setting decides (CSS media query)', async value => {
-  cookie.theme = value;
-  const html = await renderLayout();
-  expect(html).toMatch(/^<html lang="zh-Hant-HK">/);
-  expect(html).not.toContain('data-theme');
+it('<html> accepts the attribute the script sets (suppressHydrationWarning on <html>), as React and Next.js document', () => {
+  const frame = SiteFrame({ locale: 'en', children: null });
+  expect(frame.type).toBe('html');
+  expect(frame.props.suppressHydrationWarning).toBe(true);
+  const html = renderToStaticMarkup(frame);
+  expect(html.match(/suppressHydrationWarning/gi)).toBeNull();
 });
 
 it('the nav bar has the theme switch beside the language switch', async () => {

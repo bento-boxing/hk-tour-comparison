@@ -3,6 +3,7 @@ import '../lib/theme.css';
 import { HTML_LANG, LOCALES, makeT } from '../lib/i18n';
 import { HREFLANG, localeHref } from '../lib/locale-path';
 import { Mark } from '../components/Mark';
+import { ThemeScript } from '../components/ThemeScript';
 import styles from './global-not-found.module.css';
 
 const zh = makeT('zh-Hant');
@@ -15,11 +16,15 @@ export const metadata: Metadata = { title: `${zh('notFound.title')} | ${zh('site
  * Each language has its own root layout, so there is no one layout for a 404 page; Next.js serves this whole
  * document instead (experimental.globalNotFound in next.config.ts). Such an address has no language of its own,
  * so the page guesses none: it says so in all three, each with a link to the search page in that language.
- * The theme follows the system setting (theme.css), as for a visitor who never chose one.
+ * The theme is the visitor's stored choice, set by the script in <head> as on every other page (ThemeScript), or
+ * the system setting when there is none.
  */
 export default function GlobalNotFound() {
   return (
-    <html lang={HTML_LANG['zh-Hant']}>
+    <html lang={HTML_LANG['zh-Hant']} suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body>
         <header className={styles.bar}>
           <div className={styles.barInner}><b className={styles.name}><Mark className={styles.mark} />{zh('site.name')}</b></div>

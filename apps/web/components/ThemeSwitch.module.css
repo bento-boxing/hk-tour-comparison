@@ -1,5 +1,10 @@
 /* The theme switch, at the right end of the header after the language switch (on the ink bar). 44px for touch. */
-.form { margin: 0; display: flex; }
+.switch { margin: 0; display: flex; }
+
+/* It works in the browser only (lib/theme-choice.ts): with JavaScript off it is not shown, and the page follows the system. */
+@media (scripting: none) {
+  .switch { display: none; }
+}
 
 .option {
   min-height: 44px; min-width: 44px; padding: 0; border: 0; border-radius: var(--radius-control); background: none;

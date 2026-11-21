@@ -4,9 +4,9 @@
  * (lib/colour-literals.test.ts checks), and lib/theme.test.ts checks every text/background pair against WCAG AA in
  * both themes.
  *
- * Light by default. Dark when the visitor chose it with the theme switch (<html data-theme="dark">, from the
- * `theme` cookie, rendered on the server), or when they have not chosen and their system is dark (the media
- * query below). <html data-theme="light"> keeps light on a dark system. The dark values appear twice, once for
+ * Light by default. Dark when the visitor chose it with the theme switch (<html data-theme="dark">, set in the
+ * browser before the first paint by the script in <head> from the stored choice: lib/theme.ts), or when they have
+ * not chosen and their system is dark (the media query below). <html data-theme="light"> keeps light on a dark system. The dark values appear twice, once for
  * each of those cases; the test checks the two copies are the same.
  *
  * Names say what a colour is for, not what it looks like: --ink is the text in both themes (dark ink on light

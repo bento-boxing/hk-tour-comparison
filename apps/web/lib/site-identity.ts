@@ -9,9 +9,10 @@ import { resolveSiteIdentity, type SiteIdentity } from '@hktours/core';
 // process, on the first call, and that result is kept: a request never pays for checking them again.
 //
 // When it is called:
-//   - static routes (/robots.txt) at build time, so their output carries the values the build had;
-//   - dynamic routes (every page, since the theme cookie renders them per request, and /sitemap.xml) on each
-//     request, from the kept result.
+//   - static routes (/robots.txt, and the pages that read no data) at build time, so their output carries the
+//     values the build had;
+//   - dynamic routes (the pages that read the database, through requestDb's connection(), and /sitemap.xml) on
+//     each request, from the kept result.
 
 let resolved: SiteIdentity | undefined;
 

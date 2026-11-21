@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import '../../lib/theme.css';
 import { HTML_LANG, makeT, type Locale } from '../../lib/i18n';
-import { getTheme } from '../../lib/theme-server';
 import { siteMetadata } from '../../lib/site-metadata';
 import { I18nProvider } from '../../lib/i18n-client';
 import { LanguageNotice } from '../../components/LanguageNotice';
 import { SiteNav } from '../../components/SiteNav';
 import { Footer } from '../../components/Footer';
+import { ThemeScript } from '../../components/ThemeScript';
 import styles from './site-frame.module.css';
 
 /**
@@ -21,20 +21,18 @@ export function siteFrameMetadata(locale: Locale): Metadata {
 /**
  * Every page's frame (<html> to the footer), in the language of the address: the root layouts give it
  * (app/(zh-hant)/layout.tsx for the unprefixed addresses, app/zh-hans/layout.tsx and app/en/layout.tsx).
- * The theme cookie renders every route per request, as the pages already were (requestDb).
+ * Nothing in it depends on the request: the theme is the browser's (the script in <head> sets <html data-theme>
+ * from the visitor's stored choice before the first paint; suppressHydrationWarning lets React accept that
+ * attribute), so the HTML is the same for every visitor.
  */
-export async function SiteFrame({ locale, children }: { locale: Locale; children: ReactNode }) {
+export function SiteFrame({ locale, children }: { locale: Locale; children: ReactNode }) {
   // One locale for the server translator, the client provider and <html lang>, so they cannot disagree.
   const t = makeT(locale);
-  // The theme the visitor chose (cookie), on <html> from the first byte so no page paints in the wrong theme;
-  // without a choice, no attribute, and theme.css follows the system setting.
-  const theme = await getTheme();
   return (
-    <html
-      lang={HTML_LANG[locale]}
-      data-theme={theme ?? undefined}
-      className={locale === 'zh-Hant' ? undefined : styles.withNotice}
-    >
+    <html lang={HTML_LANG[locale]} className={locale === 'zh-Hant' ? undefined : styles.withNotice} suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body>
         <I18nProvider locale={locale}>
           <LanguageNotice t={t} />

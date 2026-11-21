@@ -7,6 +7,7 @@ import { getPathMatch } from 'next/dist/shared/lib/router/utils/path-match';
 import { prepareDestination } from 'next/dist/shared/lib/router/utils/prepare-destination';
 import { getRedirectStatus, modifyRouteRegex } from 'next/dist/lib/redirect-status';
 import { nextConfig } from '../next.config';
+import { THEME_SCRIPT } from '../lib/theme';
 
 const page = () => new DOMParser().parseFromString(renderToStaticMarkup(<GlobalNotFound />), 'text/html');
 
@@ -17,6 +18,14 @@ it('says the page was not found in all three languages, each marked with its lan
   expect(sections.map(s => s.getAttribute('lang'))).toEqual(['zh-Hant-HK', 'zh-Hans', 'en']);
   expect(sections.map(s => s.querySelector('h1, h2')?.textContent)).toEqual(['找不到這一頁', '找不到这一页', 'Page not found']);
   expect(doc.querySelectorAll('h1')).toHaveLength(1);
+});
+
+it('applies the visitor\'s stored theme as every page does: the same script in <head>, and <html> accepts its attribute', () => {
+  const doc = page();
+  const scripts = [...doc.querySelectorAll('script')];
+  expect(scripts.map(s => [s.parentElement?.tagName, s.textContent])).toEqual([['HEAD', THEME_SCRIPT]]);
+  expect(doc.documentElement.hasAttribute('data-theme')).toBe(false);
+  expect(GlobalNotFound().props.suppressHydrationWarning).toBe(true);
 });
 
 it('links only to the search page in each language, marked with hreflang', () => {
