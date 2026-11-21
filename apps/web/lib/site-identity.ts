@@ -11,8 +11,8 @@ import { resolveSiteIdentity, type SiteIdentity } from '@hktours/core';
 // When it is called:
 //   - static routes (/robots.txt, and the pages that read no data) at build time, so their output carries the
 //     values the build had;
-//   - stored pages (/tours and /operators, which read the database through storedDb) at build time, and again
-//     whenever their stored copy is remade (at most once an hour), with the values of the process that remakes it
+//   - stored pages (the home page, /tours and /operators, which read the database through storedDb) at build time,
+//     and again whenever their stored copy is remade (at most once an hour), with the values of the process that remakes it
 //     (on Vercel the same variables as the build's);
 //   - dynamic routes (the other pages that read the database, through requestDb's connection(), and /sitemap.xml)
 //     on each request, from the kept result.

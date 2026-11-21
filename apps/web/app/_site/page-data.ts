@@ -201,6 +201,17 @@ export const loadStoredCounts = cache(async (): Promise<StoredLoad<DestinationCo
 });
 
 /**
+ * The home page's data for its stored copy, in `locale`: the search page without any filter (no query string at all;
+ * its filtered addresses are answered by its per-request copy, which uses loadSearch: lib/search-rewrites.ts). No
+ * tours (none counted, or none found): an error.
+ */
+export const loadStoredSearch = cache(async (locale: Locale): Promise<StoredLoad<SearchPageData>> => {
+  const today = todayInHongKong();
+  return stored('home page', today, db => loadSearchPage(db, {}, today, locale, cachedReads),
+    data => data.total === 0 || data.counts.all.tours === 0);
+});
+
+/**
  * Every operator the site lists, with its tours now: the operators index's data, for its stored copy. No operator
  * with tours: an error.
  */

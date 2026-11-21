@@ -14,6 +14,8 @@ import { isOperatorListed, operatorPath } from '../lib/operators';
 vi.mock('./_site/search-page', () => ({
   SearchPage: () => null,
   searchPageMetadata: (locale: Locale, searchParams: unknown) => ({ page: 'search', locale, searchParams }),
+  StoredSearchPage: () => null,
+  storedSearchPageMetadata: (locale: Locale) => ({ page: 'stored search', locale }),
 }));
 vi.mock('./_site/chain-page', () => ({
   ChainPage: () => null,
@@ -102,12 +104,15 @@ it('each language has its own folder, named by its address prefix, with a root l
 });
 
 it('every page exists in all three languages, at the same path', () => {
-  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/operators', '/operators/[id]', '/saved', '/tours', '/tours/[id]']);
+  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/operators', '/operators/[id]', '/q', '/saved', '/tours', '/tours/[id]']);
   for (const locale of LOCALES) expect(pagePaths(locale), locale).toEqual(pagePaths('zh-Hant'));
 });
 
-/** Pages that are never in the sitemap: the saved page is the visitor's own list (and noindex). */
-const NOT_IN_SITEMAP = ['/saved'];
+/**
+ * Pages that are never in the sitemap: the saved page is the visitor's own list (and noindex); '/q' is the home page's
+ * per-request copy, an internal address (lib/search-rewrites.ts).
+ */
+const NOT_IN_SITEMAP = ['/saved', '/q'];
 
 it('the sitemap lists every page in every language but the saved page: the fixed ones, /tours/[id] for each destination with a page of its own, and /operators/[id] for each operator listing tours', async () => {
   const listed = (await sitemap()).map(entry => entry.url).sort();
@@ -116,6 +121,7 @@ it('the sitemap lists every page in every language but the saved page: the fixed
       : path === '/operators/[id]' ? operators.filter(isOperatorListed).map(o => operatorPath(o.id))
         : [path]);
   expect(listed.some(url => url.includes('/saved'))).toBe(false);
+  expect(listed.some(url => /\/q(\/|$)/.test(new URL(url).pathname))).toBe(false);
   expect(paths).toContain('/tours/japan-kansai');
   expect(paths).toEqual(expect.arrayContaining(['/operators', '/operators/egl', '/operators/texpert']));
   expect(paths).not.toContain('/operators/jetour');
@@ -131,18 +137,18 @@ type RouteModule = {
 };
 
 const routes = (await Promise.all([
-  ['zh-Hant', import('./(zh-hant)/layout'), import('./(zh-hant)/page'), import('./(zh-hant)/chain/page'),
+  ['zh-Hant', import('./(zh-hant)/layout'), import('./(zh-hant)/page'), import('./(zh-hant)/q/page'), import('./(zh-hant)/chain/page'),
     import('./(zh-hant)/tours/page'), import('./(zh-hant)/tours/[id]/page'), import('./(zh-hant)/about/page'), import('./(zh-hant)/saved/page'),
     import('./(zh-hant)/operators/page'), import('./(zh-hant)/operators/[id]/page'), import('./(zh-hant)/not-found')],
-  ['zh-Hans', import('./zh-hans/layout'), import('./zh-hans/page'), import('./zh-hans/chain/page'),
+  ['zh-Hans', import('./zh-hans/layout'), import('./zh-hans/page'), import('./zh-hans/q/page'), import('./zh-hans/chain/page'),
     import('./zh-hans/tours/page'), import('./zh-hans/tours/[id]/page'), import('./zh-hans/about/page'), import('./zh-hans/saved/page'),
     import('./zh-hans/operators/page'), import('./zh-hans/operators/[id]/page'), import('./zh-hans/not-found')],
-  ['en', import('./en/layout'), import('./en/page'), import('./en/chain/page'),
+  ['en', import('./en/layout'), import('./en/page'), import('./en/q/page'), import('./en/chain/page'),
     import('./en/tours/page'), import('./en/tours/[id]/page'), import('./en/about/page'), import('./en/saved/page'),
     import('./en/operators/page'), import('./en/operators/[id]/page'), import('./en/not-found')],
 ].map(async ([locale, ...modules]) => [locale, ...(await Promise.all(modules))]))) as [Locale, ...RouteModule[]][];
 
-it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
   const searchParams = Promise.resolve({ dmin: '5' });
   const params = Promise.resolve({ id: 'japan' });
   const children = 'page';
@@ -157,6 +163,8 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
   expect(frame.props).toEqual({ locale, children });
 
   const cases: [RouteModule, unknown, Record<string, unknown>, Record<string, unknown>][] = [
+    // The home page is the stored copy (no query string); its per-request copy (/q) reads the query.
+    [home, site.search.StoredSearchPage, {}, { page: 'stored search', locale }],
     [search, site.search.SearchPage, { searchParams }, { page: 'search', locale, searchParams }],
     [chain, site.chain.ChainPage, { searchParams }, { page: 'chain', locale, searchParams }],
     [tours, site.tours.ToursPage, {}, { page: 'tours', locale }],
@@ -180,8 +188,14 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
   expect(notFound.metadata).toEqual({ page: 'not-found', locale });
 });
 
-it.each(routes)('%s: the two indexes are stored copies, made again at most once an hour (revalidate 3600, a literal as Next.js requires); no other page or layout sets revalidate', (_locale, layout, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+it.each(routes)('%s: the home page and the two indexes are stored copies, made again at most once an hour (revalidate 3600, a literal as Next.js requires); no other page or layout sets revalidate', (_locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+  expect(home.revalidate).toBe(3600);
   expect(tours.revalidate).toBe(3600);
   expect(operatorsIndex.revalidate).toBe(3600);
   for (const other of [layout, search, chain, destination, about, saved, operator, notFound]) expect(other).not.toHaveProperty('revalidate');
+  // A stored page reads nothing from the request: its page and metadata take no props (no searchParams, no params).
+  for (const stored of [home, tours, operatorsIndex]) {
+    expect(stored.default.length).toBe(0);
+    expect(stored.generateMetadata!.length).toBe(0);
+  }
 });

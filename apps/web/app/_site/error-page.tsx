@@ -7,7 +7,7 @@ import styles from './error-page.module.css';
 /**
  * The error page inside a language's pages, in that language's frame (app/(zh-hant)/error.tsx, app/zh-hans/error.tsx,
  * app/en/error.tsx): what a page shows when it could not be made, as when the database cannot be read and a stored
- * page (/tours, /operators) has no stored copy yet. A message naming no tours (the page may be the operators index;
+ * page (the home page, /tours, /operators) has no stored copy yet. A message naming no tours (the page may be the operators index;
  * in Chinese the same words as the pages' own "cannot read" line), and a button that asks the server for the page
  * again (`retry`, from Next.js). Nothing about the cause is shown.
  *

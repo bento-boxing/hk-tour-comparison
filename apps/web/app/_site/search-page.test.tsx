@@ -19,11 +19,12 @@ const oneRow = () => { const rows = tourRows(); expect(rows).toHaveLength(1); re
 
 const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
+  storedDb: vi.fn<() => Promise<Db>>(),
   loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<SearchPageData>>(),
   /** Stands in for the reads through Next's data cache (lib/cached-reads.ts). */
   cachedReads: { name: 'cachedReads' },
 }));
-vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
+vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb, storedDb: mocks.storedDb }));
 vi.mock('../../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage, cachedReads: mocks.cachedReads }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
@@ -32,7 +33,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { SearchPage, searchPageMetadata } = await import('./search-page');
+const { SearchPage, searchPageMetadata, StoredSearchPage, storedSearchPageMetadata } = await import('./search-page');
 const { DestinationPage } = await import('./destination-page');
 
 const fakeDb = {} as Db;
@@ -91,6 +92,8 @@ async function thrown(run: () => Promise<unknown>): Promise<{ digest?: string } 
 let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   mocks.requestDb.mockReset();
+  // The stored copy's handle fails unless a test gives it a database: no other page may use it.
+  mocks.storedDb.mockReset().mockRejectedValue(new Error('storedDb used by a per-request page'));
   mocks.loadSearchPage.mockReset();
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -438,4 +441,54 @@ it('on the error, the search page keeps a heading (the counts are unknown) above
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('比較香港旅行團');
   expect(screen.getByRole('alert')).toHaveTextContent(ERROR);
   expect(screen.queryByRole('combobox')).toBeNull();
+});
+
+// The home page without a query string is a stored copy (app/(zh-hant)/page.tsx…): StoredSearchPage, the same body.
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s, the stored home page renders exactly what the page renders for its bare address', async locale => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  const bare = { ...homeData, state: { filters: {}, sort: 'price' as const, page: 1 } };
+  mocks.loadSearchPage.mockResolvedValue(bare);
+  const perRequest = await renderPage({}, locale);
+  const expected = perRequest.container.innerHTML;
+  perRequest.unmount();
+  const stored = render(<I18nProvider locale={locale}>{await StoredSearchPage({ locale })}</I18nProvider>);
+  expect(stored.container.innerHTML).toBe(expected);
+  expect(stored.container.textContent).toContain(locale === 'en' ? '40 tours listed now' : '40');
+});
+
+it('the stored home page reads the page without any filter through the stored pages\' handle, in its language, never the per-request one', async () => {
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  mocks.requestDb.mockRejectedValue(new Error('requestDb used by the stored page'));
+  mocks.loadSearchPage.mockResolvedValue(homeData);
+  await StoredSearchPage({ locale: 'zh-Hans' });
+  expect(mocks.loadSearchPage).toHaveBeenCalledTimes(1);
+  const [db, raw, today, locale, reads] = mocks.loadSearchPage.mock.calls[0];
+  expect([db, raw, locale, reads]).toEqual([fakeDb, {}, 'zh-Hans', mocks.cachedReads]);
+  expect(isIsoDate(today)).toBe(true);
+  expect(mocks.requestDb).not.toHaveBeenCalled();
+});
+
+it('the stored home page never renders the "cannot read" message: a failed read, or an answer with no tours, throws, so no such page is stored', async () => {
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockRejectedValue(Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }));
+  await expect(StoredSearchPage({ locale: 'zh-Hant' })).rejects.toThrow(/^home page: the database at DATABASE_URL could not be read \(ECONNREFUSED\)/);
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, tours: [], total: 0, counts: { all: { tours: 0, operators: 0 }, destinations: [] } });
+  await expect(StoredSearchPage({ locale: 'en' })).rejects.toThrow(/^home page: the database answered with no rows/);
+  mocks.storedDb.mockRejectedValue(new Error('DATABASE_URL is not set: the website needs it to read tours from the database.'));
+  await expect(StoredSearchPage({ locale: 'en' })).rejects.toThrow(/DATABASE_URL/);
+  expect(consoleError).not.toHaveBeenCalled();
+});
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s, the stored home page\'s metadata is the bare address\'s (title, description, canonical, languages, no robots), and reads nothing', async locale => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(homeData);
+  const perRequest = await searchPageMetadata(locale, Promise.resolve({}));
+  mocks.loadSearchPage.mockReset();
+  const stored = storedSearchPageMetadata(locale);
+  expect(stored).toEqual(perRequest);
+  expect(stored).not.toHaveProperty('robots');
+  expect(mocks.loadSearchPage).not.toHaveBeenCalled();
+  expect(mocks.storedDb).not.toHaveBeenCalled();
 });

@@ -25,9 +25,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       # No DATABASE_URL here on purpose: the repository is public, and CI is given no database. The stored pages
-      # (/tours and /operators, in each language) are made at build time from the database, so CI says it builds
-      # without one (BUILD_WITHOUT_DATABASE, not a secret): in this build those pages are made per request instead,
-      # and nothing is read or stored. Vercel's build has DATABASE_URL and no such setting.
+      # (the home page, /tours and /operators, in each language) are made at build time from the database, so CI
+      # says it builds without one (BUILD_WITHOUT_DATABASE, not a secret): in this build those pages are made per
+      # request instead, and nothing is read or stored. Vercel's build has DATABASE_URL and no such setting.
       # The build refuses to run without the site's address and contact. Forks and pull requests get no
       # secrets, so CI builds with fixed placeholders (.invalid never resolves); the live values are set on
       # Vercel and as repository secrets for the nightly run.

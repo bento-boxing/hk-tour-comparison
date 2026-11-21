@@ -15,7 +15,7 @@ import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
 import type { StateHref } from '../../components/Pager';
-import { loadSearch, queryOf, type Loaded, type SearchParams } from './page-data';
+import { loadSearch, loadStoredSearch, queryOf, type Loaded, type SearchParams } from './page-data';
 import { SearchBand } from './search-band';
 import frame from './site-frame.module.css';
 import band from './search-band.module.css';
@@ -36,7 +36,9 @@ export async function searchPageMetadata(locale: Locale, searchParams: Promise<S
 }
 
 /**
- * The search page in `locale` (from the address: app/(zh-hant)/page.tsx, app/zh-hans/page.tsx, app/en/page.tsx).
+ * The search page in `locale` with a query string, rendered per request (from the address: the per-request copies
+ * app/(zh-hant)/q/page.tsx, app/zh-hans/q/page.tsx, app/en/q/page.tsx, which next.config.ts answers '/?dmin=5' with;
+ * lib/search-rewrites.ts). The address without a filter is the stored copy, StoredSearchPage below.
  * A destination is no longer part of its query: an old address that names one (/?dest=japan&dmin=5) is moved
  * permanently (308) to the destination's page with the other filters (/tours/japan?dmin=5), before anything is
  * read; one whose dest names nothing stays, and its dest is ignored.
@@ -50,11 +52,30 @@ export async function SearchPage({ locale, searchParams }: { locale: Locale; sea
 }
 
 /**
+ * The stored copy's metadata (the home page without a query string: app/(zh-hant)/page.tsx and the other two
+ * languages'): the same as searchPageMetadata gives the bare address with the tours read. It reads nothing: a stored
+ * copy is only made with its data (loadStoredSearch throws otherwise), so it is never noindex.
+ */
+export function storedSearchPageMetadata(locale: Locale): Metadata {
+  return pageMetadata(makeT(locale), '/');
+}
+
+/**
+ * The home page in `locale` without a query string, as a stored copy: made at build time, then again at most once an
+ * hour. It reads nothing from the request. Its filtered addresses are answered by the per-request copy (SearchPage, at
+ * the internal address '/q': lib/search-rewrites.ts), with the same body.
+ */
+export async function StoredSearchPage({ locale }: { locale: Locale }) {
+  return <SearchView t={makeT(locale)} destination={null} load={await loadStoredSearch(locale)} />;
+}
+
+/**
  * The search page's body, on '/' (destination null) and on a destination's page: the gold band (the heading with its
  * line of numbers, the destination search and the shortcuts), then the filter row, the tours and, under them, the
  * rows-per-page choice, the count and the pager. The root layout supplies the header and footer. Rendered per
- * request (requestDb), but the database results are reused (cachedReads): a result shown is at most an hour old (see
- * cached-reads.ts).
+ * request (requestDb), except the home page without a filter, which is a stored copy (StoredSearchPage); either way
+ * the database results are reused (cachedReads): a result shown is at most an hour old, plus the stored copy's age
+ * (see cached-reads.ts).
  *
  * The home page's heading counts the operators that list tours now and its line the tours (counts.all, from the
  * cached countToursByDestination read the page already makes: no extra statement); the shortcuts come from the same

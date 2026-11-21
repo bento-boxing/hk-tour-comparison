@@ -14,10 +14,10 @@ import type { Locale } from './i18n';
  * A result handed to a page is at most an hour old (READ_CACHE_SECONDS), by the server's clock. Each entry carries
  * the time it was read (ageLimited). Once that is an hour ago, or more than CLOCK_TOLERANCE_SECONDS in the future,
  * the entry is not used: that read goes straight to the database (and an error then reaches the page's error
- * message, as with no entry; on a stored page it stops the page being made). A stored page (/tours, /operators:
- * their route files' `revalidate`) is itself kept up to an hour, so what it shows can be up to about two hours old,
- * and older on a page nobody has visited for a while: its first visitor then gets the old copy while a new one is
- * made. The same lookup has usually started Next's own refresh of the entry
+ * message, as with no entry; on a stored page it stops the page being made). A stored page (the home page without a
+ * filter, /tours, /operators: their route files' `revalidate`) is itself kept up to an hour, so what it shows can be
+ * up to about two hours old, and older on a page nobody has visited for a while: its first visitor then gets the old
+ * copy while a new one is made. The same lookup has usually started Next's own refresh of the entry
  * for the visitors after; not when Next still counts the entry as fresh (its clock is the time the entry was
  * written, a moment after ours), in which case each visit reads directly until Next's hour is up too.
  * A clock up to the tolerance ahead on the instance that wrote an entry can stretch the hour by that much.
@@ -38,9 +38,9 @@ import type { Locale } from './i18n';
 export const READ_CACHE_SECONDS = 3600;
 
 /**
- * The tag on every stored result. Next.js also puts it on every stored page that used such a result (/tours and
- * /operators), so `revalidateTag(READ_CACHE_TAG, 'max')` would mark the results and those pages out of date together,
- * each served as it is until its new copy is made. Nothing calls it: the refresh is by time only. Never
+ * The tag on every stored result. Next.js also puts it on every stored page that used such a result (the home page,
+ * /tours and /operators), so `revalidateTag(READ_CACHE_TAG, 'max')` would mark the results and those pages out of
+ * date together, each served as it is until its new copy is made. Nothing calls it: the refresh is by time only. Never
  * `revalidateTag(…, { expire: 0 })` or `revalidatePath`: they drop the stored pages, which then answer 500 while the
  * database is down.
  */

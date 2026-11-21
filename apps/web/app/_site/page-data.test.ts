@@ -3,28 +3,35 @@ import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { notFound } from 'next/navigation';
 import { isIsoDate } from '@hktours/core';
 import { normaliseCaCert, type Db, type DestinationCounts, type OperatorListing } from '@hktours/db/read';
+import type { SearchPageData } from '../../lib/search-page-data';
 
-// The stored pages' loaders (the destinations and operators indexes). Their pages are made at build time and stored,
-// so a failed read must throw, never come back as { ok: false }: a page saying "cannot read" would be stored as good.
+// The stored pages' loaders (the home page, the destinations and operators indexes). Their pages are made at build time
+// and stored, so a failed read must throw, never come back as { ok: false }: a page saying "cannot read" would be stored
+// as good.
 
 const mocks = vi.hoisted(() => ({
   storedDb: vi.fn<() => Promise<Db>>(),
   requestDb: vi.fn<() => Promise<Db>>(),
   countToursByDestination: vi.fn<(db: Db, today: string) => Promise<DestinationCounts>>(),
   getOperatorListings: vi.fn<(db: Db, today: string) => Promise<OperatorListing[]>>(),
+  loadSearchPage: vi.fn<(db: Db, raw: Record<string, unknown>, today: string, locale: string, reads: unknown) => Promise<SearchPageData>>(),
 }));
 vi.mock('../../lib/db', () => ({ storedDb: mocks.storedDb, requestDb: mocks.requestDb }));
 vi.mock('../../lib/search-page-data', () => ({
   cachedReads: { countToursByDestination: mocks.countToursByDestination, getOperatorListings: mocks.getOperatorListings },
+  loadSearchPage: mocks.loadSearchPage,
 }));
 
-const { loadStoredCounts, loadStoredOperatorListings } = await import('./page-data');
+const { loadStoredCounts, loadStoredOperatorListings, loadStoredSearch } = await import('./page-data');
+const { cachedReads } = await import('../../lib/search-page-data');
 
 const fakeDb = {} as Db;
 const counts: DestinationCounts = { all: { tours: 1, operators: 1 }, destinations: [{ countryId: 'japan', regionId: null, tours: 1, operators: 1 }] };
 const listing = (id: OperatorListing['id'], lastGoodRunAt: string | null): OperatorListing => ({
   id, nameZh: id, nameEn: id, color: '#000000', siteUrl: 'https://example.test', lastGoodRunAt, tours: 1, countries: [],
 });
+/** The home page's data, as loadSearchPage gives it: the default state, one tour of the counts' one. */
+const searchData = { state: { filters: {}, sort: 'price', page: 1 }, tours: [], total: 1, operators: [], filterOperators: [], counts } as unknown as SearchPageData;
 /** An invented connection string with a password and a host, neither of which may ever reach a message. */
 const URL_WITH_SECRET = 'postgres://someone:hunter2-secret@db.example.test:6543/tours';
 
@@ -34,6 +41,7 @@ beforeEach(() => {
   mocks.requestDb.mockReset().mockResolvedValue(fakeDb);
   mocks.countToursByDestination.mockReset().mockResolvedValue(counts);
   mocks.getOperatorListings.mockReset().mockResolvedValue([listing('egl', '2026-11-12T18:00:00.000Z'), listing('taste', null)]);
+  mocks.loadSearchPage.mockReset().mockResolvedValue(searchData);
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.stubEnv('DATABASE_URL', URL_WITH_SECRET);
 });
@@ -42,6 +50,7 @@ afterEach(() => { consoleError.mockRestore(); vi.unstubAllEnvs(); });
 const loaders = [
   ['destinations index', () => loadStoredCounts(), mocks.countToursByDestination],
   ['operators index', () => loadStoredOperatorListings(), mocks.getOperatorListings],
+  ['home page', () => loadStoredSearch('en'), mocks.loadSearchPage],
 ] as const;
 
 it('the destinations index reads its counts through the stored pages\' handle, never the per-request one', async () => {
@@ -58,6 +67,16 @@ it('the operators index reads the listings through the stored pages\' handle, an
   expect(load.ok).toBe(true);
   expect(load.data.map(o => o.id)).toEqual(['egl']);
   expect(mocks.getOperatorListings).toHaveBeenCalledWith(fakeDb, load.today);
+  expect(mocks.requestDb).not.toHaveBeenCalled();
+});
+
+it('the home page reads its data (the page without any filter) through the stored pages\' handle, in its language, never the per-request one', async () => {
+  const load = await loadStoredSearch('zh-Hans');
+  expect(load).toEqual({ ok: true, today: expect.any(String), now: expect.any(String), data: searchData });
+  expect(isIsoDate(load.today)).toBe(true);
+  // No query string at all: the stored copy is the page without filters (its filtered addresses have their own copy).
+  expect(mocks.loadSearchPage).toHaveBeenCalledWith(fakeDb, {}, load.today, 'zh-Hans', cachedReads);
+  expect(mocks.storedDb).toHaveBeenCalledTimes(1);
   expect(mocks.requestDb).not.toHaveBeenCalled();
 });
 
@@ -129,6 +148,17 @@ it('the operators index: an answer with no operator listing tours (none, or all 
   // One operator with tours is enough, even beside others at 0.
   mocks.getOperatorListings.mockResolvedValue([{ ...listing('jetour', '2026-11-12T18:00:00.000Z'), tours: 0 }, listing('egl', '2026-11-12T18:00:00.000Z')]);
   expect((await loadStoredOperatorListings()).data.map(o => o.id)).toEqual(['jetour', 'egl']);
+});
+
+it('the home page: an answer with no tours (none counted, or none found) is a failed read, so it is never stored', async () => {
+  for (const data of [
+    { ...searchData, total: 0, counts: { all: { tours: 0, operators: 0 }, destinations: [] } },
+    { ...searchData, total: 0 },
+    { ...searchData, counts: { all: { tours: 0, operators: 0 }, destinations: [] } },
+  ]) {
+    mocks.loadSearchPage.mockResolvedValue(data);
+    await expect(loadStoredSearch('en')).rejects.toThrow(/^home page: the database answered with no rows \(nothing listed now\)\. This page is stored/);
+  }
 });
 
 it.each(loaders)('%s: without DATABASE_URL, the message says that variable is missing and how to build without a database', async (_page, load) => {

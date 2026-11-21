@@ -1,7 +1,7 @@
 // BUILD_WITHOUT_DATABASE: the setting that lets a build go without the database (CI, which has none, and a local
-// build without one). In such a build the stored pages (/tours, /operators) are made per request instead of at build
-// time (lib/db.ts storedDb). Not a secret, and for CI and local builds only: a build on Vercel must read the database,
-// so next.config.ts refuses it there. No imports: next.config.ts loads this file.
+// build without one). In such a build the stored pages (the home page, /tours, /operators) are made per request
+// instead of at build time (lib/db.ts storedDb). Not a secret, and for CI and local builds only: a build on Vercel
+// must read the database, so next.config.ts refuses it there. No imports: next.config.ts loads this file.
 
 type Env = Record<string, string | undefined>;
 

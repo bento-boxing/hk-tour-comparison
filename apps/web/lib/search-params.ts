@@ -29,8 +29,23 @@ const FIRST_DATE = '0001-01-01';
 export const DAYS_RANGE = { min: 1, max: 60 } as const;
 export const PRICE_RANGE = { min: 0, max: 2_000_000 } as const;
 
+/**
+ * Every query name the search pages read (the home page, a destination's and an operator's page): `dest` among them,
+ * which the home page answers by moving an old address to the destination's page (movedSearchHref). The bare home page
+ * is a stored copy that reads no query string, so an address of it carrying any of these names is answered by its
+ * per-request copy instead (lib/search-rewrites.ts, next.config.ts); any other name (utm_source…) gets the stored copy.
+ * parseSearchParams can only read a name from this list (`first` takes no other), and search-params.test.ts checks
+ * that the list is exactly what it reads: a filter added later without its name here would silently be served the
+ * stored, unfiltered page.
+ */
+export const SEARCH_QUERY_NAMES = [
+  'dest', 'ex', 'from', 'to', 'tfrom', 'tto', 'dmin', 'dmax', 'pmin', 'pmax', 'op', 'sort', 'size', 'page',
+] as const;
+
+export type SearchQueryName = (typeof SEARCH_QUERY_NAMES)[number];
+
 /** The first value of a parameter, when it is a string at all. */
-function first(raw: RawParams, name: string): string | undefined {
+function first(raw: RawParams, name: SearchQueryName): string | undefined {
   const value = Object.hasOwn(raw, name) ? raw[name] : undefined;
   const text = Array.isArray(value) ? value[0] : value;
   return typeof text === 'string' ? text : undefined;
@@ -79,12 +94,12 @@ function compact<T extends object>(obj: T): T {
 export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { includeDates?: boolean } = {}): SearchState {
   const includeDates = opts.includeDates ?? true;
   // A real calendar date from year 1 on: isIsoDate accepts year 0000, which Postgres refuses (an error page).
-  const isoDate = (name: string) => {
+  const isoDate = (name: SearchQueryName) => {
     const text = first(raw, name);
     return text !== undefined && isIsoDate(text) && text >= FIRST_DATE ? text : undefined;
   };
   // Both ends, or neither when the window ends before it starts. Same-format ISO dates compare as strings.
-  const datePair = (fromName: string, toName: string): [string | undefined, string | undefined] => {
+  const datePair = (fromName: SearchQueryName, toName: SearchQueryName): [string | undefined, string | undefined] => {
     const from = isoDate(fromName);
     const to = isoDate(toName);
     return from !== undefined && to !== undefined && from > to ? [undefined, undefined] : [from, to];

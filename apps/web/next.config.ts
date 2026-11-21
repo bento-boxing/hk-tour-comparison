@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from 'next/constants';
 import { resolveSiteIdentity } from '@hktours/core';
 import { checkBuildWithoutDatabase } from './lib/build-without-database';
+import { perRequestRedirects, storedSearchRewrites } from './lib/search-rewrites';
 
 /** The settings themselves; Next.js reads them through the function below. */
 export const nextConfig: NextConfig = {
@@ -12,11 +13,21 @@ export const nextConfig: NextConfig = {
   // Traditional Chinese has no language prefix ('/', '/chain'), so '/zh-hant/…' must not be a second copy of
   // its pages: a permanent (308) redirect to the same address without it. The query string is passed on
   // unchanged. These are routing rules, applied before any page is matched: no page code runs for them.
+  // A visit straight to a stored page's per-request copy (its internal address, '/q') goes to the page's own address:
+  // lib/search-rewrites.ts.
   async redirects() {
     return [
       { source: '/zh-hant', destination: '/', permanent: true },
       { source: '/zh-hant/:path+', destination: '/:path+', permanent: true },
+      ...perRequestRedirects(),
     ];
+  },
+  // The home page is a stored copy that reads no query string: an address of it carrying a filter, the sort or the
+  // page ('/?dmin=5') is answered by its per-request copy ('/q?dmin=5'), unseen by the visitor. `beforeFiles`, so the
+  // rules apply although a page (the stored copy) answers the address. Made from the list of the names the search
+  // pages read (lib/search-params.ts SEARCH_QUERY_NAMES); see lib/search-rewrites.ts. Routing rules: no page code runs.
+  async rewrites() {
+    return { beforeFiles: storedSearchRewrites(), afterFiles: [], fallback: [] };
   },
   experimental: {
     // Every language has its own root layout (app/(zh-hant), app/zh-hans, app/en), so there is no single

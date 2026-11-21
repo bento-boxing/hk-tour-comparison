@@ -9,9 +9,9 @@ import robots from './robots';
 // these tests pin the rules and the served text. What a longest-match reader (Google, Bing) makes of that text is
 // shown against the built site in the task 42 fix reports.
 
-it('every crawler may read every page except an address with a query string, but may fetch the icons and the static files, and is pointed at the sitemap', () => {
+it('every crawler may read every page except an address with a query string or a per-request copy\'s internal address, but may fetch the icons and the static files, and is pointed at the sitemap', () => {
   expect(robots()).toEqual({
-    rules: { userAgent: '*', allow: ['/_next/static/', '/icon.svg?', '/apple-icon.png?'], disallow: '/*?' },
+    rules: { userAgent: '*', allow: ['/_next/static/', '/icon.svg?', '/apple-icon.png?'], disallow: ['/*?', '/q', '/zh-hans/q', '/en/q'] },
     sitemap: 'https://example.invalid/sitemap.xml',
   });
 });
@@ -39,6 +39,9 @@ it('/robots.txt reads exactly so: the Allow lines, then the Disallow, and no All
     'Allow: /icon.svg?\n' +
     'Allow: /apple-icon.png?\n' +
     'Disallow: /*?\n' +
+    'Disallow: /q\n' +
+    'Disallow: /zh-hans/q\n' +
+    'Disallow: /en/q\n' +
     '\n' +
     'Sitemap: https://example.invalid/sitemap.xml\n',
   );

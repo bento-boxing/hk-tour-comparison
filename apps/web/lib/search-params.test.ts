@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { places } from '@hktours/core';
 import {
   parseSearchParams, buildSearchQuery, withFilters, withPageSize, pageSizeOf, searchHref, movedSearchHref, DEFAULT_SORT, SORT_KEYS,
+  SEARCH_QUERY_NAMES,
 } from './search-params';
+import { operatorSearchHref } from './operators';
 
 it('parses a full address', () => {
   const s = parseSearchParams({ dest: 'japan-kansai', from: '2026-12-01', to: '2026-12-31', dmin: '4', dmax: '6',
@@ -251,5 +253,49 @@ describe('rows per page (size)', () => {
     expect(withPageSize(at(9), 96, 200).page).toBe(3);
     expect(withPageSize(at(40), 96, 200).page).toBe(3);
     expect(withPageSize(at(1), 48, 0).page).toBe(1);
+  });
+});
+
+describe('SEARCH_QUERY_NAMES: every query name the search pages read', () => {
+  // The home page is a stored copy that reads no query string: an address of it carrying any of these names is answered
+  // by its per-request copy (lib/search-rewrites.ts). A name read but not listed would silently get the stored,
+  // unfiltered page, so these tests tie the list to what the code reads and writes.
+
+  /** The names parseSearchParams looks up in an address, recorded by a stand-in for the address's parameters. */
+  function namesRead(opts?: { includeDates?: boolean }): Set<string> {
+    const read = new Set<string>();
+    const note = (name: string | symbol) => { if (typeof name === 'string') read.add(name); };
+    const raw = new Proxy({} as Record<string, string | string[] | undefined>, {
+      get: (target, name) => { note(name); return Reflect.get(target, name); },
+      has: (target, name) => { note(name); return Reflect.has(target, name); },
+      getOwnPropertyDescriptor: (target, name) => { note(name); return Reflect.getOwnPropertyDescriptor(target, name); },
+    });
+    parseSearchParams(raw, places, opts);
+    return read;
+  }
+
+  it('is exactly the names parseSearchParams reads, dest among them (the home page moves an old ?dest= address)', () => {
+    expect(new Set(SEARCH_QUERY_NAMES)).toEqual(namesRead());
+    expect(SEARCH_QUERY_NAMES).toContain('dest');
+    expect(new Set(SEARCH_QUERY_NAMES).size).toBe(SEARCH_QUERY_NAMES.length);
+    // Without the date windows (the chain page's reading) nothing outside the list is read either.
+    for (const name of namesRead({ includeDates: false })) expect(SEARCH_QUERY_NAMES).toContain(name);
+  });
+
+  it('holds every name buildSearchQuery and the search pages\' addresses (searchHref, an operator\'s page, a moved address) write', () => {
+    const full = parseSearchParams({
+      dest: 'japan-kansai', ex: 'korea', from: '2026-12-01', to: '2026-12-31', tfrom: '2026-12-02', tto: '2027-01-10',
+      dmin: '4', dmax: '6', pmin: '0', pmax: '12000', op: 'egl,jetour', sort: 'days-desc', size: '96', page: '3',
+    }, places);
+    const queryNames = (href: string | null) => [...new URLSearchParams(href?.split('?')[1] ?? '').keys()];
+    // Every filter, the sort, the rows per page and the page are written for this state: the whole list.
+    expect(new Set(buildSearchQuery(full).keys())).toEqual(new Set(SEARCH_QUERY_NAMES));
+    const written = [
+      ...queryNames(searchHref(full)),
+      ...queryNames(operatorSearchHref('egl', full)),
+      ...queryNames(movedSearchHref(Object.fromEntries(buildSearchQuery(full)), places)),
+    ];
+    expect(written.length).toBeGreaterThan(0);
+    for (const name of written) expect(SEARCH_QUERY_NAMES).toContain(name);
   });
 });
