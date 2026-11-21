@@ -15,6 +15,11 @@ const zh = {
   'nav.savedCount': '({n})',
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
   'notFound.text': '這個地址沒有頁面。', // the 404 inside a language's pages (an unknown /tours/<id>), under notFound.title
+  // The error page inside a language's pages (app/(zh-hant)/error.tsx): a page could not be made, as when the database
+  // is down and the page has no stored copy yet. The heading, error.text under it, then the button.
+  'error.title': '暫時未能顯示這一頁',
+  'error.text': '暫時未能載入資料，請稍後再試。', // as search.error; its own key, since the English must not say "tours"
+  'error.retry': '再試一次',
   // A destination's page (/tours/<id>). {place} is the country ('日本') or the region with its country (dest.regionOf).
   'dest.regionOf': '{country}{region}',
   'dest.heading': '{place}旅行團', // the page's <h1>

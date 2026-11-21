@@ -8,8 +8,9 @@ import styles from './Footer.module.css';
 
 /**
  * The footer's links (in the footer's language): the destinations and operators indexes and the about page, on every
- * page. Only the about page is pre-loaded (`prefetch`): it is stored, made at build time, while the indexes are made
- * per request (components/SiteLink.tsx).
+ * page. Only the about page is pre-loaded (`prefetch`): it is stored, made at build time (components/SiteLink.tsx).
+ * The indexes are stored copies too now (made at build time, then at most hourly), so they could be pre-loaded as
+ * well; they are not, until that is decided.
  */
 const LINKS = [
   // The header's label: the same words in Chinese (所有目的地), and short in English (Destinations), so the three links

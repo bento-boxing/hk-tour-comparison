@@ -1,0 +1,13 @@
+/* The error page inside a language's pages: the 404's quiet panel, with an outlined button to try again. */
+.error {
+  margin: 8px 0 24px; padding: 32px 16px; border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); text-align: center;
+}
+.heading { margin: 0 0 6px; font-size: 22px; font-weight: 900; }
+.text { margin: 0 0 16px; font-size: 15px; color: var(--text-muted); }
+.retry {
+  min-height: 44px; padding: 6px 18px; border: 2px solid var(--ink); border-radius: var(--radius-card); background: none;
+  font: inherit; font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer;
+}
+.retry:hover { text-decoration: underline; text-underline-offset: 4px; }
+.retry:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

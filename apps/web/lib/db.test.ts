@@ -98,3 +98,71 @@ it('a DATABASE_CA_CERT that is not a certificate gives a clear error that does n
   expect(message).not.toContain('garbage-value-123');
   expect(createPgDbCalls).toEqual([]);
 });
+
+it('storedDb hands out the pool without connection(), so the page that asks may be made at build time and stored', async () => {
+  vi.stubEnv('DATABASE_URL', 'postgres://user:pass@127.0.0.1:1/none');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', '');
+  const { storedDb, getDb } = await import('./db');
+  expect(await storedDb()).toBe(getDb());
+  expect(connection).not.toHaveBeenCalled();
+});
+
+it('storedDb in a build without a database (BUILD_WITHOUT_DATABASE=1) awaits connection() first: the page is made per request, never at build time, never stored', async () => {
+  vi.stubEnv('DATABASE_URL', '');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', '1');
+  const { storedDb } = await import('./db');
+  const order: string[] = [];
+  // At build time connection() throws Next.js's "render this per request" signal: nothing after it runs.
+  connection.mockImplementationOnce(async () => { order.push('connection'); throw new Error('per request'); });
+  await expect(storedDb()).rejects.toThrow('per request');
+  expect(order).toEqual(['connection']);
+});
+
+it.each(['', '0', 'true', 'yes', ' 1'])('only BUILD_WITHOUT_DATABASE=1 counts (not %j)', async value => {
+  vi.stubEnv('DATABASE_URL', 'postgres://user:pass@127.0.0.1:1/none');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', value);
+  const { storedDb } = await import('./db');
+  await storedDb();
+  expect(connection).not.toHaveBeenCalled();
+});
+
+it('storedDb with BUILD_WITHOUT_DATABASE=1 while the site runs (not a build), on a page built as stored: one log line names the setting', async () => {
+  vi.stubEnv('DATABASE_URL', 'postgres://user:pass@127.0.0.1:1/none');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', '1');
+  vi.stubEnv('NEXT_PHASE', 'phase-production-server');
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const { storedDb } = await import('./db');
+    // A stored page being remade: connection() refuses with Next.js's "render this per request" signal.
+    const signal = new Error('Dynamic server usage');
+    connection.mockImplementationOnce(async () => { throw signal; });
+    await expect(storedDb()).rejects.toBe(signal);
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toMatch(/^BUILD_WITHOUT_DATABASE=1 is set while the site runs/);
+    expect(String(consoleError.mock.calls[0][0])).not.toContain('postgres://');
+  } finally {
+    consoleError.mockRestore();
+  }
+});
+
+it('storedDb with BUILD_WITHOUT_DATABASE=1 during the build logs nothing: making the pages per request is the point there', async () => {
+  vi.stubEnv('DATABASE_URL', '');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', '1');
+  vi.stubEnv('NEXT_PHASE', 'phase-production-build');
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const { storedDb } = await import('./db');
+    connection.mockImplementationOnce(async () => { throw new Error('Dynamic server usage'); });
+    await expect(storedDb()).rejects.toThrow('Dynamic server usage');
+    expect(consoleError).not.toHaveBeenCalled();
+  } finally {
+    consoleError.mockRestore();
+  }
+});
+
+it('storedDb without DATABASE_URL rejects with the clear error', async () => {
+  vi.stubEnv('DATABASE_URL', '');
+  vi.stubEnv('BUILD_WITHOUT_DATABASE', '');
+  const { storedDb } = await import('./db');
+  await expect(storedDb()).rejects.toThrow(/DATABASE_URL/);
+});

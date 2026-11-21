@@ -4,7 +4,8 @@ import { siteIdentity } from '../lib/site-identity';
 /**
  * /robots.txt: every crawler may read every page except an address with a query string (`/*?`). A filtered,
  * sorted or paged address is the same page as its canonical one (lib/site-metadata.ts), and on Vercel's free
- * plan each would be a function run and possibly a database read.
+ * plan each would be a function run and possibly a database read: the pages with filters are rendered per request.
+ * (The stored pages, /tours and /operators, read no query string, so crawlers lose nothing there.)
  *
  * The exception: Next.js links the icons (app/icon.svg, app/apple-icon.png) with a query string
  * (`/icon.svg?icon.<hash>.svg`), and Google fetches the favicon only if robots.txt allows it. Google and Bing

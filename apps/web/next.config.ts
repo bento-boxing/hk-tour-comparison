@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from 'next/constants';
 import { resolveSiteIdentity } from '@hktours/core';
+import { checkBuildWithoutDatabase } from './lib/build-without-database';
 
 /** The settings themselves; Next.js reads them through the function below. */
 export const nextConfig: NextConfig = {
@@ -30,11 +31,17 @@ export const nextConfig: NextConfig = {
  * either is missing or malformed. Next.js has loaded .env.local (and the other .env files) before this runs. On
  * Vercel a failed build leaves the previous deployment live, so a deployment never goes out without them.
  *
+ * A build also stops when BUILD_WITHOUT_DATABASE=1 is set on Vercel (lib/build-without-database.ts): that setting
+ * is for CI and local builds only.
+ *
  * Not for `next typegen` (pnpm typecheck), which only writes route types: it loads this file with the build's
  * phase, so it is told apart by its command.
  */
 export default function config(phase: string): NextConfig {
   const runsTheSite = [PHASE_PRODUCTION_BUILD, PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_SERVER].includes(phase);
-  if (runsTheSite && !process.argv.includes('typegen')) resolveSiteIdentity(process.env);
+  if (runsTheSite && !process.argv.includes('typegen')) {
+    resolveSiteIdentity(process.env);
+    if (phase === PHASE_PRODUCTION_BUILD) checkBuildWithoutDatabase(process.env);
+  }
   return nextConfig;
 }

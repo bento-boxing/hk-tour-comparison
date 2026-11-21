@@ -6,11 +6,14 @@ import { I18nProvider } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
 import styles from './operators-page.module.css';
 
+// The page is a stored copy (app/(zh-hant)/operators/page.tsx revalidate): it reads through the stored pages' handle,
+// and the per-request one fails if it is ever used.
 const mocks = vi.hoisted(() => ({
+  storedDb: vi.fn<() => Promise<Db>>(),
   requestDb: vi.fn<() => Promise<Db>>(),
   getOperatorListings: vi.fn<(db: Db, today: string) => Promise<OperatorListing[]>>(),
 }));
-vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
+vi.mock('../../lib/db', () => ({ storedDb: mocks.storedDb, requestDb: mocks.requestDb }));
 vi.mock('../../lib/search-page-data', () => ({ cachedReads: { getOperatorListings: mocks.getOperatorListings } }));
 
 const { OperatorsPage, operatorsPageMetadata } = await import('./operators-page');
@@ -32,11 +35,12 @@ const listings = [
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
-  mocks.requestDb.mockReset().mockResolvedValue(fakeDb);
+  mocks.storedDb.mockReset().mockResolvedValue(fakeDb);
+  mocks.requestDb.mockReset().mockRejectedValue(new Error('the stored page used the per-request handle'));
   mocks.getOperatorListings.mockReset().mockResolvedValue(listings);
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => { consoleError.mockRestore(); });
+afterEach(() => { consoleError.mockRestore(); vi.unstubAllEnvs(); });
 
 async function renderPage(locale: Locale) {
   return render(<I18nProvider locale={locale}>{await OperatorsPage({ locale })}</I18nProvider>);
@@ -100,6 +104,11 @@ it('an operator never scraped is not on the index, even if the listings held it'
   expect(container.textContent).not.toContain('味力之旅');
 });
 
+it('with no operator listing tours, the page is not made (an empty answer is a fault: the last good copy stays in use)', async () => {
+  mocks.getOperatorListings.mockResolvedValue(listings.map(l => ({ ...l, tours: 0 })));
+  await expect(OperatorsPage({ locale: 'en' })).rejects.toThrow(/^operators index: the database answered with no rows/);
+});
+
 const site = 'https://example.invalid';
 it.each([
   ['zh-Hant', '旅行社一覽', '按旅行社瀏覽香港多間旅行社的旅行團，並查看每間旅行社現時列出多少個旅行團。', `${site}/operators`],
@@ -115,14 +124,16 @@ it.each([
     languages: { 'zh-Hant': `${site}/operators`, 'zh-Hans': `${site}/zh-hans/operators`, en: `${site}/en/operators`, 'x-default': `${site}/operators` },
   });
   expect(meta).not.toHaveProperty('robots');
+  // Nothing in it depends on the data: it never reads the database.
+  expect(mocks.getOperatorListings).not.toHaveBeenCalled();
+  expect(mocks.storedDb).not.toHaveBeenCalled();
 });
 
-it('the database being down: the heading and the message, no links, and the page marked noindex', async () => {
-  mocks.getOperatorListings.mockRejectedValue(new Error('connection refused'));
-  await renderPage('zh-Hant');
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('旅行社一覽');
-  expect(screen.getByRole('alert')).toHaveTextContent('暫時未能載入資料，請稍後再試。');
-  expect(screen.queryAllByRole('link')).toEqual([]);
-  expect((await operatorsPageMetadata('zh-Hant')).robots).toEqual({ index: false });
-  expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('operators index'), expect.any(Error));
+it('the database being down: the page is not made at all (it throws, so no page saying "cannot read" can be stored), and nothing is logged here', async () => {
+  vi.stubEnv('DATABASE_URL', 'postgres://invented@127.0.0.1:1/none');
+  mocks.getOperatorListings.mockRejectedValue(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }));
+  await expect(OperatorsPage({ locale: 'zh-Hant' })).rejects.toThrow(/operators index: the database at DATABASE_URL could not be read \(ECONNREFUSED\)/);
+  // Its metadata is the same as with the database up: there is no stored page that could be indexed with the message.
+  expect(await operatorsPageMetadata('zh-Hant')).not.toHaveProperty('robots');
+  expect(consoleError).not.toHaveBeenCalled();
 });

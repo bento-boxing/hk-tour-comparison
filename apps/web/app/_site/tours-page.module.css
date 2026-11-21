@@ -26,11 +26,6 @@
 /* The regions under their country, wrapping as a line of text. */
 .regions { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; padding: 0; list-style: none; line-height: 1.8; }
 
-.error {
-  margin: 8px 0 24px; padding: 20px 16px; border: 1px solid var(--line); border-radius: var(--radius-card);
-  background: var(--panel); text-align: center; font-size: 15px;
-}
-
 @media (max-width: 639px) {
   .heading { font-size: 24px; }
 }

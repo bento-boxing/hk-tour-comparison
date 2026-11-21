@@ -5,11 +5,14 @@ import type { Db, DestinationCounts } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
 
+// The page is a stored copy (app/(zh-hant)/tours/page.tsx revalidate): it reads through the stored pages' handle, and
+// the per-request one fails if it is ever used.
 const mocks = vi.hoisted(() => ({
+  storedDb: vi.fn<() => Promise<Db>>(),
   requestDb: vi.fn<() => Promise<Db>>(),
   countToursByDestination: vi.fn<(db: Db, today: string) => Promise<DestinationCounts>>(),
 }));
-vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
+vi.mock('../../lib/db', () => ({ storedDb: mocks.storedDb, requestDb: mocks.requestDb }));
 vi.mock('../../lib/search-page-data', () => ({ cachedReads: { countToursByDestination: mocks.countToursByDestination } }));
 
 const { ToursPage, toursPageMetadata } = await import('./tours-page');
@@ -34,11 +37,12 @@ const counts: DestinationCounts = {
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
-  mocks.requestDb.mockReset().mockResolvedValue(fakeDb);
+  mocks.storedDb.mockReset().mockResolvedValue(fakeDb);
+  mocks.requestDb.mockReset().mockRejectedValue(new Error('the stored page used the per-request handle'));
   mocks.countToursByDestination.mockReset().mockResolvedValue(counts);
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => { consoleError.mockRestore(); });
+afterEach(() => { consoleError.mockRestore(); vi.unstubAllEnvs(); });
 
 async function renderPage(locale: Locale) {
   return render(<I18nProvider locale={locale}>{await ToursPage({ locale })}</I18nProvider>);
@@ -105,22 +109,21 @@ it.each([
     },
   });
   expect(meta).not.toHaveProperty('robots');
+  // Nothing in it depends on the data: it never reads the database.
+  expect(mocks.countToursByDestination).not.toHaveBeenCalled();
+  expect(mocks.storedDb).not.toHaveBeenCalled();
 });
 
-it('the database being down: the heading and the message, and the page marked noindex', async () => {
-  mocks.countToursByDestination.mockRejectedValue(new Error('connection refused'));
-  await renderPage('zh-Hant');
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('旅行團目的地');
-  expect(screen.getByRole('alert')).toHaveTextContent('暫時未能載入資料，請稍後再試。');
-  expect(screen.queryAllByRole('link')).toEqual([]);
-  expect((await toursPageMetadata('zh-Hant')).robots).toEqual({ index: false });
-  expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('destinations index'), expect.any(Error));
+it('the database being down: the page is not made at all (it throws, so no page saying "cannot read" can be stored), and nothing is logged here', async () => {
+  vi.stubEnv('DATABASE_URL', 'postgres://invented@127.0.0.1:1/none');
+  mocks.countToursByDestination.mockRejectedValue(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }));
+  await expect(ToursPage({ locale: 'zh-Hant' })).rejects.toThrow(/destinations index: the database at DATABASE_URL could not be read \(ECONNREFUSED\)/);
+  // Its metadata is the same as with the database up: there is no stored page that could be indexed with the message.
+  expect(await toursPageMetadata('zh-Hant')).not.toHaveProperty('robots');
+  expect(consoleError).not.toHaveBeenCalled();
 });
 
-it('with no tours at all, the index says so and lists nothing', async () => {
+it('with no tours at all, the page is not made (an empty answer is a fault: the last good copy stays in use)', async () => {
   mocks.countToursByDestination.mockResolvedValue({ all: { tours: 0, operators: 0 }, destinations: [] });
-  await renderPage('en');
-  expect(screen.getByText('No tours are listed right now.')).toBeInTheDocument();
-  // No destination; only the line's way to the operators index.
-  expect(screen.getAllByRole('link').map(a => [a.textContent, a.getAttribute('href')])).toEqual([['Browse by tour operator', '/en/operators']]);
+  await expect(ToursPage({ locale: 'en' })).rejects.toThrow(/^destinations index: the database answered with no rows/);
 });

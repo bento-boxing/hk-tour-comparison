@@ -88,11 +88,12 @@ function pagePaths(locale: Locale): string[] {
   return found.sort();
 }
 
-it('each language has its own folder, named by its address prefix, with a root layout and a 404 page', () => {
+it('each language has its own folder, named by its address prefix, with a root layout, a 404 page and an error page', () => {
   expect(LOCALES.map(l => ROOT[l])).toEqual(['(zh-hant)', ...(['zh-Hans', 'en'] as const).map(l => LOCALE_SEGMENT[l])]);
   for (const locale of LOCALES) {
     expect(existsSync(join(__dirname, ROOT[locale], 'layout.tsx')), locale).toBe(true);
     expect(existsSync(join(__dirname, ROOT[locale], 'not-found.tsx')), locale).toBe(true);
+    expect(existsSync(join(__dirname, ROOT[locale], 'error.tsx')), locale).toBe(true);
   }
   // No page or layout outside them: every address belongs to exactly one language.
   const top = readdirSync(__dirname, { withFileTypes: true });
@@ -126,6 +127,7 @@ type RouteModule = {
   default: (props: Record<string, unknown>) => ReactElement<Record<string, unknown>> | Promise<ReactElement<Record<string, unknown>>>;
   generateMetadata?: (props: Record<string, unknown>) => unknown;
   metadata?: unknown;
+  revalidate?: unknown;
 };
 
 const routes = (await Promise.all([
@@ -176,4 +178,10 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
   expect(notFoundPage.type).toBe(site.notFound.NotFoundPage);
   expect(notFoundPage.props).toEqual({ locale });
   expect(notFound.metadata).toEqual({ page: 'not-found', locale });
+});
+
+it.each(routes)('%s: the two indexes are stored copies, made again at most once an hour (revalidate 3600, a literal as Next.js requires); no other page or layout sets revalidate', (_locale, layout, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+  expect(tours.revalidate).toBe(3600);
+  expect(operatorsIndex.revalidate).toBe(3600);
+  for (const other of [layout, search, chain, destination, about, saved, operator, notFound]) expect(other).not.toHaveProperty('revalidate');
 });
