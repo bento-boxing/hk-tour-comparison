@@ -7,7 +7,7 @@ import { formatChipDate } from '../../lib/format';
 import { chainPageHref } from '../../lib/chain-href';
 import { loadChain, queryOf, type SearchParams } from './page-data';
 import {
-  ChainDestinationPanelsConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
+  ChainDestinationPanelsConnected, ChainDestinationScreenConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
 import { TripClear, TripMemory, TripPickHead, TripSteps } from '../../components/TripPhone';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
@@ -111,11 +111,13 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
               {t('chain.nextHeading', { from: date(departWindow.from), to: date(departWindow.to) })}
             </h2>
           )}
-          <div className={styles.searchRow}>
+          <div className={`${styles.searchRow} ${styles.wideOnly}`}>
             {/* The chain page's own pickers: they build the next address from the validated one, not the raw query. */}
             <div className={styles.searchBox}><ChainDestinationSearchConnected address={address} /></div>
             <ChainDestinationPanelsConnected address={address} />
           </div>
+          {/* On a phone, the search box that opens the full-screen search (task 73), in place of both. */}
+          <div className={`${styles.phoneSearch} ${styles.phoneOnly}`}><ChainDestinationScreenConnected address={address} /></div>
           <ChainFilterBarConnected address={address} operators={filterOperators} today={today} />
           <ChainResultsConnected
             address={address} lastEndDate={lastLeg?.endDate}

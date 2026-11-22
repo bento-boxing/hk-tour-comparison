@@ -37,6 +37,18 @@
 .hint { color: var(--text-muted); }
 .none { color: var(--text-muted); }
 
+/*
+ * The phone search screen's suggestions (layout 'inline', components/DestinationScreen.module.css): the whole screen
+ * under its head (--screen-head), scrolling on its own, in the page's colours; each row 48px at least, to touch.
+ */
+.inlineList {
+  position: fixed; top: var(--screen-head, 56px); right: 0; bottom: 0; left: 0; z-index: 1;
+  margin: 0; padding: 0 16px 32px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--page); color: var(--ink);
+}
+.inlineList .option, .inlineList .none { min-height: 48px; padding: 12px 4px; font-size: 16px; line-height: 1.4; }
+.inlineList .option:last-child { border-bottom: 1px solid var(--line); }
+
 /* 16px stops iOS zooming into the field on focus. */
 @media (max-width: 639px) {
   .input { font-size: max(16px, var(--search-font, 16px)); height: var(--search-height, 48px); }

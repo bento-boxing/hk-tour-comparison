@@ -36,7 +36,7 @@
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap; border: 0;
   }
-  .view[data-view='pick'] .searchRow { margin-top: 8px; }
+  .phoneSearch { margin: 8px 0 12px; }
 
   .tripArea { margin: 0 -16px 16px; padding: 14px 16px 16px; background: var(--surface); }
   .tripArea:first-child { margin-top: -16px; }

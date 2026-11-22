@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { groupCountries, type Destination, type PlacesIndex } from '@hktours/core';
+import type { Destination, PlacesIndex } from '@hktours/core';
 import type { T } from '../lib/i18n';
+import { choosesWholeCountry, DEFAULT_HIDDEN_COUNTRY_IDS, offeredCountryGroups, regionChoices as regionChoicesOf } from '../lib/destination-choices';
 import { placeName } from '../lib/place-names';
 import styles from './DestinationPanels.module.css';
 
@@ -11,17 +12,15 @@ export interface DestinationPanelsProps {
   value: Destination | null;
   onSelect: (dest: Destination) => void;
   /** Country ids never offered. Default ['hongkong']. */
-  hiddenCountryIds?: string[];
+  hiddenCountryIds?: readonly string[];
 }
-
-const DEFAULT_HIDDEN = ['hongkong'];
 
 /**
  * The `按國家選擇` button and its panel: step one lists countries under their part of the world (a labelled
  * group per part, none for a part with no country offered), step two that country's regions
  * with `全部地區` first. A country with one region is selected straight from step one, as the whole country.
  */
-export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds = DEFAULT_HIDDEN }: DestinationPanelsProps) {
+export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds = DEFAULT_HIDDEN_COUNTRY_IDS }: DestinationPanelsProps) {
   const panelId = useId();
   const [open, setOpen] = useState(false);
   const [countryId, setCountryId] = useState<string | null>(null); // set while step two shows
@@ -36,15 +35,10 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
     focusNext.current = null;
   }, [open, countryId]);
 
-  const groups = groupCountries(places.data.countries.filter(c => !hiddenCountryIds.includes(c.id)));
+  const groups = offeredCountryGroups(places, hiddenCountryIds);
   const country = countryId === null ? undefined : places.country(countryId);
   // Step two: 全部地區 first, then the country's regions.
-  const regionChoices: { key: string; label: string; dest: Destination }[] = country === undefined ? [] : [
-    { key: '', label: t('dest.allRegions'), dest: { countryId: country.id, regionId: null } },
-    // An area region (華東, 東北) is not offered (task 40 fix round 1): it finds only tours whose only place it is.
-    ...places.regionsOf(country.id).filter(r => r.members === undefined)
-      .map(r => ({ key: r.id, label: placeName(r, t.locale), dest: { countryId: country.id, regionId: r.id } })),
-  ];
+  const regionChoices = country === undefined ? [] : regionChoicesOf(places, country.id, t);
 
   const close = () => {
     setOpen(false);
@@ -59,7 +53,7 @@ export function DestinationPanels({ places, t, value, onSelect, hiddenCountryIds
 
   const chooseCountry = (id: string) => {
     // One region: the whole country, which the search bar also offers as `<country> → 全部地區`.
-    if (places.regionsOf(id).length === 1) return choose({ countryId: id, regionId: null });
+    if (choosesWholeCountry(places, id)) return choose({ countryId: id, regionId: null });
     focusNext.current = '[data-first]';
     setCountryId(id);
   };

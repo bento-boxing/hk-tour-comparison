@@ -372,3 +372,32 @@ it('on a phone each screen shows only its own parts; from 640px the page is as b
   const trip = readFileSync(join(__dirname, '../../components/TripPhone.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(trip).toMatch(/^\/\*[^]*?\*\/ \.trip, \.pick, \.clear \{ display: none; \}/);
 });
+
+// Task 73: on the choosing screen a phone has the search box that opens the full-screen search (the wide search box and
+// 按國家選擇 are drawn from 640px only); it builds this page's addresses, as the wide pickers do.
+it('the choosing screen\'s phone search box opens the full-screen search; a choice keeps the trip and the screen', async () => {
+  const user = userEvent.setup();
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+  window.history.replaceState(null, '');
+  await renderPage(pageFor(THREE.slice(0, 1), {}, true));
+  const box = screen.getByRole('button', { name: '輸入國家、地區或城市' });
+  expect(box.closest(`.${styles.phoneOnly}`)).not.toBeNull();
+  expect(screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.wideOnly}`)).not.toBeNull();
+  await user.click(box);
+  const dialog = screen.getByRole('dialog', { name: '選擇目的地' });
+  // No popular destinations or counts here: the site's counts are not the tours that fit the trip.
+  expect(within(dialog).queryByRole('region', { name: '熱門目的地' })).toBeNull();
+  await user.keyboard('大阪{Enter}');
+  await act(() => new Promise(r => setTimeout(r, 60)));
+  expect(mocks.push).toHaveBeenCalledTimes(1);
+  const [href, options] = mocks.push.mock.calls[0];
+  const query = new URLSearchParams(href.slice(href.indexOf('?')));
+  expect([href.slice(0, href.indexOf('?')), query.get('legs'), query.get('dest'), query.get('ex'), query.get('pick'), options])
+    .toEqual(['/chain', 'egl:KIX5@2026-12-18', 'japan-kansai', 'japan', '1', { scroll: false }]);
+  window.history.replaceState(null, '');
+});

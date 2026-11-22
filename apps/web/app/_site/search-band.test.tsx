@@ -69,22 +69,21 @@ describe('the rows', () => {
     ['zh-Hant', '日本地區', '日本 157 團，已選取，按此取消', '全部 7 個地區', '收起'],
     ['zh-Hans', '日本地区', '日本 157 团，已选取，按此取消', '全部 7 个地区', '收起'],
     ['en', 'Regions of Japan', 'Japan, 157 tours, selected: press to remove', 'All 7 regions', 'Show fewer'],
-  ] as const)('in %s, a country chosen: its box chosen (white, ✕, named so), its regions, and the disclosure, closed, its links all in the HTML', (locale, label, chosenName, closed, open) => {
-    renderBand(locale, { dest: 'japan' });
+  ] as const)('in %s, a country chosen: its box chosen (white, ✕, named so), its regions, all shown on wide screens (seven: no disclosure there)', (locale, label, chosenName, closed, open) => {
+    const { container } = renderBand(locale, { dest: 'japan' });
     const nav = screen.getByRole('navigation', { name: label });
     const chosen = within(nav).getAllByRole('link')[0];
     expect(chosen).toHaveAccessibleName(chosenName);
     expect(chosen).toHaveClass(styles.shortcut, styles.selected);
     expect(chosen.querySelector(`.${styles.clear}`)).toHaveTextContent('✕');
     expect(chosen.querySelector(`.${styles.clear}`)).toHaveAttribute('aria-hidden', 'true');
-    // All seven regions are links in the HTML, the ones past the first three marked to show once opened (phones).
     const regions = [...nav.querySelectorAll('li')].filter(li => li.querySelector(`.${styles.shortcut}`)).slice(1);
     expect(regions).toHaveLength(7);
-    expect(regions.map(li => li.classList.contains(styles.moreOnPhone))).toEqual([false, false, false, true, true, true, true]);
-    const details = nav.querySelector('details')!;
-    expect(details).not.toHaveAttribute('open');
-    expect(details.closest('li')).toHaveClass(styles.moreItem, styles.hideOnWide); // seven regions: all shown on wide screens
-    const summary = details.querySelector('summary')!;
+    expect(regions.some(li => li.className !== '')).toBe(false);
+    expect(nav.querySelector('details')).toBeNull();
+    // Phones: the regions' row has the disclosure, closed, the boxes it shows in the HTML.
+    const phone = within(container).getByRole('list', { name: label });
+    const summary = phone.querySelector('details:not([open]) > summary')!;
     expect(summary.querySelector(`.${styles.moreClosed}`)).toHaveTextContent(closed);
     expect(summary.querySelector(`.${styles.moreOpen}`)).toHaveTextContent(open);
   });
@@ -108,6 +107,73 @@ describe('the rows', () => {
   it('a band given no rows (an operator\'s page) has none', () => {
     render(<I18nProvider locale="zh-Hant"><SearchBand t={makeT('zh-Hant')} heading="h" /></I18nProvider>);
     expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+});
+
+// Task 73 (drawings Mobile6Home, Mobile4Results): the same boxes laid out for phones, in their own lists.
+/** A phone list's boxes as [the box's name, its count with the unit, its address or null, its accessible name]. */
+const phoneItems = (list: HTMLElement) => [...list.querySelectorAll(`li > .${styles.pbox}:not(summary)`)].map(el => [
+  el.querySelector(`.${styles.pname}`)?.textContent, el.querySelector(`.${styles.count}`)?.textContent,
+  el.tagName === 'A' ? el.getAttribute('href') : null, el.getAttribute('aria-label'),
+]);
+const phoneLists = (container: HTMLElement) => [...container.querySelectorAll(`.${styles.phoneRows} > ul`)].map(ul => ul.getAttribute('aria-label'));
+
+describe('phones', () => {
+  it('nothing chosen (home): the seasons only, no destination boxes (they are on the search screen); the search box opens it', () => {
+    const { container } = renderBand('zh-Hant', {});
+    expect(phoneLists(container)).toEqual(['節日旅行團']);
+    expect(phoneItems(within(container).getByRole('list', { name: '節日旅行團' }))).toEqual([
+      ['聖誕', '1,306 團', '/seasons/christmas', null], ['農曆新年', '353 團', '/seasons/lunar-new-year', null],
+    ]);
+    expect(container.querySelector(`.${styles.phoneOnly} button[aria-haspopup="dialog"]`)).toHaveTextContent('想去邊？輸入國家、地區或城市');
+    // The wide search row is still there (hidden on phones by CSS).
+    expect(container.querySelector(`.${styles.searchRow}.${styles.wideOnly}`)).not.toBeNull();
+  });
+
+  it.each([
+    ['zh-Hant', '日本 157 團，已選取，按此取消', '日本地區', '全部 7', '全部 7 個地區'],
+    ['en', 'Japan, 157 tours, selected: press to remove', 'Regions of Japan', 'All 7', 'All 7 regions'],
+  ] as const)('in %s, a country chosen: the chosen box first, then three regions and 全部 {n} ▾ (the rest once opened), then the seasons', (locale, chosenName, label, short, full) => {
+    const { container } = renderBand(locale, { dest: 'japan' });
+    expect(phoneLists(container)).toEqual([locale === 'en' ? 'Chosen' : '已選取', label, locale === 'en' ? 'Holiday tours' : '節日旅行團']);
+    const chosen = within(container).getByRole('list', { name: locale === 'en' ? 'Chosen' : '已選取' });
+    expect(within(chosen).getByRole('link')).toHaveAccessibleName(chosenName);
+    expect(within(chosen).getByRole('link')).toHaveClass(styles.pchosen);
+    expect(within(chosen).getByRole('link').querySelector(`.${styles.pclear}`)).toHaveAttribute('aria-hidden', 'true');
+    const regions = within(container).getByRole('list', { name: label });
+    const items = [...regions.children];
+    // Three, the disclosure, then the four it shows.
+    expect(items.map(li => (li.querySelector('details') ? 'more' : li.classList.contains(styles.pmoreItem) ? 'hidden' : 'shown')))
+      .toEqual(['shown', 'shown', 'shown', 'more', 'hidden', 'hidden', 'hidden', 'hidden']);
+    expect(phoneItems(regions)[0]).toEqual([locale === 'en' ? 'Kansai' : '關西', locale === 'en' ? '36 tours' : '36 團', locale === 'en' ? '/en/tours/japan-kansai' : '/tours/japan-kansai', null]);
+    const summary = regions.querySelector('summary')!;
+    expect(summary.textContent).toContain(`${short}\u00a0▾`);
+    expect(summary).toHaveTextContent(full);
+  });
+
+  it('a region chosen: it is the chosen box (back to its country); the others in the regions row', () => {
+    const { container } = renderBand('zh-Hant', { dest: 'japan-kyushu' });
+    const chosen = within(container).getByRole('list', { name: '已選取' });
+    expect(phoneItems(chosen)).toEqual([['九州', '31 團', '/tours/japan', '九州 31 團，已選取，按此取消']]);
+    const regions = within(container).getByRole('list', { name: '日本地區' });
+    expect(phoneItems(regions).map(i => i[0])).toEqual(['關西', '關東', '中部北陸', '北海道', '沖繩', '東北']);
+    expect(regions.querySelectorAll(`.${styles.pmoreItem}`)).toHaveLength(3);
+    // The country's own box is not on phones (the chosen region's ✕ goes there).
+    expect(phoneItems(regions).some(i => i[0] === '日本')).toBe(false);
+  });
+
+  it('both chosen: two chosen boxes side by side, the country\'s regions, and no seasons row', () => {
+    const { container } = renderBand('zh-Hant', { dest: 'japan', from: christmas.from, to: christmas.to });
+    expect(phoneLists(container)).toEqual(['已選取', '日本地區']);
+    expect(phoneItems(within(container).getByRole('list', { name: '已選取' }))).toEqual([
+      ['日本', '48 團', '/seasons/christmas', '日本 48 團，已選取，按此取消'], ['聖誕', '48 團', '/tours/japan', '聖誕 48 團，已選取，按此取消'],
+    ]);
+  });
+
+  it('a season chosen alone: its chosen box only (no destination boxes, no other seasons)', () => {
+    const { container } = renderBand('zh-Hant', { from: christmas.from, to: christmas.to });
+    expect(phoneLists(container)).toEqual(['已選取']);
   });
 });
 
@@ -139,30 +205,31 @@ describe('the look', () => {
 
   it('the disclosure hides its regions only while closed, and only where the browser can tell (:has): elsewhere all show', () => {
     expect(media('min-width: 640px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }');
-    expect(media('max-width: 639px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnPhone { display: none; }');
+    expect(media('max-width: 639px')).toContain('.prow:not(:has(details[open])) > .pmoreItem { display: none; }');
     expect(css()).toContain('.more[open] .moreClosed, .more:not([open]) .moreOpen { display: none; }');
-    expect(media('max-width: 639px')).toContain('.more > summary { min-height: 44px; font-size: 14px; }');
+    expect(media('max-width: 639px')).toContain('.pmore[open] .moreClosed, .pmore:not([open]) .moreOpen { display: none; }');
   });
 
-  it('phones (drawings P1 and W3): groups 18px apart, the button full width, four columns (two in English), three for the seasons (two in English), boxes at least 52px, ✕ in the corner', () => {
+  it('each width draws only its own parts: the phone layout nowhere from 640px, the wide parts nowhere under it', () => {
+    expect(media('min-width: 640px')).toContain('.phoneOnly { display: none; }');
+    expect(media('max-width: 639px')).toContain('.lede, .wideOnly { display: none; }');
+  });
+
+  it('phones (task 73, drawings Mobile6Home and Mobile4Results): 20px heading, 13px line, rows 10px apart; boxes 40px, name and count side by side; two, four and three columns (two in English)', () => {
     const phone = media('max-width: 639px');
-    expect(phone).toContain('.inner { padding-top: 18px; padding-bottom: 16px; gap: 18px; }');
-    expect(phone).toContain('.panelsBox { flex-basis: 100%; --toggle-width: 100%; --toggle-height: 48px; }');
-    expect(phone).toContain('.shortcutList { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 8px; }');
-    expect(phone).toContain('.seasonList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; }');
-    expect(phone).toContain('.band:lang(en) .shortcutList, .band:lang(en) .seasonList { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
-    expect(phone).toMatch(/\.shortcut, \.season \{[^}]*min-height: 52px;/);
-    expect(phone).toContain('.shortcutList > .hideOnPhone { display: none; }');
-    expect(phone).toContain('.clear { position: absolute; top: 2px; right: 6px; margin: 0; font-size: 14px; line-height: 1; }');
-    expect(phone).toContain('.shortcut.selected { padding: calc(1.2em + 4px) 2px 4px; }');
-    expect(phone).toMatch(/\.name \{[^}]*hyphens: auto; overflow-wrap: anywhere; \}/);
-    expect(media('max-width: 359px')).toContain('.name { font-size: 14px; }');
+    expect(phone).toContain('.inner { padding-top: 12px; padding-bottom: 14px; gap: 10px; }');
+    expect(phone).toContain('.heading { font-size: 20px; letter-spacing: 0; line-height: 1.3; }');
+    expect(phone).toContain('.line { font-size: 13px; line-height: 1.5; }');
+    expect(phone).toContain('.phoneRows { display: flex; flex-direction: column; gap: 10px; }');
+    expect(phone).toContain('.prow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 8px;');
+    expect(phone).toContain('.pchosenRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
+    expect(phone).toContain('.pseasonRow { grid-template-columns: repeat(3, minmax(0, 1fr)); }');
+    expect(phone).toContain('.band:lang(en) .pregionRow, .band:lang(en) .pseasonRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
+    expect(phone).toMatch(/\.pbox \{[^}]*min-height: 40px; display: flex; flex-wrap: wrap;[^}]*border: 2px solid var\(--on-gold\);/);
+    expect(phone).toContain('.pregion { background: var(--header-bg); border-color: var(--header-bg); color: var(--header-text); }');
+    expect(phone).toContain('.pchosen { background: var(--band-field-bg); box-shadow: 0 0 0 2px var(--on-gold); }');
+    // The count's unit for screen readers only.
+    expect(phone).toMatch(/\.pbox \.unit \{ position: absolute; width: 1px; height: 1px;[^}]*clip-path: inset\(50%\)/);
     expect(css()).not.toMatch(/text-overflow|ellipsis/);
-  });
-
-  it('the 按國家選擇 button reads the band\'s width and height hooks, and wraps at very large text on phones', () => {
-    const panels = readFileSync(join(__dirname, '../../components/DestinationPanels.module.css'), 'utf8').replace(/\s+/g, ' ');
-    expect(panels).toContain('width: var(--toggle-width, auto); height: var(--toggle-height, var(--search-height, 46px));');
-    expect(panels).toMatch(/@media \(max-width: 639px\) \{.*\.toggle \{ height: auto; min-height: var\(--toggle-height, var\(--search-height, 46px\)\); white-space: normal; \}/);
   });
 });

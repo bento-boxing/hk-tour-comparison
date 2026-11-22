@@ -5,7 +5,8 @@ import { localeHref } from '../../lib/locale-path';
 import type { SearchState } from '../../lib/search-params';
 import { formatCount } from '../../lib/format';
 import type { BandBox, BandRows } from '../../lib/band-rows';
-import { DestinationPanelsConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
+import type { ScreenData } from '../../lib/search-screen';
+import { DestinationPanelsConnected, DestinationScreenConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
 import frame from './site-frame.module.css';
 import styles from './search-band.module.css';
 
@@ -23,12 +24,13 @@ export interface SearchBandProps {
   state?: SearchState;
   /** The two rows of boxes (lib/band-rows.ts): on the home page, a destination's and a season's; none elsewhere. */
   rows?: BandRows;
+  /** The phone search screen's popular destinations and counts, where there are no rows (an operator's page). */
+  screen?: ScreenData;
 }
 
 /**
- * A box's count with its unit ('1,463 團', '1,463 tours': dest.tours). The number always shows; the unit shows on
- * phones (the count under the name) and is visually hidden on wide screens (the number beside the name, as drawn),
- * where screen readers still read it with the number.
+ * A box's count with its unit ('1,463 團', '1,463 tours': dest.tours). The number always shows, beside the name as
+ * drawn; the unit is visually hidden (at both widths since task 73), and screen readers still read it with the number.
  */
 function BoxCount({ t, tours }: { t: T; tours: number }) {
   const n = formatCount(tours);
@@ -45,8 +47,8 @@ function BoxCount({ t, tours }: { t: T; tours: number }) {
 }
 
 /**
- * A box: its name and count (one line box on wide screens, stacked on phones), and on a chosen box ✕ (after the count
- * on wide screens, in the top-right corner on phones; the filter bar's active-destination pill ends with the same mark).
+ * A box on wide screens: its name and count on one line, and on a chosen box ✕ after the count (the filter bar's
+ * active-destination pill ends with the same mark).
  * A link, named as chosen when it is (band.selected: pressing it un-chooses it); a box with nothing to list is plain text,
  * faded, neither a link nor focusable.
  */
@@ -63,10 +65,79 @@ function Box({ t, box, kind }: { t: T; box: BandBox; kind: 'shortcut' | 'season'
   return <SiteLink className={className} href={localeHref(t.locale, box.path)} aria-label={name}>{text}</SiteLink>;
 }
 
-/** A row 1 box's visibility classes: four on phones; a chosen country's further regions only once opened. */
+/** A row 1 box's visibility class on wide screens: a chosen country's further regions only once opened. */
 function whereItemClass(box: BandBox): string | undefined {
-  const classes = [box.hideOnPhone && styles.hideOnPhone, box.moreOnPhone && styles.moreOnPhone, box.moreOnWide && styles.moreOnWide];
-  return classes.filter(Boolean).join(' ') || undefined;
+  return box.moreOnWide ? styles.moreOnWide : undefined;
+}
+
+/**
+ * A box on phones (task 73, drawings Mobile6Home and Mobile4Results): one line, 40px tall, its name and count side by
+ * side (the count's unit for screen readers only), ✕ after a chosen box's count; a name too long for its column wraps
+ * inside the box, the count after it or under it, and the box grows. A link, or faded plain text, as on wide screens.
+ */
+function PhoneBox({ t, box, kind }: { t: T; box: BandBox; kind: 'region' | 'season' }) {
+  const className = [styles.pbox, box.chosen ? styles.pchosen : styles[kind === 'region' ? 'pregion' : 'pseason'], box.path === null && styles.faded]
+    .filter(Boolean).join(' ');
+  const text = (
+    <>
+      <span className={styles.pname}>{box.name}</span>{' '}<BoxCount t={t} tours={box.tours} />
+      {box.chosen && <span className={styles.pclear} aria-hidden="true">✕</span>}
+    </>
+  );
+  if (box.path === null) return <span className={className}>{text}</span>;
+  const name = box.chosen ? t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) }) : undefined;
+  return <SiteLink className={className} href={localeHref(t.locale, box.path)} aria-label={name}>{text}</SiteLink>;
+}
+
+/**
+ * The band's boxes on phones (task 73; the owner's drawings Mobile6Home and Mobile4Results), one row each, from the
+ * same rows as wide screens (the same boxes, counts, fading and addresses): first the chosen boxes (the destination,
+ * the season: two columns); then, with a country (or one of its regions) chosen, its other regions (four columns:
+ * the first three, and 全部 {n} ▾ to show the rest in place, unless four fit); then, with no season chosen, the seasons
+ * (three columns). No other destination boxes: they are on the search screen. English: two columns for each.
+ */
+function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
+  const chosen = [...rows.where.boxes.filter(b => b.chosen), ...rows.when.filter(b => b.chosen)];
+  const regions = rows.where.regions ? rows.where.boxes.slice(1).filter(b => !b.chosen) : [];
+  const more = rows.where.moreRegions?.onPhone ? rows.where.moreRegions : null;
+  const seasons = rows.when.some(b => b.chosen) ? [] : rows.when;
+  if (chosen.length === 0 && regions.length === 0 && seasons.length === 0) return null;
+  return (
+    <div className={`${styles.phoneOnly} ${styles.phoneRows}`}>
+      {chosen.length > 0 && (
+        <ul className={`${styles.prow} ${styles.pchosenRow}`} aria-label={t('band.chosen')}>
+          {chosen.map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="region" /></li>)}
+        </ul>
+      )}
+      {regions.length > 0 && (
+        <ul className={`${styles.prow} ${styles.pregionRow}`} aria-label={rows.where.label}>
+          {regions.filter(b => !b.moreOnPhone).map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="region" /></li>)}
+          {more && (
+            // The boxes it shows are this list's own items, already in the HTML: it only stops hiding them.
+            <li>
+              <details className={styles.pmore}>
+                <summary className={styles.pbox}>
+                  <span className={styles.moreClosed}>
+                    <span aria-hidden="true">{t('band.allRegionsShort', { n: more.n })}{'\u00a0'}<span className={styles.pmark}>▾</span></span>
+                    <span className={styles.srOnly}>{t('band.allRegions', { n: more.n })}</span>
+                  </span>
+                  <span className={styles.moreOpen}>{t('band.fewerRegions')}<span aria-hidden="true">{'\u00a0'}<span className={styles.pmark}>▴</span></span></span>
+                </summary>
+              </details>
+            </li>
+          )}
+          {regions.filter(b => b.moreOnPhone).map(box => (
+            <li key={box.key} className={styles.pmoreItem}><PhoneBox t={t} box={box} kind="region" /></li>
+          ))}
+        </ul>
+      )}
+      {seasons.length > 0 && (
+        <ul className={`${styles.prow} ${styles.pseasonRow}`} aria-label={t('tours.seasons')}>
+          {seasons.map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="season" /></li>)}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -76,14 +147,16 @@ function whereItemClass(box: BandBox): string | undefined {
  * "when" (the seasons with tours now). Each box chooses its destination or season and keeps the other row's choice; a
  * chosen box (white, ✕) un-chooses it. Spans the window; its content sits in the page's column.
  *
- * Phones (drawings Home3PhoneGrid "P1" and W3): the button under the search box, full width; each row under its own
- * label, as a grid (row 1: four columns, two in English; row 2: three, two in English), each name over its count with
- * its unit. The rows are navigation landmarks, each named by its label (row 1's is visible on phones only; on wide
- * screens it is visually hidden and still names the row). A chosen country with more regions than shown ends row 1
- * with a disclosure (native <details>, closed on every load) that shows the others in place.
+ * The rows are navigation landmarks, each named by its label (row 1's visually hidden). A chosen country with more
+ * regions than shown ends row 1 with a disclosure (native <details>, closed on every load) that shows the others in place.
+ *
+ * Phones (task 73: under 640px the wide search row and rows are not drawn, nor the home page's sentence): a compact
+ * band: the heading over its line, the search box that opens the full-screen search (DestinationScreen; without
+ * JavaScript a link to the destinations directory), then the same boxes in rows of their own (PhoneRows). An operator's
+ * page has no rows; its search screen gets the popular destinations without counts (`screen`).
  */
-export function SearchBand({ t, heading, line, lede, related, state, rows }: SearchBandProps) {
-  const more = rows?.where.moreRegions ?? null;
+export function SearchBand({ t, heading, line, lede, related, state, rows, screen }: SearchBandProps) {
+  const more = rows?.where.moreRegions?.onWide ? rows.where.moreRegions : null;
   return (
     <section className={styles.band} aria-labelledby="page-heading">
       <div className={`${frame.wrap} ${styles.inner}`}>
@@ -94,13 +167,19 @@ export function SearchBand({ t, heading, line, lede, related, state, rows }: Sea
         </div>
         {related}
         {state && (
-          <div className={styles.searchRow}>
+          <div className={`${styles.searchRow} ${styles.wideOnly}`}>
             <div className={styles.searchBox}><DestinationSearchConnected state={state} placeholder={t('band.placeholder')} /></div>
             <div className={styles.panelsBox}><DestinationPanelsConnected state={state} /></div>
           </div>
         )}
+        {state && (
+          <div className={styles.phoneOnly}>
+            <DestinationScreenConnected state={state} screen={rows?.screen ?? screen} placeholder={t('band.placeholder')} />
+          </div>
+        )}
+        {rows && <PhoneRows t={t} rows={rows} />}
         {rows && rows.where.boxes.length > 0 && (
-          <nav className={styles.shortcuts} aria-labelledby="band-where">
+          <nav className={`${styles.shortcuts} ${styles.wideOnly}`} aria-labelledby="band-where">
             <p id="band-where" className={`${styles.label} ${styles.whereLabel}`}>{rows.where.label}</p>
             <ul className={styles.shortcutList}>
               {rows.where.boxes.map(box => (
@@ -110,7 +189,7 @@ export function SearchBand({ t, heading, line, lede, related, state, rows }: Sea
               ))}
               {more && (
                 // The boxes it shows are this list's own items, already in the HTML: it only stops hiding them.
-                <li className={[styles.moreItem, !more.onWide && styles.hideOnWide, !more.onPhone && styles.hideOnPhone].filter(Boolean).join(' ')}>
+                <li className={styles.moreItem}>
                   <details className={styles.more}>
                     <summary>
                       <span className={styles.moreClosed}>{t('band.allRegions', { n: more.n })}</span>
@@ -123,7 +202,7 @@ export function SearchBand({ t, heading, line, lede, related, state, rows }: Sea
           </nav>
         )}
         {rows && rows.when.length > 0 && (
-          <nav className={styles.seasons} aria-labelledby="band-seasons">
+          <nav className={`${styles.seasons} ${styles.wideOnly}`} aria-labelledby="band-seasons">
             <p id="band-seasons" className={styles.label}>{t('tours.seasons')}</p>
             <ul className={styles.seasonList}>
               {rows.when.map(box => (

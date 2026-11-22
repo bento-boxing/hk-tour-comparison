@@ -6,6 +6,7 @@ import { placeName } from './place-names';
 import { SEASON_NAME_KEYS, isSeasonState, seasonSearchHref, type SeasonWindow } from './seasons';
 import { searchHref, withFilters, type SearchState } from './search-params';
 import type { SeasonCount } from './season-counts';
+import { screenData, type ScreenData } from './search-screen';
 
 // The gold band's two rows of boxes (drawing W3), on the home page, a destination's page and a season's page: row 1
 // answers "where", row 2 "when". Pressing a box chooses it and keeps the other row's choice (and every other filter);
@@ -13,13 +14,15 @@ import type { SeasonCount } from './season-counts';
 // only; a box with nothing to list is faded and is no link. Everything here is worked out on the server from the
 // page's own state and the counts it already has (the site-wide counts and the seasons' cached read).
 
-/** How many boxes a row shows: on wide screens and on phones. */
+/** How many boxes row 1 shows on wide screens (phones show no destination boxes but a chosen one: task 73). */
 export const WIDE_BOXES = SHORTCUT_COUNT;
-export const PHONE_BOXES = 4;
 /** A chosen country's regions: all of them on wide screens up to this many, else the first REGIONS_WIDE. */
 export const REGIONS_ALL_UP_TO = 9;
 export const REGIONS_WIDE = 8;
-/** … and on phones the first REGIONS_PHONE, after the country's own box. */
+/**
+ * … and on phones (task 73, drawing Mobile4Results) the regions not chosen, in a row of four columns: all of them up to
+ * four, else the first REGIONS_PHONE and the disclosure in the fourth.
+ */
 export const REGIONS_PHONE = 3;
 
 export interface BandBox {
@@ -32,16 +35,19 @@ export interface BandBox {
   path: string | null;
   /** Chosen: white with ✕, and its path un-chooses it (or, for a chosen region, goes back to its country). */
   chosen: boolean;
-  /** Not shown on phones (a row of destinations shows four there). */
-  hideOnPhone: boolean;
-  /** A region shown only when the row's 全部 {n} 個地區 disclosure is open: on phones, on wide screens. */
+  /**
+   * A region shown only when the row's 全部 {n} 個地區 disclosure is open: on phones (where a chosen region is in the
+   * row of chosen boxes instead, so never this), on wide screens.
+   */
   moreOnPhone: boolean;
   moreOnWide: boolean;
 }
 
 export interface WhereRow {
-  /** The row's label (shown on phones; on wide screens it only names the row). */
+  /** The row's label (it names the row for screen readers; on phones it names the row of regions). */
   label: string;
+  /** A chosen country (or one of its regions) with its regions: the country's box first, then the regions. */
+  regions: boolean;
   boxes: BandBox[];
   /**
    * A chosen country with more regions than its boxes show: the disclosure that shows them all (in place), with how
@@ -50,7 +56,12 @@ export interface WhereRow {
   moreRegions: { n: number; onWide: boolean; onPhone: boolean } | null;
 }
 
-export interface BandRows { where: WhereRow; when: BandBox[] }
+export interface BandRows {
+  where: WhereRow;
+  when: BandBox[];
+  /** The phone search screen's popular destinations and counts, in the same context as row 1 (task 73). */
+  screen: ScreenData;
+}
 
 /**
  * The address of a search state: a season's page when its departure window is exactly a season's current days, else
@@ -82,11 +93,11 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
   const scope = chosenSeason ? windowCounts(chosenSeason) : siteCounts;
   const toursIn = (d: Destination) => countOf(d, scope).tours;
   const choose = (d: Destination | undefined) => addressOf(withFilters(state, { destination: d }));
-  const box = (d: Destination, chosen: boolean, path: string, hide: Partial<Pick<BandBox, 'name' | 'hideOnPhone' | 'moreOnPhone' | 'moreOnWide'>> = {}): BandBox => {
+  const box = (d: Destination, chosen: boolean, path: string, hide: Partial<Pick<BandBox, 'name' | 'moreOnPhone' | 'moreOnWide'>> = {}): BandBox => {
     const tours = toursIn(d);
     return {
       key: destinationId(d), name: hide.name ?? destinationName(d, places, t), tours, path: chosen || tours > 0 ? path : null, chosen,
-      hideOnPhone: false, moreOnPhone: false, moreOnWide: false, ...hide,
+      moreOnPhone: false, moreOnWide: false, ...hide,
     };
   };
   const country: Destination | null = chosenPlace && { countryId: chosenPlace.countryId, regionId: null };
@@ -108,18 +119,23 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
     if (at >= REGIONS_PHONE) ordered.unshift(...ordered.splice(at, 1));
     const capWide = ordered.length > REGIONS_ALL_UP_TO;
     const countryChosen = chosenRegion === null;
+    // Phones: the regions not chosen (in this order); past the first three behind the disclosure, unless four fit.
+    const others = ordered.filter(d => d.regionId !== chosenRegion);
+    const capPhone = others.length > REGIONS_PHONE + 1;
+    const phoneAt = new Map(others.map((d, i) => [d.regionId, i]));
     where = {
       label: t('band.regionsOf', { place: placeName(places.country(country.countryId)!, t.locale) }),
+      regions: true,
       boxes: [
         // The country: chosen on its own page (pressing it un-chooses it); on a region's page, a way to the country.
         box(country, countryChosen, choose(countryChosen ? undefined : country)),
         // A region by its own name (the country's box is just before it): 關西, not 日本關西.
         ...ordered.map((d, i) => box(d, d.regionId === chosenRegion, choose(d.regionId === chosenRegion ? country : d), {
           name: placeName(places.region(d.regionId!)!, t.locale),
-          moreOnPhone: i >= REGIONS_PHONE, moreOnWide: capWide && i >= REGIONS_WIDE,
+          moreOnPhone: capPhone && (phoneAt.get(d.regionId) ?? 0) >= REGIONS_PHONE, moreOnWide: capWide && i >= REGIONS_WIDE,
         })),
       ],
-      moreRegions: ordered.length > REGIONS_PHONE ? { n: ordered.length, onWide: capWide, onPhone: true } : null,
+      moreRegions: capWide || capPhone ? { n: ordered.length, onWide: capWide, onPhone: capPhone } : null,
     };
   } else {
     // Nothing chosen: today's top destinations (the same set as the home page, so the row never reshuffles). A
@@ -131,7 +147,8 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
       .slice(0, WIDE_BOXES - first.length);
     where = {
       label: t('band.popular'),
-      boxes: [...first, ...others].map((d, i) => box(d, i < first.length, choose(i < first.length ? undefined : d), { hideOnPhone: i >= PHONE_BOXES })),
+      regions: false,
+      boxes: [...first, ...others].map((d, i) => box(d, i < first.length, choose(i < first.length ? undefined : d))),
       moreRegions: null,
     };
   }
@@ -146,9 +163,9 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
       : addressOf(withFilters(state, { dateFrom: s.window.from, dateTo: s.window.to }));
     return {
       key: s.window.season, name: t(SEASON_NAME_KEYS[s.window.season].name), tours,
-      path: chosen || tours > 0 ? path : null, chosen, hideOnPhone: false, moreOnPhone: false, moreOnWide: false,
+      path: chosen || tours > 0 ? path : null, chosen, moreOnPhone: false, moreOnWide: false,
     };
   });
 
-  return { where, when };
+  return { where, when, screen: screenData(siteCounts, scope, places) };
 }

@@ -1,12 +1,13 @@
 import { it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import { I18nProvider } from '../lib/i18n-client';
 import { parseSearchParams } from '../lib/search-params';
 import { FixedOperatorProvider, FixedSeasonProvider } from '../lib/search-address';
 import { seasonWindow } from '../lib/seasons';
-import { DestinationSearchConnected, DestinationPanelsConnected } from './DestinationConnected';
+import { DestinationSearchConnected, DestinationPanelsConnected, DestinationScreenConnected } from './DestinationConnected';
 
 const push = vi.fn<(href: string) => void>();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -120,4 +121,26 @@ it('on a season\'s page a destination is a filter of that page, and clearing it 
   render(<I18nProvider locale="zh-Hant"><FixedSeasonProvider season={easter}><DestinationSearchConnected state={onEaster('dest=korea&sort=days')} /></FixedSeasonProvider></I18nProvider>);
   await user.click(screen.getByRole('button', { name: '清除' }));
   expect(push).toHaveBeenLastCalledWith('/seasons/easter?sort=days');
+});
+
+// Task 73: the phone search box on the band, and the full-screen search it opens.
+it('the phone search screen goes where the search bar goes, keeping the other filters; without JavaScript the box is the directory', async () => {
+  const user = userEvent.setup();
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+  window.history.replaceState(null, '');
+  const html = renderToString(
+    <I18nProvider locale="en"><DestinationScreenConnected state={state('sort=days')} placeholder="Where to?" /></I18nProvider>,
+  );
+  expect(html).toContain('href="/en/tours"');
+  render(<I18nProvider locale="zh-Hant"><DestinationScreenConnected state={state('sort=days&page=3&dmin=5')} placeholder="想去邊？" /></I18nProvider>);
+  await user.click(screen.getByRole('button', { name: '想去邊？' }));
+  await user.keyboard('大阪{Enter}');
+  await act(() => new Promise(r => setTimeout(r, 60)));
+  expect(push).toHaveBeenCalledWith('/tours/japan-kansai?dmin=5&sort=days');
+  window.history.replaceState(null, '');
 });

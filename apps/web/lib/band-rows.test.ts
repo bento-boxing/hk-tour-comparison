@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { places } from '@hktours/core';
 import type { DestinationCount, DestinationCounts } from '@hktours/db/read';
 import { makeT } from './i18n';
-import { bandHref, bandRows, PHONE_BOXES, REGIONS_PHONE, REGIONS_WIDE, WIDE_BOXES } from './band-rows';
+import { bandHref, bandRows, REGIONS_PHONE, REGIONS_WIDE, WIDE_BOXES } from './band-rows';
 import { parseSearchParams } from './search-params';
 import { seasonWindow } from './seasons';
 import type { SeasonCount } from './season-counts';
@@ -51,16 +51,22 @@ const summary = (boxes: { key: string; tours: number; path: string | null; chose
 describe('nothing chosen (the home page)', () => {
   const { where, when } = rowsOf({});
 
-  it('row 1: today\'s top destinations, site-wide, each to its page; four of them on phones', () => {
+  it('row 1: today\'s top destinations, site-wide, each to its page (no regions: none of them on phones)', () => {
     expect(where.label).toBe('熱門目的地');
+    expect(where.regions).toBe(false);
     expect(summary(where.boxes)).toEqual([
       ['china', 120, '/tours/china', false], ['japan', 100, '/tours/japan', false], ['korea', 80, '/tours/korea', false],
       ['macau', 70, '/tours/macau', false], ['taiwan', 60, '/tours/taiwan', false], ['thailand', 50, '/tours/thailand', false],
       ['vietnam', 40, '/tours/vietnam', false],
     ]);
     expect(where.boxes).toHaveLength(WIDE_BOXES);
-    expect(where.boxes.map(b => b.hideOnPhone)).toEqual(where.boxes.map((_, i) => i >= PHONE_BOXES));
     expect(where.moreRegions).toBeNull();
+  });
+
+  it('the phone search screen: the top eight, site-wide, and the site-wide counts by destination id', () => {
+    const { screen } = rowsOf({});
+    expect(screen.popular).toEqual(['china', 'japan', 'korea', 'macau', 'taiwan', 'thailand', 'vietnam', 'germany']);
+    expect(screen.tours).toMatchObject({ china: 120, 'china-guangdong': 40, japan: 100, 'japan-kansai': 30, france: 20 });
   });
 
   it('row 2: the seasons with tours, soonest first, site-wide, each to its page', () => {
@@ -73,6 +79,7 @@ describe('a country chosen (/tours/japan)', () => {
 
   it('row 1: the country chosen (pressing it goes home), then its regions most tours first, each keeping the other filters', () => {
     expect(where.label).toBe('日本地區');
+    expect(where.regions).toBe(true);
     expect(summary(where.boxes)).toEqual([
       ['japan', 100, '/?dmin=5&sort=days', true],
       ['japan-kansai', 30, '/tours/japan-kansai?dmin=5&sort=days', false], ['japan-kanto', 25, '/tours/japan-kanto?dmin=5&sort=days', false],
@@ -87,6 +94,21 @@ describe('a country chosen (/tours/japan)', () => {
     expect(where.boxes.slice(1).map(b => b.moreOnWide)).toEqual(Array(9).fill(false));
     expect(where.boxes.slice(1).map(b => b.moreOnPhone)).toEqual(where.boxes.slice(1).map((_, i) => i >= REGIONS_PHONE));
     expect(where.moreRegions).toEqual({ n: 9, onWide: false, onPhone: true });
+  });
+
+  it('four regions or fewer besides a chosen one: all of them on phones, no disclosure', () => {
+    // Korea's one listed region; Japan with four regions listed: none behind a disclosure.
+    expect(rowsOf({ dest: 'korea' }).where.moreRegions).toBeNull();
+    const japanWith = (min: number): typeof site => ({ ...site, destinations: site.destinations.filter(l => l.countryId !== 'japan' || l.tours >= min) });
+    const four = bandRows(t, stateOf({ dest: 'japan' }), japanWith(15), seasons).where;
+    expect(four.boxes.slice(1).map(b => b.moreOnPhone)).toEqual([false, false, false, false]);
+    expect(four.moreRegions).toBeNull();
+    // Five regions, one of them chosen: the four others all show.
+    const chosen = bandRows(t, stateOf({ dest: 'japan-kanto' }), japanWith(10), seasons).where;
+    expect(chosen.boxes.slice(1).map(b => [b.key, b.moreOnPhone])).toEqual([
+      ['japan-kansai', false], ['japan-kanto', false], ['japan-hokkaido', false], ['japan-kyushu', false], ['japan-chubu', false],
+    ]);
+    expect(chosen.moreRegions).toBeNull();
   });
 
   it('row 2: each season counted for the country (a season without its tours is faded, no link), keeping the country', () => {
@@ -107,14 +129,16 @@ it('more than nine regions: eight on wide screens and the disclosure there too',
 describe('a region chosen (/tours/japan-shikoku)', () => {
   const { where } = rowsOf({ dest: 'japan-shikoku' });
 
-  it('the country\'s row: the country first (a way to it), then the chosen region first among the regions (else hidden on phones)', () => {
+  it('the country\'s row: the country first (a way to it), then the chosen region first among the regions', () => {
     expect(where.label).toBe('日本地區');
     expect(summary(where.boxes).slice(0, 4)).toEqual([
       ['japan', 100, '/tours/japan', false],
       ['japan-shikoku', 2, '/tours/japan', true], // its ✕ goes back to the country
       ['japan-kansai', 30, '/tours/japan-kansai', false], ['japan-kanto', 25, '/tours/japan-kanto', false],
     ]);
-    expect(where.boxes[1].moreOnPhone).toBe(false);
+    // On phones the chosen region is in the row of chosen boxes: the regions row is the others, three and the disclosure.
+    expect(where.boxes.slice(1).map(b => b.moreOnPhone)).toEqual([false, false, false, false, true, true, true, true, true]);
+    expect(where.moreRegions).toEqual({ n: 9, onWide: false, onPhone: true });
   });
 
   it('a region already among the first three keeps its place', () => {
@@ -130,6 +154,7 @@ it('a destination the rules do not fit (a country with no region pages): its box
     ['korea', 80, '/tours/korea', false], ['taiwan', 60, '/tours/taiwan', false], ['thailand', 50, '/tours/thailand', false],
     ['vietnam', 40, '/tours/vietnam', false],
   ]);
+  expect(where.regions).toBe(false);
   expect(where.moreRegions).toBeNull();
 });
 
@@ -142,6 +167,12 @@ describe('a season chosen (/seasons/christmas)', () => {
       ['china', 0, null, false], ['japan', 12, '/seasons/christmas?dest=japan', false],
       ['korea', 18, '/seasons/christmas?dest=korea', false], ['macau', 0, null, false],
     ]);
+  });
+
+  it('the phone search screen: the same top eight, counted in the season', () => {
+    const { screen } = rowsOf(query);
+    expect(screen.popular[0]).toBe('china');
+    expect(screen.tours).toEqual({ japan: 12, 'japan-hokkaido': 9, 'japan-kansai': 3, 'japan-kanto': 3, korea: 18, 'korea-seoul': 18 });
   });
 
   it('row 2: the season chosen (pressing it goes home), the others to their own pages', () => {

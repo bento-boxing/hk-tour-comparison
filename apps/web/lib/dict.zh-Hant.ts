@@ -70,6 +70,10 @@ const zh = {
   'band.fewerRegions': '收起',
   // A chosen box's accessible name, in either row ({count} is dest.tours: '1,306 團'): pressing it un-chooses it.
   'band.selected': '{name} {count}，已選取，按此取消',
+  // Task 73: on phones, the disclosure's visible text (band.allRegions is its name for screen readers), and the name
+  // of the row of chosen boxes.
+  'band.allRegionsShort': '全部 {n}',
+  'band.chosen': '已選取',
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
@@ -146,6 +150,10 @@ const zh = {
   'dest.byCountry': '按國家選擇',
   'dest.allRegions': '全部地區', // must equal ALL_REGIONS_LABEL in @hktours/core (pinned by a test)
   'dest.back': '← 返回',
+  // Task 73: the phone search screen (drawing Mobile2Search): its name, its ← button's name, and the parts of the world.
+  'screen.title': '選擇目的地',
+  'screen.close': '關閉',
+  'screen.browse': '按地區瀏覽',
   'dest.listSeparator': '、',
   'countryGroup.china': '中國內地及港澳台', // the countryGroup.* labels must equal COUNTRY_GROUPS in @hktours/core (pinned by a test)
   'countryGroup.northeast-asia': '日本及韓國',

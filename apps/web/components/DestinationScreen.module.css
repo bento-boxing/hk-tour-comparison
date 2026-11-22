@@ -1,0 +1,114 @@
+/*
+ * The phone destination search (task 73, the owner's drawing Mobile2Search): the box on the page, and the full-screen
+ * view it opens. Shown under 640px only (the band and the trip page hide it from 640px). On the gold band the box reads
+ * the band's hooks (--search-*: white with an ink outline, see search-band.module.css); elsewhere the defaults.
+ */
+.searchBox { position: relative; }
+
+/* The box: 48px (it grows with very large text), the search mark, then the placeholder (or the chosen destination). */
+.box {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 14px;
+  border: 2px solid var(--search-border, var(--ink)); border-radius: var(--radius-card);
+  background: var(--search-bg, var(--surface)); color: var(--search-text, var(--ink));
+  font: inherit; font-size: 16px; line-height: 1.3; text-align: left; text-decoration: none; cursor: pointer;
+}
+.box:focus-visible { outline: 2px solid var(--band-focus, var(--focus)); outline-offset: 2px; }
+.withClear .box { padding-right: 52px; }
+.icon { flex: none; font-size: 18px; line-height: 1; }
+/* A long placeholder or destination wraps between words (never cut): the box grows. */
+.placeholder, .value { flex: 1 1 auto; min-width: 0; }
+.placeholder { color: var(--search-muted, var(--text-muted)); }
+.value { font-weight: 700; }
+.clear {
+  position: absolute; top: 50%; right: 2px; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border: 0; border-radius: var(--radius-control); background: none; color: var(--search-text, var(--ink));
+  font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.clear:hover { background: var(--hit); }
+.clear:focus-visible { outline: 2px solid var(--band-focus, var(--focus)); outline-offset: -2px; }
+
+/*
+ * The view: the whole window (the browser's top layer, over everything), in the page's colours: a fixed head (← and
+ * the text field), the choices scrolling under it. The suggestions cover the choices while there is text
+ * (DestinationSearch.module.css .inlineList, from the head's 56px down).
+ */
+.screen {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  background: var(--page); color: var(--ink);
+  --search-height: 44px; --search-font: 16px; --screen-head: 56px;
+}
+.screen[open] { display: flex; flex-direction: column; }
+.screen::backdrop { background: var(--page); }
+/* While it is open, the page behind does not scroll (the dialog is modal: the page is inert too). */
+:global(html):has(.screen[open]) { overflow: hidden; }
+
+/* Its name for screen readers (the visible field and its choices say what it is). */
+.title {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+.head {
+  flex: none; display: flex; align-items: center; gap: 4px; height: var(--screen-head); padding: 0 12px 0 4px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.back {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border: 0; border-radius: var(--radius-control); background: none; color: var(--ink);
+  font: inherit; font-size: 24px; line-height: 1; cursor: pointer;
+}
+.back:hover { background: var(--hit); }
+.back:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.field { flex: 1 1 auto; min-width: 0; }
+
+.body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 32px; }
+.section + .section { margin-top: 18px; }
+.sectionTitle { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+
+/* 熱門目的地: four columns (two in English), each box 52px at least, its name over its count. */
+.popular { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.screen:lang(en) .popular { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.popular > li { display: flex; min-width: 0; }
+.pop {
+  flex: 1 1 auto; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4px; border: 2px solid var(--selected-bg); border-radius: 6px; background: var(--selected-bg); color: var(--on-selected);
+  font: inherit; line-height: 1.25; text-align: center; cursor: pointer;
+}
+.pop:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.pop:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pop[aria-current='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 2px var(--selected-bg); }
+/* A destination with no tours in the page's context: faded and not pressable, as the band's boxes. */
+.pop:disabled { opacity: 0.4; cursor: default; }
+.popName { max-width: 100%; font-size: 15px; font-weight: 700; text-wrap: balance; }
+.popCount { font-size: 12px; }
+
+/* 按地區瀏覽: the parts of the world as rows, a part's countries under it, a country's regions as boxes. */
+.parts, .countries, .regions { margin: 0; padding: 0; list-style: none; }
+.partRow, .countryRow {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 4px;
+  border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.partRow { font-size: 16px; font-weight: 700; }
+.countryRow { min-height: 44px; padding-left: 16px; font-size: 15px; font-weight: 500; }
+.partRow:hover, .countryRow:hover { background: var(--hit); }
+.partRow:focus-visible, .countryRow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.countryRow[aria-current='true'] { font-weight: 700; }
+.rowName { flex: 1 1 auto; min-width: 0; }
+.rowCount { flex: none; font-size: 13px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+.mark { flex: none; width: 1em; text-align: center; color: var(--text-muted); }
+
+.regions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 4px 12px 16px; border-bottom: 1px solid var(--line); }
+.region {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 6px;
+  min-height: 44px; max-width: 100%; padding: 8px 14px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; line-height: 1.3; text-align: center; cursor: pointer;
+}
+.region:hover { background: var(--hit); }
+.region:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.region[aria-current='true'], .region[aria-current='true']:hover {
+  background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700;
+}
+.regionCount { font-size: 12px; font-weight: 500; }

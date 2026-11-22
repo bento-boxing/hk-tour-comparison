@@ -15,6 +15,7 @@ import { requestTripFocus } from '../lib/trip-undo';
 import { ChainStrip } from './ChainStrip';
 import { DestinationPanels } from './DestinationPanels';
 import { DestinationSearch } from './DestinationSearch';
+import { DestinationScreen } from './DestinationScreen';
 import { FilterBar } from './FilterBar';
 import { Results } from './Results';
 import styles from './ChainConnected.module.css';
@@ -67,6 +68,23 @@ export function ChainDestinationPanelsConnected({ address }: { address: ChainAdd
   const goTo = useGoTo();
   const select = (dest: Destination) => goTo(withDestination(address, dest));
   return <DestinationPanels places={places} t={t} value={address.search.filters.destination ?? null} onSelect={select} />;
+}
+
+/**
+ * The phone search box and its full-screen search for the next leg's destination (task 73): the box shows the chosen
+ * destination with a clear button (this screen has no band of chosen boxes); no popular destinations or counts (the
+ * site's counts are not the tours that fit the trip). It needs JavaScript, as every control on this page does.
+ */
+export function ChainDestinationScreenConnected({ address }: { address: ChainAddress }) {
+  const t = useT();
+  const goTo = useGoTo();
+  const select = (dest: Destination | null) => goTo(withDestination(address, dest));
+  return (
+    <DestinationScreen
+      places={places} t={t} value={address.search.filters.destination ?? null} onSelect={select}
+      placeholder={t('dest.placeholder')} showValue
+    />
+  );
 }
 
 /** The next-leg list's filter bar: no date pill (the gap sets the window), plus the exclusion pill. Legs and gap stay. */

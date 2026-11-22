@@ -292,3 +292,25 @@ it('a new language relabels the chosen destination in the box', () => {
   rerender(<DestinationSearch places={places} t={makeT('en')} value={kansai} onSelect={onSelect} />);
   expect(screen.getByRole('combobox')).toHaveValue('Japan → Kansai');
 });
+
+// Task 73: inline (the phone search screen): the suggestions are there while there is text, also when the box loses
+// focus, and Escape is left to the screen (it closes it).
+it('inline: the suggestions follow the text, not the focus; Escape is not taken; each change of text is told', async () => {
+  const onTextChange = vi.fn<(text: string) => void>();
+  render(<DestinationSearch places={places} t={tZh} value={null} onSelect={onSelect} layout="inline" onTextChange={onTextChange} />);
+  const box = screen.getByRole('combobox');
+  expect(screen.queryByRole('listbox')).toBeNull();
+  await user.type(box, '大阪');
+  expect(onTextChange).toHaveBeenLastCalledWith('大阪');
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  fireEvent.blur(box);
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  box.dispatchEvent(escape);
+  expect(escape.defaultPrevented).toBe(false);
+  expect(screen.getByRole('listbox')).toBeInTheDocument();
+  await user.clear(box);
+  expect(screen.queryByRole('listbox')).toBeNull();
+  await user.type(box, 'zzzz');
+  expect(screen.getByRole('status')).toHaveTextContent('沒有相符地區');
+});

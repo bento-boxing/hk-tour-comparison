@@ -84,77 +84,78 @@ a.shortcut:hover, a.season:hover { text-decoration: underline; text-underline-of
 .more > summary:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
 .more[open] .moreClosed, .more:not([open]) .moreOpen { display: none; }
 
-/* Wide screens: a count's unit ('團', 'tours') and row 1's label are for screen readers only. */
+/* For screen readers only (the phone disclosure's full name). */
+.srOnly {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/*
+ * Wide screens: a count's unit ('團', 'tours') and row 1's label are for screen readers only. The phone layout's parts
+ * (task 73) are drawn nowhere here.
+ */
 @media (min-width: 640px) {
   .unit, .whereLabel {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap; border: 0;
   }
-  .shortcutList > .hideOnWide { display: none; }
   .shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }
+  .phoneOnly { display: none; }
 }
 
 /*
- * Phones (drawings Home3PhoneGrid "P1" and W3): the band's groups 18px apart; the 按國家選擇 button under the search
- * box, the full width (its panel hangs off the search row: DestinationPanels.module.css); a small label over each set
- * of boxes; four equal columns in row 1 (four boxes, more when a chosen country's regions are opened), three for the
- * seasons (one or two keep the same size, at the left), each box at least 52px tall with its name over its count and
- * unit, and a chosen box's ✕ in its top-right corner. A name too long for its column wraps inside its box (between
- * words in English), and every box of a row is as tall as the tallest. English names (and '9,999 tours') are too wide
- * for four columns (66 to 89px from 320 to 414px: Singapore, Argentina, Switzerland… overflow; measured, task 68), so
- * in English the destinations take two columns, in the same boxes, and so do the seasons (Christmas breaks mid-word in
- * a third of the row at 130% text).
+ * Phones (task 73; the owner's drawings Mobile6Home and Mobile4Results): a compact band, its parts 10px apart: the
+ * heading (20px) over its line of numbers (13px; the home page's sentence is not shown), the search box (48px:
+ * components/DestinationScreen.module.css, in place of the wide search box and the 按國家選擇 button), then the boxes
+ * (PhoneRows in search-band.tsx), each row on one line of equal columns: the chosen boxes (two columns), a chosen
+ * country's regions (four), the seasons (three); two columns for each in English. A box is 40px tall, its name and
+ * count side by side (the count's unit for screen readers only), regions in the header's ink, seasons outlined in
+ * --on-gold, a chosen box white with an ink border and ring and ✕ after its count. A name too long for its column
+ * wraps inside its box (between words in English, anywhere when one word is too long), the count after it or under
+ * it, and every box of the row grows to the tallest: no name is ever cut.
  */
 @media (max-width: 639px) {
-  .inner { padding-top: 18px; padding-bottom: 16px; gap: 18px; }
-  .heading { font-size: 24px; letter-spacing: 0; }
-  .line, .lede { font-size: 14px; }
-  .searchBox { flex-basis: 100%; }
-  .panelsBox { flex-basis: 100%; --toggle-width: 100%; --toggle-height: 48px; }
-  .shortcuts, .seasons { display: block; margin: 0; }
-  .label { margin: 0 0 8px; font-size: 13px; font-weight: 700; line-height: 1.5; }
-  .shortcutList { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
-  .seasonList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
-  .shortcutList > li, .seasonList > li { display: flex; min-width: 0; }
-  /* Row 1 shows four destinations here, so the band stays short; a chosen country's other regions when opened. */
-  .shortcutList > .hideOnPhone { display: none; }
-  .shortcutList:not(:has(details[open])) > .moreOnPhone { display: none; }
-  .shortcut, .season {
-    position: relative; flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 6px 4px;
-    justify-content: center; text-align: center; line-height: 1.25;
+  .inner { padding-top: 12px; padding-bottom: 14px; gap: 10px; }
+  .head { flex-direction: column; align-items: flex-start; gap: 0; }
+  .heading { font-size: 20px; letter-spacing: 0; line-height: 1.3; }
+  .line { font-size: 13px; line-height: 1.5; }
+  .lede, .wideOnly { display: none; }
+  .phoneRows { display: flex; flex-direction: column; gap: 10px; }
+  .prow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .pchosenRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pseasonRow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .band:lang(en) .pregionRow, .band:lang(en) .pseasonRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .prow > li { display: flex; min-width: 0; }
+  .pbox {
+    flex: 1 1 auto; min-width: 0; min-height: 40px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    column-gap: 4px; padding: 2px 6px; border: 2px solid var(--on-gold); border-radius: 6px;
+    color: var(--on-gold); font-size: 14px; font-weight: 700; line-height: 1.25; text-align: center; text-decoration: none;
   }
-  .season { padding: 4px 6px; }
+  a.pbox:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .pbox:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+  .pregion { background: var(--header-bg); border-color: var(--header-bg); color: var(--header-text); }
+  .pchosen { background: var(--band-field-bg); box-shadow: 0 0 0 2px var(--on-gold); }
+  .pname { min-width: 0; max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }
+  .pbox .count { margin-left: 0; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .pbox .unit {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .pclear { margin-left: 2px; font-weight: 700; }
   /*
-   * A chosen box: its ✕ in the top-right corner (14px, 2px from the top), the name kept below it (the padding above
-   * it is the ✕'s line as fonts draw it, 1.2em of the box's 15px, plus 4px, so it grows with the text and a Chinese
-   * name's taller glyph box stays clear of it); its border comes out of the padding.
+   * A chosen country's other regions past the first three: the fourth box, dashed, opens them in place (全部 9 ▾ /
+   * 收起 ▴). Native <details>: without JavaScript too; the boxes are in the HTML, hidden only while it is closed and
+   * only where the browser can tell (:has): a browser that cannot shows them all, always.
    */
-  .shortcut.selected { padding: calc(1.2em + 4px) 2px 4px; }
-  .season.selected { padding: calc(1.2em + 4px) 6px 4px; }
-  .clear { position: absolute; top: 2px; right: 6px; margin: 0; font-size: 14px; line-height: 1; }
-  .boxText { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
-  /* A wrapped name is balanced over its lines (印度尼 / 西亞, not 印度尼西 / 亞) where the browser can. */
-  /*
-   * A word too long for its box (at a large text size) is hyphenated where the language allows, else broken anywhere,
-   * so no name ever runs past its box.
-   */
-  .name { font-size: 15px; font-weight: 700; text-wrap: balance; hyphens: auto; overflow-wrap: anywhere; }
-  /* With very large text the unit may go under its number, inside the box. */
-  .count { margin-left: 0; font-size: 12px; font-weight: 500; }
-  /* The regions' disclosure: its own line under the boxes, at the right, 44px tall to touch. */
-  .moreItem { grid-column: 1 / -1; justify-self: end; }
-  .more > summary { min-height: 44px; font-size: 14px; }
-  /* English seasons too: two columns (a third season on a second row), so Christmas keeps one line at 130% text. */
-  .band:lang(en) .shortcutList, .band:lang(en) .seasonList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .band:lang(en) .shortcut { padding: 6px 8px; }
-  .band:lang(en) .shortcut.selected { padding: calc(1.2em + 4px) 6px 4px; }
+  .pmore { flex: 1 1 auto; min-width: 0; }
+  .pmore > summary { height: 100%; border-style: dashed; font-size: 13px; list-style: none; cursor: pointer; }
+  .pmark { font-size: 11px; }
+  .pmore > summary::-webkit-details-marker { display: none; }
+  .pmore[open] .moreClosed, .pmore:not([open]) .moreOpen { display: none; }
+  .prow:not(:has(details[open])) > .pmoreItem { display: none; }
 }
-/* The narrowest phones (320px): smaller, so the line saying what the site does stays one line there too (at 13px the
- * Chinese line is 2px too wide). */
+/* The narrowest phones (320px): the boxes' sides closer, so more names keep one line with their count. */
 @media (max-width: 359px) {
-  .lede { font-size: 12px; }
-  /* The boxes' columns are 66px (destinations) and 90px (seasons) here: 馬來西亞 and Christmas need 14px to keep one line. */
-  .name { font-size: 14px; }
-  /* English boxes there are 138px: 4px at the sides, so a long one-word region (Heilongjiang) keeps one line at 130%. */
-  .band:lang(en) .shortcut { padding: 6px 4px; }
+  .pbox { padding: 2px 4px; }
+  .pmore > summary { padding: 2px; }
 }

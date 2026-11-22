@@ -13,6 +13,7 @@ import {
   OPERATORS_PATH, isOperatorListed, joinNames, officialSiteUrl, operatorFromId, operatorPath, operatorPlaces, operatorSearchHref,
 } from '../../lib/operators';
 import { breadcrumbJsonLd } from '../../lib/structured-data';
+import { screenData } from '../../lib/search-screen';
 import { JsonLd } from '../../components/JsonLd';
 import { FixedOperatorProvider } from '../../lib/search-address';
 import { loadOperator, queryOf, type Loaded, type OperatorPageData, type SearchParams } from './page-data';
@@ -124,6 +125,8 @@ export async function OperatorPage({ locale, params, searchParams }: { locale: L
         t={t} heading={heading} state={search.state}
         line={t('operator.count', { tours: formatCount(listing.tours) })}
         related={notes}
+        // The phone search screen's popular destinations, without the site's counts (they are not this operator's).
+        screen={screenData(search.counts, null, places)}
       />
       <SearchList
         t={t} data={search} today={load.today} now={load.now} clearPath={operatorPath(operator)}

@@ -12,6 +12,14 @@ export interface DestinationSearchProps {
   onSelect: (dest: Destination | null) => void;
   /** The box's placeholder; dest.placeholder by default. Its accessible name is always dest.placeholder. */
   placeholder?: string;
+  /**
+   * 'inline' (the phone search screen, task 73): the suggestions are a list in the flow under the box, shown while
+   * there is text (also after the box loses focus, so they can be scrolled on a touch screen), and Escape is left to
+   * the screen (it closes it). 'popover' (the default): a dropdown over the page while the box has focus.
+   */
+  layout?: 'popover' | 'inline';
+  /** Told each time the text changes (the screen shows its other choices while there is none). */
+  onTextChange?: (text: string) => void;
 }
 
 /**
@@ -43,7 +51,8 @@ const keyOf = (dest: Destination | null) => (dest ? `${dest.countryId}:${dest.re
  * The destination search bar (mockup `.search` / `.sugg`): a WAI-ARIA combobox whose listbox offers
  * `Country → Region` suggestions. Only choosing an option (or clearing) calls onSelect.
  */
-export function DestinationSearch({ places, t, value, onSelect, placeholder }: DestinationSearchProps) {
+export function DestinationSearch({ places, t, value, onSelect, placeholder, layout = 'popover', onTextChange }: DestinationSearchProps) {
+  const inline = layout === 'inline';
   const id = useId();
   const listboxId = `${id}-listbox`;
   const optionId = (i: number) => `${id}-option-${i}`;
@@ -65,8 +74,10 @@ export function DestinationSearch({ places, t, value, onSelect, placeholder }: D
 
   const suggestions = useMemo(() => suggestRegions(text, places), [text, places]);
   const blank = text.trim() === '';
-  const listOpen = open && suggestions.length > 0;
-  const noMatch = open && !blank && suggestions.length === 0;
+  // Inline, the list is there whenever there is text to suggest for.
+  const shownOpen = inline ? !blank : open;
+  const listOpen = shownOpen && suggestions.length > 0;
+  const noMatch = shownOpen && !blank && suggestions.length === 0;
   // The row Enter would pick: shown as the hit row (as in the mockup) and marked aria-selected.
   const enterTarget = active >= 0 ? active : 0;
 
@@ -100,12 +111,12 @@ export function DestinationSearch({ places, t, value, onSelect, placeholder }: D
       case 'ArrowDown': e.preventDefault(); move(1); break;
       case 'ArrowUp': e.preventDefault(); move(-1); break;
       case 'Enter':
-        if (!open) return;
+        if (!shownOpen) return;
         e.preventDefault();
         if (suggestions.length > 0) choose(suggestions[enterTarget]);
         break;
       case 'Escape':
-        if (open) { e.preventDefault(); close(); }
+        if (open && !inline) { e.preventDefault(); close(); }
         break;
     }
   };
@@ -126,16 +137,16 @@ export function DestinationSearch({ places, t, value, onSelect, placeholder }: D
           autoComplete="off"
           placeholder={placeholder ?? t('dest.placeholder')}
           value={text}
-          onChange={e => { setText(e.target.value); setOpen(true); setActive(-1); }}
+          onChange={e => { setText(e.target.value); setOpen(true); setActive(-1); onTextChange?.(e.target.value); }}
           onKeyDown={onKeyDown}
-          onBlur={close}
+          onBlur={inline ? () => setActive(-1) : close}
         />
         {value && (
           <button type="button" className={styles.clear} onClick={clear}>{t('dest.clear')}</button>
         )}
       </div>
       {listOpen && (
-        <ul id={listboxId} role="listbox" aria-label={t('dest.placeholder')} className={styles.sugg}>
+        <ul id={listboxId} role="listbox" aria-label={t('dest.placeholder')} className={inline ? styles.inlineList : styles.sugg}>
           {suggestions.map((s, i) => {
             const cities = hintCities(s, places, t);
             return (
@@ -160,7 +171,7 @@ export function DestinationSearch({ places, t, value, onSelect, placeholder }: D
         </ul>
       )}
       {/* Always present so screen readers announce the message when it appears. */}
-      <div role="status" className={noMatch ? styles.sugg : undefined}>
+      <div role="status" className={noMatch ? (inline ? styles.inlineList : styles.sugg) : undefined}>
         {noMatch && <div className={styles.none}>{t('dest.none')}</div>}
       </div>
     </div>

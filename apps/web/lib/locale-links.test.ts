@@ -42,6 +42,9 @@ const EXTERNAL_HREFS: Record<string, string[]> = {
   // 清除全部 is the address the page's own hrefFor gives (FilterBarConnected: localeHref(t.locale, …)).
   'components/FilterBar.tsx': ['href={`#${SHEET_ID}`}'],
   'components/FilterSheet.tsx': ['href={`#${barId}`}', 'href={clearHref}'],
+  // The phone search box without JavaScript: the destinations directory, as the band gives it (DestinationConnected:
+  // localeHref(t.locale, TOURS_PATH)).
+  'components/DestinationScreen.tsx': ['href={fallbackHref}'],
 };
 /**
  * Navigation-like code that is not a navigation to an address of its own, by file, exactly as written: the filter
@@ -50,6 +53,8 @@ const EXTERNAL_HREFS: Record<string, string[]> = {
  */
 const SAME_PAGE: Record<string, string[]> = {
   'components/FilterSheet.tsx': ['history.pushState(', 'action={target'],
+  // The phone search screen's history entry for the same address (task 73), as the filter sheet's.
+  'components/DestinationScreen.tsx': ['history.pushState('],
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);
