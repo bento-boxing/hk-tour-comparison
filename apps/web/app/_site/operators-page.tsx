@@ -1,11 +1,10 @@
-import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
 import { SiteLink } from '../../components/SiteLink';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { operatorName } from '../../lib/place-names';
-import { operatorTextTone } from '../../lib/contrast';
+import { operatorTagStyle } from '../../lib/contrast';
 import { formatCount } from '../../lib/format';
 import { TOURS_PATH } from '../../lib/destinations';
 import { OPERATORS_PATH, operatorPath } from '../../lib/operators';
@@ -14,9 +13,6 @@ import { KeepClauses } from './keep-clauses';
 import frame from './site-frame.module.css';
 import tours from './tours-page.module.css';
 import styles from './operators-page.module.css';
-
-/** Only #rrggbb reaches the inline style (as on the rows' tags). */
-const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
 
 /**
  * Its own title (with ' | ' as every page but the operators' own) and description. Never noindex: the page is a
@@ -51,14 +47,13 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
       <p className={styles.notOfficial}><KeepClauses text={t('operators.notOfficial')} locale={t.locale} /></p>
       <ul className={styles.operators}>
         {listings.map(listing => {
-          const safe = SAFE_COLOR.test(listing.color);
-          const dark = safe && operatorTextTone(listing.color) === 'dark';
+          const { style, dark } = operatorTagStyle(listing.color);
           return (
             <li key={listing.id}>
               <SiteLink className={styles.operator} href={localeHref(t.locale, operatorPath(listing.id))}>
                 <span
                   className={dark ? `${styles.tag} ${styles.tagDark}` : styles.tag}
-                  style={{ '--c': safe ? listing.color : 'var(--op-fallback)' } as CSSProperties}
+                  style={style}
                 >
                   {operatorName(listing, t.locale)}
                 </span>

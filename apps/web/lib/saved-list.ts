@@ -1,4 +1,5 @@
 import { OPERATOR_IDS, TOUR_CODE_PATTERN } from '@hktours/core';
+import { first, type RawParams } from './raw-params';
 
 // The saved tours' list as the saved page's address carries it (`/saved?t=egl:KIX5,jetour:THB`), for the server and
 // the browser alike (no storage here: that is lib/saved-tours.ts). The browser keeps the list; the address is how the
@@ -14,6 +15,7 @@ export const SAVED_CAP = 100;
 const MAX_PARTS = SAVED_CAP * 2;
 
 const KEY_PATTERN = /^([a-z]+):(.*)$/;
+// @hktours/core will export an isOperatorId of its own (task 62); this copy goes then.
 const isOperatorId = (s: string) => (OPERATOR_IDS as readonly string[]).includes(s);
 
 /** A tour's stable key as the site writes it, `<operator>:<code>` ('egl:KIX5'): a known operator and a valid code. */
@@ -32,17 +34,14 @@ export function savedHref(keys: readonly string[]): string {
   return keys.length === 0 ? '/saved' : `/saved?${new URLSearchParams({ t: keys.join(',') })}`;
 }
 
-type RawParams = Record<string, string | string[] | undefined>;
-
 /**
  * The tour keys an address asks for, in its order: each a valid key (isTourKey), each once, at most SAVED_CAP; only
  * the first `t` counts. `dropped` counts the parts left out (unreadable, repeated, or past the cap or the parts looked
  * at), so the page can say that something in its address was not read. Never throws.
  */
 export function parseSavedKeys(raw: RawParams): { keys: string[]; dropped: number } {
-  const value = Object.hasOwn(raw, 't') ? raw.t : undefined;
-  const text = Array.isArray(value) ? value[0] : value;
-  if (typeof text !== 'string' || text === '') return { keys: [], dropped: 0 };
+  const text = first(raw, 't');
+  if (text === undefined || text === '') return { keys: [], dropped: 0 };
   const parts = text.split(',');
   const keys: string[] = [];
   for (const part of parts.slice(0, MAX_PARTS)) {

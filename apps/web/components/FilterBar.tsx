@@ -1,10 +1,11 @@
 'use client';
 
-import { useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { OPERATOR_IDS, groupCountries, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo, SortKey, TourFilters } from '@hktours/db/read';
 import type { DictKey, T } from '../lib/i18n';
-import { formatChipDate, formatPrice } from '../lib/format';
+import { operatorTagStyle } from '../lib/contrast';
+import { formatChipDate, formatCount, formatPrice } from '../lib/format';
 import {
   buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, type SearchState,
 } from '../lib/search-params';
@@ -41,9 +42,6 @@ const SORT_ROWS = [
 /** Countries never offered for exclusion, as in the destination panels. */
 const HIDDEN_COUNTRY_IDS = ['hongkong'];
 
-/** Only #rrggbb reaches the inline style (as on the tour card). */
-const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
-
 /** '12/1 – 12/31'; a date outside today's year shows its year, as on the cards: '12/20 – 2027/1/10'. */
 function datesText(from: IsoDate | undefined, to: IsoDate | undefined, today: IsoDate, t: T): string | null {
   const date = (d: IsoDate) => formatChipDate(d, today, t);
@@ -65,10 +63,9 @@ function daysText(min: number | undefined, max: number | undefined, t: T): strin
 }
 
 function priceText(f: TourFilters, t: T): string | null {
-  const thousands = (n: number) => n.toLocaleString('en-US');
-  if (f.priceMin !== undefined && f.priceMax !== undefined) return `${formatPrice(f.priceMin)}–${thousands(f.priceMax)}`;
+  if (f.priceMin !== undefined && f.priceMax !== undefined) return `${formatPrice(f.priceMin)}–${formatCount(f.priceMax)}`;
   if (f.priceMin !== undefined) return t('filter.pricePlus', { min: formatPrice(f.priceMin) });
-  if (f.priceMax !== undefined) return `${formatPrice(PRICE_RANGE.min)}–${thousands(f.priceMax)}`;
+  if (f.priceMax !== undefined) return `${formatPrice(PRICE_RANGE.min)}–${formatCount(f.priceMax)}`;
   return null;
 }
 
@@ -226,7 +223,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
                     <span
                       data-dot=""
                       className={styles.dot}
-                      style={{ '--c': SAFE_COLOR.test(op.color) ? op.color : 'var(--op-fallback)' } as CSSProperties}
+                      style={operatorTagStyle(op.color).style}
                     />
                     {operatorName(op, t.locale)}
                   </label>

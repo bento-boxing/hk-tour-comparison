@@ -31,7 +31,8 @@ export async function toursPageMetadata(locale: Locale): Promise<Metadata> {
  * - A row of jump links, one per part of the world, each to its section on this page.
  * - Each part of the world under a 2px rule: its countries with listed regions, one line each (the country and its
  *   count, then its regions in columns), then its countries without regions together in one grid; most tours first
- *   (lib/destinations.ts destinationDirectory). A region's count is the bare number, as in the drawing.
+ *   (lib/destinations.ts destinationDirectory). A region's count is the number alone, as in the drawing; every count
+ *   groups thousands ('1,234'), as the line of counts does.
  * - On phones a region, or a country without regions, whose name and count need more than its column's least width
  *   takes the whole row (.long), except where its column is wide enough for it: container queries for each such cell,
  *   in a <style> after the sections (lib/directory-cells.ts phoneCell and phoneFitCss).
@@ -52,9 +53,8 @@ export async function ToursPage({ locale }: { locale: Locale }) {
     return { className: phone.long ? `${own} ${styles.long}` : own, 'data-fit': phone.fit };
   };
   const sections = groups.map(group => (
-    // A destination's own count stays bare digits ('1234 團'), unlike the line of counts above ('2,122'): its columns
-    // (the stylesheet's widths, and phoneCell's sums for the phones' queries) were sized and measured for bare digits,
-    // and a thousands comma (about 4px at 13px) would take an English country's 4-digit count below its 12px of clear space.
+    // Every count groups thousands ('1,234 團', a region's '1,234'), as the line of counts above: the columns (the
+    // stylesheet's widths, and phoneCell's sums for the phones' queries) hold the comma of a four-digit count.
     <section key={group.id} id={group.id} tabIndex={-1} className={styles.group} aria-labelledby={`group-${group.id}`}>
       <h2 id={`group-${group.id}`} className={styles.groupHeading}>{t(`countryGroup.${group.id}`)}</h2>
       <div>
@@ -64,13 +64,13 @@ export async function ToursPage({ locale }: { locale: Locale }) {
               <li key={country.id} className={styles.country}>
                 <p className={styles.countryLine}>
                   <SiteLink className={styles.countryLink} href={localeHref(t.locale, destinationPath(destination))}>{placeName(country, t.locale)}</SiteLink>
-                  {' '}<span className={styles.count}>{t('dest.tours', { n: count.tours })}</span>
+                  {' '}<span className={styles.count}>{t('dest.tours', { n: formatCount(count.tours) })}</span>
                 </p>
                 <ul className={styles.regions}>
                   {regions.map(r => (
                     <li key={r.region.id} {...cell(styles.region, phoneCell('region', t.locale, placeName(r.region, t.locale), r.count.tours))}>
                       <SiteLink className={styles.regionLink} href={localeHref(t.locale, destinationPath(r.destination))}>{placeName(r.region, t.locale)}</SiteLink>
-                      {' '}<span className={styles.regionCount}>{r.count.tours}</span>
+                      {' '}<span className={styles.regionCount}>{formatCount(r.count.tours)}</span>
                     </li>
                   ))}
                 </ul>
@@ -83,7 +83,7 @@ export async function ToursPage({ locale }: { locale: Locale }) {
             {group.withoutRegions.map(({ country, destination, count }) => (
               <li key={country.id} {...cell(styles.plainCountry, phoneCell('plain', t.locale, placeName(country, t.locale), count.tours))}>
                 <SiteLink className={styles.countryLink} href={localeHref(t.locale, destinationPath(destination))}>{placeName(country, t.locale)}</SiteLink>
-                {' '}<span className={styles.count}>{t('dest.tours', { n: count.tours })}</span>
+                {' '}<span className={styles.count}>{t('dest.tours', { n: formatCount(count.tours) })}</span>
               </li>
             ))}
           </ul>

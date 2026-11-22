@@ -3,7 +3,9 @@ import type { Db, DestinationCounts, OperatorInfo } from '@hktours/db/read';
 import { withoutTitle, type TourRow } from './tour-row';
 import { createReads, runUncached, type Reads } from './cached-reads';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
+import { isOperatorShown } from './operators';
 import { placeName } from './place-names';
+import type { RawParams } from './raw-params';
 import { pageSizeOf, parseSearchParams, type SearchState } from './search-params';
 
 export interface SearchPageData {
@@ -21,15 +23,12 @@ export interface SearchPageData {
 }
 
 /**
- * The operators the filter bar offers, in the canonical order: those that have had a good run (the others
- * have no tours), plus any the address selects without one (an old or hand-made link), so that selection
- * still shows by name and can be undone.
+ * The operators the filter bar offers, in the canonical order (that of `all`, every operator): those that have had a
+ * good run (isOperatorShown; the others have no tours), plus any the address selects without one (an old or
+ * hand-made link), so that selection still shows by name and can be undone.
  */
-export function filterBarOperators(
-  all: OperatorInfo[], withGoodRun: OperatorInfo[], selected: OperatorId[] = [],
-): OperatorInfo[] {
-  const offered = new Set<OperatorId>([...withGoodRun.map(o => o.id), ...selected]);
-  return all.filter(o => offered.has(o.id));
+export function filterBarOperators(all: OperatorInfo[], selected: OperatorId[] = []): OperatorInfo[] {
+  return all.filter(o => isOperatorShown(o) || selected.includes(o.id));
 }
 
 /**
@@ -77,7 +76,7 @@ export const uncachedReads: Reads = createReads(placesOrder, runUncached);
  * the pages pass cachedReads.
  */
 export async function loadSearchPage(
-  db: Db, raw: Record<string, string | string[] | undefined>, today: IsoDate, locale: Locale = DEFAULT_LOCALE,
+  db: Db, raw: RawParams, today: IsoDate, locale: Locale = DEFAULT_LOCALE,
   reads: Reads = uncachedReads,
 ): Promise<SearchPageData> {
   const parsed = parseSearchParams(raw, places);
@@ -86,12 +85,11 @@ export async function loadSearchPage(
   const { excludeCountryIds: _ignored, ...filters } = parsed.filters;
   const state: SearchState = { ...parsed, filters };
 
-  const [{ tours, total }, operators, withGoodRun, counts] = await Promise.all([
+  const [{ tours, total }, operators, counts] = await Promise.all([
     reads.searchTours(db, { filters, sort: state.sort, page: state.page, pageSize: pageSizeOf(state), today }, locale),
     reads.getOperators(db),
-    reads.getOperators(db, { onlyWithGoodRun: true }),
     reads.countToursByDestination(db, today),
   ]);
-  const filterOperators = filterBarOperators(operators, withGoodRun, filters.operators);
+  const filterOperators = filterBarOperators(operators, filters.operators);
   return { state, tours: tours.map(withoutTitle), total, operators, filterOperators, counts };
 }

@@ -5,7 +5,7 @@ import { countToursByDestination, saveOperatorRun, PAGE_SIZE, type Db } from '@h
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import { createReads, type CacheFn } from './cached-reads';
-import { destinationOrder, loadSearchPage, uncachedReads } from './search-page-data';
+import { destinationOrder, filterBarOperators, loadSearchPage, uncachedReads } from './search-page-data';
 import type { Locale } from './i18n';
 import { operatorName } from './place-names';
 
@@ -239,6 +239,26 @@ describe('the operator filter', () => {
     expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert', 'bigline']);
     expect(keys(data)).toEqual(['texpert:LAST4']);
   });
+
+  it('reads the operators once: the ones offered come from the same list', async () => {
+    const asked: string[] = [];
+    const counting = { ...launch, query: ((sql: string, params?: unknown[]) => { asked.push(sql); return launch.query(sql, params); }) as Db['query'] };
+    const data = await loadSearchPage(counting, { op: 'bigline' }, today);
+    expect(asked.filter(sql => /\bfrom operators\b/.test(sql))).toHaveLength(1);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['jetour', 'texpert', 'bigline']);
+  });
+});
+
+describe('filterBarOperators', () => {
+  const op = (id: OperatorId, lastGoodRunAt: string | null) => ({ id, nameZh: id, nameEn: id, color: '#000000', lastGoodRunAt });
+  const all = [op('egl', null), op('jetour', '2026-11-11T19:10:00Z'), op('texpert', null), op('bigline', '2026-11-11T19:10:00Z')];
+
+  it('offers those with a good run, and any selected without one, in the order given', () => {
+    expect(filterBarOperators(all).map(o => o.id)).toEqual(['jetour', 'bigline']);
+    expect(filterBarOperators(all, []).map(o => o.id)).toEqual(['jetour', 'bigline']);
+    expect(filterBarOperators(all, ['texpert', 'jetour']).map(o => o.id)).toEqual(['jetour', 'texpert', 'bigline']);
+    expect(filterBarOperators([], ['egl'])).toEqual([]);
+  });
 });
 
 describe('through a cache (the pages pass cachedReads; see cached-reads.ts)', () => {
@@ -305,6 +325,6 @@ describe('through a cache (the pages pass cachedReads; see cached-reads.ts)', ()
     down = false;
     expect(keys(await loadSearchPage(flaky, {}, today, 'zh-Hant', reads)))
       .toEqual(['bigline:SEL5', 'texpert:LAST4', 'egl:KIX5', 'jetour:MID6']);
-    expect(store.entries.size).toBe(4); // the search, the two operator lists and the counts
+    expect(store.entries.size).toBe(3); // the search, the operators and the counts
   });
 });

@@ -83,6 +83,38 @@ it('a destination is listed when it has tours and is neither an area nor the onl
   expect(countOf(kansai, counts)).toEqual({ tours: 7, operators: 3 });
 });
 
+it('countOf finds each line exactly as a scan would, reading the counts list once however often it is asked', () => {
+  // Every line, a country's own line apart from its regions', a destination with no line, and a repeated line (the
+  // first one counts, as with a scan).
+  const lines = [
+    ...counts.destinations,
+    { countryId: 'japan', regionId: 'japan-kansai', tours: 99, operators: 9 },
+    { countryId: 'korea-seoul', regionId: null, tours: 1, operators: 1 },
+  ];
+  let reads = 0;
+  const destinations = new Proxy(lines, {
+    get: (target, name, receiver) => { if (typeof name === 'string' && /^\d+$/.test(name)) reads++; return Reflect.get(target, name, receiver); },
+  });
+  const watched: DestinationCounts = { all: counts.all, destinations };
+  const asked = [
+    ...lines.map(({ countryId, regionId }) => ({ countryId, regionId })),
+    { countryId: 'korea', regionId: 'korea-seoul-seoul' }, { countryId: 'japan', regionId: 'japan-okinawa' },
+    { countryId: 'thailand', regionId: null }, { countryId: 'japan-kansai', regionId: null },
+  ];
+  const scan = (d: { countryId: string; regionId: string | null }) => {
+    const line = lines.find(l => l.countryId === d.countryId && l.regionId === d.regionId);
+    return line ? { tours: line.tours, operators: line.operators } : { tours: 0, operators: 0 };
+  };
+  for (let round = 0; round < 3; round++) {
+    for (const d of asked) expect(countOf(d, watched), JSON.stringify(d)).toEqual(scan(d));
+  }
+  expect(countOf(kansai, watched)).toEqual({ tours: 7, operators: 3 });
+  expect(reads).toBe(lines.length);
+  // Another counts list (the next day's read) is looked up on its own.
+  expect(countOf(kansai, { all: counts.all, destinations: [{ countryId: 'japan', regionId: 'japan-kansai', tours: 1, operators: 1 }] }))
+    .toEqual({ tours: 1, operators: 1 });
+});
+
 it('the index arranges the listed destinations as the country picker does: parts of the world, countries, regions', () => {
   const index = destinationIndex(places, counts);
   expect(index.map(g => [g.id, g.countries.map(c => [c.country.id, c.count.tours, c.regions.map(r => `${r.region.id}:${r.count.tours}`)])])).toEqual([

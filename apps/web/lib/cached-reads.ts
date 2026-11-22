@@ -134,7 +134,8 @@ export type SearchQuery = Omit<SearchInput, 'destinationOrder'>;
 export interface Reads {
   /** searchTours, with the destination sorts ranked in `locale`'s order of place names. */
   searchTours(db: Db, query: SearchQuery, locale: Locale): Promise<{ tours: TourCardData[]; total: number }>;
-  getOperators(db: Db, opts?: { onlyWithGoodRun?: boolean }): Promise<OperatorInfo[]>;
+  /** Every operator, those without a good run too (the filter bar picks the others from it: filterBarOperators). */
+  getOperators(db: Db): Promise<OperatorInfo[]>;
   getToursByKeys(db: Db, keys: string[], today: IsoDate): Promise<Map<string, TourCardData>>;
   /** How many tours, from how many operators, are listed now: in all, per country and per region. */
   countToursByDestination(db: Db, today: IsoDate): Promise<DestinationCounts>;
@@ -214,9 +215,9 @@ export function createReads(
       return cache(JSON.stringify(key), () => searchTours(db, searchInput(key, orderFor)));
     },
 
-    getOperators(db, opts = {}) {
-      const key = { build, read: 'getOperators', onlyWithGoodRun: opts.onlyWithGoodRun === true };
-      return cache(JSON.stringify(key), () => getOperators(db, { onlyWithGoodRun: key.onlyWithGoodRun }));
+    getOperators(db) {
+      const key = { build, read: 'getOperators' };
+      return cache(JSON.stringify(key), () => getOperators(db));
     },
 
     async getToursByKeys(db, keys, today) {

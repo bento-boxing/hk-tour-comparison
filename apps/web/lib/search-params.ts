@@ -1,8 +1,7 @@
-import {
-  isIsoDate, OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, type Destination, type OperatorId, type PageSize, type PlacesIndex,
-} from '@hktours/core';
+import { isIsoDate, OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, type OperatorId, type PageSize, type PlacesIndex } from '@hktours/core';
 import type { SortKey, TourFilters } from '@hktours/db/read';
-import { destinationPath, isOnlyRegion } from './destinations';
+import { destinationFromId, destinationPath, isOnlyRegion } from './destinations';
+import { readerOf, type RawParams } from './raw-params';
 
 /**
  * Everything the search address can say. Built only by parseSearchParams, so every value in it is valid.
@@ -14,8 +13,6 @@ export interface SearchState { filters: TourFilters; sort: SortKey; page: number
 export function pageSizeOf(state: SearchState): PageSize {
   return state.size ?? PAGE_SIZE;
 }
-
-type RawParams = Record<string, string | string[] | undefined>;
 
 export const DEFAULT_SORT: SortKey = 'price';
 /** Each order then its reverse. The bare names are the four from before, with the same meaning. */
@@ -34,7 +31,8 @@ export const PRICE_RANGE = { min: 0, max: 2_000_000 } as const;
  * which the home page answers by moving an old address to the destination's page (movedSearchHref). The bare home page
  * is a stored copy that reads no query string, so an address of it carrying any of these names is answered by its
  * per-request copy instead (lib/search-rewrites.ts, next.config.ts); any other name (utm_source…) gets the stored copy.
- * parseSearchParams can only read a name from this list (`first` takes no other), and search-params.test.ts checks
+ * parseSearchParams can only read a name from this list: it reads the address only through `param`, which takes no
+ * other name (a type error; this file does not import the untyped `first`), and search-params.test.ts checks
  * that the list is exactly what it reads: a filter added later without its name here would silently be served the
  * stored, unfiltered page.
  */
@@ -44,12 +42,8 @@ export const SEARCH_QUERY_NAMES = [
 
 export type SearchQueryName = (typeof SEARCH_QUERY_NAMES)[number];
 
-/** The first value of a parameter, when it is a string at all. */
-function first(raw: RawParams, name: SearchQueryName): string | undefined {
-  const value = Object.hasOwn(raw, name) ? raw[name] : undefined;
-  const text = Array.isArray(value) ? value[0] : value;
-  return typeof text === 'string' ? text : undefined;
-}
+/** The first value of one of the search's parameters, when it is a string at all (lib/raw-params.ts). */
+const param: (raw: RawParams, name: SearchQueryName) => string | undefined = readerOf<SearchQueryName>();
 
 /** Plain decimal digits only: no sign, fraction, exponent, hex or spaces. At most 9 digits, so always a safe integer. */
 const DIGITS = /^\d{1,9}$/;
@@ -72,14 +66,6 @@ function range(min: number | undefined, max: number | undefined): { min?: number
   return { min, max };
 }
 
-function destination(text: string | undefined, places: PlacesIndex): Destination | undefined {
-  if (!text) return undefined;
-  const region = places.region(text);
-  if (region) return { countryId: region.countryId, regionId: region.id };
-  if (places.country(text)) return { countryId: text, regionId: null };
-  return undefined;
-}
-
 /** A copy without the keys whose value is undefined, so states compare and serialise cleanly. */
 function compact<T extends object>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
@@ -95,7 +81,7 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
   const includeDates = opts.includeDates ?? true;
   // A real calendar date from year 1 on: isIsoDate accepts year 0000, which Postgres refuses (an error page).
   const isoDate = (name: SearchQueryName) => {
-    const text = first(raw, name);
+    const text = param(raw, name);
     return text !== undefined && isIsoDate(text) && text >= FIRST_DATE ? text : undefined;
   };
   // Both ends, or neither when the window ends before it starts. Same-format ISO dates compare as strings.
@@ -114,15 +100,16 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
     [travelFrom, travelTo] = datePair('tfrom', 'tto');
   }
 
-  const days = range(intInRange(first(raw, 'dmin'), DAYS_RANGE), intInRange(first(raw, 'dmax'), DAYS_RANGE));
-  const price = range(intInRange(first(raw, 'pmin'), PRICE_RANGE), intInRange(first(raw, 'pmax'), PRICE_RANGE));
+  const days = range(intInRange(param(raw, 'dmin'), DAYS_RANGE), intInRange(param(raw, 'dmax'), DAYS_RANGE));
+  const price = range(intInRange(param(raw, 'pmin'), PRICE_RANGE), intInRange(param(raw, 'pmax'), PRICE_RANGE));
 
-  const opIds = new Set(idList(first(raw, 'op'), id => (OPERATOR_IDS as readonly string[]).includes(id)));
+  const opIds = new Set(idList(param(raw, 'op'), id => (OPERATOR_IDS as readonly string[]).includes(id)));
   const operators: OperatorId[] = OPERATOR_IDS.filter(id => opIds.has(id)); // canonical order
-  const excludeCountryIds = idList(first(raw, 'ex'), id => places.country(id) !== undefined);
+  const excludeCountryIds = idList(param(raw, 'ex'), id => places.country(id) !== undefined);
+  const dest = param(raw, 'dest');
 
   const filters: TourFilters = compact({
-    destination: destination(first(raw, 'dest'), places),
+    destination: dest ? destinationFromId(dest, places) : undefined,
     excludeCountryIds: excludeCountryIds.length > 0 ? excludeCountryIds : undefined,
     dateFrom, dateTo,
     travelFrom, travelTo,
@@ -131,11 +118,11 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
     operators: operators.length > 0 ? operators : undefined,
   });
 
-  const sortText = first(raw, 'sort');
+  const sortText = param(raw, 'sort');
   const sort = SORT_KEYS.find(key => key === sortText) ?? DEFAULT_SORT;
-  const page = intInRange(first(raw, 'page'), { min: 1, max: Number.MAX_SAFE_INTEGER }) ?? 1;
+  const page = intInRange(param(raw, 'page'), { min: 1, max: Number.MAX_SAFE_INTEGER }) ?? 1;
   // Only the exact texts 48 and 96 are kept (not 048): 24 is the default (left out, as every default is).
-  const sizeText = first(raw, 'size');
+  const sizeText = param(raw, 'size');
   const size = PAGE_SIZES.find(n => n !== PAGE_SIZE && String(n) === sizeText);
 
   return size === undefined ? { filters, sort, page } : { filters, sort, page, size };

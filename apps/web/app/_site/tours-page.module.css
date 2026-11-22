@@ -14,17 +14,22 @@
 
 /*
  * The columns, per language, in ems of each grid's own font (so they grow with the text when a visitor enlarges it):
- * each the longest name of its kind in the places data with a four-digit count, plus at least 12px of clear space
- * before the next column, in the widest of the container's DejaVu and Arial/Inter/Roboto stand-ins:
- *   country (with regions, 19px)   印度尼西亞 8888 團 153px → 172px; United States 8888 tours 225px → 240px
- *   region (15px)                  首爾及京畿 8888 115px → 130px; Bangkok & Central Thailand 8888 249px → 262px
- *   country without regions (19px) 巴布亞新畿內亞 9999 團 191px → 204px; Bosnia and Herzegovina 9999 tours 338px → 350px
+ * each the longest name of its kind in the places data with a four-digit count and its thousands comma, plus at least
+ * 12px of clear space before the next column, in the widest of the container's DejaVu and Arial/Inter/Roboto stand-ins,
+ * in ems rounded up at the third decimal only (never to a whole pixel: a fraction of a pixel too much can cost a column
+ * across a whole band of widths):
+ *   country (with regions, 19px)   印度尼西亞 8,888 團 157.33px (+ 12 = 169.33; kept at 172px from before, 9.053em);
+ *                                  United States 8,888 tours 229.27px → 241.27px, 12.699em
+ *   region (15px)                  首爾及京畿 8,888 118.22px → 130.22px, 8.682em;
+ *                                  Bangkok & Central Thailand 8,888 252.75px → 264.75px, 17.650em
+ *   country without regions (19px) 巴布亞新畿內亞 9,999 團 195.33px → 207.33px, 10.913em;
+ *                                  Bosnia and Herzegovina 9,999 tours 341.63px → 353.63px, 18.613em
  * The tracks repeat as many times as fit (auto-fill), so every country's regions, and every grid of countries
  * without regions, have the same columns at a given width: they line up down the page. A custom property holding
  * ems is resolved in the grid that uses it, against that grid's font size.
  */
-.page { --col-country: 9.053em; --col-region: 8.667em; --col-plain: 10.737em; }
-.page:lang(en) { --col-country: 12.632em; --col-region: 17.467em; --col-plain: 18.421em; }
+.page { --col-country: 9.053em; --col-region: 8.682em; --col-plain: 10.913em; }
+.page:lang(en) { --col-country: 12.699em; --col-region: 17.650em; --col-plain: 18.613em; }
 
 /* Here the three sit in one row (wrapping as whole items), with no margins of their own. */
 .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
@@ -89,7 +94,7 @@
  * The columns, in ems as above, are sized for the ordinary names: three columns of Chinese regions on a 375px phone
  * (114px); two of English regions, and of countries without regions, on a 320px one (148px; Chinese 146px holds
  * 巴布亞新畿內亞). A cell whose name and count need more than that is marked .long on the server
- * (lib/directory-cells.ts, from measured name widths and its count's digits) and takes the whole row, in its place,
+ * (lib/directory-cells.ts, from measured name widths and its count's digits and comma) and takes the whole row, in its place,
  * except where its column is wide enough: each grid is a query container, and the page's own container queries (in ems
  * of the grid's font, so they hold at any text size) put such a cell back in its column there. A browser without
  * container queries keeps every .long cell on a whole row.

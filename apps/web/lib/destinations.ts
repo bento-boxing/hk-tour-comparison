@@ -40,10 +40,29 @@ export function isOnlyRegion(destination: Destination, places: PlacesIndex): boo
 
 const NONE: ListedCount = { tours: 0, operators: 0 };
 
-/** How many tours are listed for a destination now, and from how many operators (none when it has no line). */
+/** Each counts list's lines by country, then by region (null for the country's own line); the first of a repeat. */
+const countLines = new WeakMap<DestinationCounts['destinations'], Map<string, Map<string | null, ListedCount>>>();
+
+function linesOf(counts: DestinationCounts): Map<string, Map<string | null, ListedCount>> {
+  const known = countLines.get(counts.destinations);
+  if (known) return known;
+  const byCountry = new Map<string, Map<string | null, ListedCount>>();
+  for (const line of counts.destinations) {
+    const byRegion = byCountry.get(line.countryId) ?? new Map<string | null, ListedCount>();
+    byCountry.set(line.countryId, byRegion);
+    if (!byRegion.has(line.regionId)) byRegion.set(line.regionId, { tours: line.tours, operators: line.operators });
+  }
+  countLines.set(counts.destinations, byCountry);
+  return byCountry;
+}
+
+/**
+ * How many tours are listed for a destination now, and from how many operators (none when it has no line). The
+ * lines are indexed once per counts list (a page asks for every destination's), which is never changed once read.
+ */
 export function countOf(destination: Destination, counts: DestinationCounts): ListedCount {
-  const line = counts.destinations.find(d => d.countryId === destination.countryId && d.regionId === destination.regionId);
-  return line ? { tours: line.tours, operators: line.operators } : NONE;
+  const line = linesOf(counts).get(destination.countryId)?.get(destination.regionId);
+  return line ? { ...line } : NONE;
 }
 
 /**

@@ -292,6 +292,14 @@ describe('the operator filter', () => {
     expect(data.address.search.filters.operators).toEqual(['egl']);
     expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert']);
   });
+
+  it('reads the operators once: the ones offered come from the same list', async () => {
+    const asked: string[] = [];
+    const counting = { ...launch, query: ((sql: string, params?: unknown[]) => { asked.push(sql); return launch.query(sql, params); }) as Db['query'] };
+    const data = await loadChainPage(counting, query('legs=jetour:OSA6@2026-12-20&gap=1-3&op=egl'), today);
+    expect(asked.filter(sql => /\bfrom operators\b/.test(sql))).toHaveLength(1);
+    expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert']);
+  });
 });
 
 describe('through a cache (the page passes cachedReads; see cached-reads.ts)', () => {

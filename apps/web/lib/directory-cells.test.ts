@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { places } from '@hktours/core';
 import { placeName } from './place-names';
 import { EN_COUNTRY_EM, EN_REGION_EM } from './english-name-widths';
-import { COUNTRY_PX, PHONE_COL_EM, REGION_PX, phoneCell, phoneFitCss } from './directory-cells';
+import { COMMA_PX, COUNTRY_PX, PHONE_COL_EM, REGION_PX, phoneCell, phoneFitCss } from './directory-cells';
 
 const SCRIPT = 'apps/web/scripts/measure-english-names.mjs';
 /** Every region the directory can list: not an area, in a country with more than one region. */
@@ -72,6 +72,20 @@ it('a cell can take the whole row on phones only when its name and count need mo
   expect(longCountries.length / places.data.countries.length).toBeLessThan(0.2);
 });
 
+it('a count of 1,000 or more needs its thousands comma too (4.134px at the counts\' 13px), as the page writes it', () => {
+  // A region's count is beside its name: each digit 8.5px, each comma 4.134px (the widest measured, 4.1333px, rounded
+  // up at the third decimal only).
+  expect(COMMA_PX).toBe(4.134);
+  const need = (...a: Parameters<typeof phoneCell>) => needPx(phoneCell(...a).fit);
+  expect(need('region', 'en', 'Northern Taiwan', 1061) - need('region', 'en', 'Northern Taiwan', 61)).toBeCloseTo(2 * 8.5 + 4.134, 1);
+  expect(need('region', 'en', 'Northern Taiwan', 1000) - need('region', 'en', 'Northern Taiwan', 999)).toBeCloseTo(8.5 + 4.134, 1);
+  expect(need('region', 'en', 'Northern Taiwan', 1000061) - need('region', 'en', 'Northern Taiwan', 61)).toBeCloseTo(5 * 8.5 + 2 * 4.134, 1);
+  // "首爾及京畿 1,888": 70 + 5 + 34 + 4.134 + 12 = 125.134px.
+  expect(need('region', 'zh-Hant', '首爾及京畿', 1888)).toBeCloseTo(125.134, 1);
+  // A country without regions has its count under its name: the comma counts where the count is the wider line.
+  expect(need('plain', 'en', 'Bosnia and Herzegovina', 1888)).toBeCloseTo(need('plain', 'en', 'Bosnia and Herzegovina', 888), 1);
+});
+
 /** The rules phoneFitCss makes, read back: per mark, the grid widths (ems of its font) where the cell is let in. */
 function letIn(css: string): Map<string, [number, number][]> {
   const out = new Map<string, [number, number][]>();
@@ -119,7 +133,7 @@ it('on phones the container queries let a marked cell into its column wherever t
   }
   expect(fits).toBeGreaterThan(2000);
   expect(full).toBeGreaterThan(2000);
-  // Chinese regions: a five-character name with four digits (121px) needs two columns of a 342px grid, which Firefox
+  // Chinese regions: a five-character name with four digits (125.134px) needs two columns of a 342px grid, which Firefox
   // lays out as three of 114px: not let in there, but in a 341px grid (two of 170.5px).
   const seoul = phoneCell('region', 'zh-Hant', '首爾及京畿', 1888).fit!;
   const inAt = (grid: number) => (rules.get(seoul) ?? []).some(([from, to]) => grid / REGION_PX >= from && grid / REGION_PX <= to);

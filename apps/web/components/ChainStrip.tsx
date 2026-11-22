@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, type CSSProperties } from 'react';
+import { Fragment } from 'react';
 import type { IsoDate, PlacesIndex } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db/read';
 import type { T } from '../lib/i18n';
 import { chainTotals, type ResolvedLeg } from '../lib/chain';
 import { routeNames } from '../lib/card-text';
+import { operatorTagStyle } from '../lib/contrast';
 import { operatorName } from '../lib/place-names';
 import { formatChipDate, formatPrice } from '../lib/format';
 import { GapSelector } from './GapSelector';
@@ -23,9 +24,6 @@ export interface ChainStripProps {
   onRemoveLast: () => void;
 }
 
-/** Only #rrggbb reaches the inline style (as on the tour card). */
-const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
-
 /**
  * The chosen legs (mockup Screen 2 `.chain`): each leg with a dot in its operator colour, its route, operator,
  * dates and price; `休息 n 日` between legs; after the last, the gap selector and the dashed placeholder
@@ -40,7 +38,6 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
     <div className={styles.chain}>
       {legs.map((leg, i) => {
         const operator = byId.get(leg.tour.operatorId);
-        const color = operator && SAFE_COLOR.test(operator.color) ? operator.color : 'var(--op-fallback)';
         const facts = [
           operator ? operatorName(operator, t.locale) : leg.tour.operatorId,
           `${date(leg.departure)} – ${date(leg.endDate)}`,
@@ -54,7 +51,7 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
                 <div className={styles.line} aria-hidden="true" />
               </div>
             )}
-            <div className={styles.leg} data-leg="" style={{ '--c': color } as CSSProperties}>
+            <div className={styles.leg} data-leg="" style={operatorTagStyle(operator?.color).style}>
               <span className={styles.route}>
                 <span className={styles.dot} aria-hidden="true" />
                 {routeNames(leg.tour.stops, places, t.locale).join(' → ')}

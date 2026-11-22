@@ -5,10 +5,9 @@ import type { Reads } from './cached-reads';
 import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
+import { first, type RawParams } from './raw-params';
 import { pageSizeOf, parseSearchParams } from './search-params';
 import { filterBarOperators, uncachedReads } from './search-page-data';
-
-type RawParams = Record<string, string | string[] | undefined>;
 
 export interface ChainPageData {
   /** What every link on the page is built from: the legs that resolved, the clean gap, the filters (no dates). */
@@ -31,19 +30,12 @@ export interface ChainPageData {
   filterOperators: OperatorInfo[];
 }
 
-/** The first value of a parameter, when it is a string at all; null otherwise. */
-function first(raw: RawParams, name: string): string | null {
-  const value = Object.hasOwn(raw, name) ? raw[name] : undefined;
-  const text = Array.isArray(value) ? value[0] : value;
-  return typeof text === 'string' ? text : null;
-}
-
 /**
  * How many legs the raw `legs` value tried to give, as decodeChain would count them: its non-empty
  * comma-separated parts, at most MAX_CHAIN_LEGS (decodeChain ignores the rest without reading them).
  */
-function legsAsked(text: string | null): number {
-  if (text === null) return 0;
+function legsAsked(text: string | undefined): number {
+  if (text === undefined) return 0;
   return Math.min(text.split(',').filter(part => part !== '').length, MAX_CHAIN_LEGS);
 }
 
@@ -64,12 +56,11 @@ export async function loadChainPage(
   // address is read.
   const search = parseSearchParams(raw, places, { includeDates: false });
 
-  const [tours, operators, withGoodRun] = await Promise.all([
+  const [tours, operators] = await Promise.all([
     reads.getToursByKeys(db, decoded.legs.map(l => l.tourKey), today),
     reads.getOperators(db),
-    reads.getOperators(db, { onlyWithGoodRun: true }),
   ]);
-  const filterOperators = filterBarOperators(operators, withGoodRun, search.filters.operators);
+  const filterOperators = filterBarOperators(operators, search.filters.operators);
   // The tours' own names are not shown, so they are not sent to the browser.
   const rows = new Map([...tours].map(([key, tour]) => [key, withoutTitle(tour)]));
   const resolved = resolveChain(decoded, rows, today);

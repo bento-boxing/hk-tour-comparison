@@ -3,6 +3,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong, type IsoDate, type OperatorId } from '@hktours/core';
 import type { Db, DestinationCounts, OperatorListing } from '@hktours/db/read';
 import type { Locale } from '../../lib/i18n';
+import type { RawParams } from '../../lib/raw-params';
 import { requestDb, storedDb } from '../../lib/db';
 import { cachedReads, loadSearchPage, type SearchPageData } from '../../lib/search-page-data';
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
@@ -17,7 +18,8 @@ import { shownOperators } from '../../lib/operators';
 // The keys are plain values (the language, the path's destination id, the query string), because React's cache
 // compares its arguments by identity.
 
-export type SearchParams = Record<string, string | string[] | undefined>;
+/** An address's query parameters, as Next.js gives them to a page (lib/raw-params.ts). */
+export type SearchParams = RawParams;
 
 /**
  * A page's database load: the data, or nothing when the database could not be read (the reason is logged). `now` is

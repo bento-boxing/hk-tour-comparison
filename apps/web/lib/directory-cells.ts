@@ -4,7 +4,7 @@ import { EN_COUNTRY_EM, EN_REGION_EM } from './english-name-widths';
 // The destinations directory's cells on phones (app/_site/tours-page.module.css, below 640px): does a region, or a
 // country without regions, fit its column, or must it take the whole row? Its column's width depends on the phone's
 // width and the text size, so the server only works out what the cell needs, in ems of its grid's font (from the
-// name's measured width and the count's digits); container queries on the grid, in the same ems, then let it into
+// name's measured width and the count as the page writes it); container queries on the grid, in the same ems, then let it into
 // a column wherever the column is wide enough. The answer holds at any text size: the column widths, the cell's
 // needs and the queries all grow with the text.
 //
@@ -13,8 +13,13 @@ import { EN_COUNTRY_EM, EN_REGION_EM } from './english-name-widths';
 /** The phones' type: a region's name, a country's name, a count. */
 export const REGION_PX = 14;
 export const COUNTRY_PX = 19;
-/** The widest tabular digit at the counts' 13px in the fonts measured (8.43px), rounded up; and the units after it. */
+/**
+ * The widest tabular digit at the counts' 13px in the fonts measured (8.43px), rounded up; the widest thousands comma
+ * (DejaVu's 4.1333px; the counts are written '1,234': formatCount), rounded up at the third decimal only; and the
+ * units after the count.
+ */
 const DIGIT_PX = 8.5;
+export const COMMA_PX = 4.134;
 const UNIT_PX: Readonly<Record<Locale, number>> = { 'zh-Hant': 17, 'zh-Hans': 17, en: 37 }; // ' 團', ' tours'
 /** A region's name to its count; the least clear space after a cell's text, before the next column. */
 const REGION_GAP_PX = 5;
@@ -59,9 +64,10 @@ export function phoneCell(kind: Kind, locale: Locale, name: string, tours: numbe
   if (em === undefined) return { long: true };
   const lang: Lang = locale === 'en' ? 'en' : 'zh';
   const digits = String(Math.max(0, Math.trunc(tours))).length;
+  const count = digits * DIGIT_PX + Math.floor((digits - 1) / 3) * COMMA_PX;
   const text = kind === 'region'
-    ? em * REGION_PX + REGION_GAP_PX + digits * DIGIT_PX
-    : Math.max(em * COUNTRY_PX, digits * DIGIT_PX + UNIT_PX[locale]);
+    ? em * REGION_PX + REGION_GAP_PX + count
+    : Math.max(em * COUNTRY_PX, count + UNIT_PX[locale]);
   // In thousandths of an em of the grid's font, rounded up: never less than the cell needs.
   const need = Math.ceil(((text + CLEAR_PX) / FONT_PX[kind]) * 1000 - 1e-6);
   return need > milli(PHONE_COL_EM[kind][lang]) ? { long: true, fit: `${kind}-${lang}-${need}` } : { long: false };

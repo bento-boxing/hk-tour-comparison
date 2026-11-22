@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe, vi } from 'vitest';
-import type { Destination, NormalisedTour, OperatorId, ScrapedDeparture, Stop } from '@hktours/core';
+import { OPERATOR_IDS, type Destination, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
 import { countToursByDestination, getOperatorListings, saveOperatorRun, searchTours, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
@@ -248,7 +248,6 @@ describe('with the in-process database', () => {
     const operators = await reads.getOperators(db);
     expect(operators.some(o => o.lastGoodRunAt === null) && operators.some(o => o.lastGoodRunAt !== null)).toBe(true);
     expect(stored(operators)).toStrictEqual(operators);
-    expect(stored(await reads.getOperators(db, { onlyWithGoodRun: true }))).toStrictEqual(await reads.getOperators(db, { onlyWithGoodRun: true }));
 
     const cards = [...(await reads.getToursByKeys(db, ['egl:KIX5', 'texpert:SEL5'], today)).values()];
     expect(cards).toHaveLength(2);
@@ -329,17 +328,15 @@ describe('with the in-process database', () => {
     expect(counter.queries).toBe(0);
   });
 
-  it('getOperators: one key per option, without today', async () => {
+  it('getOperators: one key, without today, for every operator (those with a good run are picked from it)', async () => {
     const store = jsonStore();
     const reads = createReads(() => [], store.cache, BUILD);
+    const operators = await reads.getOperators(db);
     await reads.getOperators(db);
-    await reads.getOperators(db, {});
-    await reads.getOperators(db, { onlyWithGoodRun: false });
-    await reads.getOperators(db, { onlyWithGoodRun: true });
     expect(store.keys.map(k => JSON.parse(k))).toEqual([
-      { build: BUILD, read: 'getOperators', onlyWithGoodRun: false }, { build: BUILD, read: 'getOperators', onlyWithGoodRun: false },
-      { build: BUILD, read: 'getOperators', onlyWithGoodRun: false }, { build: BUILD, read: 'getOperators', onlyWithGoodRun: true },
+      { build: BUILD, read: 'getOperators' }, { build: BUILD, read: 'getOperators' },
     ]);
+    expect(operators.map(o => o.id)).toEqual([...OPERATOR_IDS]);
   });
 
   it('a stored search is the same as asking the database, and a second identical one makes no query', async () => {
@@ -574,8 +571,8 @@ describe('the real cache function', () => {
     unstableCache.mockReturnValue(cached);
     const load = async () => 'value';
 
-    expect(await nextStore('{"read":"getOperators","onlyWithGoodRun":false}', load)).toBe('value');
-    expect(unstableCache).toHaveBeenCalledWith(expect.any(Function), ['{"read":"getOperators","onlyWithGoodRun":false}'], {
+    expect(await nextStore('{"read":"getOperators"}', load)).toBe('value');
+    expect(unstableCache).toHaveBeenCalledWith(expect.any(Function), ['{"read":"getOperators"}'], {
       revalidate: READ_CACHE_SECONDS, tags: [READ_CACHE_TAG],
     });
     expect(cached).toHaveBeenCalledWith();

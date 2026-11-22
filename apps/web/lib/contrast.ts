@@ -1,5 +1,7 @@
 // WCAG 2 colour arithmetic for #rrggbb colours. Pure; used by the operator tag and by the theme's contrast test.
 
+import type { CSSProperties } from 'react';
+
 /** The two text colours an operator tag can use (theme.css --on-operator-light / --on-operator-dark; a test pins them). */
 export const ON_OPERATOR = { light: '#ffffff', dark: '#1c1d1b' } as const;
 
@@ -22,4 +24,17 @@ export function contrast(a: string, b: string): number {
 /** Which of the two tag text colours reads better on an operator's #rrggbb colour. */
 export function operatorTextTone(color: string): keyof typeof ON_OPERATOR {
   return contrast(ON_OPERATOR.light, color) >= contrast(ON_OPERATOR.dark, color) ? 'light' : 'dark';
+}
+
+/** Only #rrggbb reaches an inline style: anything else could carry other declarations. */
+const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
+
+/**
+ * The inline style that paints an operator's tag, dot or leg (`--c`), and whether the tag's text is dark: the
+ * operator's colour when it is exactly #rrggbb (it comes from the database); otherwise, or with none, the fallback
+ * grey (--op-fallback) with light text.
+ */
+export function operatorTagStyle(color: string | undefined): { style: CSSProperties; dark: boolean } {
+  if (color === undefined || !SAFE_COLOR.test(color)) return { style: { '--c': 'var(--op-fallback)' } as CSSProperties, dark: false };
+  return { style: { '--c': color } as CSSProperties, dark: operatorTextTone(color) === 'dark' };
 }

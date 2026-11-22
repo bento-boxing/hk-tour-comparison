@@ -2,10 +2,9 @@ import type { IsoDate } from '@hktours/core';
 import type { Db, OperatorInfo } from '@hktours/db/read';
 import { withoutTitle, type TourRow } from './tour-row';
 import type { Reads } from './cached-reads';
+import type { RawParams } from './raw-params';
 import { parseSavedKeys } from './saved-list';
 import { uncachedReads } from './search-page-data';
-
-type RawParams = Record<string, string | string[] | undefined>;
 
 export interface SavedPageData {
   /** The tour keys the address asks for (validated, each once, at most SAVED_CAP), in its order: newest saved first. */

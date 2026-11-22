@@ -2,13 +2,13 @@
 
 import {
   Fragment, useId, useRef, useState, useSyncExternalStore,
-  type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent,
+  type KeyboardEvent, type MouseEvent, type PointerEvent,
 } from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
 import type { OperatorInfo } from '@hktours/db';
 import type { TourRow } from '../lib/tour-row';
 import type { T } from '../lib/i18n';
-import { operatorTextTone } from '../lib/contrast';
+import { operatorTagStyle } from '../lib/contrast';
 import { chipDay, formatLength, formatPrice } from '../lib/format';
 import {
   departureDateText, departurePrice, priceChangeText, regionParts, routeNames, staleSince, startNote,
@@ -38,9 +38,6 @@ export const DATE_CELLS = 6;
 
 /** Only an absolute https address becomes a link; anything else (javascript:, data:, http:, relative) does not. */
 const LINKABLE_URL = /^https:\/\//i;
-/** Only #rrggbb reaches the inline style; anything else could carry other declarations. */
-const SAFE_COLOR = /^#[0-9a-f]{6}$/i;
-const FALLBACK_COLOR = 'var(--op-fallback)';
 /** How close a date's tooltip may come to the window's left or right edge, in px. */
 const TIP_MARGIN = 8;
 
@@ -187,9 +184,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
   const shown = departures.length <= DATE_CELLS ? departures : departures.slice(0, DATE_CELLS - 1);
   const moreDates = departures.length - shown.length;
   const linkable = LINKABLE_URL.test(tour.url);
-  const safeColor = SAFE_COLOR.test(operator.color);
-  const color = safeColor ? operator.color : FALLBACK_COLOR;
-  const tagDark = safeColor && operatorTextTone(operator.color) === 'dark';
+  const { style: colorStyle, dark: tagDark } = operatorTagStyle(operator.color);
   const describedBy = [note && noteId, change && changeId, staleText && staleId, openedState && openedId].filter(Boolean).join(' ');
   const active = Math.min(activeDate, Math.max(shown.length - 1, 0));
 
@@ -226,7 +221,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
     <div
       role="row"
       className={styles.row}
-      style={{ '--c': color } as CSSProperties}
+      style={colorStyle}
       data-opened={openedState}
       onClick={noteOpened}
       onAuxClick={noteOpened}

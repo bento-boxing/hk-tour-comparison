@@ -111,19 +111,26 @@ it('the heading, with the line of counts and the way to the operators index besi
   expect(container.textContent).not.toContain('·');
 });
 
-it('the line of counts groups thousands, as the rest of the site does; a destination\'s own count stays bare (its columns are sized for bare digits)', async () => {
+it('every count groups thousands, as the rest of the site does: the line of counts and each destination\'s own', async () => {
   mocks.countToursByDestination.mockResolvedValue({
     all: { tours: 2122, operators: 12 },
-    destinations: [{ countryId: 'japan', regionId: null, tours: 1234, operators: 3 }, { countryId: 'japan', regionId: 'japan-kansai', tours: 1001, operators: 2 }],
+    destinations: [
+      { countryId: 'japan', regionId: null, tours: 1234, operators: 3 }, { countryId: 'japan', regionId: 'japan-kansai', tours: 1001, operators: 2 },
+      { countryId: 'japan', regionId: 'japan-kanto', tours: 999, operators: 2 }, { countryId: 'macau', regionId: null, tours: 1500, operators: 1 },
+    ],
   });
   const { container, unmount } = await renderPage('zh-Hant');
   expect(screen.getByText('現時列出 2,122 個旅行團，來自 12 間旅行社。')).toBeInTheDocument();
-  expect(entry(screen.getByRole('link', { name: '日本' }))).toEqual(['日本', '/tours/japan', '1234 團']);
-  expect(entry(screen.getByRole('link', { name: '關西' }))).toEqual(['關西', '/tours/japan-kansai', '1001']);
-  expect(container.querySelector('section')!.textContent).not.toContain(',');
+  expect(entry(screen.getByRole('link', { name: '日本' }))).toEqual(['日本', '/tours/japan', '1,234 團']);
+  expect(entry(screen.getByRole('link', { name: '關西' }))).toEqual(['關西', '/tours/japan-kansai', '1,001']);
+  expect(entry(screen.getByRole('link', { name: '關東' }))).toEqual(['關東', '/tours/japan-kanto', '999']);
+  expect(entry(screen.getByRole('link', { name: '澳門' }))).toEqual(['澳門', '/tours/macau', '1,500 團']);
+  expect(container.textContent).not.toMatch(/\d{4}/);
   unmount();
   await renderPage('en');
   expect(screen.getByText('Listing 2,122 tours from 12 operators.')).toBeInTheDocument();
+  expect(entry(screen.getByRole('link', { name: 'Japan' }))).toEqual(['Japan', '/en/tours/japan', '1,234 tours']);
+  expect(entry(screen.getByRole('link', { name: 'Macau' }))).toEqual(['Macau', '/en/tours/macau', '1,500 tours']);
 });
 
 it('a row of jump links, one per part of the world in order, each to its section (an ASCII id) by an in-page anchor', async () => {
@@ -211,9 +218,12 @@ it('the columns: the same everywhere on the page for each kind, in ems of each g
   expect(text).toMatch(/\.regions \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(var\(--col-region\), 100%\), 1fr\)\); font-size: 15px;/);
   expect(text).toMatch(/\.plain \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(min\(var\(--col-plain\), 100%\), 1fr\)\);[^}]*font-size: 19px;/);
   // Per language: English names are far longer (Bangkok & Central Thailand, Bosnia and Herzegovina). In ems of
-  // 19px (countries) and 15px (regions): 172, 130, 204px; 240, 262, 350px. Never a column width in px.
-  expect(text).toMatch(/\.page \{ --col-country: 9\.053em; --col-region: 8\.667em; --col-plain: 10\.737em; \}/);
-  expect(text).toMatch(/\.page:lang\(en\) \{ --col-country: 12\.632em; --col-region: 17\.467em; --col-plain: 18\.421em; \}/);
+  // 19px (countries) and 15px (regions), each holding a four-digit count with its comma: the measured need plus 12px,
+  // rounded up at the third decimal of an em only (never to a whole pixel: 208px instead of 207.3 cost the Chinese
+  // countries without regions their fifth column on every desktop). 172 (from before), 130.23, 207.35px; 241.28,
+  // 264.75, 353.65px. Never a column width in px.
+  expect(text).toMatch(/\.page \{ --col-country: 9\.053em; --col-region: 8\.682em; --col-plain: 10\.913em; \}/);
+  expect(text).toMatch(/\.page:lang\(en\) \{ --col-country: 12\.699em; --col-region: 17\.650em; --col-plain: 18\.613em; \}/);
   expect(text).not.toMatch(/--col-[a-z]+: [\d.]+px/);
   // Names may wrap between their words when the text is made much larger; never inside a word (no break rules).
   expect(text).not.toMatch(/\.(countryLink|regionLink) \{[^}]*nowrap/);
