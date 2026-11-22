@@ -8,6 +8,7 @@ import { placeName } from '../../lib/place-names';
 import { TOURS_PATH, destinationDirectory, destinationPath } from '../../lib/destinations';
 import { OPERATORS_PATH } from '../../lib/operators';
 import { phoneCell, phoneFitCss, type PhoneCell } from '../../lib/directory-cells';
+import { formatCount } from '../../lib/format';
 import { loadStoredCounts } from './page-data';
 import frame from './site-frame.module.css';
 import styles from './tours-page.module.css';
@@ -51,6 +52,9 @@ export async function ToursPage({ locale }: { locale: Locale }) {
     return { className: phone.long ? `${own} ${styles.long}` : own, 'data-fit': phone.fit };
   };
   const sections = groups.map(group => (
+    // A destination's own count stays bare digits ('1234 團'), unlike the line of counts above ('2,122'): its columns
+    // (the stylesheet's widths, and phoneCell's sums for the phones' queries) were sized and measured for bare digits,
+    // and a thousands comma (about 4px at 13px) would take an English country's 4-digit count below its 12px of clear space.
     <section key={group.id} id={group.id} tabIndex={-1} className={styles.group} aria-labelledby={`group-${group.id}`}>
       <h2 id={`group-${group.id}`} className={styles.groupHeading}>{t(`countryGroup.${group.id}`)}</h2>
       <div>
@@ -92,7 +96,7 @@ export async function ToursPage({ locale }: { locale: Locale }) {
       <div className={styles.top}>
         <h1 className={styles.heading}>{t('tours.title')}</h1>
         {/* Never "no tours": the stored loader throws on an empty answer. */}
-        <p className={styles.summary}>{t('dest.count', { tours: all.tours, operators: all.operators })}</p>
+        <p className={styles.summary}>{t('dest.count', { tours: formatCount(all.tours), operators: formatCount(all.operators) })}</p>
         {/* Its own item, never after a separator: no line ever starts with one. */}
         <p className={styles.browseLine}><SiteLink className={styles.browse} href={localeHref(t.locale, OPERATORS_PATH)}>{t('tours.byOperator')}</SiteLink></p>
       </div>

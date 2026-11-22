@@ -123,6 +123,13 @@ it('leaves out dates before today', () => {
   expect(screen.getAllByRole('listitem')).toHaveLength(3);
 });
 
+it('with no date left after today (a page made before midnight, opened after it), says so, with focus on the close button', () => {
+  renderPicker([{ date: '2026-11-12', priceHkd: 6999 }], '2026-11-12');
+  expect(screen.queryByRole('list')).toBeNull();
+  expect(screen.getByRole('dialog')).toHaveTextContent('出發日期已過');
+  expect(screen.getByRole('button', { name: '關閉' })).toHaveFocus();
+});
+
 it('reads naturally in English', () => {
   const tEn = makeT('en');
   render(<DeparturePicker departures={departures} fallbackPriceHkd={7999} today="2026-11-12" t={tEn} onPick={onPick} onClose={onClose} />);

@@ -30,7 +30,9 @@ export function operatorSearchHref(id: OperatorId, state: SearchState): string {
   const query = buildSearchQuery(state);
   query.delete('op');
   const path = operatorPath(id);
-  return query.size > 0 ? `${path}?${query}` : path;
+  // Not query.size: Safari before 17, Chrome before 113 and Firefox before 112 lack it (undefined there).
+  const q = query.toString();
+  return q ? `${path}?${q}` : path;
 }
 
 /** How a page turns a search state into an address: an operator's page keeps its own path; every other search page uses searchHref. */

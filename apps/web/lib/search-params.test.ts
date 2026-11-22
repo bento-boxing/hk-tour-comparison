@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { places } from '@hktours/core';
 import {
   parseSearchParams, buildSearchQuery, withFilters, withPageSize, pageSizeOf, searchHref, movedSearchHref, DEFAULT_SORT, SORT_KEYS,
@@ -122,6 +122,27 @@ it('withFilters applies a change, removes cleared filters and goes back to page 
 it('searchHref is the bare path for the default state, else the search page with the query', () => {
   expect(searchHref({ filters: {}, sort: 'price', page: 1 })).toBe('/');
   expect(searchHref({ filters: { daysMin: 4 }, sort: 'price', page: 2 })).toBe('/?dmin=4&page=2');
+});
+
+describe('in a browser without URLSearchParams.size (Safari before 17, Chrome before 113, Firefox before 112)', () => {
+  // Those browsers are among the site's oldest supported ones; there `size` is undefined, so an address built from
+  // it would lose its query and every filter with it.
+  let size: PropertyDescriptor | undefined;
+  beforeEach(() => {
+    size = Object.getOwnPropertyDescriptor(URLSearchParams.prototype, 'size');
+    delete (URLSearchParams.prototype as { size?: number }).size;
+  });
+  afterEach(() => { if (size) Object.defineProperty(URLSearchParams.prototype, 'size', size); });
+
+  it('searchHref and an operator\'s page keep the query', () => {
+    expect(new URLSearchParams('a=1').size).toBeUndefined(); // the stand-in for such a browser holds
+    expect(searchHref({ filters: { daysMin: 5 }, sort: 'price', page: 1 })).toBe('/?dmin=5');
+    expect(searchHref({ filters: { destination: { countryId: 'japan', regionId: null } }, sort: 'days', page: 2 }))
+      .toBe('/tours/japan?sort=days&page=2');
+    expect(searchHref({ filters: {}, sort: 'price', page: 1 })).toBe('/');
+    expect(operatorSearchHref('egl', parseSearchParams({ dmin: '5', sort: 'days' }, places))).toBe('/operators/egl?dmin=5&sort=days');
+    expect(operatorSearchHref('egl', parseSearchParams({}, places))).toBe('/operators/egl');
+  });
 });
 
 it('searchHref puts the destination in the path, never in the query, and keeps everything else', () => {

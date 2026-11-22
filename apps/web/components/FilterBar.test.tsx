@@ -8,6 +8,7 @@ import type { OperatorInfo } from '@hktours/db/read';
 import { makeT } from '../lib/i18n';
 import type { SearchState } from '../lib/search-params';
 import { FilterBar, type FilterBarProps } from './FilterBar';
+import { renderAtDocument } from '../lib/render-at-document.test-utils';
 
 const t = makeT('zh-Hant');
 
@@ -384,6 +385,24 @@ it('pressing the open pill again closes its popover; opening another closes the 
   await user.click(pill('價錢：全部'));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
+});
+
+it('with React\'s root on the document (as on the site), a press on the open pill closes it for good, mouse or finger', async () => {
+  await renderAtDocument(<FilterBar state={base} operators={operators} places={places} t={t} onChange={onChange} today="2026-11-12" />);
+  for (const key of ['[MouseLeft]', '[TouchA]']) {
+    const press = (target: Element) => user.pointer({ keys: key, target });
+    const days = pill('日數：全部');
+    await press(days);
+    const dialog = screen.getByRole('dialog', { name: '日數' });
+    await press(within(dialog).getByRole('spinbutton', { name: '由' }));
+    await user.keyboard('5');
+    expect(within(dialog).getByRole('spinbutton', { name: '由' })).toHaveValue(5);
+    await press(days);
+    expect(screen.queryByRole('dialog')).toBeNull(); // not closed and opened again (a new popover, the 5 gone)
+    expect(days).toHaveAttribute('aria-expanded', 'false');
+    expect(days).toHaveFocus();
+  }
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 it('an Escape that ends an IME composition (keyCode 229) leaves the popover open', async () => {

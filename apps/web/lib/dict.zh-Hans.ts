@@ -103,6 +103,7 @@ const zhHans = {
   'card.openedEarlier': '已看过',
   'card.openedLatest': '上次打开',
   'card.moreDatesCell': '+{n} 个',
+  'card.datesPassed': '出发日期已过',
   'row.stale': '数据为 {date}',
   'list.updated': '数据更新：{date} · 各旅行社每晚更新一次 · 价格及出发日期以旅行社网站为准',
   'col.operator': '旅行社',

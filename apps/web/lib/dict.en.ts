@@ -105,6 +105,7 @@ const en = {
   'card.openedEarlier': 'Viewed',
   'card.openedLatest': 'Last opened',
   'card.moreDatesCell': '+{n} more',
+  'card.datesPassed': 'Departure dates have passed',
   'row.stale': 'Data from {date}',
   'list.updated': "Data updated {date} · each operator once a night · the operator's website takes precedence on prices and dates",
   'col.operator': 'Operator',

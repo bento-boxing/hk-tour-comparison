@@ -194,7 +194,9 @@ export function searchHref(state: SearchState): string {
   const query = buildSearchQuery(state);
   query.delete('dest');
   const path = destinationPath(state.filters.destination);
-  return query.size > 0 ? `${path}?${query}` : path;
+  // Not query.size: Safari before 17, Chrome before 113 and Firefox before 112 lack it (undefined there).
+  const q = query.toString();
+  return q ? `${path}?${q}` : path;
 }
 
 /**

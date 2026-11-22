@@ -6,6 +6,7 @@ import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { operatorName } from '../../lib/place-names';
 import { operatorTextTone } from '../../lib/contrast';
+import { formatCount } from '../../lib/format';
 import { TOURS_PATH } from '../../lib/destinations';
 import { OPERATORS_PATH, operatorPath } from '../../lib/operators';
 import { loadStoredOperatorListings } from './page-data';
@@ -44,7 +45,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
     <div className={`${frame.wrap} ${frame.page}`}>
       <h1 className={tours.heading}>{t('operators.heading')}</h1>
       {/* Never "no tours": the stored loader throws when no operator lists tours. */}
-      <p className={tours.summary}>{t('dest.count', { tours: all.tours, operators: all.operators })}</p>
+      <p className={tours.summary}>{t('dest.count', { tours: formatCount(all.tours), operators: formatCount(all.operators) })}</p>
       {/* On its own line, at every width: no line ever starts with a separator. */}
       <p className={tours.browseLine}><SiteLink className={tours.browse} href={localeHref(t.locale, TOURS_PATH)}>{t('operators.byDestination')}</SiteLink></p>
       <p className={styles.notOfficial}><KeepClauses text={t('operators.notOfficial')} locale={t.locale} /></p>
@@ -61,7 +62,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
                 >
                   {operatorName(listing, t.locale)}
                 </span>
-                <span className={styles.count}>{t('dest.tours', { n: listing.tours })}</span>
+                <span className={styles.count}>{t('dest.tours', { n: formatCount(listing.tours) })}</span>
               </SiteLink>
             </li>
           );

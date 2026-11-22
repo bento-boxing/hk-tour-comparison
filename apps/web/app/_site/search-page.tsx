@@ -96,7 +96,7 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
   const { all } = counts;
   const listed = destination ? countOf(destination, counts) : all;
   const [heading, line] = place !== null
-    ? [t('dest.heading', { place }), listed.tours > 0 ? t('dest.count', { tours: listed.tours, operators: listed.operators }) : t('dest.countNone')]
+    ? [t('dest.heading', { place }), listed.tours > 0 ? t('dest.count', { tours: formatCount(listed.tours), operators: formatCount(listed.operators) }) : t('dest.countNone')]
     : all.tours > 0
       ? [t('band.headline', { n: headlineCount(all.operators, t.locale), count: all.operators }), t('band.subline', { tours: formatCount(all.tours) })]
       : [t('home.heading'), t('dest.countNone')];

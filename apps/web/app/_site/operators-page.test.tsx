@@ -53,6 +53,17 @@ const paragraph = (text: string) => (_: string, el: Element | null) => el?.tagNa
 const operatorLinks = (container: HTMLElement) =>
   [...container.querySelectorAll('ul a')].map(a => [a.textContent, a.getAttribute('href'), a.querySelector(`.${styles.tag}`)?.textContent]);
 
+it('the counts group thousands, as the rest of the site does: the line of counts and each operator\'s', async () => {
+  mocks.getOperatorListings.mockResolvedValue([listing('egl', '東瀛遊', 'EGL Tours', '#d62839', 1500), listing('jetour', '捷旅', 'Jetour', '#f5d000', 622)]);
+  const { container, unmount } = await renderPage('zh-Hant');
+  expect(screen.getByText('現時列出 2,122 個旅行團，來自 2 間旅行社。')).toBeInTheDocument();
+  expect(operatorLinks(container).map(([text]) => text)).toEqual(['東瀛遊1,500 團', '捷旅622 團']);
+  unmount();
+  const en = await renderPage('en');
+  expect(screen.getByText('Listing 2,122 tours from 2 operators.')).toBeInTheDocument();
+  expect(operatorLinks(en.container).map(([text]) => text)).toEqual(['EGL Tours1,500 tours', 'Jetour622 tours']);
+});
+
 it.each([
   ['zh-Hant', '旅行社一覽', '現時列出 20 個旅行團，來自 3 間旅行社。', '本網站並非任何旅行社的網站，與各旅行社並無任何關連。', ['按目的地瀏覽', '/tours'], [
     ['東瀛遊12 團', '/operators/egl', '東瀛遊'], ['捷旅7 團', '/operators/jetour', '捷旅'], ['專業旅運1 團', '/operators/texpert', '專業旅運'],

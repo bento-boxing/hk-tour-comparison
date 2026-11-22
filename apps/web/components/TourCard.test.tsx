@@ -1,6 +1,7 @@
+import type { ReactElement } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { act, render, screen, within, fireEvent } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot } from 'react-dom/client';
@@ -13,6 +14,8 @@ import type { TourRow } from '../lib/tour-row';
 import { makeT } from '../lib/i18n';
 import { OPENED_KEY, resetOpenedCache } from '../lib/opened-tours';
 import { SAVED_KEY, resetSavedCache } from '../lib/saved-tours';
+import { renderAtDocument } from '../lib/render-at-document.test-utils';
+import { resetBrowserTodayCache, setBrowserTodayClockForTests } from '../lib/browser-today';
 
 const tZh = makeT('zh-Hant');
 
@@ -49,6 +52,27 @@ const cardLink = () => screen.getByRole('link', { name: /^東瀛遊/ });
 const priceDiv = { selector: 'div' };
 const dateLinks = () => within(screen.getByRole('group', { name: '出發日期' })).getAllByRole('link');
 const cells = () => within(screen.getAllByRole('row')[0]).getAllByRole('cell');
+
+/**
+ * Puts the server's HTML for `ui` in the page, hydrates it, and runs the checks with the container and the console.error
+ * spy (a mismatch is reported there). Whatever happens, the row is unmounted and taken out again and console.error
+ * restored, so a failing check never leaves a row behind for the tests after it.
+ */
+async function hydrated(ui: ReactElement, checks: (container: HTMLElement, errors: MockInstance) => void): Promise<void> {
+  const container = document.createElement('div');
+  container.innerHTML = renderToString(ui);
+  document.body.append(container);
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+  let root: ReturnType<typeof hydrateRoot> | undefined;
+  try {
+    await act(async () => { root = hydrateRoot(container, ui); });
+    checks(container, errors);
+  } finally {
+    if (root) act(() => root!.unmount());
+    container.remove();
+    errors.mockRestore();
+  }
+}
 
 /*
  * The stylesheet, read as rules (not compared as text): for each media query ('' outside any), each selector's
@@ -625,16 +649,10 @@ describe('rows opened this session are tinted', () => {
     window.sessionStorage.setItem(OPENED_KEY, JSON.stringify(['egl:KIX5']));
     const html = renderToString(<TourCard {...props} now="2026-11-13T00:00:00Z" />);
     expect(html).not.toContain('data-opened');
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.append(container);
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    let root: ReturnType<typeof hydrateRoot> | undefined;
-    await act(async () => { root = hydrateRoot(container, <TourCard {...props} now="2026-11-13T00:00:00Z" />); });
-    expect(errors).not.toHaveBeenCalled();
-    expect(container.querySelector('[role="row"]')).toHaveAttribute('data-opened', 'latest');
-    act(() => root!.unmount());
-    container.remove();
+    await hydrated(<TourCard {...props} now="2026-11-13T00:00:00Z" />, (container, errors) => {
+      expect(errors).not.toHaveBeenCalled();
+      expect(container.querySelector('[role="row"]')).toHaveAttribute('data-opened', 'latest');
+    });
   });
 
   it('the tints change colours only: the row\'s background, the chips on the surface, the button outlined; no tag, no greyed text, no size', () => {
@@ -1007,17 +1025,11 @@ describe('收藏 (save)', () => {
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain('收藏');
     expect(html).not.toContain('已收藏');
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.append(container);
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    let root: ReturnType<typeof hydrateRoot> | undefined;
-    await act(async () => { root = hydrateRoot(container, <TourCard {...props} />); });
-    expect(errors).not.toHaveBeenCalled();
-    expect(container.querySelector('button[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
-    expect(container.querySelector('button[aria-pressed]')).toHaveTextContent('已收藏');
-    act(() => root!.unmount());
-    container.remove();
+    await hydrated(<TourCard {...props} />, (container, errors) => {
+      expect(errors).not.toHaveBeenCalled();
+      expect(container.querySelector('button[aria-pressed]')).toHaveAttribute('aria-pressed', 'true');
+      expect(container.querySelector('button[aria-pressed]')).toHaveTextContent('已收藏');
+    });
   });
 
   it('saved: colours only (the pale gold, the gold outline, a deeper gold under the pointer, the star filled); nothing changes a size', () => {
@@ -1178,6 +1190,19 @@ describe('加入行程', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('with React\'s root on the document (as on the site), a second press on the add button closes the picker for good, mouse or finger', async () => {
+    await renderAtDocument(<TourCard {...props} onAdd={vi.fn()} />);
+    const button = screen.getByRole('button', { name: '加入行程 +' });
+    for (const key of ['[MouseLeft]', '[TouchA]']) {
+      await user.pointer({ keys: key, target: button });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await user.pointer({ keys: key, target: button });
+      expect(screen.queryByRole('dialog')).toBeNull(); // not closed and opened again
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(button).toHaveFocus();
+    }
+  });
+
   it('a press outside closes it without adding; focus stays on what was pressed', async () => {
     const onAdd = vi.fn();
     render(<><input aria-label="elsewhere" /><TourCard {...props} onAdd={onAdd} /></>);
@@ -1204,6 +1229,160 @@ describe('加入行程', () => {
     unmount();
     render(<TourCard {...props} onAdd={vi.fn()} t={makeT('zh-Hans')} />);
     expect(screen.getByRole('button', { expanded: false })).toHaveTextContent('加入行程 +');
+  });
+});
+
+describe('a stored page made before Hong Kong midnight, seen after it', () => {
+  // The home page is a stored copy, made up to an hour (or a visit) earlier, with the server's today of that time
+  // (here 12 Nov). The browser's own clock says what day it is in Hong Kong now.
+  // These rows read the browser's clock (the other tests' is pinned to 2000 by vitest.setup.ts), under fake timers.
+  beforeEach(() => { setBrowserTodayClockForTests(null); resetBrowserTodayCache(); });
+  const at = (iso: string) => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(iso)); resetBrowserTodayCache(); };
+  afterEach(() => { vi.useRealTimers(); resetBrowserTodayCache(); });
+  const tomorrow = { date: '2026-11-13', priceHkd: 6999 };
+  /** Seven dates, the first on 13 Nov: five chips and +2 on 12 Nov; on 13 Nov the six still to come. */
+  const seven: TourRow = { ...tour, departures: [tomorrow, ...tour.departures] };
+  const chips = () => dateLinks().map(a => a.querySelector('span')!.textContent);
+
+  it('before midnight: 13 Nov is offered', () => {
+    at('2026-11-12T15:59:00Z'); // 23:59 in Hong Kong
+    render(<TourCard {...props} tour={seven} onAdd={vi.fn()} />);
+    expect(chips()).toEqual(['11/13 (五)', '12/18 (五)', '12/20 (日)', '12/23 (三)', '12/27 (日)']);
+    expect(screen.getByText('+2 個')).toBeInTheDocument();
+  });
+
+  it('after midnight: no chip or picker entry for 13 Nov, and the +N cell counts only what is still to come', async () => {
+    at('2026-11-12T16:20:00Z'); // 00:20 on 13 Nov in Hong Kong
+    render(<TourCard {...props} tour={seven} onAdd={vi.fn()} />);
+    expect(chips()).toEqual(['12/18 (五)', '12/20 (日)', '12/23 (三)', '12/27 (日)', '12/30 (三)', '1/3 (日)']);
+    expect(screen.queryByText(/^\+\d+ 個$/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: '加入行程 +' }));
+    expect(screen.queryByRole('button', { name: /2026年11月13日/ })).toBeNull();
+    expect(within(screen.getByRole('dialog')).getAllByRole('listitem')).toHaveLength(6);
+  });
+
+  it('after midnight, with more dates than the row holds: five chips, and +N counts those still to come', () => {
+    at('2026-11-12T16:20:00Z');
+    render(<TourCard {...props} tour={{ ...eight, departures: [tomorrow, ...eight.departures] }} />);
+    expect(chips()).toEqual(['12/18 (五)', '12/20 (日)', '12/23 (三)', '12/27 (日)', '12/30 (三)']);
+    expect(screen.getByText('+3 個')).toBeInTheDocument(); // 8 still to come (not +4: 13 Nov is not counted)
+  });
+
+  it('a row whose every date has passed says so in the dates\' place, and its picker says so too', async () => {
+    at('2026-11-12T16:20:00Z');
+    render(<TourCard {...props} tour={{ ...tour, departures: [tomorrow] }} onAdd={vi.fn()} />);
+    expect(screen.queryByRole('group', { name: '出發日期' })).toBeNull();
+    const cell = cells().find(c => c.className.includes(styles.datesCell))!;
+    expect(cell).toHaveTextContent(/^出發日期已過$/);
+    await user.click(screen.getByRole('button', { name: '加入行程 +' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('出發日期已過');
+    expect(screen.getByRole('button', { name: '關閉' })).toHaveFocus();
+    // The row, its link to the operator's page and its price stay as the page has them.
+    expect(cardLink()).toHaveAttribute('href', tour.url);
+    expect(screen.getByText(/HK\$7,999/, priceDiv)).toBeInTheDocument();
+  });
+
+  it('the line in the dates\' place is as tall as the line of chips it replaces, so nothing below moves', () => {
+    // Below 1280px a chip's box is at least 44px tall: so is the line, its text centred as a chip's is.
+    expect(rule(PHONE, '.d')['min-height']).toBe('44px');
+    expect(rule(PHONE, '.passed')).toMatchObject({ display: 'flex', 'align-items': 'center', 'min-height': '44px' });
+    // From 1280px the chips are as tall as their text (the row's height comes from its buttons): the line too, its text
+    // where a chip's text would be (the dates' 2px, then the chip's 4px).
+    for (const lang of ['zh', 'en']) {
+      expect(rule(WIDE, `.d:lang(${lang})`)).toEqual({ 'min-height': '0' });
+      expect(rule(WIDE, `.passed:lang(${lang})`)).toEqual({ 'min-height': '0', 'padding-top': '6px' });
+    }
+  });
+
+  it('in every language', () => {
+    at('2026-11-12T16:20:00Z');
+    const only = { ...tour, departures: [tomorrow] };
+    const { unmount } = render(<TourCard {...props} tour={only} t={makeT('en')} />);
+    expect(screen.getByText('Departure dates have passed')).toBeInTheDocument();
+    unmount();
+    render(<TourCard {...props} tour={only} t={makeT('zh-Hans')} />);
+    expect(screen.getByText('出发日期已过')).toBeInTheDocument();
+  });
+
+  it('a copy up to a week old is corrected: seen on 19 Nov, every date to 19 Nov is gone', () => {
+    at('2026-11-18T16:20:00Z'); // 00:20 on 19 Nov in Hong Kong: the page's today (12 Nov) plus 7
+    const week: TourRow = { ...tour, departures: [tomorrow, { date: '2026-11-15', priceHkd: 6999 }, { date: '2026-11-19', priceHkd: 6999 }, { date: '2026-11-20', priceHkd: 6999 }] };
+    render(<TourCard {...props} tour={week} />);
+    expect(chips()).toEqual(['11/20 (五)']);
+  });
+
+  it('a browser clock more than a week past the page\'s today, or behind it, is not trusted: the page\'s dates stand', () => {
+    at('2026-11-19T16:20:00Z'); // 20 Nov: the page's today plus 8
+    const { unmount } = render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('11/13 (五)');
+    unmount();
+    at('2027-11-12T16:20:00Z'); // a year ahead
+    const again = render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('11/13 (五)');
+    again.unmount();
+    at('2026-11-10T16:20:00Z'); // behind: 11 Nov
+    render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('11/13 (五)');
+  });
+
+  it('back to rows by a link after midnight: the date is checked at once, not up to a minute later', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-11-12T15:50:00Z')); // 23:50 on 12 Nov
+    resetBrowserTodayCache();
+    const { unmount } = render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('11/13 (五)');
+    unmount(); // to a page without rows
+    vi.setSystemTime(new Date('2026-11-12T16:20:00Z')); // 00:20 on 13 Nov
+    render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('12/18 (五)');
+  });
+
+  it('a page left open across two midnights keeps both days hidden', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-11-12T15:59:30Z')); // 23:59:30 on 12 Nov
+    resetBrowserTodayCache();
+    const two: TourRow = { ...tour, departures: [tomorrow, { date: '2026-11-14', priceHkd: 6999 }, ...tour.departures] };
+    render(<TourCard {...props} tour={two} />);
+    expect(chips().slice(0, 2)).toEqual(['11/13 (五)', '11/14 (六)']);
+    act(() => { vi.advanceTimersByTime(60_000); }); // 00:00:30 on 13 Nov
+    expect(chips()[0]).toBe('11/14 (六)');
+    act(() => { vi.advanceTimersByTime(24 * 3600_000); }); // 00:00:30 on 14 Nov
+    expect(chips()[0]).toBe('12/18 (五)');
+  });
+
+  it('once dates are hidden they stay hidden in this page view: a tab open past a week, or a clock set back', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-11-18T16:20:00Z')); // 19 Nov: the page's today plus 7
+    resetBrowserTodayCache();
+    const week: TourRow = { ...tour, departures: [tomorrow, { date: '2026-11-19', priceHkd: 6999 }, ...tour.departures] };
+    render(<TourCard {...props} tour={week} />);
+    expect(chips()[0]).toBe('12/18 (五)');
+    act(() => { vi.advanceTimersByTime(24 * 3600_000); }); // 20 Nov: plus 8, which alone would not be trusted
+    expect(chips()[0]).toBe('12/18 (五)');
+    act(() => { vi.setSystemTime(new Date('2026-11-12T10:00:00Z')); vi.advanceTimersByTime(60_000); }); // set back to 12 Nov
+    expect(chips()[0]).toBe('12/18 (五)');
+  });
+
+  it('the server\'s HTML is the stored copy\'s (13 Nov still there); the browser drops it after hydration, without a mismatch', async () => {
+    at('2026-11-12T16:20:00Z');
+    const html = renderToString(<TourCard {...props} tour={seven} />);
+    expect(html).toContain('11/13');
+    expect(html).toContain('+2 個');
+    await hydrated(<TourCard {...props} tour={seven} />, (container, errors) => {
+      expect(errors).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain('11/13');
+      expect(container.textContent).not.toContain('+2 個');
+    });
+  });
+
+  it('a page left open past midnight drops the day\'s dates within a minute', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date('2026-11-12T15:59:30Z'));
+    resetBrowserTodayCache();
+    render(<TourCard {...props} tour={seven} />);
+    expect(chips()[0]).toBe('11/13 (五)');
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(chips()[0]).toBe('12/18 (五)');
   });
 });
 

@@ -3,6 +3,7 @@ import { it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { usePopoverDismiss, type DismissReason } from './use-popover-dismiss';
+import { renderAtDocument } from './render-at-document.test-utils';
 
 function Popover({ onDismiss }: { onDismiss: (reason: DismissReason) => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -11,6 +12,19 @@ function Popover({ onDismiss }: { onDismiss: (reason: DismissReason) => void }) 
     <div ref={rootRef} role="dialog" aria-label="popover" onKeyDown={onKeyDown}>
       <button type="button">inside</button>
     </div>
+  );
+}
+
+/** A popover with its opener, as the filter pills and the card's 加入行程 use it: the opener toggles it. */
+function WithOpener({ onDismiss }: { onDismiss: (reason: DismissReason) => void }) {
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onKeyDown = usePopoverDismiss(rootRef, onDismiss, openerRef);
+  return (
+    <>
+      <button ref={openerRef} type="button">opener</button>
+      <div ref={rootRef} role="dialog" aria-label="popover" onKeyDown={onKeyDown}><button type="button">inside</button></div>
+    </>
   );
 }
 
@@ -24,6 +38,15 @@ it('a press outside dismisses with "outside"; a press inside does not', async ()
   expect(onDismiss).not.toHaveBeenCalled();
   await user.click(screen.getByText('elsewhere'));
   expect(onDismiss).toHaveBeenCalledTimes(1);
+  expect(onDismiss).toHaveBeenCalledWith('outside');
+});
+
+it('a press on the opener is not a press outside (the opener\'s own click closes it), with React\'s root on the document as on the site', async () => {
+  const user = userEvent.setup();
+  await renderAtDocument(<><p>elsewhere</p><WithOpener onDismiss={onDismiss} /></>);
+  await user.click(screen.getByRole('button', { name: 'opener' }));
+  expect(onDismiss).not.toHaveBeenCalled();
+  await user.click(screen.getByText('elsewhere'));
   expect(onDismiss).toHaveBeenCalledWith('outside');
 });
 

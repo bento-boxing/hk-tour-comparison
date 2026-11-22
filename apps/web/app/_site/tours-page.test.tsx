@@ -111,6 +111,21 @@ it('the heading, with the line of counts and the way to the operators index besi
   expect(container.textContent).not.toContain('·');
 });
 
+it('the line of counts groups thousands, as the rest of the site does; a destination\'s own count stays bare (its columns are sized for bare digits)', async () => {
+  mocks.countToursByDestination.mockResolvedValue({
+    all: { tours: 2122, operators: 12 },
+    destinations: [{ countryId: 'japan', regionId: null, tours: 1234, operators: 3 }, { countryId: 'japan', regionId: 'japan-kansai', tours: 1001, operators: 2 }],
+  });
+  const { container, unmount } = await renderPage('zh-Hant');
+  expect(screen.getByText('現時列出 2,122 個旅行團，來自 12 間旅行社。')).toBeInTheDocument();
+  expect(entry(screen.getByRole('link', { name: '日本' }))).toEqual(['日本', '/tours/japan', '1234 團']);
+  expect(entry(screen.getByRole('link', { name: '關西' }))).toEqual(['關西', '/tours/japan-kansai', '1001']);
+  expect(container.querySelector('section')!.textContent).not.toContain(',');
+  unmount();
+  await renderPage('en');
+  expect(screen.getByText('Listing 2,122 tours from 12 operators.')).toBeInTheDocument();
+});
+
 it('a row of jump links, one per part of the world in order, each to its section (an ASCII id) by an in-page anchor', async () => {
   const { container } = await renderPage('zh-Hant');
   const jump = screen.getByRole('navigation', { name: '跳到' });

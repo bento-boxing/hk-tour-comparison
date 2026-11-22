@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type RefObject } from 'react';
 import { isIsoDate, type IsoDate, type ScrapedDeparture } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import { usePopoverDismiss } from '../lib/use-popover-dismiss';
@@ -14,6 +14,8 @@ export type PickerCloseReason = 'escape' | 'closeButton' | 'outside';
 
 export interface DeparturePickerProps {
   departures: ScrapedDeparture[]; fallbackPriceHkd: number; today: IsoDate; t: T;
+  /** The button that opened it: a press there is not outside (its own click closes the picker). */
+  openerRef?: RefObject<HTMLElement | null>;
   onPick: (date: IsoDate) => void; onClose: (reason: PickerCloseReason) => void;
 }
 
@@ -22,7 +24,7 @@ export interface DeparturePickerProps {
  * after today. Focus starts on the first date; Escape inside it, the close button or a press outside call onClose.
  * The opener is responsible for positioning it and for returning focus when it closes.
  */
-export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick, onClose }: DeparturePickerProps) {
+export function DeparturePicker({ departures, fallbackPriceHkd, today, t, openerRef, onPick, onClose }: DeparturePickerProps) {
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const firstRef = useRef<HTMLButtonElement>(null);
@@ -32,8 +34,8 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
     (firstRef.current ?? closeRef.current)?.focus();
   }, []);
 
-  // A press outside → 'outside'; Escape inside the dialog → 'escape'.
-  const onKeyDown = usePopoverDismiss(rootRef, onClose);
+  // A press outside (not on the opener) → 'outside'; Escape inside the dialog → 'escape'.
+  const onKeyDown = usePopoverDismiss(rootRef, onClose, openerRef);
 
   // Only dates after today are upcoming (a tour leaving today has left). With an unusable `today` nothing is hidden.
   const upcoming = isIsoDate(today) ? departures.filter(d => d.date > today) : departures;
@@ -44,7 +46,9 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
         <span id={titleId} className={styles.title}>{t('picker.title')}</span>
         <button ref={closeRef} type="button" className={styles.close} aria-label={t('picker.close')} onClick={() => onClose('closeButton')}>✕</button>
       </div>
-      <ul className={styles.list}>
+      {/* None left (every date passed since the page was made, lib/browser-today): said, not an empty list. */}
+      {upcoming.length === 0 && <p className={styles.none}>{t('card.datesPassed')}</p>}
+      {upcoming.length > 0 && <ul className={styles.list}>
         {upcoming.map((d, i) => (
           <li key={d.date}>
             <button ref={i === 0 ? firstRef : undefined} type="button" className={styles.date} onClick={() => onPick(d.date)}>
@@ -58,7 +62,7 @@ export function DeparturePicker({ departures, fallbackPriceHkd, today, t, onPick
             </button>
           </li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 }

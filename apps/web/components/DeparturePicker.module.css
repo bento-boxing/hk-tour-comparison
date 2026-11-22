@@ -15,6 +15,7 @@
 .close:focus-visible { outline: 2px solid var(--focus); }
 
 .list { margin: 0; padding: 0; list-style: none; }
+.none { margin: 0; padding: 4px; font-size: 14px; color: var(--text-muted); }
 .date {
   display: flex; justify-content: space-between; align-items: baseline; gap: 16px; width: 100%;
   padding: 8px; border: 0; border-radius: var(--radius-control); background: none; text-align: left;

@@ -115,6 +115,7 @@ const zh = {
   'card.openedEarlier': '已看過', // on a row whose operator page the visitor opened earlier in this tab
   'card.openedLatest': '上次打開', // … on the one opened most recently
   'card.moreDatesCell': '+{n} 個', // the sixth date cell when a tour has more than six dates; card.moreDates is read out
+  'card.datesPassed': '出發日期已過', // a row's dates when all of them have passed since the stored page was made (just after midnight); also in its picker
   'row.stale': '資料為 {date}', // on a row whose operator's data is old: {date} is date.monthDay
   'list.updated': '資料更新：{date} · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準', // under the list
   // The list's column names, for screen readers only (the columns have no visible headings).

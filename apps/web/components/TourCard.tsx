@@ -15,6 +15,7 @@ import {
 } from '../lib/card-text';
 import { getNoOpenedTours, getOpenedTours, recordOpened, subscribeOpened } from '../lib/opened-tours';
 import { getNoSavedTours, getSavedTours, saveTour, subscribeSaved, unsaveTour } from '../lib/saved-tours';
+import { useUpcomingAfter } from '../lib/browser-today';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { PriceWithFrom } from './PriceWithFrom';
@@ -179,7 +180,10 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
   const note = startNote(tour.start, tour.end, t);
   const staleDay = now === undefined ? null : attempt(() => staleSince(tour.lastUpdated, now, t));
   const staleText = staleDay && t('row.stale', { date: staleDay });
-  const departures = tour.departures.filter(d => isIsoDate(d.date));
+  // Only dates after today are offered: the page's today, or the browser's once Hong Kong has passed midnight since
+  // the page was made (a stored copy; lib/browser-today). The server and hydration use the page's, as stored.
+  const upcomingAfter = useUpcomingAfter(today);
+  const departures = tour.departures.filter(d => isIsoDate(d.date) && !(isIsoDate(upcomingAfter) && d.date <= upcomingAfter));
   const shown = departures.length <= DATE_CELLS ? departures : departures.slice(0, DATE_CELLS - 1);
   const moreDates = departures.length - shown.length;
   const linkable = LINKABLE_URL.test(tour.url);
@@ -284,6 +288,8 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
       </div>
 
       <div role="cell" className={styles.datesCell}>
+        {/* Every date has passed since the page was made: said plainly, not an empty cell (the next copy drops the row). */}
+        {shown.length === 0 && tour.departures.length > 0 && <p className={styles.passed}>{t('card.datesPassed')}</p>}
         {shown.length > 0 && (
           <div role="group" aria-label={t('card.dates')} className={styles.dates} onKeyDown={moveDate}>
             {shown.map((d, i) => {
@@ -358,9 +364,6 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
                 className={styles.add}
                 aria-expanded={picking}
                 aria-haspopup="dialog"
-                // While the picker is open, a press here must not count as "outside" (which would close it
-                // only for this click to reopen it): the click below closes it instead.
-                onPointerDown={e => { if (picking) e.stopPropagation(); }}
                 onClick={() => (picking ? closePicker() : setPicking(true))}
               >
                 {t('card.add')}
@@ -369,8 +372,9 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
                 <DeparturePicker
                   departures={departures}
                   fallbackPriceHkd={tour.fallbackPriceHkd}
-                  today={today}
+                  today={upcomingAfter}
                   t={t}
+                  openerRef={addRef}
                   onPick={pick}
                   onClose={closePicker}
                 />

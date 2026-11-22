@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
 import { usePopoverDismiss, type DismissReason } from '../lib/use-popover-dismiss';
 import styles from './FilterBar.module.css';
 
@@ -74,16 +74,13 @@ export function FilterPopover({ label, title, on, wide, sort, open, onOpenChange
         data-on={on && !sort ? 'true' : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
-        // While open, a press on the pill must not count as "outside" (which would close the popover only
-        // for this click to reopen it): the click below closes it instead.
-        onPointerDown={e => { if (open) e.stopPropagation(); }}
         onClick={() => (open ? close('done') : onOpenChange(true))}
       >
         {sort && <SortIcon />}
         {label}
       </button>
       {open && (
-        <PopoverPanel title={title} wide={wide} onClose={close}>
+        <PopoverPanel title={title} wide={wide} openerRef={pillRef} onClose={close}>
           {children(() => close('done'))}
         </PopoverPanel>
       )}
@@ -103,10 +100,13 @@ function SortIcon() {
   );
 }
 
-function PopoverPanel({ title, wide, onClose, children }: { title: string; wide?: boolean; onClose: (reason: DismissReason) => void; children: ReactNode }) {
+function PopoverPanel({ title, wide, openerRef, onClose, children }: {
+  title: string; wide?: boolean; openerRef: RefObject<HTMLElement | null>; onClose: (reason: DismissReason) => void; children: ReactNode;
+}) {
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const onKeyDown = usePopoverDismiss(rootRef, onClose);
+  // A press on the pill is not outside: the pill's click closes the popover.
+  const onKeyDown = usePopoverDismiss(rootRef, onClose, openerRef);
   // The CSS hangs the popover from its pill's left edge; a pill near the right of the window would push it
   // off the screen, so it is measured before it is painted (and again on resize) and moved back inside.
   const [shift, setShift] = useState(0);

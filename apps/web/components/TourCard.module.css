@@ -98,6 +98,14 @@ a.d { cursor: pointer; }
 .d:focus-visible { outline: none; }
 .d:focus-visible .chip { outline: 2px solid var(--focus); outline-offset: 2px; }
 .more { display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; white-space: nowrap; }
+/*
+ * All of a row's dates passed since its page was made (lib/browser-today): a quiet line in their place, as tall as the
+ * line of chips it replaces (a chip's 44px box below 1280px; from 1280px, below), so the rows below do not move.
+ */
+.passed {
+  display: flex; align-items: center; min-height: 44px; margin: 0;
+  font-size: 13px; line-height: 1.4; color: var(--text-muted);
+}
 .visuallyHidden {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip-path: inset(50%); white-space: nowrap; border: 0;
@@ -222,6 +230,7 @@ a.d { cursor: pointer; }
   .routeCell:lang(zh) { align-self: stretch; padding-left: 12px; border-left: 1px solid var(--line); }
   .dates:lang(zh) { padding-top: 2px; max-width: none; }
   .d:lang(zh) { min-height: 0; }
+  .passed:lang(zh) { min-height: 0; padding-top: 6px; }
   .more:lang(zh) { padding: 4px 0; }
   .go:lang(zh) { min-height: 36px; }
   .add:lang(zh), .save:lang(zh) { min-height: 36px; }
@@ -276,6 +285,7 @@ a.d { cursor: pointer; }
   .stop:lang(en):not(:last-child)::after { content: '\a0→'; font-weight: 400; color: var(--text-muted); }
   .dates:lang(en) { padding-top: 2px; max-width: none; }
   .d:lang(en) { min-height: 0; }
+  .passed:lang(en) { min-height: 0; padding-top: 6px; }
   .more:lang(en) { padding: 4px 0; }
   /*
    * 'from HK$…' on one line; the change under it as narrow as its longest unbreakable part, so in two lines that break

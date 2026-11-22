@@ -411,6 +411,17 @@ it('a destination\'s page has the same band, with its own heading, counts and re
   expect(within(bandSection).getByRole('navigation', { name: '旅行團最多的目的地' })).toBeInTheDocument();
 });
 
+it('a destination\'s count line groups thousands, as the rest of the site does', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  const big: DestinationCounts = { ...counts, destinations: [{ countryId: 'japan', regionId: null, tours: 2122, operators: 3 }, ...counts.destinations.slice(1)] };
+  mocks.loadSearchPage.mockResolvedValue({ ...data, counts: big, state: { filters: { destination: { countryId: 'japan', regionId: null } }, sort: 'price', page: 1 } });
+  const { unmount } = await renderPage({ dest: 'japan' });
+  expect(screen.getByText('現時列出 2,122 個旅行團，來自 3 間旅行社。')).toBeInTheDocument();
+  unmount();
+  await renderPage({ dest: 'japan' }, 'en');
+  expect(screen.getByText('Listing 2,122 tours from 3 operators.')).toBeInTheDocument();
+});
+
 it.each([
   ['zh-Hant', { dest: 'japan', dmin: '5' }, '/tours/japan?dmin=5'],
   ['zh-Hans', { dest: 'japan', dmin: '5', sort: 'days', page: '2' }, '/zh-hans/tours/japan?dmin=5&sort=days&page=2'],
