@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
-import { SiteLink } from '../../components/SiteLink';
 import { permanentRedirect } from 'next/navigation';
 import { places, type Destination, type IsoDate } from '@hktours/core';
 import { makeT, type Locale, type T } from '../../lib/i18n';
@@ -9,9 +7,9 @@ import { pageMetadata, type PageMetadataOptions } from '../../lib/site-metadata'
 import { movedSearchHref } from '../../lib/search-params';
 import type { SearchPageData } from '../../lib/search-page-data';
 import type { ListedCount } from '@hktours/db/read';
-import { countOf, destinationName, destinationPath, isListed, topDestinations } from '../../lib/destinations';
+import { countOf, destinationName, destinationPath } from '../../lib/destinations';
+import { bandRows } from '../../lib/band-rows';
 import { formatCount, headlineCount } from '../../lib/format';
-import { placeName } from '../../lib/place-names';
 import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
@@ -21,7 +19,6 @@ import { SearchBand } from './search-band';
 import { JsonLd } from '../../components/JsonLd';
 import { websiteJsonLd } from '../../lib/structured-data';
 import frame from './site-frame.module.css';
-import band from './search-band.module.css';
 import styles from './search-page.module.css';
 
 /**
@@ -97,9 +94,9 @@ export async function StoredSearchPage({ locale }: { locale: Locale }) {
  * (see cached-reads.ts).
  *
  * The home page's heading counts the operators that list tours now and its line the tours (counts.all, from the
- * cached countToursByDestination read the page already makes: no extra statement); the shortcuts come from the same
- * counts. Under them, the seasons with tours now (their boxes link to the season pages), from the load's own season
- * counts. Under the heading, the home page only says in one line what the site does (band.lede), and gives search
+ * cached countToursByDestination read the page already makes: no extra statement). Under them, the band's two rows of
+ * boxes (lib/band-rows.ts: the destinations, or the page's destination with its regions; the seasons), from the same
+ * counts and the load's season counts. Under the heading, the home page only says in one line what the site does (band.lede), and gives search
  * engines the site's WebSite block (lib/structured-data.ts).
  */
 export function SearchView({ t, destination, load }: { t: T; destination: Destination | null; load: Loaded<SearchViewData> }) {
@@ -129,11 +126,7 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
   return (
     <>
       {site}
-      <SearchBand
-        t={t} heading={heading} line={line} lede={lede} state={state} shortcuts={topDestinations(places, counts)}
-        seasons={load.data.seasons}
-        related={destination && <Related t={t} destination={destination} data={load.data} />}
-      />
+      <SearchBand t={t} heading={heading} line={line} lede={lede} state={state} rows={bandRows(t, state, counts, load.data.seasons)} />
       {/* On a destination's page, clearing every filter keeps the destination. */}
       <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} />
     </>
@@ -169,39 +162,4 @@ export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFro
       <UpdatedNote operators={updatedFrom} t={t} />
     </div>
   );
-}
-
-/**
- * Real links to the destinations next to this one that have pages of their own: a country's regions, or a region's
- * country. Nothing when there are none.
- */
-function Related({ t, destination, data }: { t: T; destination: Destination; data: SearchPageData }) {
-  const { counts } = data;
-  const link = (d: Destination, text: string): ReactNode => (
-    <SiteLink key={destinationPath(d)} className={band.relatedLink} href={localeHref(t.locale, destinationPath(d))}>{text}</SiteLink>
-  );
-  if (destination.regionId !== null) {
-    const country: Destination = { countryId: destination.countryId, regionId: null };
-    if (!isListed(country, places, counts)) return null;
-    return <p className={band.related}>{link(country, t('dest.allOf', { country: destinationName(country, places, t) }))}</p>;
-  }
-  const regions = places.regionsOf(destination.countryId)
-    .map(r => ({ countryId: r.countryId, regionId: r.id }))
-    .filter(d => isListed(d, places, counts));
-  if (regions.length === 0) return null;
-  return (
-    <p className={band.related}>
-      {t('dest.regions')}
-      {regions.map((d, i) => [
-        i > 0 && <span key={`sep-${i}`} aria-hidden="true"> · </span>,
-        link(d, regionName(d, t)),
-      ])}
-    </p>
-  );
-}
-
-/** A region's own name, without its country (the page already names it). */
-function regionName(destination: Destination, t: T): string {
-  const region = destination.regionId === null ? undefined : places.region(destination.regionId);
-  return region ? placeName(region, t.locale) : destinationName(destination, places, t);
 }

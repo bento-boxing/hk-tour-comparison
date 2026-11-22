@@ -48,11 +48,17 @@ describe('countToursInWindows', () => {
   afterAll(async () => { await db.close(); });
 
   it('gives, for each window in its order, the tours with a departure inside it, their operators, lengths and lowest price there', async () => {
+    const kansai = (tours: number, days: number, price: number) =>
+      [{ countryId: 'japan', regionId: null, tours, operators: 1, range: { minDays: days, maxDays: days, minPriceHkd: price } },
+        { countryId: 'japan', regionId: 'japan-kansai', tours, operators: 1, range: { minDays: days, maxDays: days, minPriceHkd: price } }];
+    const seoul = (price: number) =>
+      [{ countryId: 'korea', regionId: null, tours: 1, operators: 1, range: { minDays: 4, maxDays: 4, minPriceHkd: price } },
+        { countryId: 'korea', regionId: 'korea-seoul', tours: 1, operators: 1, range: { minDays: 4, maxDays: 4, minPriceHkd: price } }];
     expect(await countToursInWindows(db, today, WINDOWS)).toEqual([
       // KIX5's 27 Dec departure has no price of its own, so it counts at the tour's from-price (3,999).
-      { tours: 2, operators: 2, range: { minDays: 4, maxDays: 5, minPriceHkd: 3500 } },
-      { tours: 2, operators: 2, range: { minDays: 4, maxDays: 9, minPriceHkd: 2800 } },
-      { tours: 0, operators: 0 },
+      { tours: 2, operators: 2, range: { minDays: 4, maxDays: 5, minPriceHkd: 3500 }, destinations: [...kansai(1, 5, 3999), ...seoul(3500)] },
+      { tours: 2, operators: 2, range: { minDays: 4, maxDays: 9, minPriceHkd: 2800 }, destinations: [...kansai(1, 9, 9100), ...seoul(2800)] },
+      { tours: 0, operators: 0, destinations: [] },
     ]);
   });
 
@@ -62,15 +68,22 @@ describe('countToursInWindows', () => {
       const { total, tours } = await searchTours(db, { filters: { dateFrom: w.from, dateTo: w.to }, sort: 'price', page: 1, today });
       expect(counts[i].tours).toBe(total);
       expect(counts[i].range?.minPriceHkd).toBe(tours[0]?.windowPriceHkd);
+      // Each destination's line: the total of the window's search for that destination.
+      for (const line of counts[i].destinations ?? []) {
+        const destination = { countryId: line.countryId, regionId: line.regionId };
+        const found = await searchTours(db, { filters: { dateFrom: w.from, dateTo: w.to, destination }, sort: 'price', page: 1, today });
+        expect(line.tours, `${w.from} ${line.regionId ?? line.countryId}`).toBe(found.total);
+        expect(line.range?.minPriceHkd).toBe(found.tours[0]?.windowPriceHkd);
+      }
     }
   });
 
   it('counts only departures after today: inside a window, the days gone are left out', async () => {
     // On 24 Dec only KIX5's 27 Dec departure is still to come.
-    expect(await countToursInWindows(db, '2026-12-24', [CHRISTMAS])).toEqual([
-      { tours: 1, operators: 1, range: { minDays: 5, maxDays: 5, minPriceHkd: 3999 } },
-    ]);
-    expect(await countToursInWindows(db, '2026-12-27', [CHRISTMAS])).toEqual([{ tours: 0, operators: 0 }]);
+    const [christmas] = await countToursInWindows(db, '2026-12-24', [CHRISTMAS]);
+    expect(christmas).toMatchObject({ tours: 1, operators: 1, range: { minDays: 5, maxDays: 5, minPriceHkd: 3999 } });
+    expect(christmas.destinations!.map(d => d.regionId ?? d.countryId)).toEqual(['japan', 'japan-kansai']);
+    expect(await countToursInWindows(db, '2026-12-27', [CHRISTMAS])).toEqual([{ tours: 0, operators: 0, destinations: [] }]);
   });
 
   it('is one statement for any number of windows, and none for no window', async () => {

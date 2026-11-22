@@ -109,27 +109,29 @@ it('the destination comes from the path: a dest in the query is ignored, and the
   expect(screen.getByRole('combobox')).toHaveValue('日本 → 全部地區');
 });
 
+/** The band's first row ("where", named by its label) as [accessible name, address]. */
+const whereRow = (label: string) =>
+  within(screen.getByRole('navigation', { name: label })).getAllByRole('link').map(a => [a.getAttribute('aria-label') ?? a.textContent, a.getAttribute('href')]);
+
 it.each([
-  ['zh-Hant', '日本旅行團', '現時列出 32 個旅行團，來自 3 間旅行社。', '地區：', [['關東', '/tours/japan-kanto'], ['關西', '/tours/japan-kansai']]],
-  ['zh-Hans', '日本旅行团', '目前列出 32 个旅行团，来自 3 家旅行社。', '地区：', [['关东', '/zh-hans/tours/japan-kanto'], ['关西', '/zh-hans/tours/japan-kansai']]],
-  ['en', 'Group tours to Japan', 'Listing 32 tours from 3 operators.', 'Regions:', [['Kanto', '/en/tours/japan-kanto'], ['Kansai', '/en/tours/japan-kansai']]],
-] as const)('in %s a country\'s page: its heading, the line of real counts, and links to its regions that have tours', async (locale, heading, line, label, regions) => {
+  ['zh-Hant', '日本旅行團', '現時列出 32 個旅行團，來自 3 間旅行社。', '日本地區', [['日本 32 團，已選取，按此取消', '/'], ['關西 30 團', '/tours/japan-kansai'], ['關東 1 團', '/tours/japan-kanto']]],
+  ['zh-Hans', '日本旅行团', '目前列出 32 个旅行团，来自 3 家旅行社。', '日本地区', [['日本 32 团，已选取，按此取消', '/zh-hans'], ['关西 30 团', '/zh-hans/tours/japan-kansai'], ['关东 1 团', '/zh-hans/tours/japan-kanto']]],
+  ['en', 'Group tours to Japan', 'Listing 32 tours from 3 operators.', 'Regions of Japan', [['Japan, 32 tours, selected: press to remove', '/en'], ['Kansai 30 tours', '/en/tours/japan-kansai'], ['Kanto 1 tour', '/en/tours/japan-kanto']]],
+] as const)('in %s a country\'s page: its heading, the line of real counts, and the band\'s first row: the country chosen, then its regions that have tours', async (locale, heading, line, label, regions) => {
   await renderPage(locale, 'japan');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading);
   expect(screen.getByText(line)).toBeInTheDocument();
-  const related = screen.getByText(label, { exact: false });
-  expect([...related.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href')])).toEqual(regions);
+  expect(whereRow(label)).toEqual(regions.map(r => [...r]));
 });
 
 it.each([
-  ['zh-Hant', '日本關西旅行團', '現時列出 30 個旅行團，來自 2 間旅行社。', '日本全部旅行團', '/tours/japan'],
-  ['zh-Hans', '日本关西旅行团', '目前列出 30 个旅行团，来自 2 家旅行社。', '日本全部旅行团', '/zh-hans/tours/japan'],
-  ['en', 'Group tours to Kansai, Japan', 'Listing 30 tours from 2 operators.', 'All tours to Japan', '/en/tours/japan'],
-] as const)('in %s a region\'s page: its heading, its counts, and a link to its country', async (locale, heading, line, country, href) => {
+  ['zh-Hant', '日本關西旅行團', '現時列出 30 個旅行團，來自 2 間旅行社。', '日本地區', [['日本 32 團', '/tours/japan'], ['關西 30 團，已選取，按此取消', '/tours/japan'], ['關東 1 團', '/tours/japan-kanto']]],
+  ['en', 'Group tours to Kansai, Japan', 'Listing 30 tours from 2 operators.', 'Regions of Japan', [['Japan 32 tours', '/en/tours/japan'], ['Kansai, 30 tours, selected: press to remove', '/en/tours/japan'], ['Kanto 1 tour', '/en/tours/japan-kanto']]],
+] as const)('in %s a region\'s page: its heading, its counts, and its country\'s row: the country (a way to it), the region chosen (back to the country)', async (locale, heading, line, label, boxes) => {
   await renderPage(locale, 'japan-kansai');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading);
   expect(screen.getByText(line)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: country })).toHaveAttribute('href', href);
+  expect(whereRow(label)).toEqual(boxes.map(b => [...b]));
 });
 
 it('a destination with no tours now answers as usual, with the no-tours state', async () => {
@@ -138,7 +140,8 @@ it('a destination with no tours now answers as usual, with the no-tours state', 
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('日本沖繩旅行團');
   expect(screen.getByText('現時沒有列出旅行團。')).toBeInTheDocument();
   expect(screen.getByText('找不到符合條件的旅行團')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: '日本全部旅行團' })).toHaveAttribute('href', '/tours/japan');
+  // Not one of Japan's listed regions: its own box first, chosen (a way out), then the top destinations.
+  expect(whereRow('熱門目的地')[0]).toEqual(['日本沖繩 0 團，已選取，按此取消', '/']);
 });
 
 it.each([
@@ -260,12 +263,12 @@ it('a listed destination is not marked noindex, whatever the filters', async () 
   for (const query of queries) expect(await metadata('en', 'japan', query)).not.toHaveProperty('robots');
 });
 
-it('an area\'s page links to its country', async () => {
+it('an area\'s page: its own box chosen first, then the top destinations, its country among them', async () => {
   await renderPage('zh-Hant', 'china-area-east');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('中國華東旅行團');
-  const related = screen.getByRole('link', { name: '中國全部旅行團' });
-  expect(related).toHaveAttribute('href', '/tours/china');
-  expect(within(related.parentElement!).getAllByRole('link')).toHaveLength(1);
+  const row = whereRow('熱門目的地');
+  expect(row[0]).toEqual(['中國華東 1 團，已選取，按此取消', '/']);
+  expect(row).toContainEqual(['中國 2 團', '/tours/china']);
 });
 
 // Structured data (task 64): the page's place in the site, from its path; no list of its tours.

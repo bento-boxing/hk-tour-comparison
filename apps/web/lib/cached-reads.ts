@@ -2,8 +2,8 @@ import { unstable_cache } from 'next/cache';
 import type { Destination, IsoDate } from '@hktours/core';
 import {
   countToursByDestination, countToursInWindows, getOperatorListings, getOperators, getToursByKeys, isPageSize, searchTours, PAGE_SIZE,
-  type DateWindow, type DestinationCounts, type Db, type ListedCount, type OperatorInfo, type OperatorListing, type PageSize,
-  type SearchInput, type SortKey, type TourCardData, type TourFilters,
+  type DateWindow, type DestinationCounts, type Db, type OperatorInfo, type OperatorListing, type PageSize,
+  type SearchInput, type SortKey, type TourCardData, type TourFilters, type WindowCount,
 } from '@hktours/db/read';
 import type { Locale } from './i18n';
 
@@ -141,8 +141,11 @@ export interface Reads {
   countToursByDestination(db: Db, today: IsoDate): Promise<DestinationCounts>;
   /** Every operator with its home address and how many tours it lists now, in all and per country. */
   getOperatorListings(db: Db, today: IsoDate): Promise<OperatorListing[]>;
-  /** How many tours are listed with a departure inside each window (the season pages': lib/seasons.ts), in their order. */
-  countToursInWindows(db: Db, today: IsoDate, windows: DateWindow[]): Promise<ListedCount[]>;
+  /**
+   * How many tours are listed with a departure inside each window (the seasons': lib/seasons.ts), in all and per
+   * destination (the gold band's counts), in their order.
+   */
+  countToursInWindows(db: Db, today: IsoDate, windows: DateWindow[]): Promise<WindowCount[]>;
 }
 
 /**

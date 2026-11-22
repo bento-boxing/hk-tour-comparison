@@ -45,8 +45,6 @@ const zh = {
   'dest.daysOne': '{days} 日',
   'dest.count': '現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // under the <h1>, before any filter
   'dest.countNone': '現時沒有列出旅行團。',
-  'dest.regions': '地區：', // before the links to a country's regions
-  'dest.allOf': '{country}全部旅行團', // a region's link to its country
   'dest.tours': '{n} 團', // a destination's count beside its link
   'home.heading': '比較香港旅行團', // the search page's <h1>
   // The gold band on the home page (task 47). {n} is the number of operators listing tours now, as a Chinese
@@ -60,7 +58,13 @@ const zh = {
   // Task 68: the label of the row of destination shortcuts, which names it (shown on phones; on wide screens it only
   // names the row for screen readers). The seasons' row is labelled tours.seasons.
   'band.popular': '熱門目的地',
-  'band.allDestinations': '所有目的地 →', // the last shortcut: the destinations index
+  // Task 69 (drawing W3): row 1's label on a chosen country's (or region's) page: {place} is the country.
+  'band.regionsOf': '{place}地區',
+  // A chosen country's regions beyond those shown: the disclosure that shows them, closed and open.
+  'band.allRegions': '全部 {n} 個地區',
+  'band.fewerRegions': '收起',
+  // A chosen box's accessible name, in either row ({count} is dest.tours: '1,306 團'): pressing it un-chooses it.
+  'band.selected': '{name} {count}，已選取，按此取消',
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
@@ -76,6 +80,7 @@ const zh = {
   'season.lunar-new-year.description': '農曆新年',
   'season.easter.description': '復活節',
   'season.heading': '{year} {season}旅行團', // the page's <h1>: '2026 聖誕旅行團'
+  'season.headingPlace': '{year} {season}{place}旅行團', // with a destination chosen: '2026 聖誕日本旅行團'
   'season.title': '{season}旅行團 {year} 比較', // its <title>, before ' | 跟邊團'
   'season.count': '{dates}出發。現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // beside the <h1>, before any other filter
   'season.countNone': '{dates}出發。現時沒有列出旅行團。',

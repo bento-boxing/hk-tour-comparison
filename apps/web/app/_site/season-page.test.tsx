@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { places } from '@hktours/core';
-import type { DateWindow, Db, DestinationCounts, ListedCount, TourCardData } from '@hktours/db/read';
+import type { DateWindow, Db, DestinationCounts, ListedCount, TourCardData, WindowCount } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
 import { makeT, type Locale } from '../../lib/i18n';
 import { shareImage } from '../../lib/share-images';
@@ -55,8 +55,11 @@ function dataFor(raw: Record<string, string | string[] | undefined>): SearchPage
 }
 
 /** The seasons' own counts, by season, as the stand-in read answers for each window it is asked about. */
-let seasonCounts: Partial<Record<SeasonId, ListedCount>>;
-const CHRISTMAS_COUNT: ListedCount = { tours: 157, operators: 5, range: { minDays: 3, maxDays: 12, minPriceHkd: 3999 } };
+let seasonCounts: Partial<Record<SeasonId, WindowCount>>;
+const CHRISTMAS_COUNT: WindowCount = {
+  tours: 157, operators: 5, range: { minDays: 3, maxDays: 12, minPriceHkd: 3999 },
+  destinations: [{ countryId: 'japan', regionId: null, tours: 20, operators: 2 }],
+};
 
 let consoleError: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
@@ -297,4 +300,59 @@ it('the Traditional Chinese Lunar New Year description carries both 農曆新年
   const { description } = await metadata('zh-Hant', 'lunar-new-year');
   expect(description).toContain('農曆新年');
   expect(description).toContain('新年旅行團');
+});
+
+
+describe('the band\'s rows on a season\'s page (task 69, drawing W3)', () => {
+  /** A row's boxes as [accessible name or text, address or null when it is no link]. */
+  const row = (label: string) =>
+    [...within(screen.getByRole('navigation', { name: label })).getByRole('list').querySelectorAll('li > a, li > span')]
+      .map(el => [el.getAttribute('aria-label') ?? el.textContent, el.tagName === 'A' ? el.getAttribute('href') : null]);
+
+  it.each([
+    ['zh-Hant', '熱門目的地', '節日旅行團', [['日本 20 團', '/seasons/christmas?dest=japan']], [['聖誕 157 團，已選取，按此取消', '/'], ['農曆新年 1 團', '/seasons/lunar-new-year']]],
+    ['zh-Hans', '热门目的地', '节日旅行团', [['日本 20 团', '/zh-hans/seasons/christmas?dest=japan']], [['圣诞 157 团，已选取，按此取消', '/zh-hans'], ['农历新年 1 团', '/zh-hans/seasons/lunar-new-year']]],
+    ['en', 'Popular destinations', 'Holiday tours', [['Japan 20 tours', '/en/seasons/christmas?dest=japan']], [['Christmas, 157 tours, selected: press to remove', '/en'], ['Lunar New Year 1 tour', '/en/seasons/lunar-new-year']]],
+  ] as const)('in %s: both rows; the destinations counted in the season and keeping it; the season chosen, pressing it leaves', async (locale, where, when, destinations, seasons) => {
+    await renderPage(locale, 'christmas');
+    expect(row(where)).toEqual(destinations.map(x => [...x]));
+    expect(row(when)).toEqual(seasons.map(x => [...x]));
+  });
+
+  it('with a destination chosen: the heading and line name and count the combination; un-choosing either keeps the other, and the other filters', async () => {
+    await renderPage('zh-Hant', 'christmas', { dest: 'japan', dmin: '5', sort: 'days', page: '3' });
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('2026 聖誕日本旅行團');
+    expect(screen.getByText('12月19日至27日出發。現時列出 20 個旅行團，來自 2 間旅行社。')).toBeInTheDocument();
+    expect(row('節日旅行團')[0]).toEqual(['聖誕 20 團，已選取，按此取消', '/tours/japan?dmin=5&sort=days']);
+    // Japan has no region pages in these counts: its box chosen first (pressing it keeps the season).
+    expect(row('熱門目的地')[0]).toEqual(['日本 20 團，已選取，按此取消', '/seasons/christmas?dmin=5&sort=days']);
+    // The title, description and canonical stay the season's; the breadcrumb trail too.
+    const meta = await metadata('zh-Hant', 'christmas', { dest: 'japan' });
+    expect(meta.title).toBe('聖誕旅行團 2026 比較');
+    expect(meta.alternates?.canonical).toBe('https://example.invalid/seasons/christmas');
+  });
+
+  it.each([
+    ['zh-Hans', '2026 圣诞日本旅行团'], ['en', 'Christmas 2026 group tours to Japan'],
+  ] as const)('in %s, the heading with a destination chosen: %s', async (locale, heading) => {
+    await renderPage(locale, 'christmas', { dest: 'japan' });
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading);
+  });
+
+  it('an empty season\'s page shows its own box (0) chosen, the way out; destinations with nothing in it are faded', async () => {
+    await renderPage('en', 'easter');
+    expect(row('Holiday tours')).toEqual([
+      ['Christmas 157 tours', '/en/seasons/christmas'], ['Lunar New Year 1 tour', '/en/seasons/lunar-new-year'],
+      ['Easter, 0 tours, selected: press to remove', '/en'],
+    ]);
+    expect(row('Popular destinations')).toEqual([['Japan 0 tours', null]]);
+  });
+
+  it('the seasons cannot be read: the page\'s usual failure (the message, noindex), and no rows', async () => {
+    mocks.countToursInWindows.mockRejectedValue(new Error('connection refused'));
+    await renderPage('zh-Hant', 'christmas');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: '節日旅行團' })).toBeNull();
+    expect((await metadata('zh-Hant', 'christmas')).robots).toEqual({ index: false });
+  });
 });

@@ -131,11 +131,16 @@ export const loadOperator = cache(async (locale: Locale, operatorId: OperatorId,
   });
 });
 
-/** A season's page's data: its tours as the search page reads them, and the season's own count before any filter. */
+/**
+ * A season's page's data: its tours as the search page reads them, the season's own count before any filter, and every
+ * season's (the band's row of season boxes).
+ */
 export interface SeasonPageData {
   search: SearchPageData;
   /** The season's tours before any other filter (the heading's line, the description, noindex when none). */
   count: ListedCount;
+  /** Every season with a current window, with its count (lib/season-counts.ts), this one among them. */
+  seasons: SeasonCount[];
 }
 
 /** A season's page: its current window on the server's Hong Kong today, and the page's load. */
@@ -161,7 +166,7 @@ export const loadSeason = cache(async (locale: Locale, seasonId: SeasonId, query
       seasonCounts(db, today, cachedReads),
     ]);
     const count = seasons.find(s => s.window.season === seasonId)?.count ?? { tours: 0, operators: 0 };
-    return { search, count };
+    return { search, count, seasons };
   });
   return { window, load };
 });

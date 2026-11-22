@@ -1,37 +1,28 @@
 import { SiteLink } from '../../components/SiteLink';
 import type { ReactNode } from 'react';
-import { places, type Destination } from '@hktours/core';
-import type { ListedCount } from '@hktours/db/read';
 import type { T } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import type { SearchState } from '../../lib/search-params';
-import { TOURS_PATH, destinationName, destinationPath } from '../../lib/destinations';
 import { formatCount } from '../../lib/format';
-import { SEASON_NAME_KEYS, seasonPath } from '../../lib/seasons';
-import type { SeasonCount } from '../../lib/season-counts';
+import type { BandBox, BandRows } from '../../lib/band-rows';
 import { DestinationPanelsConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
 import frame from './site-frame.module.css';
 import styles from './search-band.module.css';
 
 export interface SearchBandProps {
   t: T;
-  /** The page's <h1>: the home page's headline, or a destination's heading (日本旅行團). */
+  /** The page's <h1>: the home page's headline, a destination's or a season's heading (日本旅行團). */
   heading: string;
   /** The line of real numbers beside it; nothing when the tours could not be read. */
   line?: ReactNode;
   /** The home page's line under them saying what the site does (band.lede); none elsewhere. */
   lede?: string;
-  /** More under the heading: a destination's links to its regions or its country. */
+  /** More under the heading: an operator's notes. */
   related?: ReactNode;
   /** The page's search state, for the destination box and the country button; none when the tours could not be read. */
   state?: SearchState;
-  /** The destinations offered as shortcuts (lib/destinations.ts topDestinations), then a link to the index. */
-  shortcuts?: { destination: Destination; count: ListedCount }[];
-  /**
-   * The seasons' current windows with their tours (lib/season-counts.ts): those with tours get a box each, under the
-   * shortcuts, in the calendar order of their windows. Shown only with the shortcuts.
-   */
-  seasons?: SeasonCount[];
+  /** The two rows of boxes (lib/band-rows.ts): on the home page, a destination's and a season's; none elsewhere. */
+  rows?: BandRows;
 }
 
 /**
@@ -53,33 +44,46 @@ function BoxCount({ t, tours }: { t: T; tours: number }) {
   );
 }
 
-/** A box's text: one line box on wide screens (the name and its smaller count share a baseline), stacked on phones. */
-function BoxText({ t, name, tours }: { t: T; name: string; tours: number }) {
-  return (
+/**
+ * A box: its name and count (one line box on wide screens, stacked on phones), and on a chosen box ✕ (after the count
+ * on wide screens, in the top-right corner on phones; the filter bar's active-destination pill ends with the same mark).
+ * A link, named as chosen when it is (band.selected: pressing it un-chooses it); a box with nothing to list is plain text,
+ * faded, neither a link nor focusable.
+ */
+function Box({ t, box, kind }: { t: T; box: BandBox; kind: 'shortcut' | 'season' }) {
+  const className = [styles[kind], box.chosen && styles.selected, box.path === null && styles.faded].filter(Boolean).join(' ');
+  const text = (
     <span className={styles.boxText}>
-      <span className={styles.name}>{name}</span>{' '}<BoxCount t={t} tours={tours} />
+      <span className={styles.name}>{box.name}</span>{' '}<BoxCount t={t} tours={box.tours} />
+      {box.chosen && <span className={styles.clear} aria-hidden="true">✕</span>}
     </span>
   );
+  if (box.path === null) return <span className={className}>{text}</span>;
+  const name = box.chosen ? t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) }) : undefined;
+  return <SiteLink className={className} href={localeHref(t.locale, box.path)} aria-label={name}>{text}</SiteLink>;
+}
+
+/** A row 1 box's visibility classes: four on phones; a chosen country's further regions only once opened. */
+function whereItemClass(box: BandBox): string | undefined {
+  const classes = [box.hideOnPhone && styles.hideOnPhone, box.moreOnPhone && styles.moreOnPhone, box.moreOnWide && styles.moreOnWide];
+  return classes.filter(Boolean).join(' ') || undefined;
 }
 
 /**
- * The gold band under the header on the home page and on a destination's page (mock-up Rows): the page's heading
- * with its line of numbers, the destination search box with the 按國家選擇 button, and a row of boxes linking to the
- * destinations with the most tours now (the owner's drawing E1), ending with a text link to the destinations index;
- * under them, the seasons with tours now as outlined boxes (drawing Home2 "B"). Spans the window; its content sits in
- * the page's column.
+ * The gold band under the header (mock-up Rows): the page's heading with its line of numbers, the destination search
+ * box with the 按國家選擇 button, and, on the home page, a destination's page and a season's page, the two rows of boxes
+ * (drawing W3): row 1 "where" (the destinations with the most tours, or a chosen country with its regions), row 2
+ * "when" (the seasons with tours now). Each box chooses its destination or season and keeps the other row's choice; a
+ * chosen box (white, ✕) un-chooses it. Spans the window; its content sits in the page's column.
  *
- * Phones (drawing Home3PhoneGrid "P1"): the button under the search box, full width; a label row (熱門目的地, and the
- * link to the index at its right, in the same row and wrapping under it when the text is large), the first four destinations in four equal columns (English: two, as its names are
- * too long for four: search-band.module.css), each name over its count with its unit; then the
- * seasons' label and their boxes in three equal columns (English: two). The two rows are navigation landmarks, each named by its
- * own label (熱門目的地 is visible on phones only; on wide screens it is visually hidden and still names the row).
+ * Phones (drawings Home3PhoneGrid "P1" and W3): the button under the search box, full width; each row under its own
+ * label, as a grid (row 1: four columns, two in English; row 2: three, two in English), each name over its count with
+ * its unit. The rows are navigation landmarks, each named by its label (row 1's is visible on phones only; on wide
+ * screens it is visually hidden and still names the row). A chosen country with more regions than shown ends row 1
+ * with a disclosure (native <details>, closed on every load) that shows the others in place.
  */
-export function SearchBand({ t, heading, line, lede, related, state, shortcuts, seasons }: SearchBandProps) {
-  // Only seasons with tours, soonest first (a season rolled forward to next year comes after the others).
-  const seasonBoxes = shortcuts && seasons
-    ? seasons.filter(s => s.count.tours > 0).sort((a, b) => (a.window.from < b.window.from ? -1 : a.window.from > b.window.from ? 1 : 0))
-    : [];
+export function SearchBand({ t, heading, line, lede, related, state, rows }: SearchBandProps) {
+  const more = rows?.where.moreRegions ?? null;
   return (
     <section className={styles.band} aria-labelledby="page-heading">
       <div className={`${frame.wrap} ${styles.inner}`}>
@@ -95,41 +99,35 @@ export function SearchBand({ t, heading, line, lede, related, state, shortcuts, 
             <div className={styles.panelsBox}><DestinationPanelsConnected state={state} /></div>
           </div>
         )}
-        {shortcuts && (
-          <nav className={styles.shortcuts} aria-labelledby="band-popular">
-            {/*
-              * The label, and on phones the link to the index beside it (before the boxes, as it is seen there). Wide
-              * screens show the link after the boxes instead (the list's last item); each placement is display: none
-              * at the other widths, so only one is ever in the accessibility tree.
-              */}
-            <div className={styles.labelRow}>
-              <p id="band-popular" className={`${styles.label} ${styles.popularLabel}`}>{t('band.popular')}</p>
-              <SiteLink className={`${styles.all} ${styles.phoneAll}`} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</SiteLink>
-            </div>
+        {rows && rows.where.boxes.length > 0 && (
+          <nav className={styles.shortcuts} aria-labelledby="band-where">
+            <p id="band-where" className={`${styles.label} ${styles.whereLabel}`}>{rows.where.label}</p>
             <ul className={styles.shortcutList}>
-              {shortcuts.map(({ destination, count }) => (
-                <li key={destinationPath(destination)}>
-                  <SiteLink className={styles.shortcut} href={localeHref(t.locale, destinationPath(destination))}>
-                    <BoxText t={t} name={destinationName(destination, places, t)} tours={count.tours} />
-                  </SiteLink>
+              {rows.where.boxes.map(box => (
+                <li key={box.key} className={whereItemClass(box)}>
+                  <Box t={t} box={box} kind="shortcut" />
                 </li>
               ))}
-              <li className={styles.allItem}>
-                <SiteLink className={styles.all} href={localeHref(t.locale, TOURS_PATH)}>{t('band.allDestinations')}</SiteLink>
-              </li>
+              {more && (
+                // The boxes it shows are this list's own items, already in the HTML: it only stops hiding them.
+                <li className={[styles.moreItem, !more.onWide && styles.hideOnWide, !more.onPhone && styles.hideOnPhone].filter(Boolean).join(' ')}>
+                  <details className={styles.more}>
+                    <summary>
+                      <span className={styles.moreClosed}>{t('band.allRegions', { n: more.n })}</span>
+                      <span className={styles.moreOpen}>{t('band.fewerRegions')}</span>
+                    </summary>
+                  </details>
+                </li>
+              )}
             </ul>
           </nav>
         )}
-        {seasonBoxes.length > 0 && (
+        {rows && rows.when.length > 0 && (
           <nav className={styles.seasons} aria-labelledby="band-seasons">
             <p id="band-seasons" className={styles.label}>{t('tours.seasons')}</p>
             <ul className={styles.seasonList}>
-              {seasonBoxes.map(({ window, count }) => (
-                <li key={window.season}>
-                  <SiteLink className={styles.season} href={localeHref(t.locale, seasonPath(window.season))}>
-                    <BoxText t={t} name={t(SEASON_NAME_KEYS[window.season].name)} tours={count.tours} />
-                  </SiteLink>
-                </li>
+              {rows.when.map(box => (
+                <li key={box.key}><Box t={t} box={box} kind="season" /></li>
               ))}
             </ul>
           </nav>

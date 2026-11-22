@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { places } from '@hktours/core';
-import type { ListedCount } from '@hktours/db/read';
+import type { DestinationCount, DestinationCounts } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
 import { makeT, type Locale } from '../../lib/i18n';
 import { parseSearchParams } from '../../lib/search-params';
-import { seasonWindow, type SeasonId } from '../../lib/seasons';
+import { seasonWindow } from '../../lib/seasons';
+import { bandRows } from '../../lib/band-rows';
 import type { SeasonCount } from '../../lib/season-counts';
 import styles from './search-band.module.css';
 
@@ -15,88 +16,98 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePat
 
 const { SearchBand } = await import('./search-band');
 
-// Task 68: the band's seasons (drawing Home2 "B" on wide screens, Home3PhoneGrid "P1" on phones) and its phone layout.
+// Task 69 (drawing W3): the band's two rows as rendered (which boxes there are is lib/band-rows.test.ts's).
 
-const shortcuts = [
-  { destination: { countryId: 'china', regionId: null }, count: { tours: 1463, operators: 8 } },
-  { destination: { countryId: 'japan', regionId: null }, count: { tours: 157, operators: 6 } },
-  { destination: { countryId: 'korea', regionId: null }, count: { tours: 1, operators: 1 } },
+const line = (countryId: string, regionId: string | null, tours: number): DestinationCount => ({ countryId, regionId, tours, operators: 1 });
+const site: DestinationCounts = {
+  all: { tours: 3000, operators: 6 },
+  destinations: [
+    line('china', null, 1463), line('japan', null, 157),
+    line('japan', 'japan-kansai', 36), line('japan', 'japan-kanto', 35), line('japan', 'japan-kyushu', 31), line('japan', 'japan-chubu', 30),
+    line('japan', 'japan-hokkaido', 24), line('japan', 'japan-okinawa', 23), line('japan', 'japan-tohoku', 15),
+    line('korea', null, 1), line('korea', 'korea-seoul', 1),
+  ],
+};
+const christmas = seasonWindow('christmas', 2026)!;
+const seasons: SeasonCount[] = [
+  { window: christmas, count: { tours: 1306, operators: 8, destinations: [line('japan', null, 48), line('japan', 'japan-kansai', 12)] } },
+  { window: seasonWindow('lunar-new-year', 2027)!, count: { tours: 353, operators: 5, destinations: [] } },
 ];
-const season = (id: SeasonId, year: number, tours: number): SeasonCount => ({ window: seasonWindow(id, year)!, count: { tours, operators: tours > 0 ? 2 : 0 } as ListedCount });
 
-function renderBand(locale: Locale, seasons?: SeasonCount[], withShortcuts = true) {
+function renderBand(locale: Locale, query: Record<string, string>) {
+  const t = makeT(locale);
+  const state = parseSearchParams(query, places);
   return render(
     <I18nProvider locale={locale}>
-      <SearchBand
-        t={makeT(locale)} heading="h" state={parseSearchParams({}, places)}
-        shortcuts={withShortcuts ? shortcuts : undefined} seasons={seasons}
-      />
+      <SearchBand t={t} heading="h" state={state} rows={bandRows(t, state, site, seasons)} />
     </I18nProvider>,
   );
 }
 
-/** A box as [its name, its count with the unit, its address]. */
-const box = (a: Element) => [a.querySelector(`.${styles.name}`)?.textContent, a.querySelector(`.${styles.count}`)?.textContent, a.getAttribute('href')];
+/** A row's items as [the box's name, its count with the unit, its address or null for no link, its accessible name]. */
+const items = (nav: HTMLElement) => [...nav.querySelectorAll(`li > .${styles.shortcut}, li > .${styles.season}`)].map(el => [
+  el.querySelector(`.${styles.name}`)?.textContent, el.querySelector(`.${styles.count}`)?.textContent,
+  el.tagName === 'A' ? el.getAttribute('href') : null, el.getAttribute('aria-label'),
+]);
 
-describe('the seasons on the band', () => {
+describe('the rows', () => {
   it.each([
-    ['zh-Hant', '節日旅行團', [['聖誕', '1,306 團', '/seasons/christmas'], ['農曆新年', '353 團', '/seasons/lunar-new-year'], ['復活節', '1 團', '/seasons/easter']]],
-    ['zh-Hans', '节日旅行团', [['圣诞', '1,306 团', '/zh-hans/seasons/christmas'], ['农历新年', '353 团', '/zh-hans/seasons/lunar-new-year'], ['复活节', '1 团', '/zh-hans/seasons/easter']]],
-    ['en', 'Holiday tours', [['Christmas', '1,306 tours', '/en/seasons/christmas'], ['Lunar New Year', '353 tours', '/en/seasons/lunar-new-year'], ['Easter', '1 tour', '/en/seasons/easter']]],
-  ] as const)('in %s: a navigation landmark named by its visible label, a box per season linking to its page, the count with its unit', (locale, label, boxes) => {
-    renderBand(locale, [season('christmas', 2026, 1306), season('lunar-new-year', 2027, 353), season('easter', 2027, 1)]);
+    ['zh-Hant', '熱門目的地', '節日旅行團', ['中國', '1,463 團', '/tours/china', null], ['聖誕', '1,306 團', '/seasons/christmas', null]],
+    ['zh-Hans', '热门目的地', '节日旅行团', ['中国', '1,463 团', '/zh-hans/tours/china', null], ['圣诞', '1,306 团', '/zh-hans/seasons/christmas', null]],
+    ['en', 'Popular destinations', 'Holiday tours', ['China', '1,463 tours', '/en/tours/china', null], ['Christmas', '1,306 tours', '/en/seasons/christmas', null]],
+  ] as const)('in %s, nothing chosen: two navigation landmarks, each named by its label; the counts read with their unit; no link to the index', (locale, where, when, first, season) => {
+    const { container } = renderBand(locale, {});
+    expect(items(screen.getByRole('navigation', { name: where }))[0]).toEqual([...first]);
+    expect(items(screen.getByRole('navigation', { name: when }))[0]).toEqual([...season]);
+    expect(within(screen.getByRole('navigation', { name: where })).getAllByRole('link')[0]).toHaveAccessibleName(`${first[0]} ${first[1]}`);
+    // No 所有目的地 → (the footer links the destinations index), and no disclosure without a chosen country.
+    expect(container.querySelector('a[href$="/tours"]')).toBeNull();
+    expect(container.querySelector('details')).toBeNull();
+  });
+
+  it.each([
+    ['zh-Hant', '日本地區', '日本 157 團，已選取，按此取消', '全部 7 個地區', '收起'],
+    ['zh-Hans', '日本地区', '日本 157 团，已选取，按此取消', '全部 7 个地区', '收起'],
+    ['en', 'Regions of Japan', 'Japan, 157 tours, selected: press to remove', 'All 7 regions', 'Show fewer'],
+  ] as const)('in %s, a country chosen: its box chosen (white, ✕, named so), its regions, and the disclosure, closed, its links all in the HTML', (locale, label, chosenName, closed, open) => {
+    renderBand(locale, { dest: 'japan' });
     const nav = screen.getByRole('navigation', { name: label });
-    expect(within(nav).getByText(label)).toHaveClass(styles.label);
-    const links = within(nav).getAllByRole('link');
-    expect(links.map(box)).toEqual(boxes);
-    for (const link of links) expect(link).toHaveClass(styles.season);
-    // The accessible name reads the count with its unit (the unit is only visually hidden on wide screens).
-    expect(links[0]).toHaveAccessibleName(`${boxes[0][0]} ${boxes[0][1]}`);
+    const chosen = within(nav).getAllByRole('link')[0];
+    expect(chosen).toHaveAccessibleName(chosenName);
+    expect(chosen).toHaveClass(styles.shortcut, styles.selected);
+    expect(chosen.querySelector(`.${styles.clear}`)).toHaveTextContent('✕');
+    expect(chosen.querySelector(`.${styles.clear}`)).toHaveAttribute('aria-hidden', 'true');
+    // All seven regions are links in the HTML, the ones past the first three marked to show once opened (phones).
+    const regions = [...nav.querySelectorAll('li')].filter(li => li.querySelector(`.${styles.shortcut}`)).slice(1);
+    expect(regions).toHaveLength(7);
+    expect(regions.map(li => li.classList.contains(styles.moreOnPhone))).toEqual([false, false, false, true, true, true, true]);
+    const details = nav.querySelector('details')!;
+    expect(details).not.toHaveAttribute('open');
+    expect(details.closest('li')).toHaveClass(styles.moreItem, styles.hideOnWide); // seven regions: all shown on wide screens
+    const summary = details.querySelector('summary')!;
+    expect(summary.querySelector(`.${styles.moreClosed}`)).toHaveTextContent(closed);
+    expect(summary.querySelector(`.${styles.moreOpen}`)).toHaveTextContent(open);
   });
 
-  it('only the seasons with tours now, in the calendar order of their windows (in January Christmas is next December\'s, so last)', () => {
-    renderBand('zh-Hant', [season('christmas', 2027, 4), season('lunar-new-year', 2027, 0), season('easter', 2027, 9)]);
-    const links = within(screen.getByRole('navigation', { name: '節日旅行團' })).getAllByRole('link');
-    expect(links.map(a => box(a)[0])).toEqual(['復活節', '聖誕']);
+  it('a season chosen: its box chosen; a destination with nothing in it faded: plain text, not a link, not focusable', () => {
+    renderBand('zh-Hant', { from: christmas.from, to: christmas.to });
+    const where = screen.getByRole('navigation', { name: '熱門目的地' });
+    expect(items(where).slice(0, 3)).toEqual([
+      ['中國', '0 團', null, null], ['日本', '48 團', '/seasons/christmas?dest=japan', null], ['韓國', '0 團', null, null],
+    ]);
+    const faded = where.querySelector(`li > .${styles.faded}`)!;
+    expect(faded.tagName).toBe('SPAN');
+    expect(faded).not.toHaveAttribute('tabindex');
+    const when = screen.getByRole('navigation', { name: '節日旅行團' });
+    expect(items(when)).toEqual([
+      ['聖誕', '1,306 團', '/', '聖誕 1,306 團，已選取，按此取消'], ['農曆新年', '353 團', '/seasons/lunar-new-year', null],
+    ]);
+    expect(within(when).getAllByRole('link')[0]).toHaveClass(styles.season, styles.selected);
   });
 
-  it('no season with tours: no row at all, and no label', () => {
-    renderBand('zh-Hant', [season('christmas', 2026, 0), season('lunar-new-year', 2027, 0), season('easter', 2027, 0)]);
-    expect(screen.queryByRole('navigation', { name: '節日旅行團' })).toBeNull();
-    expect(screen.queryByText('節日旅行團')).toBeNull();
-    // The destinations are still there.
-    expect(screen.getByRole('navigation', { name: '熱門目的地' })).toBeInTheDocument();
-  });
-
-  it('only with the shortcuts: a band without them (a season\'s or an operator\'s page) shows no seasons either', () => {
-    renderBand('zh-Hant', [season('christmas', 2026, 5)], false);
+  it('a band given no rows (an operator\'s page) has none', () => {
+    render(<I18nProvider locale="zh-Hant"><SearchBand t={makeT('zh-Hant')} heading="h" /></I18nProvider>);
     expect(screen.queryByRole('navigation')).toBeNull();
-  });
-});
-
-describe('the destinations\' row', () => {
-  it.each([
-    ['zh-Hant', '熱門目的地', ['中國', '1,463 團'], ['韓國', '1 團'], '所有目的地 →'],
-    ['zh-Hans', '热门目的地', ['中国', '1,463 团'], ['韩国', '1 团'], '所有目的地 →'],
-    ['en', 'Popular destinations', ['China', '1,463 tours'], ['South Korea', '1 tour'], 'All destinations →'],
-  ] as const)('in %s: named by its label (熱門目的地), each box\'s count with its unit, then the index', (locale, label, first, last, all) => {
-    renderBand(locale);
-    const nav = screen.getByRole('navigation', { name: label });
-    const links = within(within(nav).getByRole('list')).getAllByRole('link');
-    expect(box(links[0]).slice(0, 2)).toEqual(first);
-    expect(box(links[2]).slice(0, 2)).toEqual(last);
-    expect(links[0]).toHaveAccessibleName(`${first[0]} ${first[1]}`);
-    // Wide screens: the index after the boxes, the list's last item.
-    expect(links.at(-1)).toHaveTextContent(all);
-    expect(links.at(-1)!.closest('li')).toHaveClass(styles.allItem);
-    // Phones: the same link in the label row, after the label and before the boxes (the order they are seen in).
-    const row = within(nav).getByText(label).parentElement!;
-    expect(row).toHaveClass(styles.labelRow);
-    const phoneLink = within(row).getByRole('link');
-    expect(phoneLink).toHaveTextContent(all);
-    expect(phoneLink).toHaveClass(styles.phoneAll);
-    expect(phoneLink.getAttribute('href')).toBe(links.at(-1)!.getAttribute('href'));
-    expect(row.compareDocumentPosition(within(nav).getByRole('list')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -116,16 +127,24 @@ const media = (query: string) => {
 };
 
 describe('the look', () => {
-  it('wide screens: the seasons outlined in --on-gold (no fill), the shortcuts\' shape and size; the unit and the destinations\' label for screen readers only', () => {
+  it('wide screens: seasons outlined in --on-gold; a chosen box white with an ink border and ring, ✕ after its count; a faded box', () => {
     const text = css();
     expect(text).toMatch(/\.season \{[^}]*min-height: 32px; padding: 2px 10px; border: 2px solid var\(--on-gold\); border-radius: 6px; color: var\(--on-gold\); font-size: 15px; font-weight: 700;/);
-    expect(text).not.toMatch(/\.season \{[^}]*background/);
-    expect(text).toMatch(/\.season:focus-visible \{ outline: 2px solid var\(--on-gold\)/);
-    expect(media('min-width: 640px')).toMatch(/\.unit, \.popularLabel \{ position: absolute; width: 1px; height: 1px;[^}]*clip-path: inset\(50%\)/);
-    expect(media('min-width: 640px')).toContain('.phoneAll { display: none; }');
+    expect(text).toContain('.selected { background: var(--band-field-bg); color: var(--on-gold); border: 2px solid var(--on-gold); box-shadow: 0 0 0 2px var(--on-gold); }');
+    expect(text).toContain('.shortcut.selected { padding: 2px 10px; }');
+    expect(text).toContain('.clear { margin-left: 8px; font-weight: 700; }');
+    expect(text).toContain('.faded { opacity: 0.4; }');
+    expect(media('min-width: 640px')).toMatch(/\.unit, \.whereLabel \{ position: absolute; width: 1px; height: 1px;[^}]*clip-path: inset\(50%\)/);
   });
 
-  it('phones (drawing P1): groups 18px apart, the button full width, four columns of destinations and three of seasons (two of each in English), boxes at least 52px, 44px to touch the index', () => {
+  it('the disclosure hides its regions only while closed, and only where the browser can tell (:has): elsewhere all show', () => {
+    expect(media('min-width: 640px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }');
+    expect(media('max-width: 639px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnPhone { display: none; }');
+    expect(css()).toContain('.more[open] .moreClosed, .more:not([open]) .moreOpen { display: none; }');
+    expect(media('max-width: 639px')).toContain('.more > summary { min-height: 44px; font-size: 14px; }');
+  });
+
+  it('phones (drawings P1 and W3): groups 18px apart, the button full width, four columns (two in English), three for the seasons (two in English), boxes at least 52px, ✕ in the corner', () => {
     const phone = media('max-width: 639px');
     expect(phone).toContain('.inner { padding-top: 18px; padding-bottom: 16px; gap: 18px; }');
     expect(phone).toContain('.panelsBox { flex-basis: 100%; --toggle-width: 100%; --toggle-height: 48px; }');
@@ -133,31 +152,17 @@ describe('the look', () => {
     expect(phone).toContain('.seasonList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; }');
     expect(phone).toContain('.band:lang(en) .shortcutList, .band:lang(en) .seasonList { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
     expect(phone).toMatch(/\.shortcut, \.season \{[^}]*min-height: 52px;/);
-    expect(phone).toContain('.label { margin: 0 0 8px; font-size: 13px; font-weight: 700;');
-    expect(phone).toMatch(/\.name \{ font-size: 15px; font-weight: 700;/);
-    expect(phone).toMatch(/\.count \{ margin-left: 0; font-size: 12px;/);
-    expect(phone).toContain('.all { min-height: 44px;');
-    // The fifth destination on, and the list's own index link, are not shown: the label row has the link.
-    expect(phone).toContain('.shortcutList > li:nth-child(n + 5) { display: none; }');
-    // The label row in normal flow, wrapping with large text, pulled up into the gap above and never over the boxes
-    // (no absolute positioning, no negative bottom margin).
-    expect(phone).toContain('.labelRow { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; column-gap: 12px; margin: -12px 0 0; }');
-    expect(css()).not.toMatch(/position: absolute; top:/);
-    // Large text: side padding in every box, and a name breaks (hyphenated, else anywhere) rather than run past its box.
-    expect(phone).toMatch(/\.shortcut, \.season \{[^}]*padding: 6px 4px;/);
-    expect(phone).toContain('.season { padding: 4px 6px; }');
+    expect(phone).toContain('.shortcutList > .hideOnPhone { display: none; }');
+    expect(phone).toContain('.clear { position: absolute; top: 2px; right: 6px; margin: 0; font-size: 14px; line-height: 1; }');
+    expect(phone).toContain('.shortcut.selected { padding: calc(1.2em + 4px) 2px 4px; }');
     expect(phone).toMatch(/\.name \{[^}]*hyphens: auto; overflow-wrap: anywhere; \}/);
-    // A count may put its unit under its number rather than run past the box.
-    expect(phone).toContain('.count { margin-left: 0; font-size: 12px; font-weight: 500; }');
-    // Never below 13px, and no name cut short.
     expect(media('max-width: 359px')).toContain('.name { font-size: 14px; }');
     expect(css()).not.toMatch(/text-overflow|ellipsis/);
   });
 
-  it('the 按國家選擇 button reads the band\'s width and height hooks, falling back to its own size elsewhere', () => {
+  it('the 按國家選擇 button reads the band\'s width and height hooks, and wraps at very large text on phones', () => {
     const panels = readFileSync(join(__dirname, '../../components/DestinationPanels.module.css'), 'utf8').replace(/\s+/g, ' ');
     expect(panels).toContain('width: var(--toggle-width, auto); height: var(--toggle-height, var(--search-height, 46px));');
-    // On phones its words wrap at very large text sizes (it grows taller) instead of running wider than the window.
     expect(panels).toMatch(/@media \(max-width: 639px\) \{.*\.toggle \{ height: auto; min-height: var\(--toggle-height, var\(--search-height, 46px\)\); white-space: normal; \}/);
   });
 });

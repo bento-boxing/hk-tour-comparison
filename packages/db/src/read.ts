@@ -6,5 +6,5 @@ export {
   type TourFilters, type SortKey, type PageSize, type TourCardData, type SearchInput, type OperatorInfo,
 } from './search';
 export { countToursByDestination, type DestinationCount, type DestinationCounts, type ListedCount, type TourRange } from './destinations';
-export { countToursInWindows, type DateWindow } from './windows';
+export { countToursInWindows, type DateWindow, type WindowCount } from './windows';
 export { getOperatorListings, type OperatorListing } from './operators';

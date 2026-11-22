@@ -1,10 +1,10 @@
 import type { IsoDate } from '@hktours/core';
-import type { Db, ListedCount } from '@hktours/db/read';
+import type { Db, WindowCount } from '@hktours/db/read';
 import type { Reads } from './cached-reads';
 import { currentWindows, type SeasonWindow } from './seasons';
 
-/** A season's current window and how many tours leave inside it, before any other filter. */
-export interface SeasonCount { window: SeasonWindow; count: ListedCount }
+/** A season's current window and how many tours leave inside it, before any other filter: in all and per destination. */
+export interface SeasonCount { window: SeasonWindow; count: WindowCount }
 
 /**
  * Every season's current window on `today` (lib/seasons.ts currentWindows; a season without one is left out) with its

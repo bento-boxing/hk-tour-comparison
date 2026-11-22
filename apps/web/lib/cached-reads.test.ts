@@ -259,7 +259,7 @@ describe('with the in-process database', () => {
     expect(stored(counts)).toStrictEqual(counts);
 
     const windows = await reads.countToursInWindows(db, today, [{ from: '2026-11-13', to: '2027-12-31' }, { from: '2030-01-01', to: '2030-01-02' }]);
-    expect(windows).toEqual([expect.objectContaining({ tours: 3, range: expect.any(Object) }), { tours: 0, operators: 0 }]);
+    expect(windows).toEqual([expect.objectContaining({ tours: 3, range: expect.any(Object), destinations: expect.any(Array) }), { tours: 0, operators: 0, destinations: [] }]);
     expect(stored(windows)).toStrictEqual(windows);
   });
 

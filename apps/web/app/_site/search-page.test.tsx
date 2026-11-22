@@ -121,7 +121,7 @@ it('loads the page from the address and lays it out top to bottom', async () => 
   const search = screen.getByRole('combobox', { name: '輸入國家、地區或城市' });
   expect(search).toHaveValue('日本 → 關西');
   const panels = screen.getByRole('button', { name: '按國家選擇' });
-  const shortcuts = screen.getByRole('navigation', { name: '熱門目的地' });
+  const shortcuts = screen.getByRole('navigation', { name: '日本地區' });
   const destPill = screen.getByRole('button', { name: '清除目的地：日本 → 關西' });
   const sortPill = screen.getByRole('button', { name: '排序：日數 短→長' });
   const card = oneRow();
@@ -270,19 +270,16 @@ function bandRules(): Record<string, Record<string, Record<string, string>>> {
   return out;
 }
 
-// The owner's drawing E1: the destinations with the most tours are boxes, the index after them a text link.
-it('the band\'s shortcuts are boxes (ink, the name bold, its count lighter and smaller); the index stays a text link', async () => {
+// The owner's drawing E1: the destinations with the most tours are boxes (task 69: no link to the index after them).
+it('the band\'s shortcuts are boxes (ink, the name bold, its count lighter and smaller)', async () => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(homeData);
   await renderPage({});
-  // The list's links (the label row repeats the index's link for phones: search-band.test.tsx).
   const links = within(within(screen.getByRole('navigation', { name: '熱門目的地' })).getByRole('list')).getAllByRole('link');
-  for (const link of links.slice(0, -1)) {
+  for (const link of links) {
     expect(link).toHaveClass(band.shortcut);
     expect(link.querySelector(`.${band.count}`)).not.toBeNull();
   }
-  expect(links.at(-1)).toHaveClass(band.all);
-  expect(links.at(-1)).not.toHaveClass(band.shortcut);
   const rules = bandRules();
   // The header's ink and text, as the band's 按國家選擇 button (lib/theme.test.ts checks both themes' contrast).
   expect(rules['']['.shortcut']).toMatchObject({
@@ -291,20 +288,14 @@ it('the band\'s shortcuts are boxes (ink, the name bold, its count lighter and s
   });
   expect(rules['']['.count']).toMatchObject({ 'font-weight': '500', 'font-size': '13px' });
   expect(Number.parseInt(rules['']['.shortcut']['font-size'], 10)).toBeGreaterThan(13);
-  // The index: no box, underlined.
-  expect(rules['']['.all']).not.toHaveProperty('background');
-  expect(rules['']['.all']['text-decoration']).toBe('underline');
   // The words in a box keep 12px from its sides (the drawing's padding), so a name never touches its box's edge.
   const [, side] = rules['']['.shortcut'].padding.split(' ').map(v => Number.parseFloat(v));
   expect(side).toBeGreaterThanOrEqual(12);
-  // On a line of its own, the index starts where the boxes do: no padding before its words.
-  expect(Number.parseFloat(rules['']['.all'].padding.split(' ').at(-1)!)).toBe(0);
   // They wrap onto more lines, never scroll sideways; 44px to touch on a phone.
   expect(rules['']['.shortcutList']).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
   expect(Object.values(rules).flatMap(r => Object.values(r)).some(d => /auto|scroll/.test(d['overflow-x'] ?? d.overflow ?? ''))).toBe(false);
   // On phones (drawing P1) a box at least 52px tall, the name over its count.
   expect(rules['(max-width: 639px)']['.shortcut']).toMatchObject({ 'min-height': '52px' });
-  expect(rules['(max-width: 639px)']['.all']).toMatchObject({ 'min-height': '44px' });
 });
 
 const languages = {
@@ -429,10 +420,10 @@ it('under the pager, when the data was last updated; rows carry the render\'s ti
 });
 
 it.each([
-  ['zh-Hant', '三間旅行社，一次過比較', '現有 40 個旅行團 · 報名請到旅行社自己的網站', '想去邊？輸入國家、地區或城市', '熱門目的地', '所有目的地 →', '/tours'],
-  ['zh-Hans', '三家旅行社，一次比较', '现有 40 个旅行团 · 报名请前往旅行社自己的网站', '想去哪里？输入国家、地区或城市', '热门目的地', '所有目的地 →', '/zh-hans/tours'],
-  ['en', 'Three tour operators, compared in one place', "40 tours listed now · book on the operator's own website", 'Where to? Enter a country, region or city', 'Popular destinations', 'All destinations →', '/en/tours'],
-] as const)('in %s the home page\'s gold band: the headline and line from the live counts, the search box, the shortcuts and the index', async (locale, heading, line, placeholder, shortcutsName, all, index) => {
+  ['zh-Hant', '三間旅行社，一次過比較', '現有 40 個旅行團 · 報名請到旅行社自己的網站', '想去邊？輸入國家、地區或城市', '熱門目的地', ''],
+  ['zh-Hans', '三家旅行社，一次比较', '现有 40 个旅行团 · 报名请前往旅行社自己的网站', '想去哪里？输入国家、地区或城市', '热门目的地', '/zh-hans'],
+  ['en', 'Three tour operators, compared in one place', "40 tours listed now · book on the operator's own website", 'Where to? Enter a country, region or city', 'Popular destinations', '/en'],
+] as const)('in %s the home page\'s gold band: the headline and line from the live counts, the search box and the shortcuts', async (locale, heading, line, placeholder, shortcutsName, prefix) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   // Korea and its Seoul region too: a region with more tours than Korea (Kansai, 30) is still not offered.
   const korea = [{ countryId: 'korea', regionId: null, tours: 8, operators: 1 }, { countryId: 'korea', regionId: 'korea-seoul', tours: 8, operators: 1 }];
@@ -442,14 +433,11 @@ it.each([
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(heading);
   expect(screen.getByText(line)).toBeInTheDocument();
   expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', placeholder);
-  // The shortcuts: the countries with the most tours, most first (never a country beside its own regions), then
-  // the index.
+  // The shortcuts: the countries with the most tours, most first (never a country beside its own regions); no link
+  // to the index (the footer has it).
   const shortcuts = within(within(screen.getByRole('navigation', { name: shortcutsName })).getByRole('list')).getAllByRole('link');
-  expect(shortcuts.map(a => a.getAttribute('href'))).toEqual([
-    ...['/tours/japan', '/tours/korea'].map(path => (index === '/tours' ? path : `${index.slice(0, -'/tours'.length)}${path}`)),
-    index,
-  ]);
-  expect(shortcuts.at(-1)).toHaveTextContent(all);
+  // Each keeps the page's other choices (its sort here).
+  expect(shortcuts.map(a => a.getAttribute('href'))).toEqual([`${prefix}/tours/japan?sort=days`, `${prefix}/tours/korea?sort=days`]);
   // The heading comes before the search box.
   expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(screen.getByRole('combobox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
@@ -534,16 +522,17 @@ it('with no tours listed at all, the home page says so plainly instead of counti
   expect(screen.getByText('現時沒有列出旅行團。')).toBeInTheDocument();
 });
 
-it('a destination\'s page has the same band, with its own heading, counts and related links', async () => {
+it('a destination\'s page has the same band, with its own heading and counts, and its regions as boxes (no line of links)', async () => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue({ ...data, state: { filters: { destination: { countryId: 'japan', regionId: null } }, sort: 'price', page: 1 } });
   await renderPage({ dest: 'japan' });
   const bandSection = screen.getByRole('heading', { level: 1 }).closest('section')!;
   expect(within(bandSection).getByRole('heading', { level: 1 })).toHaveTextContent('日本旅行團');
   expect(within(bandSection).getByText('現時列出 32 個旅行團，來自 3 間旅行社。')).toBeInTheDocument();
-  expect(within(bandSection).getByRole('link', { name: '關西' })).toHaveAttribute('href', '/tours/japan-kansai');
+  const regions = within(bandSection).getByRole('navigation', { name: '日本地區' });
+  expect(within(regions).getByRole('link', { name: /^關西 / })).toHaveAttribute('href', '/tours/japan-kansai');
   expect(within(bandSection).getByRole('combobox')).toHaveValue('日本 → 全部地區');
-  expect(within(bandSection).getByRole('navigation', { name: '熱門目的地' })).toBeInTheDocument();
+  expect(bandSection.textContent).not.toContain('地區：');
 });
 
 it('a destination\'s count line groups thousands, as the rest of the site does', async () => {

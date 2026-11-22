@@ -19,21 +19,16 @@
 /* The home page's line saying what the site does: on a row of its own under the heading and its line, as they are. */
 .lede { flex-basis: 100%; margin: 0; font-size: 16px; font-weight: 500; }
 
-/* A destination's related links (its regions, or its country), under the heading. */
-.related { margin: -8px 0 0; font-size: 15px; }
-.relatedLink { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
-.relatedLink:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
-
 /* The search box with the 按國家選擇 button beside it; the button wraps below on a narrow phone. */
 /* position: relative: on phones the 按國家選擇 panel hangs off this row (DestinationPanels.module.css). */
 .searchRow { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
 .searchBox { flex: 1 1 320px; max-width: 720px; }
 
 /*
- * The destinations with the most tours (the owner's drawing E1): boxes in the header's ink (as the 按國家選擇 button)
- * on the gold, the name bold and its count lighter and smaller beside it; they wrap onto more lines. Then the index,
- * a text link, with no padding of its own, so on a line of its own it starts where the boxes do. A name too long for
- * the line wraps between its words inside its box. The row's label (熱門目的地) is shown on phones only; here it is
+ * The band's two rows of boxes (drawing W3): row 1 "where" (the destinations with the most tours, or a chosen
+ * country and its regions), row 2 "when" (the seasons). Row 1's boxes are in the header's ink (as the 按國家選擇
+ * button) on the gold, the name bold and its count lighter and smaller beside it; they wrap onto more lines, and a name
+ * too long for the line wraps between its words inside its box. Row 1's label is shown on phones only; here it is
  * visually hidden and still names the row (below).
  */
 .shortcuts { margin: -4px 0 0; }
@@ -43,20 +38,14 @@
   background: var(--header-bg); color: var(--header-text); font-size: 15px; font-weight: 700; line-height: 1.4;
   text-decoration: none;
 }
-.shortcut:hover, .season:hover { text-decoration: underline; text-underline-offset: 3px; }
+a.shortcut:hover, a.season:hover { text-decoration: underline; text-underline-offset: 3px; }
 .count { margin-left: 2px; font-weight: 500; font-size: 13px; }
-.all {
-  display: inline-flex; align-items: center; min-height: 32px; padding: 0;
-  color: inherit; font-size: 15px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px;
-  text-decoration-thickness: 1px;
-}
-.all:hover { text-decoration-thickness: 2px; }
-.shortcut:focus-visible, .all:focus-visible, .season:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+.shortcut:focus-visible, .season:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
 
 /*
- * The seasons with tours now (the owner's drawing Home2 "B"), under the destinations: their label, then a box each in
- * the shortcuts' shape and size, outlined instead of filled (2px of --on-gold, no fill, --on-gold text: the band is gold
- * in both themes). The 2px border comes out of the padding, so a box is exactly as large as a shortcut with the same text.
+ * The seasons (the owner's drawing Home2 "B"), under the destinations: their label, then a box each in the shortcuts'
+ * shape and size, outlined instead of filled (2px of --on-gold, no fill, --on-gold text: the band is gold in both
+ * themes). The 2px border comes out of the padding, so a box is exactly as large as a shortcut with the same text.
  */
 .seasons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -6px 0 0; }
 .label { margin: 0; font-size: 15px; font-weight: 500; }
@@ -66,26 +55,55 @@
   border-radius: 6px; color: var(--on-gold); font-size: 15px; font-weight: 700; line-height: 1.4; text-decoration: none;
 }
 
-/* Wide screens: a count's unit ('團', 'tours') and the destinations' label are for screen readers only. */
+/*
+ * A chosen box, in either row (drawing W3): white (the search box's own white on the band, in both themes) with ink
+ * text, a 2px ink border and a 2px ink ring outside it, and ✕ after its count; pressing it un-chooses it. Its size
+ * comes from the same padding, less the border.
+ */
+.selected {
+  background: var(--band-field-bg); color: var(--on-gold); border: 2px solid var(--on-gold);
+  box-shadow: 0 0 0 2px var(--on-gold);
+}
+.shortcut.selected { padding: 2px 10px; }
+.clear { margin-left: 8px; font-weight: 700; }
+/* A box with nothing to list (given the other row's choice): faded, and no link. A chosen box is never faded. */
+.faded { opacity: 0.4; }
+
+/*
+ * A chosen country's regions beyond those shown: a disclosure at the end of row 1 (全部 9 個地區 / 收起), in a text
+ * link's look. Native <details>: it opens and closes without JavaScript; the boxes it shows are in the HTML either way,
+ * hidden (below) only while it is closed, and only where the browser can tell (:has); a browser that cannot shows them
+ * all, always.
+ */
+.more > summary {
+  display: inline-flex; align-items: center; min-height: 32px; list-style: none; cursor: pointer;
+  font-size: 15px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px;
+}
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary:hover { text-decoration-thickness: 2px; }
+.more > summary:focus-visible { outline: 2px solid var(--on-gold); outline-offset: 2px; }
+.more[open] .moreClosed, .more:not([open]) .moreOpen { display: none; }
+
+/* Wide screens: a count's unit ('團', 'tours') and row 1's label are for screen readers only. */
 @media (min-width: 640px) {
-  .unit, .popularLabel {
+  .unit, .whereLabel {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap; border: 0;
   }
-  /* The index's link is the list's last item here; its phone placement, in the label row, is not shown. */
-  .phoneAll { display: none; }
+  .shortcutList > .hideOnWide { display: none; }
+  .shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }
 }
 
 /*
- * Phones (drawing Home3PhoneGrid "P1"): the band's groups 18px apart; the 按國家選擇 button under the search box, the
- * full width (its panel hangs off the search row: DestinationPanels.module.css); a small label over each set of boxes,
- * with the link to the index at the right of the destinations' label, in normal flow (44px tall to touch; the row
- * pulled up into the gap above it, never down over the boxes, and wrapping when the text is large); the first four destinations in four equal columns, the seasons in three (one or two keep the
- * same size, at the left), each box at least 52px tall with its name over its count and unit. A name too long for its
- * column wraps inside its box (between words in English), and every box of a row is as tall as the tallest.
- * English names (and '9,999 tours') are too wide for four columns (66 to 89px from 320 to 414px: Singapore, Argentina,
- * Switzerland… overflow; measured, task 68), so in English the destinations take two columns, in the same boxes, and
- * so do the seasons (Christmas breaks mid-word in a third of the row at 130% text).
+ * Phones (drawings Home3PhoneGrid "P1" and W3): the band's groups 18px apart; the 按國家選擇 button under the search
+ * box, the full width (its panel hangs off the search row: DestinationPanels.module.css); a small label over each set
+ * of boxes; four equal columns in row 1 (four boxes, more when a chosen country's regions are opened), three for the
+ * seasons (one or two keep the same size, at the left), each box at least 52px tall with its name over its count and
+ * unit, and a chosen box's ✕ in its top-right corner. A name too long for its column wraps inside its box (between
+ * words in English), and every box of a row is as tall as the tallest. English names (and '9,999 tours') are too wide
+ * for four columns (66 to 89px from 320 to 414px: Singapore, Argentina, Switzerland… overflow; measured, task 68), so
+ * in English the destinations take two columns, in the same boxes, and so do the seasons (Christmas breaks mid-word in
+ * a third of the row at 130% text).
  */
 @media (max-width: 639px) {
   .inner { padding-top: 18px; padding-bottom: 16px; gap: 18px; }
@@ -98,13 +116,22 @@
   .shortcutList { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
   .seasonList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
   .shortcutList > li, .seasonList > li { display: flex; min-width: 0; }
-  /* The first four destinations only (the link to them all is in the label row here), so the band stays short. */
-  .shortcutList > li:nth-child(n + 5) { display: none; }
+  /* Row 1 shows four destinations here, so the band stays short; a chosen country's other regions when opened. */
+  .shortcutList > .hideOnPhone { display: none; }
+  .shortcutList:not(:has(details[open])) > .moreOnPhone { display: none; }
   .shortcut, .season {
-    flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 6px 4px;
+    position: relative; flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 6px 4px;
     justify-content: center; text-align: center; line-height: 1.25;
   }
   .season { padding: 4px 6px; }
+  /*
+   * A chosen box: its ✕ in the top-right corner (14px, 2px from the top), the name kept below it (the padding above
+   * it is the ✕'s line as fonts draw it, 1.2em of the box's 15px, plus 4px, so it grows with the text and a Chinese
+   * name's taller glyph box stays clear of it); its border comes out of the padding.
+   */
+  .shortcut.selected { padding: calc(1.2em + 4px) 2px 4px; }
+  .season.selected { padding: calc(1.2em + 4px) 6px 4px; }
+  .clear { position: absolute; top: 2px; right: 6px; margin: 0; font-size: 14px; line-height: 1; }
   .boxText { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
   /* A wrapped name is balanced over its lines (印度尼 / 西亞, not 印度尼西 / 亞) where the browser can. */
   /*
@@ -114,19 +141,13 @@
   .name { font-size: 15px; font-weight: 700; text-wrap: balance; hyphens: auto; overflow-wrap: anywhere; }
   /* With very large text the unit may go under its number, inside the box. */
   .count { margin-left: 0; font-size: 12px; font-weight: 500; }
-  /*
-   * The label row: the label at the left, the index's link at the right, 44px tall to touch; with large text the link
-   * wraps under the label. Pulled up 12px into the gap above (clear of the 按國家選擇 button), so the label sits close
-   * to its boxes; nothing of it reaches down over them.
-   */
-  .labelRow {
-    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; column-gap: 12px; margin: -12px 0 0;
-  }
-  .labelRow > .label { margin: 0; }
-  .all { min-height: 44px; font-size: 14px; }
+  /* The regions' disclosure: its own line under the boxes, at the right, 44px tall to touch. */
+  .moreItem { grid-column: 1 / -1; justify-self: end; }
+  .more > summary { min-height: 44px; font-size: 14px; }
   /* English seasons too: two columns (a third season on a second row), so Christmas keeps one line at 130% text. */
   .band:lang(en) .shortcutList, .band:lang(en) .seasonList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .band:lang(en) .shortcut { padding: 6px 8px; }
+  .band:lang(en) .shortcut.selected { padding: calc(1.2em + 4px) 6px 4px; }
 }
 /* The narrowest phones (320px): smaller, so the line saying what the site does stays one line there too (at 13px the
  * Chinese line is 2px too wide). */
@@ -134,6 +155,6 @@
   .lede { font-size: 12px; }
   /* The boxes' columns are 66px (destinations) and 90px (seasons) here: 馬來西亞 and Christmas need 14px to keep one line. */
   .name { font-size: 14px; }
-  /* … and the index's link 13px, so 'Popular destinations' and 'All destinations →' keep clear of each other. */
-  .all { font-size: 13px; }
+  /* English boxes there are 138px: 4px at the sides, so a long one-word region (Heilongjiang) keeps one line at 130%. */
+  .band:lang(en) .shortcut { padding: 6px 4px; }
 }
