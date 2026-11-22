@@ -60,3 +60,6 @@ storage/
 .vscode
 .zprofile
 .zshrc
+
+# Certificates (for example the database CA certificate) never belong in the repository.
+*.crt
