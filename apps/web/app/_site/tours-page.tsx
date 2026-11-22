@@ -9,6 +9,8 @@ import { TOURS_PATH, destinationDirectory, destinationPath } from '../../lib/des
 import { OPERATORS_PATH } from '../../lib/operators';
 import { phoneCell, phoneFitCss, type PhoneCell } from '../../lib/directory-cells';
 import { formatCount } from '../../lib/format';
+import { breadcrumbJsonLd } from '../../lib/structured-data';
+import { JsonLd } from '../../components/JsonLd';
 import { loadStoredCounts } from './page-data';
 import frame from './site-frame.module.css';
 import styles from './tours-page.module.css';
@@ -109,6 +111,7 @@ export async function ToursPage({ locale }: { locale: Locale }) {
       {sections}
       {/* Its rules (.long with a mark) outweigh .long, wherever a column is wide enough; nothing in them is escaped. */}
       {marks.size > 0 && <style>{phoneFitCss(marks, styles.long)}</style>}
+      <JsonLd data={breadcrumbJsonLd(t, [{ name: t('tours.title'), path: TOURS_PATH }])} />
     </div>
   );
 }

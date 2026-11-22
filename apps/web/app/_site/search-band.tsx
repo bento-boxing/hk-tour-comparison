@@ -17,6 +17,8 @@ export interface SearchBandProps {
   heading: string;
   /** The line of real numbers beside it; nothing when the tours could not be read. */
   line?: ReactNode;
+  /** The home page's line under them saying what the site does (band.lede); none elsewhere. */
+  lede?: string;
   /** More under the heading: a destination's links to its regions or its country. */
   related?: ReactNode;
   /** The page's search state, for the destination box and the country button; none when the tours could not be read. */
@@ -31,13 +33,14 @@ export interface SearchBandProps {
  * destinations with the most tours now (the owner's drawing E1), ending with a text link to the destinations index.
  * Spans the window; its content sits in the page's column.
  */
-export function SearchBand({ t, heading, line, related, state, shortcuts }: SearchBandProps) {
+export function SearchBand({ t, heading, line, lede, related, state, shortcuts }: SearchBandProps) {
   return (
     <section className={styles.band} aria-labelledby="page-heading">
       <div className={`${frame.wrap} ${styles.inner}`}>
         <div className={styles.head}>
           <h1 id="page-heading" className={styles.heading}>{heading}</h1>
           {line && <p className={styles.line}>{line}</p>}
+          {lede && <p className={styles.lede}>{lede}</p>}
         </div>
         {related}
         {state && (

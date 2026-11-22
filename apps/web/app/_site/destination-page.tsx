@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import { places, type Destination } from '@hktours/core';
 import { makeT, type Locale } from '../../lib/i18n';
 import { pageMetadata } from '../../lib/site-metadata';
-import { destinationFromId, destinationName, destinationPath, isListed } from '../../lib/destinations';
+import { TOURS_PATH, destinationFromId, destinationName, destinationPath, isListed } from '../../lib/destinations';
+import { breadcrumbJsonLd } from '../../lib/structured-data';
+import { JsonLd } from '../../components/JsonLd';
 import { loadSearch, queryOf, type SearchParams } from './page-data';
 import { SearchView } from './search-page';
 
@@ -37,10 +39,21 @@ export async function destinationPageMetadata(locale: Locale, params: Params, se
 /**
  * A destination's page in `locale` (/tours/<id>: app/(zh-hant)/tours/[id]/page.tsx and the same in app/zh-hans and
  * app/en): the search page with the destination fixed by the path, under a heading naming it. Every other filter
- * stays in the query string on this same path (/tours/japan?dmin=5&sort=days).
+ * stays in the query string on this same path (/tours/japan?dmin=5&sort=days). Its breadcrumb trail goes with it as
+ * structured data (lib/structured-data.ts), whatever its tours.
  */
 export async function DestinationPage({ locale, params, searchParams }: { locale: Locale; params: Params; searchParams: Promise<SearchParams> }) {
   const destination = await destinationOf(params);
+  const t = makeT(locale);
   const load = await loadSearch(locale, (await params).id, queryOf(await searchParams));
-  return <SearchView t={makeT(locale)} destination={destination} load={load} />;
+  return (
+    <>
+      <SearchView t={t} destination={destination} load={load} />
+      {/* Its place in the site: the destinations index, then this page under its heading. */}
+      <JsonLd data={breadcrumbJsonLd(t, [
+        { name: t('tours.title'), path: TOURS_PATH },
+        { name: t('dest.heading', { place: destinationName(destination, places, t) }), path: destinationPath(destination) },
+      ])} />
+    </>
+  );
 }

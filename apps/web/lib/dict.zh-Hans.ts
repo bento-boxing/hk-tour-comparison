@@ -5,6 +5,11 @@ import type { DictKey } from './i18n';
 const zhHans = {
   'site.name': '跟邊團', // the brand: the same in every language
   'site.description': '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。',
+  'site.alternateName': '跟边团',
+  'home.title': '香港旅行团比较｜比较 {operators} 家旅行社的旅行团｜{site}',
+  'home.description': '香港旅行团比较和比价：目前列出 {operators} 家旅行社的 {tours} 个旅行团，可按目的地、出发日期、天数和价格筛选。网站由个人制作，报名请前往旅行社自己的网站。',
+  'share.line': '香港旅行团比较',
+  'share.imageAlt': '跟邊團：香港旅行团比较',
   'lang.label': '语言',
   'theme.toDark': '切换至深色模式',
   'theme.toLight': '切换至浅色模式',
@@ -30,6 +35,7 @@ const zhHans = {
   'home.heading': '比较香港旅行团',
   'band.headline': '{n}家旅行社，一次比较',
   'band.subline': '现有 {tours} 个旅行团 · 报名请前往旅行社自己的网站',
+  'band.lede': '按目的地、出发日期、天数和价格比较香港旅行团',
   'band.placeholder': '想去哪里？输入国家、地区或城市',
   'band.shortcuts': '旅行团最多的目的地',
   'band.allDestinations': '所有目的地 →',

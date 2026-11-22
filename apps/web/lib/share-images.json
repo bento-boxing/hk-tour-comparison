@@ -1,0 +1,26 @@
+{
+  "zh-Hant": {
+    "file": "share/zh-Hant-f929c042.png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 50331,
+    "sha256": "f929c042341905c29543f4c196e04157135163ce1274e2a06adc061fbc974daa",
+    "line": "香港旅行團比較"
+  },
+  "zh-Hans": {
+    "file": "share/zh-Hans-6c9e6bed.png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 49484,
+    "sha256": "6c9e6bed84a0ca853f2c0c338cec44c3c8827e19b85f5d0180d38c73a9ff9dd8",
+    "line": "香港旅行团比较"
+  },
+  "en": {
+    "file": "share/en-604636a0.png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 53725,
+    "sha256": "604636a08f394622fdc6488a407a0a8b28b3abd7da7e97ef794b1c2bdd2ee4f0",
+    "line": "Hong Kong group tour comparison"
+  }
+}

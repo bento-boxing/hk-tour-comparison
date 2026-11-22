@@ -5,9 +5,10 @@ import { permanentRedirect } from 'next/navigation';
 import { places, type Destination, type IsoDate } from '@hktours/core';
 import { makeT, type Locale, type T } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
-import { pageMetadata } from '../../lib/site-metadata';
+import { pageMetadata, type PageMetadataOptions } from '../../lib/site-metadata';
 import { movedSearchHref } from '../../lib/search-params';
 import type { SearchPageData } from '../../lib/search-page-data';
+import type { ListedCount } from '@hktours/db/read';
 import { countOf, destinationName, destinationPath, isListed, topDestinations } from '../../lib/destinations';
 import { formatCount, headlineCount } from '../../lib/format';
 import { placeName } from '../../lib/place-names';
@@ -17,14 +18,26 @@ import { ListFooter, UpdatedNote } from '../../components/ListFooter';
 import type { StateHref } from '../../components/Pager';
 import { loadSearch, loadStoredSearch, queryOf, type Loaded, type SearchParams } from './page-data';
 import { SearchBand } from './search-band';
+import { JsonLd } from '../../components/JsonLd';
+import { websiteJsonLd } from '../../lib/structured-data';
 import frame from './site-frame.module.css';
 import band from './search-band.module.css';
 import styles from './search-page.module.css';
 
 /**
- * Titled with the site name (the layout's); canonical: this language's address without the query string; the page
- * in the other languages as alternates. Marked noindex when the tours could not be read, so an outage is never
- * indexed as the page (the load is the page's own, made once: see page-data.ts).
+ * The home page's own title and description, with the counts from its data (the operators listing tours now and the
+ * tours listed now: counts.all, as the band's headline): the searched words first and the site name last.
+ */
+export function homeMetadata(t: T, all: ListedCount): PageMetadataOptions {
+  const counts = { operators: formatCount(all.operators), tours: formatCount(all.tours) };
+  return { fullTitle: t('home.title', { ...counts, site: t('site.name') }), description: t('home.description', counts) };
+}
+
+/**
+ * Titled and described with the counts (homeMetadata); canonical: this language's address without the query string;
+ * the page in the other languages as alternates. Marked noindex when the tours could not be read, so an outage is
+ * never indexed as the page (the load is the page's own, made once: see page-data.ts); it is then titled with the
+ * site name alone (the layout's), as when no tour is listed.
  */
 export async function searchPageMetadata(locale: Locale, searchParams: Promise<SearchParams>): Promise<Metadata> {
   const t = makeT(locale);
@@ -32,7 +45,9 @@ export async function searchPageMetadata(locale: Locale, searchParams: Promise<S
   // An old address the page moves elsewhere: nothing to read.
   if (movedSearchHref(raw, places) !== null) return pageMetadata(t, '/');
   const load = await loadSearch(locale, null, queryOf(raw));
-  return pageMetadata(t, '/', { noindex: !load.ok });
+  if (!load.ok) return pageMetadata(t, '/', { noindex: true });
+  const { all } = load.data.counts;
+  return pageMetadata(t, '/', all.tours > 0 ? homeMetadata(t, all) : {});
 }
 
 /**
@@ -53,11 +68,15 @@ export async function SearchPage({ locale, searchParams }: { locale: Locale; sea
 
 /**
  * The stored copy's metadata (the home page without a query string: app/(zh-hant)/page.tsx and the other two
- * languages'): the same as searchPageMetadata gives the bare address with the tours read. It reads nothing: a stored
- * copy is only made with its data (loadStoredSearch throws otherwise), so it is never noindex.
+ * languages'): the same as searchPageMetadata gives the bare address with the tours read. Its counts come from the
+ * stored copy's own load (loadStoredSearch: React's cache hands the page the same one, so the data is read once),
+ * which reads nothing from the request. A stored copy is only made with its data (the load throws otherwise), so it
+ * is never noindex.
  */
-export function storedSearchPageMetadata(locale: Locale): Metadata {
-  return pageMetadata(makeT(locale), '/');
+export async function storedSearchPageMetadata(locale: Locale): Promise<Metadata> {
+  const t = makeT(locale);
+  const load = await loadStoredSearch(locale);
+  return pageMetadata(t, '/', homeMetadata(t, load.data.counts.all));
 }
 
 /**
@@ -79,14 +98,20 @@ export async function StoredSearchPage({ locale }: { locale: Locale }) {
  *
  * The home page's heading counts the operators that list tours now and its line the tours (counts.all, from the
  * cached countToursByDestination read the page already makes: no extra statement); the shortcuts come from the same
- * counts.
+ * counts. Under them, the home page only says in one line what the site does (band.lede), and gives search engines
+ * the site's WebSite block (lib/structured-data.ts).
  */
 export function SearchView({ t, destination, load }: { t: T; destination: Destination | null; load: Loaded<SearchPageData> }) {
   const place = destination ? destinationName(destination, places, t) : null;
+  // The home page says what the site does in the words people search, whatever its data.
+  const lede = place === null ? t('band.lede') : undefined;
+  // … and, to search engines, what the site is (its name and address in this language): on the home page only.
+  const site = place === null ? <JsonLd data={websiteJsonLd(t)} /> : null;
   if (!load.ok) {
     return (
       <>
-        <SearchBand t={t} heading={place ? t('dest.heading', { place }) : t('home.heading')} />
+        {site}
+        <SearchBand t={t} heading={place ? t('dest.heading', { place }) : t('home.heading')} lede={lede} />
         <SearchError t={t} />
       </>
     );
@@ -102,8 +127,9 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
       : [t('home.heading'), t('dest.countNone')];
   return (
     <>
+      {site}
       <SearchBand
-        t={t} heading={heading} line={line} state={state} shortcuts={topDestinations(places, counts)}
+        t={t} heading={heading} line={line} lede={lede} state={state} shortcuts={topDestinations(places, counts)}
         related={destination && <Related t={t} destination={destination} data={load.data} />}
       />
       {/* On a destination's page, clearing every filter keeps the destination. */}

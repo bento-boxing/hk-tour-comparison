@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { useT } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
 import { THEME_SCRIPT } from '../../lib/theme';
+import { makeT } from '../../lib/i18n';
+import { shareImage } from '../../lib/share-images';
 import { SiteFrame, siteFrameMetadata } from './site-frame';
 import styles from './site-frame.module.css';
 
@@ -82,7 +84,15 @@ it.each([
     metadataBase: new URL('https://example.invalid'),
     title: { default: '跟邊團', template: '%s | 跟邊團' },
     description,
+    // For a page with no metadata of its own (a language's 404): the sharing image in that language.
+    openGraph: { siteName: '跟邊團', locale: { 'zh-Hant': 'zh_HK', 'zh-Hans': 'zh_CN', en: 'en_GB' }[locale], type: 'website', images: [shareImage(makeT(locale))] },
+    twitter: { card: 'summary_large_image' },
   });
+});
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('%s: the frame gives no structured data: the WebSite block is the home page\'s alone (search-page.tsx)', async locale => {
+  const doc = new DOMParser().parseFromString(await renderLayout(locale), 'text/html');
+  expect(doc.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(0);
 });
 
 it('in zh-Hant there is no notice and no space kept for it', async () => {

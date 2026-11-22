@@ -148,3 +148,21 @@ it('the database being down: the page is not made at all (it throws, so no page 
   expect(await operatorsPageMetadata('zh-Hant')).not.toHaveProperty('robots');
   expect(consoleError).not.toHaveBeenCalled();
 });
+
+it.each([
+  ['zh-Hant', '', '旅行社一覽'],
+  ['zh-Hans', '/zh-hans', '旅行社一览'],
+  ['en', '/en', 'Tour operators'],
+] as const)('in %s, one breadcrumb trail as structured data, and nothing about the operators themselves', async (locale, prefix, name) => {
+  const { container } = await renderPage(locale);
+  const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')];
+  expect(blocks).toHaveLength(1);
+  expect(JSON.parse(blocks[0].textContent!)).toEqual({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '跟邊團', item: `https://example.invalid${prefix}` },
+      { '@type': 'ListItem', position: 2, name, item: `https://example.invalid${prefix}/operators` },
+    ],
+  });
+});

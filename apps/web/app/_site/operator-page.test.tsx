@@ -1,5 +1,6 @@
 import { it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { places } from '@hktours/core';
 import type { Db, DestinationCounts, OperatorListing, TourCardData } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
@@ -262,4 +263,55 @@ it('the description without known countries, and with no tours (then noindex)', 
   expect(none.description).toBe(`${lead.zh}現時沒有列出東瀛遊的旅行團。`);
   expect(none.robots).toEqual({ index: false });
   expect((await metadataFor('en', 'egl')).description).toBe(`${lead.en}No group tours from EGL Tours are listed right now.`);
+});
+
+// Structured data (task 64): the page's place in the site as a breadcrumb trail, and nothing about the operator itself.
+
+/** The page's JSON-LD blocks: each one's text as written and as parsed. */
+const jsonLd = (container: Element) => [...container.querySelectorAll('script[type="application/ld+json"]')]
+  .map(script => ({ text: script.innerHTML, data: JSON.parse(script.textContent ?? '') as Record<string, unknown> }));
+
+it.each([
+  ['zh-Hant', '', ['跟邊團', '旅行社一覽', '專業旅運的旅行團']],
+  ['zh-Hans', '/zh-hans', ['跟邊團', '旅行社一览', '專業旅運的旅行团']],
+  ['en', '/en', ['跟邊團', 'Tour operators', 'Group tours from Travel Expert']],
+] as const)('in %s, one breadcrumb trail: the home page, the operators index, then this page under its heading', async (locale, prefix, names) => {
+  const { container } = await renderPage(locale, 'texpert', { dest: 'japan', page: '2' });
+  const blocks = jsonLd(container);
+  expect(blocks).toHaveLength(1);
+  expect(blocks[0].data).toEqual({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: names[0], item: `${site}${prefix}` },
+      { '@type': 'ListItem', position: 2, name: names[1], item: `${site}${prefix}/operators` },
+      { '@type': 'ListItem', position: 3, name: names[2], item: `${site}${prefix}/operators/texpert` },
+    ],
+  });
+  // The last step is the heading the page shows.
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(names[2]);
+  // Nothing about the operator as an organisation, and nothing for sale or rated.
+  expect(blocks[0].text).not.toMatch(/Organization|Offer|Product|AggregateRating|"ItemList"|FAQPage/);
+});
+
+it('an operator listing no tours now keeps its trail; a page whose data could not be read has none (its operator is not known)', async () => {
+  mocks.getOperatorListings.mockResolvedValue([{ ...egl, tours: 0 }]);
+  const none = await renderPage('zh-Hant', 'egl');
+  expect(jsonLd(none.container).map(b => b.data['@type'])).toEqual(['BreadcrumbList']);
+  none.unmount();
+  mocks.requestDb.mockRejectedValue(new Error('DATABASE_URL is not set'));
+  const failed = await renderPage('zh-Hant', 'texpert');
+  expect(jsonLd(failed.container)).toEqual([]);
+});
+
+it('a hostile operator name from the database cannot end the script or start a tag: it is escaped, and reads back the same', async () => {
+  const hostile = '</script><script>alert(1)</script><!-- & \u2028';
+  mocks.getOperatorListings.mockResolvedValue([egl, { ...texpert, nameZh: hostile }]);
+  const html = renderToStaticMarkup(<I18nProvider locale="zh-Hant">{await OperatorPage(props('zh-Hant', 'texpert'))}</I18nProvider>);
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  // Exactly the one block, still a single script: nothing in the name made a new element.
+  expect(doc.querySelectorAll('script')).toHaveLength(1);
+  const [block] = jsonLd(doc.body);
+  expect(block.text).not.toMatch(/[<>&\u2028]/);
+  expect((block.data.itemListElement as { name: string }[])[2].name).toBe(`${hostile}的旅行團`);
 });

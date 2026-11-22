@@ -4,6 +4,18 @@ const zh = {
   'site.name': '跟邊團',
   // What search engines and link previews show under the title (<meta name="description">, og:description).
   'site.description': '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。',
+  // Task 64 (wording chosen by the owner, 2026-11-22). The site's other name in this language, for search engines
+  // only (structured data: the home page's WebSite alternateName); 跟边团 in Simplified, Gan Bin Tuen in English.
+  'site.alternateName': '香港旅行團比較',
+  // The home page's <title> and description, with the counts from the data: {operators} operators listing tours now,
+  // {tours} tours listed now (with thousands commas); {site} is site.name. The title: the searched words first, the
+  // site name last, within about 30 full-width characters (pinned by a test).
+  'home.title': '香港旅行團比較｜比較 {operators} 間旅行社的旅行團｜{site}',
+  'home.description': '香港旅行團比較及格價：現時列出 {operators} 間旅行社的 {tours} 個旅行團，可按目的地、出發日期、日數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。',
+  // The sharing image (public/share/, made by scripts/make-share-images.mjs from this line): its line under the name,
+  // and its description for screen readers (og:image:alt).
+  'share.line': '香港旅行團比較',
+  'share.imageAlt': '跟邊團：香港旅行團比較',
   'lang.label': '語言', // the language switch's accessible name
   'theme.toDark': '切換至深色模式', // the theme switch's accessible name while the page is light
   'theme.toLight': '切換至淺色模式', // … and while it is dark
@@ -34,6 +46,9 @@ const zh = {
   // numeral (lib/format.ts headlineCount); {tours} the tours listed now. 一次過 is the owner's choice of Cantonese here.
   'band.headline': '{n}間旅行社，一次過比較',
   'band.subline': '現有 {tours} 個旅行團 · 報名請到旅行社自己的網站',
+  // Under them, what the site does in the words people search (task 64, the owner's): one line on a phone 360px wide
+  // in Chinese (the English may take two).
+  'band.lede': '按目的地、出發日期、日數及價錢比較香港旅行團',
   'band.placeholder': '想去邊？輸入國家、地區或城市', // the band's search box (colloquial on purpose, the owner's wish)
   'band.shortcuts': '旅行團最多的目的地', // the accessible name of the row of destination shortcuts
   'band.allDestinations': '所有目的地 →', // the last shortcut: the destinations index

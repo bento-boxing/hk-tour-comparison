@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { Locale, T } from './i18n';
 import { languageAlternates, localeHref, siteUrl } from './locale-path';
 import { siteIdentity } from './site-identity';
+import { shareImage } from './share-images';
 
 /** Open Graph's locale (language_TERRITORY) for each language. */
 const OG_LOCALE: Record<Locale, string> = { 'zh-Hant': 'zh_HK', 'zh-Hans': 'zh_CN', en: 'en_GB' };
@@ -9,7 +10,8 @@ const OG_LOCALE: Record<Locale, string> = { 'zh-Hant': 'zh_HK', 'zh-Hans': 'zh_C
 /**
  * The root layouts' metadata: the site address (SITE_URL, lib/site-identity.ts) that relative addresses are
  * resolved against, the site name as the title with the pattern a page's own title goes into ("連續行程 | 跟邊團"),
- * and the description in the page's language.
+ * the description in the page's language, and the sharing image (for a page without metadata of its own, such as
+ * a language's 404 page; every other page gives its own, pageMetadata).
  */
 export function siteMetadata(t: T): Metadata {
   const siteName = t('site.name');
@@ -17,6 +19,8 @@ export function siteMetadata(t: T): Metadata {
     metadataBase: new URL(siteIdentity().siteUrl),
     title: { default: siteName, template: `%s | ${siteName}` },
     description: t('site.description'),
+    openGraph: { siteName, locale: OG_LOCALE[t.locale], type: 'website', images: [shareImage(t)] },
+    twitter: { card: 'summary_large_image' },
   };
 }
 
@@ -42,7 +46,8 @@ export interface PageMetadataOptions {
 
 /**
  * One page's metadata, in the page's language (`t`): its own title and description, its canonical address, the
- * same page in each language, its Open Graph fields, and noindex when asked.
+ * same page in each language, its Open Graph fields with the language's sharing image (lib/share-images.ts), the
+ * large-picture card for X, and noindex when asked.
  * The canonical address is this language's address of the path alone ('/en/chain', '/en/tours/japan'): a
  * filtered, sorted or paged address is the same page, and search engines are kept off query strings
  * (app/robots.ts) because every such address is a function run on Vercel. The alternates (hreflang) are the path
@@ -65,7 +70,10 @@ export function pageMetadata(t: T, path: SitePath, { title, fullTitle, descripti
       siteName,
       locale: OG_LOCALE[t.locale],
       type: 'website',
+      images: [shareImage(t)],
     },
+    // The large picture on X (Twitter); its title, description and image Next.js takes from openGraph above.
+    twitter: { card: 'summary_large_image' },
     ...(noindex && { robots: { index: false } }),
   };
 }

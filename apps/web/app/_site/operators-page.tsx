@@ -8,6 +8,8 @@ import { operatorTagStyle } from '../../lib/contrast';
 import { formatCount } from '../../lib/format';
 import { TOURS_PATH } from '../../lib/destinations';
 import { OPERATORS_PATH, operatorPath } from '../../lib/operators';
+import { breadcrumbJsonLd } from '../../lib/structured-data';
+import { JsonLd } from '../../components/JsonLd';
 import { loadStoredOperatorListings } from './page-data';
 import { KeepClauses } from './keep-clauses';
 import frame from './site-frame.module.css';
@@ -63,6 +65,7 @@ export async function OperatorsPage({ locale }: { locale: Locale }) {
           );
         })}
       </ul>
+      <JsonLd data={breadcrumbJsonLd(t, [{ name: t('operators.heading'), path: OPERATORS_PATH }])} />
     </div>
   );
 }

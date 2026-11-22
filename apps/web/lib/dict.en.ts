@@ -5,6 +5,11 @@ import type { DictKey } from './i18n';
 const en = {
   'site.name': '跟邊團', // the brand: the same in every language
   'site.description': "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.",
+  'site.alternateName': 'Gan Bin Tuen',
+  'home.title': 'Hong Kong group tour comparison | {operators} [operators:tour operator|tour operators] | {site}',
+  'home.description': "Hong Kong group tour comparison: {tours} [tours:tour|tours] from {operators} [operators:operator|operators], by destination, date, length and price. A personal site: book on the operator's own website.",
+  'share.line': 'Hong Kong group tour comparison',
+  'share.imageAlt': '跟邊團：Hong Kong group tour comparison',
   'lang.label': 'Language',
   'theme.toDark': 'Switch to dark theme',
   'theme.toLight': 'Switch to light theme',
@@ -30,6 +35,7 @@ const en = {
   'home.heading': 'Compare Hong Kong group tours',
   'band.headline': '{n} [count:tour operator|tour operators], compared in one place',
   'band.subline': '{tours} [tours:tour|tours] listed now · book on the operator\'s own website',
+  'band.lede': 'Compare by destination, date, length and price',
   'band.placeholder': 'Where to? Enter a country, region or city',
   'band.shortcuts': 'Destinations with the most tours',
   'band.allDestinations': 'All destinations →',

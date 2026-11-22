@@ -318,3 +318,21 @@ it('with no tours at all, the page is not made (an empty answer is a fault: the 
   mocks.countToursByDestination.mockResolvedValue({ all: { tours: 0, operators: 0 }, destinations: [] });
   await expect(ToursPage({ locale: 'en' })).rejects.toThrow(/^destinations index: the database answered with no rows/);
 });
+
+it.each([
+  ['zh-Hant', '', '旅行團目的地'],
+  ['zh-Hans', '/zh-hans', '旅行团目的地'],
+  ['en', '/en', 'Tour destinations'],
+] as const)('in %s, one breadcrumb trail as structured data: the home page, then this page under its heading', async (locale, prefix, name) => {
+  const { container } = await renderPage(locale);
+  const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')];
+  expect(blocks).toHaveLength(1);
+  expect(JSON.parse(blocks[0].textContent!)).toEqual({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '跟邊團', item: `https://example.invalid${prefix}` },
+      { '@type': 'ListItem', position: 2, name, item: `https://example.invalid${prefix}/tours` },
+    ],
+  });
+});

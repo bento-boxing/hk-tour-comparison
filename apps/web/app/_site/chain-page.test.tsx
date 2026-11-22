@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { I18nProvider } from '../../lib/i18n-client';
 import { resolveChain } from '../../lib/chain';
+import { makeT } from '../../lib/i18n';
+import { shareImage } from '../../lib/share-images';
 import type { ChainPageData } from '../../lib/chain-page-data';
 import { cachedReads } from '../../lib/search-page-data';
 
@@ -338,7 +340,8 @@ it.each([
   expect(await chainPageMetadata(locale, Promise.resolve({ legs: 'egl:KIX5@2026-12-18', gap: '1-3' }))).toEqual({
     title: name,
     alternates: { canonical, languages },
-    openGraph: { title: `${name} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
+    openGraph: { title: `${name} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website', images: [shareImage(makeT(locale))] },
+    twitter: { card: 'summary_large_image' },
   });
 });
 

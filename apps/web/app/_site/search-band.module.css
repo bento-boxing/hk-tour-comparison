@@ -16,6 +16,8 @@
 .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
 .heading { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 1px; line-height: 1.25; }
 .line { margin: 0; font-size: 16px; font-weight: 500; }
+/* The home page's line saying what the site does: on a row of its own under the heading and its line, as they are. */
+.lede { flex-basis: 100%; margin: 0; font-size: 16px; font-weight: 500; }
 
 /* A destination's related links (its regions, or its country), under the heading. */
 .related { margin: -8px 0 0; font-size: 15px; }
@@ -53,10 +55,15 @@
 @media (max-width: 639px) {
   .inner { padding-top: 18px; padding-bottom: 16px; gap: 12px; }
   .heading { font-size: 24px; letter-spacing: 0; }
-  .line { font-size: 14px; }
+  .line, .lede { font-size: 14px; }
   .searchBox { flex-basis: 100%; }
   /* Touch: 44px tall. The first four destinations only, then the link to them all, so the band stays short. */
   .shortcutList > li:nth-child(n + 5):not(:last-child) { display: none; }
   .shortcut { min-height: 44px; font-size: 14px; }
   .all { min-height: 44px; font-size: 14px; }
+}
+/* The narrowest phones (320px): smaller, so the line saying what the site does stays one line there too (at 13px the
+ * Chinese line is 2px too wide). */
+@media (max-width: 359px) {
+  .lede { font-size: 12px; }
 }

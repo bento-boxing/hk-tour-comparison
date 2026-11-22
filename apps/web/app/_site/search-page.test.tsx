@@ -7,7 +7,8 @@ import band from './search-band.module.css';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { I18nProvider } from '../../lib/i18n-client';
-import type { Locale } from '../../lib/i18n';
+import { makeT, type Locale } from '../../lib/i18n';
+import { shareImage } from '../../lib/share-images';
 import type { SearchPageData } from '../../lib/search-page-data';
 import type { DestinationCounts } from '@hktours/db/read';
 
@@ -33,7 +34,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { SearchPage, searchPageMetadata, StoredSearchPage, storedSearchPageMetadata } = await import('./search-page');
+const { SearchPage, searchPageMetadata, StoredSearchPage, storedSearchPageMetadata, homeMetadata } = await import('./search-page');
 const { DestinationPage } = await import('./destination-page');
 
 const fakeDb = {} as Db;
@@ -308,17 +309,89 @@ const languages = {
 };
 
 it.each([
-  ['zh-Hant', 'https://example.invalid', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
-  ['zh-Hans', 'https://example.invalid/zh-hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
-  ['en', 'https://example.invalid/en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
-] as const)('in %s: the page names its own language\'s address canonical, without the query string, lists the three languages and x-default, with Open Graph in that language', async (locale, canonical, description, ogLocale) => {
+  ['zh-Hant', 'https://example.invalid', '香港旅行團比較｜比較 3 間旅行社的旅行團｜跟邊團', '香港旅行團比較及格價：現時列出 3 間旅行社的 40 個旅行團，可按目的地、出發日期、日數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hans', 'https://example.invalid/zh-hans', '香港旅行团比较｜比较 3 家旅行社的旅行团｜跟邊團', '香港旅行团比较和比价：目前列出 3 家旅行社的 40 个旅行团，可按目的地、出发日期、天数和价格筛选。网站由个人制作，报名请前往旅行社自己的网站。', 'zh_CN'],
+  ['en', 'https://example.invalid/en', 'Hong Kong group tour comparison | 3 tour operators | 跟邊團', "Hong Kong group tour comparison: 40 tours from 3 operators, by destination, date, length and price. A personal site: book on the operator's own website.", 'en_GB'],
+] as const)('in %s: titled and described with the counts (operators and tours listed now), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language', async (locale, canonical, title, description, ogLocale) => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(homeData);
   // A filtered or paged address (/en?dmin=5&page=2) gets this same answer.
   expect(await searchPageMetadata(locale, Promise.resolve({ dmin: '5', page: '2' }))).toEqual({
+    title: { absolute: title },
+    description,
     alternates: { canonical, languages },
-    openGraph: { title: '跟邊團', description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
+    openGraph: { title, description, siteName: '跟邊團', locale: ogLocale, type: 'website', images: [shareImage(makeT(locale))] },
+    twitter: { card: 'summary_large_image' },
   });
+});
+
+it('with one operator or one tour, the English title and description say so in the singular; big counts get commas', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, counts: { ...counts, all: { tours: 1, operators: 1 } } });
+  expect(await searchPageMetadata('en', Promise.resolve({}))).toMatchObject({
+    title: { absolute: 'Hong Kong group tour comparison | 1 tour operator | 跟邊團' },
+    description: expect.stringMatching(/^Hong Kong group tour comparison: 1 tour from 1 operator, /),
+  });
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, counts: { ...counts, all: { tours: 12345, operators: 12 } } });
+  expect(await searchPageMetadata('zh-Hant', Promise.resolve({ page: '2' }))).toMatchObject({
+    title: { absolute: '香港旅行團比較｜比較 12 間旅行社的旅行團｜跟邊團' },
+    description: expect.stringContaining('現時列出 12 間旅行社的 12,345 個旅行團'),
+  });
+});
+
+/** A text's width in full-width characters: a CJK character or full-width punctuation 1, anything else ½. */
+const fullWidth = (text: string) => [...text].reduce((n, c) => n + (c.codePointAt(0)! >= 0x2e80 ? 1 : 0.5), 0);
+
+it.each([
+  ['zh-Hant', ['香港旅行團比較', '間旅行社的旅行團'], ['旅行團比較', '格價', '旅行社自己的網站', '個人']],
+  ['zh-Hans', ['香港旅行团比较', '家旅行社的旅行团'], ['旅行团比较', '比价', '旅行社自己的网站', '个人']],
+  ['en', ['Hong Kong group tour comparison', 'tour operator'], ['Hong Kong group tour comparison', 'by destination, date, length and price', "book on the operator's own website", 'personal site']],
+] as const)('in %s the home title leads with the searched words, ends with the site name and fits a results line; the description has the words and the counts', (locale, titleWords, descriptionWords) => {
+  const t = makeT(locale);
+  for (const [operators, tours] of [[1, 1], [8, 2122], [99, 99999]]) {
+    const { fullTitle, description } = homeMetadata(t, { operators, tours });
+    expect(fullTitle!.startsWith(titleWords[0])).toBe(true);
+    for (const word of titleWords) expect(fullTitle).toContain(word);
+    expect(fullTitle).toMatch(locale === 'en' ? / \| 跟邊團$/ : /｜跟邊團$/);
+    expect(fullTitle).toContain(String(operators));
+    // Within about 30 full-width characters (60 Latin ones), so results do not cut it.
+    expect(fullWidth(fullTitle!)).toBeLessThanOrEqual(30);
+    for (const word of descriptionWords) expect(description).toContain(word);
+    expect(description).toContain(` ${operators} `);
+    expect(description).toContain(` ${tours.toLocaleString('en-US')} `);
+    // One or two plain sentences, short enough to be shown whole most of the time.
+    expect(fullWidth(description!)).toBeLessThanOrEqual(80);
+    expect(description!.split(/[。.](?=\s|$)/).filter(s => s.trim() !== '').length).toBeLessThanOrEqual(2);
+  }
+});
+
+it('no other page has the home page\'s title: each keeps its own, joined to the site name', () => {
+  for (const locale of ['zh-Hant', 'zh-Hans', 'en'] as const) {
+    const t = makeT(locale);
+    const home = homeMetadata(t, { operators: 8, tours: 2122 }).fullTitle!;
+    const others = [
+      `${t('tours.title')} | 跟邊團`, `${t('operators.heading')} | 跟邊團`, `${t('about.title')} | 跟邊團`, `${t('nav.chain')} | 跟邊團`,
+      `${t('saved.title')} | 跟邊團`, `${t('dest.title', { place: t('home.heading') })} | 跟邊團`,
+      t('operator.title', { operator: 'X', site: t('site.name') }),
+    ];
+    for (const other of others) {
+      expect(other).not.toBe(home);
+      expect(other.endsWith('跟邊團')).toBe(true);
+      expect(other.startsWith(home.split(/[｜|]/)[0].trim())).toBe(false);
+    }
+  }
+});
+
+it('when no tour is listed, or the tours cannot be read, the title is the site name alone (no count to give)', async () => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue({ ...homeData, tours: [], total: 0, counts: { all: { tours: 0, operators: 0 }, destinations: [] } });
+  const none = await searchPageMetadata('zh-Hant', Promise.resolve({ dmin: '30' }));
+  expect(none).not.toHaveProperty('title');
+  expect(none).not.toHaveProperty('description');
+  mocks.loadSearchPage.mockRejectedValue(new Error('connection refused'));
+  const failed = await searchPageMetadata('zh-Hant', Promise.resolve({ dmin: '30' }));
+  expect(failed).not.toHaveProperty('title');
+  expect(failed).toMatchObject({ robots: { index: false } });
 });
 
 it('gives no og:url, so a shared filtered search (/?dmin=5) keeps its own address on Facebook and LinkedIn', async () => {
@@ -375,6 +448,64 @@ it.each([
   expect(shortcuts.at(-1)).toHaveTextContent(all);
   // The heading comes before the search box.
   expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(screen.getByRole('combobox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it.each([
+  ['zh-Hant', '按目的地、出發日期、日數及價錢比較香港旅行團'],
+  ['zh-Hans', '按目的地、出发日期、天数和价格比较香港旅行团'],
+  ['en', 'Compare by destination, date, length and price'],
+] as const)('in %s the home page says under its headline and line, in the words people search, what the site does; a destination\'s page does not', async (locale, lede) => {
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(homeData);
+  const home = await renderPage({}, locale);
+  const p = screen.getByText(lede);
+  expect(p.tagName).toBe('P');
+  expect(p).toHaveClass(band.lede);
+  // In the band's head, after the headline's line.
+  expect(p.parentElement).toHaveClass(band.head);
+  expect(p.previousElementSibling).toHaveClass(band.line);
+  home.unmount();
+  // Also when the tours cannot be read: it says what the site is, not what it has.
+  mocks.loadSearchPage.mockRejectedValue(new Error('connection refused'));
+  const failed = await renderPage({ dmin: '5' }, locale);
+  expect(screen.getByText(lede)).toBeInTheDocument();
+  failed.unmount();
+  mocks.loadSearchPage.mockResolvedValue(data);
+  await renderPage({ dest: 'japan-kansai' }, locale);
+  expect(screen.queryByText(lede)).toBeNull();
+});
+
+it.each([
+  ['zh-Hant', 'zh-Hant-HK', 'https://example.invalid', '香港旅行團比較'],
+  ['zh-Hans', 'zh-Hans', 'https://example.invalid/zh-hans', '跟边团'],
+  ['en', 'en', 'https://example.invalid/en', 'Gan Bin Tuen'],
+] as const)('in %s the home page alone tells search engines what the site is: one WebSite block; a destination\'s page has none', async (locale, inLanguage, url, alternateName) => {
+  const site = { '@context': 'https://schema.org', '@type': 'WebSite', name: '跟邊團', alternateName, url, inLanguage };
+  const blocks = (root: Element) => [...root.querySelectorAll('script[type="application/ld+json"]')].map(s => JSON.parse(s.textContent!));
+  mocks.requestDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockResolvedValue(homeData);
+  const home = await renderPage({ dmin: '5' }, locale);
+  expect(blocks(home.container)).toEqual([site]);
+  home.unmount();
+  // The stored copy (the bare address) too, and also when the tours cannot be read.
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  const stored = render(<I18nProvider locale={locale}>{await StoredSearchPage({ locale })}</I18nProvider>);
+  expect(blocks(stored.container)).toEqual([site]);
+  stored.unmount();
+  mocks.loadSearchPage.mockRejectedValueOnce(new Error('connection refused'));
+  const failed = await renderPage({ dmin: '5' }, locale);
+  expect(blocks(failed.container)).toEqual([site]);
+  failed.unmount();
+  mocks.loadSearchPage.mockResolvedValue(data);
+  const dest = await renderPage({ dest: 'japan-kansai' }, locale);
+  expect(blocks(dest.container).map(b => b['@type'])).toEqual(['BreadcrumbList']);
+});
+
+it('the line saying what the site does takes a row of its own under the headline and its line, at their size', () => {
+  const css = readFileSync(join(__dirname, 'search-band.module.css'), 'utf8').replace(/\s+/g, ' ');
+  expect(css).toContain('.lede { flex-basis: 100%; margin: 0; font-size: 16px; font-weight: 500; }');
+  expect(css).toMatch(/@media \(max-width: 639px\) \{.*\.line, \.lede \{ font-size: 14px; \}/);
+  expect(css).toMatch(/@media \(max-width: 359px\) \{ \.lede \{ font-size: 12px; \} \}/);
 });
 
 it('the headline\'s numbers are the live ones: one operator, twelve, twenty-one', async () => {
@@ -492,14 +623,26 @@ it('the stored home page never renders the "cannot read" message: a failed read,
   expect(consoleError).not.toHaveBeenCalled();
 });
 
-it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s, the stored home page\'s metadata is the bare address\'s (title, description, canonical, languages, no robots), and reads nothing', async locale => {
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s, the stored home page\'s metadata is the bare address\'s (title and description with the counts, canonical, languages, no robots), from the stored copy\'s own load', async locale => {
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.loadSearchPage.mockResolvedValue(homeData);
   const perRequest = await searchPageMetadata(locale, Promise.resolve({}));
-  mocks.loadSearchPage.mockReset();
-  const stored = storedSearchPageMetadata(locale);
+  mocks.loadSearchPage.mockClear();
+  mocks.requestDb.mockReset().mockRejectedValue(new Error('requestDb used by the stored page'));
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  const stored = await storedSearchPageMetadata(locale);
   expect(stored).toEqual(perRequest);
+  expect(stored).toHaveProperty('title.absolute', expect.stringContaining('3'));
   expect(stored).not.toHaveProperty('robots');
-  expect(mocks.loadSearchPage).not.toHaveBeenCalled();
-  expect(mocks.storedDb).not.toHaveBeenCalled();
+  // The page's own load (loadStoredSearch: no filter, the stored pages' handle); in a server render React's cache
+  // hands the page the same one.
+  expect(mocks.loadSearchPage).toHaveBeenCalledTimes(1);
+  expect(mocks.loadSearchPage.mock.calls[0].slice(0, 2)).toEqual([fakeDb, {}]);
+  expect(mocks.requestDb).not.toHaveBeenCalled();
+});
+
+it('the stored home page\'s metadata, like the page, throws when its data cannot be read: no copy is stored', async () => {
+  mocks.storedDb.mockResolvedValue(fakeDb);
+  mocks.loadSearchPage.mockRejectedValue(Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }));
+  await expect(storedSearchPageMetadata('zh-Hant')).rejects.toThrow(/^home page: the database at DATABASE_URL could not be read/);
 });

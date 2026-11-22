@@ -10,8 +10,10 @@ import { operatorName } from '../../lib/place-names';
 import { formatCount } from '../../lib/format';
 import { staleSince } from '../../lib/card-text';
 import {
-  isOperatorListed, joinNames, officialSiteUrl, operatorFromId, operatorPath, operatorPlaces, operatorSearchHref,
+  OPERATORS_PATH, isOperatorListed, joinNames, officialSiteUrl, operatorFromId, operatorPath, operatorPlaces, operatorSearchHref,
 } from '../../lib/operators';
+import { breadcrumbJsonLd } from '../../lib/structured-data';
+import { JsonLd } from '../../components/JsonLd';
 import { FixedOperatorProvider } from '../../lib/search-address';
 import { loadOperator, queryOf, type Loaded, type OperatorPageData, type SearchParams } from './page-data';
 import { SearchBand } from './search-band';
@@ -96,9 +98,13 @@ export async function OperatorPage({ locale, params, searchParams }: { locale: L
   const name = operatorName(listing, t.locale);
   const heading = t('operator.heading', { operator: name });
   const notes = <OperatorNotes t={t} listing={listing} now={load.now} />;
+  // Its place in the site, as structured data: the operators index, then this page under its heading. Nothing about
+  // the operator itself (no Organization): the site is not the operator's and has not checked its details.
+  const trail = <JsonLd data={breadcrumbJsonLd(t, [{ name: t('operators.heading'), path: OPERATORS_PATH }, { name: heading, path: operatorPath(operator) }])} />;
   if (search === null) {
     return (
       <>
+        {trail}
         <SearchBand t={t} heading={heading} related={notes} />
         <div className={`${frame.wrap} ${frame.page}`}>
           <p className={styles.none}>
@@ -112,6 +118,7 @@ export async function OperatorPage({ locale, params, searchParams }: { locale: L
   return (
     // The band's destination search and the filter row record their choices on this page (lib/search-address.tsx).
     <FixedOperatorProvider operator={operator}>
+      {trail}
       {/* No destination shortcuts: they lead to the destinations' own pages, away from this operator. */}
       <SearchBand
         t={t} heading={heading} state={search.state}

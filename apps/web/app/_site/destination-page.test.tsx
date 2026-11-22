@@ -2,7 +2,8 @@ import { it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vite
 import { render, screen, within } from '@testing-library/react';
 import type { Db, DestinationCounts, TourCardData } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
-import type { Locale } from '../../lib/i18n';
+import { makeT, type Locale } from '../../lib/i18n';
+import { shareImage } from '../../lib/share-images';
 import type { SearchPageData } from '../../lib/search-page-data';
 import { parseSearchParams } from '../../lib/search-params';
 import { places } from '@hktours/core';
@@ -167,7 +168,8 @@ it.each([
         en: `https://example.invalid/en/tours/${id}`, 'x-default': `https://example.invalid/tours/${id}`,
       },
     },
-    openGraph: { title: `${title} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website' },
+    openGraph: { title: `${title} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website', images: [shareImage(makeT(locale))] },
+    twitter: { card: 'summary_large_image' },
   });
 });
 
@@ -207,4 +209,38 @@ it('an area\'s page links to its country', async () => {
   const related = screen.getByRole('link', { name: '中國全部旅行團' });
   expect(related).toHaveAttribute('href', '/tours/china');
   expect(within(related.parentElement!).getAllByRole('link')).toHaveLength(1);
+});
+
+// Structured data (task 64): the page's place in the site, from its path; no list of its tours.
+
+it.each([
+  ['zh-Hant', 'japan-kansai', '', ['跟邊團', '旅行團目的地', '日本關西旅行團']],
+  ['zh-Hans', 'japan', '/zh-hans', ['跟邊團', '旅行团目的地', '日本旅行团']],
+  ['en', 'japan-kansai', '/en', ['跟邊團', 'Tour destinations', 'Group tours to Kansai, Japan']],
+] as const)('in %s, %s: one breadcrumb trail, the home page, the destinations index, then this page under its heading; no other block', async (locale, id, prefix, names) => {
+  const site = 'https://example.invalid';
+  const { container } = await renderPage(locale, id, { dmin: '5', page: '2' });
+  const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')];
+  expect(blocks).toHaveLength(1);
+  expect(JSON.parse(blocks[0].textContent!)).toEqual({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: names[0], item: `${site}${prefix}` },
+      { '@type': 'ListItem', position: 2, name: names[1], item: `${site}${prefix}/tours` },
+      { '@type': 'ListItem', position: 3, name: names[2], item: `${site}${prefix}/tours/${id}` },
+    ],
+  });
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(names[2]);
+});
+
+it('the trail needs no data: it is there when the tours cannot be read, and on a destination without a page of its own', async () => {
+  mocks.loadSearchPage.mockRejectedValue(new Error('connection refused'));
+  const failed = await renderPage('zh-Hant', 'japan');
+  expect(failed.container.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(1);
+  failed.unmount();
+  mocks.loadSearchPage.mockReset().mockImplementation(async (_db, raw) => dataFor(raw));
+  const area = await renderPage('zh-Hant', 'china-area-east');
+  const [block] = area.container.querySelectorAll('script[type="application/ld+json"]');
+  expect(JSON.parse(block.textContent!).itemListElement[2].name).toBe('中國華東旅行團');
 });
