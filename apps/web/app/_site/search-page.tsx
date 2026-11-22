@@ -18,6 +18,8 @@ import { loadSearch, loadStoredSearch, queryOf, type Loaded, type SearchParams, 
 import { SearchBand } from './search-band';
 import { JsonLd } from '../../components/JsonLd';
 import { websiteJsonLd } from '../../lib/structured-data';
+import { sheetSeasons } from '../../lib/filter-sheet';
+import type { SeasonCount } from '../../lib/season-counts';
 import frame from './site-frame.module.css';
 import styles from './search-page.module.css';
 
@@ -128,7 +130,7 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
       {site}
       <SearchBand t={t} heading={heading} line={line} lede={lede} state={state} rows={bandRows(t, state, counts, load.data.seasons)} />
       {/* On a destination's page, clearing every filter keeps the destination. */}
-      <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} />
+      <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} seasons={load.data.seasons} />
     </>
   );
 }
@@ -147,16 +149,18 @@ export function SearchError({ t }: { t: T }) {
  * row, the tours, and under them the rows-per-page choice, the count, the pager and when the data was last updated.
  * `clearPath` is where the empty state's "clear all filters" goes; `hrefFor` how the choice of rows and the pager
  * build their addresses (the search page's, searchHref, by default; the filter row reads its page from
- * lib/search-address.tsx); `updatedFrom` the operators whose last update the note gives (all of them by default).
+ * lib/search-address.tsx); `updatedFrom` the operators whose last update the note gives (all of them by default);
+ * `seasons` the seasons' counts the page has read (for the band), whose seasons with tours the phone filter sheet
+ * offers as one-tap dates (none where the page has not read them: an operator's page).
  */
-export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFrom = data.operators }: {
+export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFrom = data.operators, seasons = [] }: {
   t: T; data: SearchPageData; today: IsoDate; now: string; clearPath: string; hrefFor?: StateHref;
-  updatedFrom?: { lastGoodRunAt: string | null }[];
+  updatedFrom?: { lastGoodRunAt: string | null }[]; seasons?: SeasonCount[];
 }) {
   const { state, tours, total, operators, filterOperators } = data;
   return (
     <div className={`${frame.wrap} ${frame.page}`}>
-      <FilterBarConnected state={state} operators={filterOperators} today={today} />
+      <FilterBarConnected state={state} operators={filterOperators} today={today} total={total} seasons={sheetSeasons(state, seasons)} />
       <ResultsConnected tours={tours} total={total} operators={operators} today={today} now={now} clearPath={clearPath} />
       <ListFooter state={state} total={total} t={t} hrefFor={hrefFor} />
       <UpdatedNote operators={updatedFrom} t={t} />

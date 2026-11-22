@@ -12,6 +12,22 @@ export function first(raw: RawParams, name: string): string | undefined {
 }
 
 /**
+ * Every value of a parameter that is a string, joined with commas, for a parameter that holds a comma-separated list:
+ * '?op=egl&op=jetour' (what a form's ticked boxes send) reads as 'egl,jetour', as '?op=egl,jetour' does. Undefined
+ * when there is none.
+ */
+export function joined(raw: RawParams, name: string): string | undefined {
+  const value = Object.hasOwn(raw, name) ? raw[name] : undefined;
+  const texts = (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string');
+  return texts.length > 0 ? texts.join(',') : undefined;
+}
+
+/** `joined`, typed to take only the names in N, as readerOf. */
+export function listReaderOf<N extends string>(): (raw: RawParams, name: N) => string | undefined {
+  return joined;
+}
+
+/**
  * `first`, typed to take only the names in N: a file that imports this and not `first` cannot read any other name
  * (a call with another is a type error). lib/search-params.ts reads the search address this way.
  */

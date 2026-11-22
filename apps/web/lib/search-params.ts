@@ -1,7 +1,7 @@
 import { isIsoDate, OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, type OperatorId, type PageSize, type PlacesIndex } from '@hktours/core';
 import type { SortKey, TourFilters } from '@hktours/db/read';
 import { destinationFromId, destinationPath, isOnlyRegion } from './destinations';
-import { readerOf, type RawParams } from './raw-params';
+import { listReaderOf, readerOf, type RawParams } from './raw-params';
 
 /**
  * Everything the search address can say. Built only by parseSearchParams, so every value in it is valid.
@@ -44,6 +44,11 @@ export type SearchQueryName = (typeof SEARCH_QUERY_NAMES)[number];
 
 /** The first value of one of the search's parameters, when it is a string at all (lib/raw-params.ts). */
 const param: (raw: RawParams, name: SearchQueryName) => string | undefined = readerOf<SearchQueryName>();
+/**
+ * Every value of one of the search's list parameters (op, ex), joined with commas: '?op=egl&op=jetour', as a form's
+ * ticked boxes send them without JavaScript (components/FilterSheet), reads as '?op=egl,jetour'.
+ */
+const listParam: (raw: RawParams, name: 'op' | 'ex') => string | undefined = listReaderOf<SearchQueryName>();
 
 /** Plain decimal digits only: no sign, fraction, exponent, hex or spaces. At most 9 digits, so always a safe integer. */
 const DIGITS = /^\d{1,9}$/;
@@ -73,7 +78,8 @@ function compact<T extends object>(obj: T): T {
 
 /**
  * Reads the search state from the page address. Never throws: anything invalid is dropped (see the
- * address table in the task brief). A repeated parameter uses its first value.
+ * address table in the task brief). A repeated parameter uses its first value, except the two lists (op, ex), which
+ * read every value.
  * includeDates false is used by the chain page, which sets the date window itself: it drops both the
  * departure window (from, to) and the travel window (tfrom, tto).
  */
@@ -103,9 +109,9 @@ export function parseSearchParams(raw: RawParams, places: PlacesIndex, opts: { i
   const days = range(intInRange(param(raw, 'dmin'), DAYS_RANGE), intInRange(param(raw, 'dmax'), DAYS_RANGE));
   const price = range(intInRange(param(raw, 'pmin'), PRICE_RANGE), intInRange(param(raw, 'pmax'), PRICE_RANGE));
 
-  const opIds = new Set(idList(param(raw, 'op'), id => (OPERATOR_IDS as readonly string[]).includes(id)));
+  const opIds = new Set(idList(listParam(raw, 'op'), id => (OPERATOR_IDS as readonly string[]).includes(id)));
   const operators: OperatorId[] = OPERATOR_IDS.filter(id => opIds.has(id)); // canonical order
-  const excludeCountryIds = idList(param(raw, 'ex'), id => places.country(id) !== undefined);
+  const excludeCountryIds = idList(listParam(raw, 'ex'), id => places.country(id) !== undefined);
   const dest = param(raw, 'dest');
 
   const filters: TourFilters = compact({

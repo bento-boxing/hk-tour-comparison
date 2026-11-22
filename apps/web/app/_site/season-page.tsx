@@ -117,6 +117,7 @@ export async function SeasonPage({ locale, params, searchParams }: { locale: Loc
       <SearchList
         t={t} data={search} today={load.today} now={load.now} clearPath={path}
         hrefFor={state => seasonSearchHref(window, state)}
+        seasons={seasons}
       />
     </FixedSeasonProvider>
   );

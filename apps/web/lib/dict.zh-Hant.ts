@@ -246,6 +246,21 @@ const zh = {
   'filter.clearDestination': '清除目的地：{dest}', // the destination pill's accessible name
   'filter.travel': '可出行日期', // the visitor's free dates: only tours that leave and come back inside them
   'filter.travelHint': '只列出出發及回程都在這段日子內的旅行團',
+  // Phones (under 640px): the bar's 篩選 button and count, and the full-height filter sheet 篩選 opens.
+  'filter.sheet': '篩選',
+  'filter.onCount': '（已選 {n} 項）', // after 篩選, for screen readers: how many filters are on (the badge shows {n})
+  'filter.count': '{n} 個旅行團', // the bar's count of the tours found
+  'filter.close': '關閉',
+  'filter.clearAll': '清除全部',
+  'filter.showResults': '顯示結果',
+  'filter.thisMonth': '本月',
+  'filter.nextMonth': '下月',
+  'filter.priceUnder': '{max}以下', // a one-tap ceiling: 'HK$3,000以下'
+  'filter.pricePerPerson': '價錢（每人）',
+  'filter.priceLowest': '最低（HK$）',
+  'filter.priceHighest': '最高（HK$）',
+  'filter.travelFrom': '最早出發',
+  'filter.travelTo': '最遲回來',
   'sort.price': '價錢 低→高',
   'sort.price-desc': '價錢 高→低',
   'sort.days': '日數 短→長',
@@ -268,6 +283,15 @@ const zh = {
   'sort.dir.date-desc': '遲→早',
   'sort.dir.destination': '筆劃少→多',
   'sort.dir.destination-desc': '筆劃多→少',
+  // The phone bar's sort control, where the full name may not fit: the current order in short (sort.* stays its name).
+  'sort.short.price': '價錢 低→高',
+  'sort.short.price-desc': '價錢 高→低',
+  'sort.short.days': '日數 短→長',
+  'sort.short.days-desc': '日數 長→短',
+  'sort.short.date': '出發日期 早→遲',
+  'sort.short.date-desc': '出發日期 遲→早',
+  'sort.short.destination': '目的地 筆劃少→多',
+  'sort.short.destination-desc': '目的地 筆劃多→少',
   'pager.prev': '上一頁',
   'pager.next': '下一頁',
   'pager.page': '第 {page} / {pages} 頁',

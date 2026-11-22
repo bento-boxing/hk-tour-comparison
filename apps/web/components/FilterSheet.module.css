@@ -1,0 +1,96 @@
+/*
+ * The phone filter sheet (the owner's drawing Mobile3Filters): the whole window, a fixed head (篩選 and ×), the
+ * sections scrolling between, and a fixed foot (清除全部 and 顯示結果). Opened only from the phone bar (under 640px),
+ * as a modal dialog: the browser's top layer, over everything, whatever the page's layers.
+ */
+.sheet {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0;
+  background: var(--page); color: var(--ink);
+}
+.sheet[open] { display: flex; flex-direction: column; }
+.sheet::backdrop { background: var(--page); }
+
+/* While it is open, the page behind does not scroll (the dialog is modal: the page is inert too). */
+:global(html):has(.sheet[open]) { overflow: hidden; }
+
+/*
+ * Without JavaScript: 篩選 is a link to #filter-sheet, and the sheet shows itself in the page under the bar as that
+ * link's target, its sections one after another (the browser scrolls it to just below the stuck bar).
+ */
+.sheet:target:not([data-js]) {
+  position: static; display: flex; flex-direction: column; height: auto; margin: 0 0 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-card);
+}
+.sheet:target:not([data-js]) .body { overflow: visible; }
+
+.form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+
+.head {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 52px; padding: 4px 4px 4px 16px; background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.title { margin: 0; font-size: 17px; font-weight: 900; }
+.close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border: 0; border-radius: var(--radius-control); background: none; color: var(--ink);
+  font: inherit; font-size: 26px; line-height: 1; text-decoration: none; cursor: pointer;
+}
+.close:hover { background: var(--hit); }
+
+.body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+.section { padding: 12px 16px 14px; border-bottom: 1px solid var(--line); }
+.sectionTitle { margin: 0 0 8px; font-size: 14px; font-weight: 900; }
+.hint { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips + .pair { margin-top: 10px; }
+
+/* A one-tap choice (a pill): ink-filled and bold while pressed. */
+.chip, .checkChip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--line-control); border-radius: 22px; background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 500; line-height: 1.25; text-align: left; cursor: pointer;
+}
+.chip:hover, .checkChip:hover { background: var(--hit); }
+.chip[aria-pressed='true'] { background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
+
+/* A tickable chip: the checkbox itself is unseen (still focusable and read out); the chip shows its state. */
+.checkChip { position: relative; padding: 0 12px; }
+.checkInput { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.checkChip:has(.checkInput:checked) { border-color: var(--ink); background: var(--chip); font-weight: 700; }
+.checkChip:has(.checkInput:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.tick { flex: none; }
+
+.group + .group { margin-top: 10px; }
+.groupLabel { margin-bottom: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+/* Two fields side by side, each its label over its input; they stack when there is no room for both. */
+.pair { display: flex; flex-wrap: wrap; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 8.5em; min-width: 0; font-size: 13px; color: var(--text-muted); }
+/* A date field shows a whole date ('12/27/2026', its picker icon) or takes the line to itself. */
+.dateField { flex-basis: 9.5rem; }
+.input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 0 10px;
+  border: 1px solid var(--line-control); border-radius: var(--radius-control); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 16px; /* 16px stops iOS zooming into the field on focus */
+}
+
+/* The two buttons share a line, or 顯示結果 takes the next one when the text is large. */
+.foot {
+  flex: none; display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line);
+}
+.clear, .apply {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 16px;
+  border-radius: 8px; font: inherit; font-size: 15px; font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer;
+}
+.clear { flex: none; border: 1px solid var(--line-control); background: var(--surface); color: var(--ink); }
+.clear:hover { background: var(--hit); }
+.apply { flex: 1 1 6em; border: 1px solid var(--selected-bg); background: var(--selected-bg); color: var(--on-selected); font-size: 16px; }
+
+.close:focus-visible, .chip:focus-visible, .input:focus-visible, .clear:focus-visible, .apply:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}

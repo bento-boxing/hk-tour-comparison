@@ -37,6 +37,11 @@ export interface FilterPopoverProps {
    * (mock-up Rows), and never filled. Its popover hangs from its right edge.
    */
   sort?: boolean;
+  /**
+   * What phones show in place of `label` (the sort control in the phone bar shows '價錢 低→高' or 'Cheapest first',
+   * not '排序：價錢 低→高'). `label` stays the accessible name, hidden from sight under 640px only.
+   */
+  shortLabel?: string;
   /** Controlled by the filter bar, which keeps at most one popover open. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,7 +55,7 @@ export interface FilterPopoverProps {
  * or pressing the pill again, closes it and returns focus to the pill; a press outside, or focus moving
  * to anything other than the popover and its pill (Tab), closes it and leaves focus where it went.
  */
-export function FilterPopover({ label, title, on, wide, sort, open, onOpenChange, children }: FilterPopoverProps) {
+export function FilterPopover({ label, title, on, wide, sort, shortLabel, open, onOpenChange, children }: FilterPopoverProps) {
   const pillRef = useRef<HTMLButtonElement>(null);
 
   const close = (reason: CloseReason) => {
@@ -77,7 +82,14 @@ export function FilterPopover({ label, title, on, wide, sort, open, onOpenChange
         onClick={() => (open ? close('done') : onOpenChange(true))}
       >
         {sort && <SortIcon />}
-        {label}
+        {shortLabel ? (
+          // One box, as the bare text was: the row lays it out exactly as before. Under 640px the label is hidden
+          // from sight and the short text shows instead, drawn by CSS from data-short (not part of the name).
+          <span className={styles.pillText}>
+            <span className={styles.pillFull}>{label}</span>
+            <span className={styles.pillShort} data-short={shortLabel} aria-hidden="true" />
+          </span>
+        ) : label}
       </button>
       {open && (
         <PopoverPanel title={title} wide={wide} openerRef={pillRef} onClose={close}>

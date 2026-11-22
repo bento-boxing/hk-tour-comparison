@@ -89,6 +89,24 @@ it('lists each operator and exclusion once', () => {
 
 it('uses the first value of a repeated parameter', () => {
   expect(parseSearchParams({ sort: ['days', 'date'] }, places).sort).toBe('days');
+  expect(parseSearchParams({ dmin: ['5', '9'] }, places).filters.daysMin).toBe(5);
+});
+
+it('reads every value of a repeated list (op, ex), as a form without JavaScript sends ticked boxes', () => {
+  const f = parseSearchParams({ op: ['jetour', 'egl', 'nope'], ex: ['korea', 'japan,korea'] }, places).filters;
+  expect(f.operators).toEqual(['egl', 'jetour']);
+  expect(f.excludeCountryIds).toEqual(['korea', 'japan']);
+  // Written back as one comma list: the canonical address is the same however the ids came.
+  const one = buildSearchQuery(parseSearchParams({ op: 'egl,jetour' }, places)).toString();
+  expect(buildSearchQuery(parseSearchParams({ op: ['jetour', 'egl'] }, places)).toString()).toBe(one);
+  expect(one).toBe('op=egl%2Cjetour');
+});
+
+it('a many-valued list is still bounded by the known ids, each once', () => {
+  const many = Array.from({ length: 5000 }, (_, i) => (i % 2 ? 'egl' : `junk${i}`));
+  const f = parseSearchParams({ op: many, ex: Array.from({ length: 5000 }, () => 'japan') }, places).filters;
+  expect(f.operators).toEqual(['egl']);
+  expect(f.excludeCountryIds).toEqual(['japan']);
 });
 
 it('includeDates false drops the date window', () => {

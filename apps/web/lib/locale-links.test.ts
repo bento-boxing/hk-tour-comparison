@@ -38,6 +38,18 @@ const EXTERNAL_HREFS: Record<string, string[]> = {
   'app/_site/operator-page.tsx': ['href={officialSite}'], // the operator's own home page (lib/operators.ts officialSiteUrl)
   // Not leaving at all: the jump links to the parts of the world on the same page (#china), so no language to carry.
   'app/_site/tours-page.tsx': ['href={`#${group.id}`}'],
+  // The phone filter bar and sheet without JavaScript: 篩選 and × jump within the page (#filter-sheet, #filter-bar);
+  // 清除全部 is the address the page's own hrefFor gives (FilterBarConnected: localeHref(t.locale, …)).
+  'components/FilterBar.tsx': ['href={`#${SHEET_ID}`}'],
+  'components/FilterSheet.tsx': ['href={`#${barId}`}', 'href={clearHref}'],
+};
+/**
+ * Navigation-like code that is not a navigation to an address of its own, by file, exactly as written: the filter
+ * sheet's history entry for the same address (pushState without an address, so Back closes the sheet), and its form's
+ * address without JavaScript (the path of that same clearHref).
+ */
+const SAME_PAGE: Record<string, string[]> = {
+  'components/FilterSheet.tsx': ['history.pushState(', 'action={target'],
 };
 /** Files whose localeHref calls are meant for every language: the switch, the 404 page and the sitemap/metadata. */
 const ANY_LANGUAGE = new Set(['components/LanguageSwitch.tsx', 'app/global-not-found.tsx', 'app/sitemap.ts', 'lib/site-metadata.ts']);
@@ -118,9 +130,15 @@ export function problems(path: string, text: string): string[] {
     /\blocation(\.href)?\s*=(?!=)/,
     /\blocation\.(assign|replace)\s*\(/,
   ].map(r => r.source).join('|'), 'g');
-  for (const m of src.matchAll(navigation)) found.push(`${path}: ${m[0]}`);
+  const samePage = SAME_PAGE[path] ?? [];
+  for (const m of src.matchAll(navigation)) {
+    // A same-address entry: pushState with its state and an empty title, and no address.
+    if (samePage.includes(m[0]) && /^history\.pushState\(\{[^;]*\}, ''\);/.test(src.slice(m.index))) continue;
+    found.push(`${path}: ${m[0]}`);
+  }
   for (const m of src.matchAll(/\b(action|formAction)\s*=\s*(\S+)/g)) {
     if (/^\{[A-Za-z_$][\w$]*\}/.test(m[2]) || m[2].startsWith('{localeHref(')) continue; // a server action, or a localised address
+    if (samePage.includes(`${m[1]}=${m[2]}`)) continue;
     found.push(`${path}: ${m[1]}=${m[2]}`);
   }
   // 3. the language a link is made in.

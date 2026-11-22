@@ -98,9 +98,10 @@ it('walks every folder: nested CSS modules, lib components, and the exceptions e
  * Custom properties a stylesheet may read without theme.css defining them: each is set where it is used. --c is the
  * operator colour (set inline by the row, the chain strip's legs and the operator checkboxes); --tip-shift by the
  * row's date tooltip; --mark-* by whoever colours the mark; --band-*, --search-*, --toggle-* by the gold band for
- * the controls on it (each read with a fallback); --col-* by the row for its own grid tracks.
+ * the controls on it (each read with a fallback); --col-* by the row for its own grid tracks; --notice-h (not a
+ * colour) by the filter bar, the language notice's height, which its phone bar sticks below (read with a fallback).
  */
-const LOCAL_PROPERTIES = /^--(c|tip-shift|mark-primary|mark-accent|band-focus|search-[a-z]+|toggle-[a-z]+|col-[a-z]+)$/;
+const LOCAL_PROPERTIES = /^--(c|tip-shift|mark-primary|mark-accent|band-focus|search-[a-z]+|toggle-[a-z]+|col-[a-z]+|notice-h)$/;
 
 it('every custom property a stylesheet reads is a theme token or set where it is used: no old colour name is left', () => {
   const tokens = new Set([...readFileSync(join(WEB, 'lib/theme.css'), 'utf8').matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));

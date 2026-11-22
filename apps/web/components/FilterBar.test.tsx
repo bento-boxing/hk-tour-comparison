@@ -46,7 +46,8 @@ it('shows each filter with its current value', () => {
 it('shows the pills in the brief order, destination first', () => {
   renderBar({ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'price', page: 1 });
   const names = screen.getAllByRole('button').map(b => b.getAttribute('aria-label') ?? b.textContent);
-  expect(names).toEqual(['清除目的地：日本 → 關西', '出發日期：全部', '可出行日期：全部', '日數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
+  // First the phones' 篩選 (not drawn from 640px: see the phone bar's tests).
+  expect(names).toEqual(['篩選', '清除目的地：日本 → 關西', '出發日期：全部', '可出行日期：全部', '日數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
   expect(pill('清除目的地：日本 → 關西')).toHaveTextContent('日本 → 關西 ✕');
 });
 

@@ -81,9 +81,70 @@
 .chip:focus-visible, .reset:focus-visible, .apply:focus-visible, .input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .check:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 
+/*
+ * Phones only: 篩選 (which opens the filter sheet, components/FilterSheet) and the number of tours. Not drawn from
+ * 640px, so the row there is exactly as before.
+ */
+.sheetButton, .countBox, .pillShort { display: none; }
+
 /* Phones: a popover spans the whole row instead of hanging off its box past the screen edge. Touch: 44px. */
 @media (max-width: 639px) {
-  .filters { position: relative; }
+  /*
+   * The row becomes one bar (the owner's drawing Mobile6Home): 篩選, the sort control, the count at the right. It
+   * sticks to the window's top while the list scrolls (below the fixed language notice where there is one: --notice-h,
+   * measured by FilterBar; until it is measured, there, the bar does not stick).
+   */
+  .filters {
+    position: sticky; top: var(--notice-h, 0px); z-index: 30;
+    flex-wrap: nowrap; gap: 8px; margin: 0 0 12px; padding: 8px 0;
+    background: var(--page); border-bottom: 1px solid var(--line);
+  }
+  :global(html:has([data-notice-spacer]):not([data-notice-measured])) .filters { position: relative; }
+  /* Whatever the browser scrolls into view (focus, a #fragment) stops below the stuck bar (and the notice). */
+  :global(html):not(:has([data-notice-spacer])):has(.filters) { scroll-padding-top: calc(61px + 0.5rem); }
+  :global(html[data-notice-measured]):has(.filters) { scroll-padding-top: calc(var(--notice-h, 0px) + 61px + 0.5rem); }
+
+  /* The row's boxes live in the sheet; the destination with the band. */
+  .filters > .f, .filters > .slot:not(.sortSlot) { display: none; }
+
+  .sheetButton {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+    border: 1px solid var(--selected-bg); border-radius: var(--radius-control); background: var(--selected-bg); color: var(--on-selected);
+    font: inherit; font-size: 14px; font-weight: 700; line-height: 1.25; text-decoration: none; white-space: nowrap; cursor: pointer;
+  }
+  .sheetButton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .sheetIcon { flex: none; }
+  /* How many filters are on: gold, as the drawing's. */
+  .badge {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--gold); color: var(--on-gold);
+    font-size: 11px; font-weight: 900; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The sort control shows the current order in short ('價錢 低→高', 'Cheapest first': sort.short.*), its full name
+   * kept for screen readers; cut with … only when even that does not fit (very large text).
+   */
+  .sortSlot { margin-left: 0; flex: 0 1 auto; min-width: 44px; }
+  .sort { max-width: 100%; border-width: 1px; border-color: var(--line-control); }
+  .pillText { min-width: 0; overflow: hidden; }
+  .pillFull {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .pillShort { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pillShort::before { content: attr(data-short); }
+  /*
+   * The count takes what room is left, right-aligned, and gives way first: when it does not fit, it wraps below a
+   * 1px item onto a second line that the box's one-line height hides (still read by screen readers; the list's foot
+   * prints the count too).
+   */
+  .countBox {
+    display: flex; flex: 1 1 0; min-width: 0; flex-wrap: wrap; justify-content: flex-end; align-content: flex-start;
+    height: 1.5em; overflow: hidden; font-size: 13px; line-height: 1.5;
+  }
+  .countBox::before { content: ''; flex: 0 0 1px; height: 100%; } /* a full line, so the second is out of sight */
+  .count { flex: none; color: var(--text-muted); white-space: nowrap; }
+
   .slot { position: static; }
   .popover, .wide, .sortSlot .popover { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
   .f { padding: 0 12px; }
@@ -91,4 +152,9 @@
   .chip, .reset, .apply { min-height: 44px; }
   .check { padding: 10px 6px; }
   .sortDir { padding: 0 6px; }
+}
+
+.visuallyHidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
 }

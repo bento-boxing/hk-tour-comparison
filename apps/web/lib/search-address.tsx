@@ -34,6 +34,11 @@ export function FixedSeasonProvider({ season, children }: { season: SeasonWindow
   return <FixedSeason.Provider value={season}>{children}</FixedSeason.Provider>;
 }
 
+/** The season window the page is fixed to (on a season's page), or null on every other search page. */
+export function useFixedSeason(): SeasonWindow | null {
+  return useContext(FixedSeason);
+}
+
 /** The address (without a language) of a search state on the page the controls are on. */
 export function useSearchHref(): (state: SearchState) => string {
   const operator = useFixedOperator();

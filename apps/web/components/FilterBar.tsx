@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { OPERATOR_IDS, groupCountries, todayInHongKong, type IsoDate, type OperatorId, type PlacesIndex } from '@hktours/core';
-import type { OperatorInfo, SortKey, TourFilters } from '@hktours/db/read';
+import type { DateWindow, OperatorInfo, SortKey, TourFilters } from '@hktours/db/read';
 import type { DictKey, T } from '../lib/i18n';
 import { operatorTagStyle } from '../lib/contrast';
 import { formatChipDate, formatCount, formatPrice } from '../lib/format';
@@ -10,8 +10,11 @@ import {
   buildSearchQuery, parseSearchParams, withFilters, DAYS_RANGE, DEFAULT_SORT, PRICE_RANGE, type SearchState,
 } from '../lib/search-params';
 import { operatorName, placeName } from '../lib/place-names';
+import { DAY_PRESETS, activeFilterCount, clearedState, type SheetSections } from '../lib/filter-sheet';
+import type { SeasonWindow } from '../lib/seasons';
 import { destinationLabel } from './DestinationSearch';
 import { FilterPopover } from './FilterPopover';
+import { FilterSheet, SHEET_ID, useFilterSheet } from './FilterSheet';
 import styles from './FilterBar.module.css';
 
 export interface FilterBarProps {
@@ -25,11 +28,22 @@ export interface FilterBarProps {
   show?: { dates?: boolean; exclude?: boolean; operators?: boolean };
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
+  // Phones only (under 640px), for the bar and its filter sheet; a page that does not know one leaves it out.
+  /** The number of tours the page found, shown at the bar's right end. */
+  total?: number;
+  /** The seasons the sheet offers as one-tap departure windows (lib/filter-sheet.ts sheetSeasons). */
+  seasons?: SeasonWindow[];
+  /** A season page's days, fixed by its path: not counted on the badge, and kept by 清除全部. */
+  fixedDates?: DateWindow | null;
+  /**
+   * The address (with the page's language) of a state on this page, as onChange goes to it: given, the sheet works
+   * without JavaScript too (a GET form to the address 清除全部 leaves).
+   */
+  hrefFor?: (state: SearchState) => string;
 }
 
 type PillId = 'dates' | 'travel' | 'days' | 'price' | 'operators' | 'exclude' | 'sort';
 
-const DAY_PRESETS: { min: number; max?: number }[] = [{ min: 1, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 9 }, { min: 10 }];
 
 /** The sort popover's rows: each order with its two directions, so eight choices fit a phone as four short rows. */
 const SORT_ROWS = [
@@ -38,6 +52,11 @@ const SORT_ROWS = [
   { by: 'date', keys: ['date', 'date-desc'] },
   { by: 'destination', keys: ['destination', 'destination-desc'] },
 ] as const satisfies readonly { by: string; keys: readonly [SortKey, SortKey] }[];
+
+/** The bar's id: where the sheet's × goes without JavaScript. One filter bar per page. */
+const BAR_ID = 'filter-bar';
+
+const noSubscription = () => () => {};
 
 /** Countries never offered for exclusion, as in the destination panels. */
 const HIDDEN_COUNTRY_IDS = ['hongkong'];
@@ -73,14 +92,30 @@ function priceText(f: TourFilters, t: T): string | null {
  * The filter row (mock-up Rows): outlined boxes in this order: destination (only when set, with ✕ to clear),
  * departure dates, travel dates, length, price, operators (unless turned off), exclusions (only when asked); a box whose filter is set
  * is filled. Then, at the right end of the row, the sort control, set apart by its heavier outline.
+ *
+ * Under 640px the row is one bar instead (the owner's drawing Mobile6Home), stuck to the top of the window while the
+ * list scrolls: 篩選 (with a badge counting the filters that are on: lib/filter-sheet.ts activeFilterCount), the same
+ * sort control showing the current order, and the number of tours. 篩選 opens the filter sheet (FilterSheet), which
+ * holds every box of the row; the destination stays with the band. Both are drawn at every width and shown by CSS.
  */
-export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong() }: FilterBarProps) {
+export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong(), total, seasons = [], fixedDates = null, hrefFor }: FilterBarProps) {
   const showDates = show?.dates ?? true;
   const showExclude = show?.exclude ?? false;
   const showOperators = show?.operators ?? true;
+  const sections: SheetSections = { dates: showDates, operators: showOperators, exclude: showExclude };
   const f = state.filters;
   const barRef = useRef<HTMLDivElement>(null);
+  const sheetOpenerRef = useRef<HTMLElement>(null);
   const groupIdPrefix = useId();
+  const sheet = useFilterSheet(onChange, sheetOpenerRef);
+  // Until the browser runs the page, 篩選 is a link to the sheet (shown by CSS as its target) and its one-tap
+  // choices are left out; then it is a button opening the sheet as a modal dialog.
+  // (false in the server's HTML and while it hydrates; a bar first mounted in the browser, on another page, starts as
+  // the button, never as a link swapped out from under the focus.)
+  const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
+  useStickBelowNotice();
+  const clearHref = hrefFor?.(clearedState(state, sections, fixedDates));
+  const onCount = activeFilterCount(state, sections, fixedDates);
 
   // At most one popover is open: opening a pill closes any other.
   const [openPill, setOpenPill] = useState<PillId | null>(null);
@@ -100,7 +135,8 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
 
   const clearDestination = () => {
     // The pill disappears once the new address renders, so move focus to the next pill now.
-    barRef.current?.querySelector<HTMLElement>('[aria-haspopup]')?.focus({ preventScroll: true });
+    // (Not the phones' 篩選, unseen on a wide screen; under 640px there is no destination pill.)
+    barRef.current?.querySelector<HTMLElement>(`[aria-haspopup]:not(.${styles.sheetButton})`)?.focus({ preventScroll: true });
     update({ destination: undefined });
   };
 
@@ -129,8 +165,35 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
   const travel = datesText(f.travelFrom, f.travelTo, today, t);
   const separator = t('dest.listSeparator');
 
+  const sheetButtonContent = (
+    <>
+      <FilterIcon />
+      {t('filter.sheet')}
+      {onCount > 0 && (
+        <>
+          <span className={styles.badge} aria-hidden="true">{onCount}</span>
+          <span className={styles.visuallyHidden}>{t('filter.onCount', { n: onCount })}</span>
+        </>
+      )}
+    </>
+  );
+
   return (
-    <div ref={barRef} className={styles.filters}>
+    <>
+    <div ref={barRef} id={BAR_ID} className={styles.filters} data-filter-bar="">
+      {/* Phones only: 篩選. A link to the sheet without JavaScript, where the page can say its addresses. */}
+      {!hydrated && clearHref !== undefined ? (
+        <a ref={el => { sheetOpenerRef.current = el; }} href={`#${SHEET_ID}`} className={styles.sheetButton}>{sheetButtonContent}</a>
+      ) : (
+        <button
+          ref={el => { sheetOpenerRef.current = el; }}
+          type="button" className={styles.sheetButton} aria-haspopup="dialog" aria-expanded={sheet.open}
+          onClick={sheet.openSheet}
+        >
+          {sheetButtonContent}
+        </button>
+      )}
+
       {f.destination && (
         <button
           type="button"
@@ -267,6 +330,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
         title={t('filter.sort')}
         on={state.sort !== DEFAULT_SORT}
         sort
+        shortLabel={t(`sort.short.${state.sort}`)}
         // Wide enough for a row name and two directions side by side ('Departure date  Soonest first  Latest first').
         wide
       >
@@ -293,8 +357,52 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
           </ul>
         )}
       </FilterPopover>
+
+      {/* Phones only: the number of tours found, at the bar's right end. */}
+      {/* It gives way to the sort control: on a line of its own, out of sight, when both do not fit (CSS). */}
+      {total !== undefined && (
+        <span className={styles.countBox}><span className={styles.count}>{t('filter.count', { n: formatCount(total) })}</span></span>
+      )}
     </div>
+    <FilterSheet
+      control={sheet} state={state} operators={operators} places={places} t={t} today={today}
+      sections={sections} seasons={seasons} fixedDates={fixedDates} clearHref={clearHref} hydrated={hydrated} barId={BAR_ID}
+    />
+    </>
   );
+}
+
+/** Three lines, shorter each time (a funnel), in the button's text colour. */
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" className={styles.sheetIcon}>
+      <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * The fixed language notice (components/LanguageNotice, every language but Traditional Chinese) covers the window's
+ * top, so on phones the bar sticks just below it: its height (read from its unseen copy in the page, again whenever
+ * it changes) goes on the page's root as --notice-h, with data-notice-measured. Until then (and without JavaScript)
+ * the bar does not stick on those pages; Traditional Chinese has no notice, and its bar sticks at the very top.
+ */
+function useStickBelowNotice() {
+  useEffect(() => {
+    const spacer = document.querySelector<HTMLElement>('[data-notice-spacer]');
+    if (!spacer) return;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty('--notice-h', `${spacer.offsetHeight}px`);
+    measure();
+    root.setAttribute('data-notice-measured', '');
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(spacer);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty('--notice-h');
+      root.removeAttribute('data-notice-measured');
+    };
+  }, []);
 }
 
 interface RangeFormProps {
