@@ -7,11 +7,13 @@ import { pageMetadata } from '../../lib/site-metadata';
 import { placeName } from '../../lib/place-names';
 import { TOURS_PATH, destinationDirectory, destinationPath } from '../../lib/destinations';
 import { OPERATORS_PATH } from '../../lib/operators';
+import { seasonPath } from '../../lib/seasons';
 import { phoneCell, phoneFitCss, type PhoneCell } from '../../lib/directory-cells';
 import { formatCount } from '../../lib/format';
 import { breadcrumbJsonLd } from '../../lib/structured-data';
 import { JsonLd } from '../../components/JsonLd';
-import { loadStoredCounts } from './page-data';
+import { loadStoredCounts, loadStoredSeasons } from './page-data';
+import { seasonHeading } from './season-page';
 import frame from './site-frame.module.css';
 import styles from './tours-page.module.css';
 
@@ -39,13 +41,17 @@ export async function toursPageMetadata(locale: Locale): Promise<Metadata> {
  *   takes the whole row (.long), except where its column is wide enough for it: container queries for each such cell,
  *   in a <style> after the sections (lib/directory-cells.ts phoneCell and phoneFitCss).
  * - A jump moves the keyboard's focus to the section (tabindex -1), so the next Tab goes on from there.
+ * - After the last part of the world, under the same rule, a quiet row of links to the season pages whose current
+ *   days have tours now (lib/seasons.ts), each with its count; none when no season has tours. From the stored copy's
+ *   own read of the seasons (loadStoredSeasons), so a season rolls forward to next year within the hour.
  * A stored copy (the route files' `revalidate`): when the counts cannot be read it throws, and is not made. Nothing
  * here may read the request (no searchParams, cookies or headers), or the page would be made per request.
  */
 export async function ToursPage({ locale }: { locale: Locale }) {
   const t = makeT(locale);
-  const load = await loadStoredCounts();
+  const [load, seasonsLoad] = await Promise.all([loadStoredCounts(), loadStoredSeasons()]);
   const { all } = load.data;
+  const seasons = seasonsLoad.data.filter(s => s.count.tours > 0);
   const groups = destinationDirectory(places, load.data);
   /** The marks of the cells that can take the whole row on phones, for their container queries. */
   const marks = new Set<string>();
@@ -109,6 +115,19 @@ export async function ToursPage({ locale }: { locale: Locale }) {
         ))}
       </nav>
       {sections}
+      {seasons.length > 0 && (
+        <section className={styles.group} aria-labelledby="group-seasons">
+          <h2 id="group-seasons" className={styles.groupHeading}>{t('tours.seasons')}</h2>
+          <ul className={styles.seasons}>
+            {seasons.map(({ window, count }) => (
+              <li key={window.season} className={styles.season}>
+                <SiteLink className={styles.regionLink} href={localeHref(t.locale, seasonPath(window.season))}>{seasonHeading(t, window)}</SiteLink>
+                {' '}<span className={styles.regionCount}>{t('dest.tours', { n: formatCount(count.tours) })}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {/* Its rules (.long with a mark) outweigh .long, wherever a column is wide enough; nothing in them is escaped. */}
       {marks.size > 0 && <style>{phoneFitCss(marks, styles.long)}</style>}
       <JsonLd data={breadcrumbJsonLd(t, [{ name: t('tours.title'), path: TOURS_PATH }])} />

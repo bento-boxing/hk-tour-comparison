@@ -46,3 +46,26 @@ it('/robots.txt reads exactly so: the Allow lines, then the Disallow, and no All
     'Sitemap: https://example.invalid/sitemap.xml\n',
   );
 });
+
+/**
+ * Whether a longest-match reader (Google, Bing: `*` any run of characters, the longest matching rule wins, Allow on a
+ * tie) may fetch `path` under these rules.
+ */
+function allowed(path: string): boolean {
+  const { rules } = robots();
+  const rule = Array.isArray(rules) ? rules[0] : rules;
+  const match = (pattern: string) => new RegExp(`^${pattern.split('*').map(p => p.replace(/[.?+^${}()|[\]\\]/g, '\\$&')).join('.*')}`).test(path);
+  const longest = (patterns: string | string[] | undefined) => Math.max(-1, ...[patterns ?? []].flat().filter(match).map(p => p.length));
+  return longest(rule.allow) >= longest(rule.disallow);
+}
+
+it('a season\'s page is read as a destination\'s: the bare address allowed, any address with a query string not', () => {
+  for (const prefix of ['', '/zh-hans', '/en']) {
+    for (const path of ['/tours/japan', '/seasons/christmas', '/seasons/lunar-new-year', '/seasons/easter']) {
+      expect(allowed(`${prefix}${path}`), `${prefix}${path}`).toBe(true);
+      expect(allowed(`${prefix}${path}?dmin=5`), `${prefix}${path}?dmin=5`).toBe(false);
+    }
+  }
+  expect(allowed('/q?dmin=5')).toBe(false);
+  expect(allowed('/icon.svg?icon.0a1b2c.svg')).toBe(true);
+});

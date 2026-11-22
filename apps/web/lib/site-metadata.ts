@@ -24,8 +24,8 @@ export function siteMetadata(t: T): Metadata {
   };
 }
 
-/** A page's path without a language: the fixed pages, each destination's ('/tours/japan') and each operator's ('/operators/egl'). */
-export type SitePath = '/' | '/chain' | '/tours' | '/about' | '/saved' | '/operators' | `/tours/${string}` | `/operators/${string}`;
+/** A page's path without a language: the fixed pages, each destination's ('/tours/japan'), each operator's ('/operators/egl') and each season's ('/seasons/easter'). */
+export type SitePath = '/' | '/chain' | '/tours' | '/about' | '/saved' | '/operators' | `/tours/${string}` | `/operators/${string}` | `/seasons/${string}`;
 
 export interface PageMetadataOptions {
   /** The page's own title, before the site name; none for the home page, which is titled with the site name. */

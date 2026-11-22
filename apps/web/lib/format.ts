@@ -69,7 +69,19 @@ export function formatHkDay(iso: string, t: T): string | null {
   return t('date.monthDay', { monthName: monthName(part('month'), t), day: part('day') });
 }
 
-const CHINESE_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+/**
+ * Two calendar days without their year, as a range: '12月19日至27日' within one month, '3月28日至4月3日' across two
+ * (en: '19 to 27 Dec', '28 Mar to 3 Apr'). The days as date.monthDay writes them.
+ */
+export function formatDayRange(from: IsoDate, to: IsoDate, t: T): string {
+  const a = dateParts(from);
+  const b = dateParts(to);
+  if (a.year === b.year && a.month === b.month) return t('date.rangeSameMonth', { monthName: monthName(a.month, t), from: a.day, to: b.day });
+  const day = (d: { month: number; day: number }) => t('date.monthDay', { monthName: monthName(d.month, t), day: d.day });
+  return t('date.range', { from: day(a), to: day(b) });
+}
+
+const CHINESE_DIGITS =['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
 const ENGLISH_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
 
 /**

@@ -58,7 +58,7 @@ it('an empty address lists every tour by price, with the operators', async () =>
   expect(data.operators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower', 'taste']);
   expect(data.filterOperators.map(o => o.id)).toEqual(['egl', 'jetour', 'texpert', 'bigline']); // the four that have run here
   // The heading's line: every listed tour, whatever the filters.
-  expect(data.counts.all).toEqual({ tours: 4, operators: 4 });
+  expect(data.counts.all).toEqual({ tours: 4, operators: 4, range: { minDays: 4, maxDays: 6, minPriceHkd: 5699 } });
 });
 
 it('the rows carry no tour name: no row shows it, so it is never sent to the browser', async () => {

@@ -7,6 +7,8 @@ import { shareImage } from '../../lib/share-images';
 import type { SearchPageData } from '../../lib/search-page-data';
 import { parseSearchParams } from '../../lib/search-params';
 import { places } from '@hktours/core';
+import { destinationName } from '../../lib/destinations';
+import { fullWidth, sentences } from '../../lib/text-width.test-utils';
 
 const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
@@ -21,7 +23,7 @@ vi.mock('next/navigation', async importOriginal => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { DestinationPage, destinationPageMetadata } = await import('./destination-page');
+const { DestinationPage, destinationDescription, destinationPageMetadata } = await import('./destination-page');
 
 const fakeDb = {} as Db;
 beforeAll(() => { vi.setSystemTime(new Date('2026-11-12T04:00:00Z')); });
@@ -35,7 +37,10 @@ const tour: TourCardData = {
   departures: [{ date: '2026-12-18', priceHkd: 7999 }], priceChange: null, lastUpdated: '2026-11-11T19:10:00Z',
 };
 
-/** Invented counts: Japan with two regions, an area with a tour, France with its only region, Korea. */
+/**
+ * Invented counts: Japan with two regions, an area with a tour, France with its only region, Korea. Japan's lines carry
+ * their lengths and lowest price, as the database gives them; the others do not, as counts from before.
+ */
 const counts: DestinationCounts = {
   all: { tours: 50, operators: 4 },
   destinations: [
@@ -44,8 +49,8 @@ const counts: DestinationCounts = {
     { countryId: 'china', regionId: 'china-beijing', tours: 1, operators: 1 },
     { countryId: 'france', regionId: null, tours: 3, operators: 1 },
     { countryId: 'france', regionId: 'france-france', tours: 3, operators: 1 },
-    { countryId: 'japan', regionId: null, tours: 32, operators: 3 },
-    { countryId: 'japan', regionId: 'japan-kansai', tours: 30, operators: 2 },
+    { countryId: 'japan', regionId: null, tours: 32, operators: 3, range: { minDays: 4, maxDays: 11, minPriceHkd: 3999 } },
+    { countryId: 'japan', regionId: 'japan-kansai', tours: 30, operators: 2, range: { minDays: 5, maxDays: 5, minPriceHkd: 4599 } },
     { countryId: 'japan', regionId: 'japan-kanto', tours: 1, operators: 1 },
   ],
 };
@@ -154,11 +159,13 @@ const metadata = (locale: Locale, id: string, query: Record<string, string> = {}
   destinationPageMetadata(locale, Promise.resolve({ id }), Promise.resolve(query));
 
 it.each([
-  ['zh-Hant', 'japan', '日本旅行團比較', '比較香港多間旅行社的日本旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。', 'https://example.invalid/tours/japan', 'zh_HK'],
-  ['zh-Hans', 'japan', '日本旅行团比较', '比较香港多家旅行社的日本旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://example.invalid/zh-hans/tours/japan', 'zh_CN'],
-  ['en', 'japan', 'Group tours to Japan compared', "Compare group tours to Japan from several Hong Kong tour operators. Filter by departure date, length and price, then book on the operator's own website.", 'https://example.invalid/en/tours/japan', 'en_GB'],
-  ['zh-Hans', 'china-beijing', '中国北京旅行团比较', '比较香港多家旅行社的中国北京旅行团，可按出发日期、天数和价格筛选，再前往旅行社自己的网站报名。', 'https://example.invalid/zh-hans/tours/china-beijing', 'zh_CN'],
-] as const)('in %s, %s: titled and described with the place, canonical without the query string, the three languages and x-default, indexable', async (locale, id, title, description, canonical, ogLocale) => {
+  ['zh-Hant', 'japan', '日本旅行團比較', '比較香港 3 間旅行社的 32 個日本旅行團，行程 4 至 11 日，團費由 HK$3,999 起。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。', 'https://example.invalid/tours/japan', 'zh_HK'],
+  ['zh-Hans', 'japan', '日本旅行团比较', '比较香港 3 家旅行社的 32 个日本旅行团，行程 4 至 11 天，团费 HK$3,999 起。可按出发日期、天数和价格筛选，报名请前往旅行社自己的网站。', 'https://example.invalid/zh-hans/tours/japan', 'zh_CN'],
+  ['en', 'japan', 'Group tours to Japan compared', "Compare 32 group tours to Japan from 3 Hong Kong operators: 4 to 11 days, from HK$3,999. Book on the operator's own website.", 'https://example.invalid/en/tours/japan', 'en_GB'],
+  ['zh-Hant', 'japan-kansai', '日本關西旅行團比較', '比較香港 2 間旅行社的 30 個日本關西旅行團，行程 5 日，團費由 HK$4,599 起。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。', 'https://example.invalid/tours/japan-kansai', 'zh_HK'],
+  // Counts without lengths and price (made before they were read): the counts alone.
+  ['zh-Hans', 'china-beijing', '中国北京旅行团比较', '比较香港 1 家旅行社的 1 个中国北京旅行团。可按出发日期、天数和价格筛选，报名请前往旅行社自己的网站。', 'https://example.invalid/zh-hans/tours/china-beijing', 'zh_CN'],
+] as const)('in %s, %s: titled with the place and described with its facts before any filter, canonical without the query string, the three languages and x-default, indexable', async (locale, id, title, description, canonical, ogLocale) => {
   expect(await metadata(locale, id, { dmin: '5', sort: 'days' })).toEqual({
     title, description,
     alternates: {
@@ -171,6 +178,52 @@ it.each([
     openGraph: { title: `${title} | 跟邊團`, description, siteName: '跟邊團', locale: ogLocale, type: 'website', images: [shareImage(makeT(locale))] },
     twitter: { card: 'summary_large_image' },
   });
+});
+
+it('the description is the destination\'s own, whatever the address\'s filters (the canonical page has none)', async () => {
+  const bare = (await metadata('zh-Hant', 'japan')).description;
+  // A filter that finds nothing: the page's own list is empty, its description is not.
+  mocks.loadSearchPage.mockImplementation(async (_db, raw) => ({ ...dataFor(raw), tours: [], total: 0 }));
+  expect((await metadata('zh-Hant', 'japan', { dmin: '30', op: 'egl', pmax: '100' })).description).toBe(bare);
+  expect(bare).toContain('32 個日本旅行團');
+});
+
+it('with no tours now, or the tours unreadable, the plain description without numbers', async () => {
+  expect((await metadata('zh-Hant', 'japan-okinawa')).description).toBe('比較香港多間旅行社的日本沖繩旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。');
+  mocks.loadSearchPage.mockRejectedValue(new Error('connection refused'));
+  expect((await metadata('en', 'japan')).description)
+    .toBe("Compare group tours to Japan from several Hong Kong tour operators. Filter by departure date, length and price, then book on the operator's own website.");
+});
+
+it('English counts in the singular for one, and every count and price with thousands commas', () => {
+  const en = makeT('en');
+  expect(destinationDescription(en, 'Japan', { tours: 1, operators: 1, range: { minDays: 1, maxDays: 1, minPriceHkd: 100 } }))
+    .toBe("Compare 1 group tour to Japan from 1 Hong Kong operator: 1 day, from HK$100. Book on the operator's own website.");
+  expect(destinationDescription(en, 'Japan', { tours: 12345, operators: 12, range: { minDays: 2, maxDays: 2, minPriceHkd: 123456 } }))
+    .toBe("Compare 12,345 group tours to Japan from 12 Hong Kong operators: 2 days, from HK$123,456. Book on the operator's own website.");
+  expect(destinationDescription(makeT('zh-Hant'), '日本', { tours: 12345, operators: 12, range: { minDays: 3, maxDays: 30, minPriceHkd: 123456 } }))
+    .toBe('比較香港 12 間旅行社的 12,345 個日本旅行團，行程 3 至 30 日，團費由 HK$123,456 起。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。');
+});
+
+it.each(['zh-Hant', 'zh-Hans', 'en'] as const)('in %s every destination\'s description, at the largest plausible numbers and with the longest name, is one or two sentences within 80 full-width characters (as the home page\'s)', locale => {
+  const t = makeT(locale);
+  const names = [
+    ...places.data.countries.map(c => ({ countryId: c.id, regionId: null })),
+    ...places.data.regions.map(r => ({ countryId: r.countryId, regionId: r.id })),
+  ].map(d => destinationName(d, places, t));
+  const longest = names.reduce((a, b) => (fullWidth(b) > fullWidth(a) ? b : a));
+  for (const place of [longest, ...names]) {
+    for (const count of [
+      { tours: 99999, operators: 99, range: { minDays: 1, maxDays: 60, minPriceHkd: 999999 } },
+      { tours: 99999, operators: 99 },
+      { tours: 1, operators: 1, range: { minDays: 1, maxDays: 1, minPriceHkd: 100 } },
+    ]) {
+      const description = destinationDescription(t, place, count);
+      expect(fullWidth(description), description).toBeLessThanOrEqual(80);
+      expect(sentences(description).length, description).toBeLessThanOrEqual(2);
+      expect(description).toContain(place);
+    }
+  }
 });
 
 it('every destination has its own title', async () => {

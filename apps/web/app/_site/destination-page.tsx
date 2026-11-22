@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { places, type Destination } from '@hktours/core';
-import { makeT, type Locale } from '../../lib/i18n';
+import type { ListedCount } from '@hktours/db/read';
+import { makeT, type Locale, type T } from '../../lib/i18n';
 import { pageMetadata } from '../../lib/site-metadata';
-import { TOURS_PATH, destinationFromId, destinationName, destinationPath, isListed } from '../../lib/destinations';
+import { TOURS_PATH, countOf, destinationFromId, destinationName, destinationPath, isListed } from '../../lib/destinations';
+import { formatCount, formatPrice } from '../../lib/format';
 import { breadcrumbJsonLd } from '../../lib/structured-data';
 import { JsonLd } from '../../components/JsonLd';
 import { loadSearch, queryOf, type SearchParams } from './page-data';
@@ -19,9 +21,26 @@ async function destinationOf(params: Params): Promise<Destination> {
 }
 
 /**
- * Titled and described with the destination's name in the page's language ('日本旅行團比較'); canonical: this
- * language's address of the destination without the query string; the page in the other languages as alternates.
- * Marked noindex when the destination has no page of its own for search engines (no tours now, an area region, the
+ * A destination's description, with its own facts before any filter (`count`: the canonical page's, from the counts
+ * the page reads anyway): how many tours from how many operators, their shortest and longest length and their lowest
+ * price; without the lengths and price when the counts do not carry them; the plain sentence when there are no tours
+ * (or the tours could not be read: count null).
+ */
+export function destinationDescription(t: T, place: string, count: ListedCount | null): string {
+  if (count === null || count.tours === 0) return t('dest.description', { place });
+  const vars = { place, tours: formatCount(count.tours), operators: formatCount(count.operators) };
+  const { range } = count;
+  if (range === undefined) return t('dest.descriptionCounts', vars);
+  const days = range.minDays === range.maxDays
+    ? t('dest.daysOne', { days: range.minDays })
+    : t('dest.daysRange', { min: range.minDays, max: range.maxDays });
+  return t('dest.descriptionFacts', { ...vars, days, price: formatPrice(range.minPriceHkd) });
+}
+
+/**
+ * Titled with the destination's name in the page's language ('日本旅行團比較') and described with its facts
+ * (destinationDescription); canonical: this language's address of the destination without the query string; the
+ * page in the other languages as alternates. Marked noindex when the destination has no page of its own for search engines (no tours now, an area region, the
  * only region of its country: lib/destinations.ts isListed) or when its tours could not be read.
  */
 export async function destinationPageMetadata(locale: Locale, params: Params, searchParams: Promise<SearchParams>): Promise<Metadata> {
@@ -31,7 +50,8 @@ export async function destinationPageMetadata(locale: Locale, params: Params, se
   const load = await loadSearch(locale, (await params).id, queryOf(await searchParams));
   return pageMetadata(t, destinationPath(destination), {
     title: t('dest.title', { place }),
-    description: t('dest.description', { place }),
+    // The facts of the destination before any filter, whatever the address's filters: the canonical page's.
+    description: destinationDescription(t, place, load.ok ? countOf(destination, load.data.counts) : null),
     noindex: !load.ok || !isListed(destination, places, load.data.counts),
   });
 }

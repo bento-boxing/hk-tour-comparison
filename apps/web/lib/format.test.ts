@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect } from 'vitest';
 import { departureDateText } from './card-text';
-import { chipDay, formatCount, formatPrice, formatChipDate, formatHkDay, formatLength, headlineCount } from './format';
+import { chipDay, formatCount, formatDayRange, formatPrice, formatChipDate, formatHkDay, formatLength, headlineCount } from './format';
 import { makeT } from './i18n';
 
 const tZh = makeT('zh-Hant');
@@ -74,4 +74,12 @@ it('formatLength in each language, HKD prices throughout', () => {
   expect(formatLength(1, null, makeT('en'))).toBe('1 day');
   expect(formatLength(2, 1, makeT('en'))).toBe('2 days, 1 night');
   expect(formatPrice(7999)).toBe('HK$7,999');
+});
+
+it('formatDayRange: two days without their year, the month once within one month', () => {
+  expect(formatDayRange('2026-12-19', '2026-12-27', makeT('zh-Hant'))).toBe('12月19日至27日');
+  expect(formatDayRange('2029-03-28', '2029-04-03', makeT('zh-Hant'))).toBe('3月28日至4月3日');
+  expect(formatDayRange('2027-02-03', '2027-02-10', makeT('zh-Hans'))).toBe('2月3日至10日');
+  expect(formatDayRange('2026-12-19', '2026-12-27', makeT('en'))).toBe('19 to 27 Dec');
+  expect(formatDayRange('2029-03-28', '2029-04-03', makeT('en'))).toBe('28 Mar to 3 Apr');
 });

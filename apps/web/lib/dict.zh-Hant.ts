@@ -36,6 +36,13 @@ const zh = {
   'dest.heading': '{place}旅行團', // the page's <h1>
   'dest.title': '{place}旅行團比較', // the page's <title>, before ' | 跟邊團'
   'dest.description': '比較香港多間旅行社的{place}旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。',
+  // Task 67: the description with the destination's own facts before any filter (the canonical page's): {tours} listed
+  // now, from {operators} operators, {days} their lengths (dest.daysRange or dest.daysOne), {price} the lowest
+  // (HK$3,999). dest.descriptionCounts when the lengths and price are not known; dest.description with no tours.
+  'dest.descriptionFacts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團，行程 {days}，團費由 {price} 起。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。',
+  'dest.descriptionCounts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。',
+  'dest.daysRange': '{min} 至 {max} 日',
+  'dest.daysOne': '{days} 日',
   'dest.count': '現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // under the <h1>, before any filter
   'dest.countNone': '現時沒有列出旅行團。',
   'dest.regions': '地區：', // before the links to a country's regions
@@ -57,6 +64,22 @@ const zh = {
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',
   'tours.byOperator': '按旅行社瀏覽', // after the index's line of counts: the operators index
   'tours.jumpTo': '跳到', // the accessible name of the row of links to each part of the world on the page
+  // Task 67: a season's page (/seasons/<id>): the search with the departure window fixed to the season's days in its
+  // current year ({year}: the December's for Christmas). {season} is season.<id> in the heading and title, and
+  // season.<id>.description in the descriptions; {dates} is date.rangeSameMonth or date.range.
+  'season.christmas': '聖誕',
+  'season.lunar-new-year': '農曆新年',
+  'season.easter': '復活節',
+  'season.christmas.description': '聖誕',
+  'season.lunar-new-year.description': '農曆新年',
+  'season.easter.description': '復活節',
+  'season.heading': '{year} {season}旅行團', // the page's <h1>: '2026 聖誕旅行團'
+  'season.title': '{season}旅行團 {year} 比較', // its <title>, before ' | 跟邊團'
+  'season.count': '{dates}出發。現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // beside the <h1>, before any other filter
+  'season.countNone': '{dates}出發。現時沒有列出旅行團。',
+  'season.description': '{year}年{season}旅行團：{dates}出發，比較香港 {operators} 間旅行社的 {tours} 個旅行團，團費由 {price} 起。報名請到旅行社自己的網站。',
+  'season.descriptionNone': '{year}年{season}旅行團：{dates}出發，比較香港多間旅行社的旅行團。報名請到旅行社自己的網站。',
+  'tours.seasons': '節日旅行團', // the destinations index's row of links to the season pages with tours now
   // An operator's page (/operators/<id>). {operator} is its name as the rows show it (lib/place-names.ts operatorName).
   'operator.title': '{operator}旅行團一覽｜{site}', // the whole <title> (the owner's form, full-width bar); {site} is site.name
   // The description (search results show it under the title): first what the site is, then the data. {places}: the
@@ -167,6 +190,8 @@ const zh = {
   'date.weekday.6': '六',
   'date.chipWeekday': '({weekday})', // a weekday on a date chip: '12/28 (一)' (a bare 一 or 二 reads as a dash)
   'date.monthDay': '{monthName}{day}日', // a day without its year: '11月19日'
+  'date.rangeSameMonth': '{monthName}{from}日至{to}日', // two days of one month: '12月19日至27日'
+  'date.range': '{from}至{to}', // two date.monthDay texts: '3月28日至4月3日'
   'date.month.1': '1月',
   'date.month.2': '2月',
   'date.month.3': '3月',

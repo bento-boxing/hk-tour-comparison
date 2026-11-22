@@ -79,6 +79,13 @@
 .count, .regionCount { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /*
+ * The row of season pages after the last part of the world: under the same rule and small heading, the links at the
+ * regions' size and weight, each with its muted count, side by side and wrapping as whole items.
+ */
+.seasons { display: flex; flex-wrap: wrap; column-gap: 28px; margin: 0; padding: 0; list-style: none; font-size: 15px; }
+.season { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; column-gap: 6px; min-height: 34px; }
+
+/*
  * Wide screens: the part of the world's name in a column at the left (wider with larger text, so its longest word
  * still fits), and each country's name in a column of its own before its regions, on the baseline of their first row.
  */
@@ -113,6 +120,8 @@
   .country { padding: 2px 0 6px; }
   .countryLine, .region, .plainCountry, .top > .browseLine { min-height: 44px; }
   .regions { font-size: 14px; }
+  .seasons { font-size: 14px; }
+  .season { min-height: 44px; }
   .region { column-gap: 5px; }
   .plain { padding: 0; }
   .regions, .plain { container-type: inline-size; }

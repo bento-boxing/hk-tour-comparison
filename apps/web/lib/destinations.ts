@@ -50,14 +50,18 @@ function linesOf(counts: DestinationCounts): Map<string, Map<string | null, List
   for (const line of counts.destinations) {
     const byRegion = byCountry.get(line.countryId) ?? new Map<string | null, ListedCount>();
     byCountry.set(line.countryId, byRegion);
-    if (!byRegion.has(line.regionId)) byRegion.set(line.regionId, { tours: line.tours, operators: line.operators });
+    if (!byRegion.has(line.regionId)) {
+      const { countryId: _country, regionId: _region, ...count } = line;
+      byRegion.set(line.regionId, count);
+    }
   }
   countLines.set(counts.destinations, byCountry);
   return byCountry;
 }
 
 /**
- * How many tours are listed for a destination now, and from how many operators (none when it has no line). The
+ * How many tours are listed for a destination now, and from how many operators, with their range when the counts
+ * have it (ListedCount in @hktours/db; none when it has no line). The
  * lines are indexed once per counts list (a page asks for every destination's), which is never changed once read.
  */
 export function countOf(destination: Destination, counts: DestinationCounts): ListedCount {

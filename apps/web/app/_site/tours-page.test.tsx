@@ -1,13 +1,14 @@
-import { it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { isIsoDate, places } from '@hktours/core';
-import type { Db, DestinationCounts } from '@hktours/db/read';
+import type { DateWindow, Db, DestinationCounts, ListedCount } from '@hktours/db/read';
 import { I18nProvider } from '../../lib/i18n-client';
 import type { Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { destinationPath, listedDestinations } from '../../lib/destinations';
+import { currentWindows, type SeasonWindow } from '../../lib/seasons';
 import styles from './tours-page.module.css';
 
 // The page is a stored copy (app/(zh-hant)/tours/page.tsx revalidate): it reads through the stored pages' handle, and
@@ -16,9 +17,12 @@ const mocks = vi.hoisted(() => ({
   storedDb: vi.fn<() => Promise<Db>>(),
   requestDb: vi.fn<() => Promise<Db>>(),
   countToursByDestination: vi.fn<(db: Db, today: string) => Promise<DestinationCounts>>(),
+  countToursInWindows: vi.fn<(db: Db, today: string, windows: DateWindow[]) => Promise<ListedCount[]>>(),
 }));
 vi.mock('../../lib/db', () => ({ storedDb: mocks.storedDb, requestDb: mocks.requestDb }));
-vi.mock('../../lib/search-page-data', () => ({ cachedReads: { countToursByDestination: mocks.countToursByDestination } }));
+vi.mock('../../lib/search-page-data', () => ({
+  cachedReads: { countToursByDestination: mocks.countToursByDestination, countToursInWindows: mocks.countToursInWindows },
+}));
 
 const { ToursPage, toursPageMetadata } = await import('./tours-page');
 
@@ -49,6 +53,8 @@ beforeEach(() => {
   mocks.storedDb.mockReset().mockResolvedValue(fakeDb);
   mocks.requestDb.mockReset().mockRejectedValue(new Error('the stored page used the per-request handle'));
   mocks.countToursByDestination.mockReset().mockResolvedValue(counts);
+  // No season has tours, unless a test says so: the page then has no row of seasons.
+  mocks.countToursInWindows.mockReset().mockImplementation(async (_db, _today, windows) => windows.map(() => ({ tours: 0, operators: 0 })));
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => { consoleError.mockRestore(); vi.unstubAllEnvs(); });
@@ -334,5 +340,68 @@ it.each([
       { '@type': 'ListItem', position: 1, name: '跟邊團', item: `https://example.invalid${prefix}` },
       { '@type': 'ListItem', position: 2, name, item: `https://example.invalid${prefix}/tours` },
     ],
+  });
+});
+
+describe('the row of season pages', () => {
+  /** Tours per season, as the stand-in read answers for each window it is asked about. */
+  const seasonTours = (tours: Partial<Record<SeasonWindow['season'], number>>) => {
+    mocks.countToursInWindows.mockImplementation(async (_db, _today, windows) =>
+      (windows as SeasonWindow[]).map(w => ({ tours: tours[w.season] ?? 0, operators: tours[w.season] ? 2 : 0 })));
+  };
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-22T04:00:00Z')); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it.each([
+    ['zh-Hant', '節日旅行團', [['2026 聖誕旅行團', '/seasons/christmas', '1,234 團'], ['2027 復活節旅行團', '/seasons/easter', '3 團']]],
+    ['zh-Hans', '节日旅行团', [['2026 圣诞旅行团', '/zh-hans/seasons/christmas', '1,234 团'], ['2027 复活节旅行团', '/zh-hans/seasons/easter', '3 团']]],
+    ['en', 'Holiday tours', [['Christmas 2026 group tours', '/en/seasons/christmas', '1,234 tours'], ['Easter 2027 group tours', '/en/seasons/easter', '3 tours']]],
+  ] as const)('in %s, after the last part of the world: the seasons with tours now, each with its count (Lunar New Year has none here)', async (locale, heading, links) => {
+    seasonTours({ christmas: 1234, easter: 3 });
+    const { container } = await renderPage(locale);
+    const sections = [...container.querySelectorAll('section')];
+    const last = sections[sections.length - 1];
+    expect(last.querySelector('h2')).toHaveTextContent(heading);
+    expect([...last.querySelectorAll('li > a')].map(entry)).toEqual(links);
+    // Not a part of the world: no jump link leads to it.
+    expect(last).not.toHaveAttribute('id');
+    expect(container.querySelectorAll('nav a')).toHaveLength(sections.length - 1);
+  });
+
+  it('reads the seasons\' current windows on today, through the stored handle, once', async () => {
+    seasonTours({ christmas: 1 });
+    await renderPage('zh-Hant');
+    expect(mocks.countToursInWindows).toHaveBeenCalledTimes(1);
+    const [db, today, windows] = mocks.countToursInWindows.mock.calls[0];
+    expect(db).toBe(fakeDb);
+    expect(today).toBe('2026-11-22');
+    expect(windows).toEqual(currentWindows('2026-11-22'));
+    expect(mocks.requestDb).not.toHaveBeenCalled();
+  });
+
+  it('rolls forward: from 28 December the Christmas link is to next year\'s', async () => {
+    vi.setSystemTime(new Date('2026-12-28T04:00:00Z'));
+    seasonTours({ christmas: 5 });
+    const { container } = await renderPage('en');
+    expect(screen.getByRole('link', { name: 'Christmas 2027 group tours' })).toHaveAttribute('href', '/en/seasons/christmas');
+    expect(container.textContent).not.toContain('Christmas 2026');
+  });
+
+  it('no season with tours: no row at all', async () => {
+    const { container } = await renderPage('zh-Hant');
+    expect(container.textContent).not.toContain('節日旅行團');
+    expect(container.querySelector('a[href^="/seasons/"]')).toBeNull();
+  });
+
+  it('the seasons cannot be read: the page is not made (the stored rule: the last good copy stays in use)', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://invented@127.0.0.1:1/none');
+    mocks.countToursInWindows.mockRejectedValue(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }));
+    await expect(ToursPage({ locale: 'zh-Hant' })).rejects.toThrow(/destinations index: the database at DATABASE_URL could not be read \(ECONNREFUSED\)/);
+  });
+
+  it('the row sits quietly: the regions\' links and muted counts, side by side, 44px tall on phones', () => {
+    const text = css();
+    expect(text).toMatch(/\.seasons \{ display: flex; flex-wrap: wrap;[^}]*font-size: 15px; \}/);
+    expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.season \{ min-height: 44px; \}/);
   });
 });

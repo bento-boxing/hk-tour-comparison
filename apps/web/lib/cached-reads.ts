@@ -1,14 +1,14 @@
 import { unstable_cache } from 'next/cache';
 import type { Destination, IsoDate } from '@hktours/core';
 import {
-  countToursByDestination, getOperatorListings, getOperators, getToursByKeys, isPageSize, searchTours, PAGE_SIZE,
-  type DestinationCounts, type Db, type OperatorInfo, type OperatorListing, type PageSize, type SearchInput, type SortKey, type TourCardData,
-  type TourFilters,
+  countToursByDestination, countToursInWindows, getOperatorListings, getOperators, getToursByKeys, isPageSize, searchTours, PAGE_SIZE,
+  type DateWindow, type DestinationCounts, type Db, type ListedCount, type OperatorInfo, type OperatorListing, type PageSize,
+  type SearchInput, type SortKey, type TourCardData, type TourFilters,
 } from '@hktours/db/read';
 import type { Locale } from './i18n';
 
 /*
- * The website's five database reads, each result kept in Next.js's data cache and reused by every visitor
+ * The website's six database reads, each result kept in Next.js's data cache and reused by every visitor
  * who asks the same question, so most page views make no query (the data changes once a night).
  *
  * A result handed to a page is at most an hour old (READ_CACHE_SECONDS), by the server's clock. Each entry carries
@@ -130,7 +130,7 @@ export const runUncached: CacheFn = (_key, load) => load();
 /** A search as the loaders ask it: the ranking for the destination sorts comes from the locale instead. */
 export type SearchQuery = Omit<SearchInput, 'destinationOrder'>;
 
-/** The five reads, with the same results as those of `@hktours/db/read`. */
+/** The six reads, with the same results as those of `@hktours/db/read`. */
 export interface Reads {
   /** searchTours, with the destination sorts ranked in `locale`'s order of place names. */
   searchTours(db: Db, query: SearchQuery, locale: Locale): Promise<{ tours: TourCardData[]; total: number }>;
@@ -141,6 +141,8 @@ export interface Reads {
   countToursByDestination(db: Db, today: IsoDate): Promise<DestinationCounts>;
   /** Every operator with its home address and how many tours it lists now, in all and per country. */
   getOperatorListings(db: Db, today: IsoDate): Promise<OperatorListing[]>;
+  /** How many tours are listed with a departure inside each window (the season pages': lib/seasons.ts), in their order. */
+  countToursInWindows(db: Db, today: IsoDate, windows: DateWindow[]): Promise<ListedCount[]>;
 }
 
 /**
@@ -201,7 +203,7 @@ function searchInput(key: SearchKey, orderFor: (locale: Locale) => string[]): Se
 }
 
 /**
- * The five reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
+ * The six reads through `cache`. `orderFor` gives the destination ranking for a language (a pure function
  * of the places data and the language); it runs inside the cached read, from the key's locale, so the long
  * list is never part of a key and an entry can only hold the order of the language in its key. `build` is the
  * build id every key starts with.
@@ -247,6 +249,13 @@ export function createReads(
       // index and the sitemap.
       const key = { build, read: 'getOperatorListings', today };
       return cache(JSON.stringify(key), () => getOperatorListings(db, key.today));
+    },
+
+    countToursInWindows(db, today, windows) {
+      // Each window's two dates, in the caller's order (the answer is in that order). The pages always ask for the
+      // seasons' current windows, which follow from today, so this is one entry per build and day as well.
+      const key = { build, read: 'countToursInWindows', today, windows: windows.map(w => ({ from: w.from, to: w.to })) };
+      return cache(JSON.stringify(key), () => countToursInWindows(db, key.today, key.windows));
     },
   };
 }

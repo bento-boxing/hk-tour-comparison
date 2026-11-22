@@ -11,6 +11,7 @@ import { makeT, type Locale } from '../../lib/i18n';
 import { shareImage } from '../../lib/share-images';
 import type { SearchPageData } from '../../lib/search-page-data';
 import type { DestinationCounts } from '@hktours/db/read';
+import { fullWidth, sentences } from '../../lib/text-width.test-utils';
 
 /** The tour rows of the list (an ARIA table): the rows with cells, not its visually hidden header row. */
 const tourRows = () => screen.queryAllByRole('row').filter(row => within(row).queryAllByRole('cell').length > 0);
@@ -339,8 +340,6 @@ it('with one operator or one tour, the English title and description say so in t
   });
 });
 
-/** A text's width in full-width characters: a CJK character or full-width punctuation 1, anything else ½. */
-const fullWidth = (text: string) => [...text].reduce((n, c) => n + (c.codePointAt(0)! >= 0x2e80 ? 1 : 0.5), 0);
 
 it.each([
   ['zh-Hant', ['香港旅行團比較', '間旅行社的旅行團'], ['旅行團比較', '格價', '旅行社自己的網站', '個人']],
@@ -361,7 +360,7 @@ it.each([
     expect(description).toContain(` ${tours.toLocaleString('en-US')} `);
     // One or two plain sentences, short enough to be shown whole most of the time.
     expect(fullWidth(description!)).toBeLessThanOrEqual(80);
-    expect(description!.split(/[。.](?=\s|$)/).filter(s => s.trim() !== '').length).toBeLessThanOrEqual(2);
+    expect(sentences(description!).length).toBeLessThanOrEqual(2);
   }
 });
 

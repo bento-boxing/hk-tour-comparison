@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { unstable_rethrow } from 'next/navigation';
 import { todayInHongKong, type IsoDate, type OperatorId } from '@hktours/core';
-import type { Db, DestinationCounts, OperatorListing } from '@hktours/db/read';
+import type { Db, DestinationCounts, ListedCount, OperatorListing } from '@hktours/db/read';
 import type { Locale } from '../../lib/i18n';
 import type { RawParams } from '../../lib/raw-params';
 import { requestDb, storedDb } from '../../lib/db';
@@ -9,6 +9,8 @@ import { cachedReads, loadSearchPage, type SearchPageData } from '../../lib/sear
 import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
 import { loadSavedPage, type SavedPageData } from '../../lib/saved-page-data';
 import { shownOperators } from '../../lib/operators';
+import { currentWindow, type SeasonId, type SeasonWindow } from '../../lib/seasons';
+import { seasonCounts, type SeasonCount } from '../../lib/season-counts';
 
 // Each page's database load, made once per render. For the pages rendered per request, the page renders from it, and
 // its metadata marks the page noindex when it failed (or, for a destination, when it has no tours); the stored pages
@@ -113,6 +115,41 @@ export const loadOperator = cache(async (locale: Locale, operatorId: OperatorId,
   });
 });
 
+/** A season's page's data: its tours as the search page reads them, and the season's own count before any filter. */
+export interface SeasonPageData {
+  search: SearchPageData;
+  /** The season's tours before any other filter (the heading's line, the description, noindex when none). */
+  count: ListedCount;
+}
+
+/** A season's page: its current window on the server's Hong Kong today, and the page's load. */
+export interface SeasonLoad { window: SeasonWindow; load: Loaded<SeasonPageData> }
+
+/**
+ * A season's page's data (its id from the path, already checked by the caller): the season's current window on Hong
+ * Kong's today (lib/seasons.ts currentWindow), read once here for the page and its metadata alike; null, with nothing
+ * read, when the season has none (the page is then a 404). The search reads the departure window from the season: a
+ * `from` or `to` in the query is ignored, and every other filter (the destination among them, as `dest`) is read as
+ * on the search page. The season's own count comes from the read the sitemap and the destinations index share
+ * (lib/season-counts.ts), so it is the same cached answer for all three seasons.
+ */
+export const loadSeason = cache(async (locale: Locale, seasonId: SeasonId, query: string): Promise<SeasonLoad | null> => {
+  const today = todayInHongKong();
+  const window = currentWindow(seasonId, today);
+  if (window === null) return null;
+  const { from: _from, to: _to, ...rest } = paramsOf(query);
+  const load = await attempt('season page', today, async () => {
+    const db = await requestDb();
+    const [search, seasons] = await Promise.all([
+      loadSearchPage(db, { ...rest, from: window.from, to: window.to }, today, locale, cachedReads),
+      seasonCounts(db, today, cachedReads),
+    ]);
+    const count = seasons.find(s => s.window.season === seasonId)?.count ?? { tours: 0, operators: 0 };
+    return { search, count };
+  });
+  return { window, load };
+});
+
 // The stored pages' loads. A stored page (its route file's `revalidate`) is made at build time and stored, then made
 // again at most once an hour while the stored copy is served. Whatever it renders is stored as good, so a page that
 // said "cannot read" would be served to everyone, without noindex, until the next good refresh. So these loaders
@@ -200,6 +237,16 @@ async function stored<T>(page: string, today: IsoDate, load: (db: Db) => Promise
 export const loadStoredCounts = cache(async (): Promise<StoredLoad<DestinationCounts>> => {
   const today = todayInHongKong();
   return stored('destinations index', today, db => cachedReads.countToursByDestination(db, today), counts => counts.all.tours === 0);
+});
+
+/**
+ * The seasons' current windows with their tours, for the destinations index's stored copy (its row of season links).
+ * A failed read throws, as every stored load's; seasons without tours are not an error (the index's own counts are
+ * what must not be empty).
+ */
+export const loadStoredSeasons = cache(async (): Promise<StoredLoad<SeasonCount[]>> => {
+  const today = todayInHongKong();
+  return stored('destinations index', today, db => seasonCounts(db, today, cachedReads), () => false);
 });
 
 /**

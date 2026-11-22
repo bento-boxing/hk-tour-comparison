@@ -2,12 +2,13 @@ import { it, expect, vi } from 'vitest';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { ReactElement } from 'react';
-import { places } from '@hktours/core';
+import { places, todayInHongKong } from '@hktours/core';
 import type { DestinationCounts, OperatorListing } from '@hktours/db/read';
 import { LOCALES, type Locale } from '../lib/i18n';
 import { LOCALE_SEGMENT, localeHref, siteUrl } from '../lib/locale-path';
 import { destinationPath, listedDestinations } from '../lib/destinations';
 import { isOperatorListed, operatorPath } from '../lib/operators';
+import { currentWindows, seasonPath } from '../lib/seasons';
 
 // The route files are thin: each passes its language (and its params and query) to the shared page, layout or
 // metadata, which are stood in for here.
@@ -24,6 +25,10 @@ vi.mock('./_site/chain-page', () => ({
 vi.mock('./_site/destination-page', () => ({
   DestinationPage: () => null,
   destinationPageMetadata: (locale: Locale, params: unknown, searchParams: unknown) => ({ page: 'destination', locale, params, searchParams }),
+}));
+vi.mock('./_site/season-page', () => ({
+  SeasonPage: () => null,
+  seasonPageMetadata: (locale: Locale, params: unknown, searchParams: unknown) => ({ page: 'season', locale, params, searchParams }),
 }));
 vi.mock('./_site/tours-page', () => ({
   ToursPage: () => null,
@@ -69,7 +74,11 @@ const listing = (id: OperatorListing['id'], tours: number): OperatorListing => (
 const operators = [listing('egl', 2), listing('jetour', 0), listing('texpert', 1)];
 vi.mock('../lib/db', () => ({ requestDb: async () => ({}) }));
 vi.mock('../lib/search-page-data', () => ({
-  cachedReads: { countToursByDestination: async () => counts, getOperatorListings: async () => operators },
+  cachedReads: {
+    countToursByDestination: async () => counts, getOperatorListings: async () => operators,
+    // Every season has tours in its current days.
+    countToursInWindows: async (_db: unknown, _today: unknown, windows: unknown[]) => windows.map(() => ({ tours: 1, operators: 1 })),
+  },
 }));
 const { default: sitemap } = await import('./sitemap');
 
@@ -104,7 +113,7 @@ it('each language has its own folder, named by its address prefix, with a root l
 });
 
 it('every page exists in all three languages, at the same path', () => {
-  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/operators', '/operators/[id]', '/q', '/saved', '/tours', '/tours/[id]']);
+  expect(pagePaths('zh-Hant')).toEqual(['/', '/about', '/chain', '/operators', '/operators/[id]', '/q', '/saved', '/seasons/[id]', '/tours', '/tours/[id]']);
   for (const locale of LOCALES) expect(pagePaths(locale), locale).toEqual(pagePaths('zh-Hant'));
 });
 
@@ -114,12 +123,13 @@ it('every page exists in all three languages, at the same path', () => {
  */
 const NOT_IN_SITEMAP = ['/saved', '/q'];
 
-it('the sitemap lists every page in every language but the saved page: the fixed ones, /tours/[id] for each destination with a page of its own, and /operators/[id] for each operator listing tours', async () => {
+it('the sitemap lists every page in every language but the saved page: the fixed ones, /tours/[id] for each destination with a page of its own, /operators/[id] for each operator listing tours and /seasons/[id] for each season with tours', async () => {
   const listed = (await sitemap()).map(entry => entry.url).sort();
   const paths = pagePaths('zh-Hant').filter(path => !NOT_IN_SITEMAP.includes(path)).flatMap(path =>
     path === '/tours/[id]' ? listedDestinations(places, counts).map(destinationPath)
       : path === '/operators/[id]' ? operators.filter(isOperatorListed).map(o => operatorPath(o.id))
-        : [path]);
+        : path === '/seasons/[id]' ? currentWindows(todayInHongKong()).map(w => seasonPath(w.season))
+          : [path]);
   expect(listed.some(url => url.includes('/saved'))).toBe(false);
   expect(listed.some(url => /\/q(\/|$)/.test(new URL(url).pathname))).toBe(false);
   expect(paths).toContain('/tours/japan-kansai');
@@ -139,16 +149,19 @@ type RouteModule = {
 const routes = (await Promise.all([
   ['zh-Hant', import('./(zh-hant)/layout'), import('./(zh-hant)/page'), import('./(zh-hant)/q/page'), import('./(zh-hant)/chain/page'),
     import('./(zh-hant)/tours/page'), import('./(zh-hant)/tours/[id]/page'), import('./(zh-hant)/about/page'), import('./(zh-hant)/saved/page'),
-    import('./(zh-hant)/operators/page'), import('./(zh-hant)/operators/[id]/page'), import('./(zh-hant)/not-found')],
+    import('./(zh-hant)/operators/page'), import('./(zh-hant)/operators/[id]/page'), import('./(zh-hant)/not-found'),
+    import('./(zh-hant)/seasons/[id]/page')],
   ['zh-Hans', import('./zh-hans/layout'), import('./zh-hans/page'), import('./zh-hans/q/page'), import('./zh-hans/chain/page'),
     import('./zh-hans/tours/page'), import('./zh-hans/tours/[id]/page'), import('./zh-hans/about/page'), import('./zh-hans/saved/page'),
-    import('./zh-hans/operators/page'), import('./zh-hans/operators/[id]/page'), import('./zh-hans/not-found')],
+    import('./zh-hans/operators/page'), import('./zh-hans/operators/[id]/page'), import('./zh-hans/not-found'),
+    import('./zh-hans/seasons/[id]/page')],
   ['en', import('./en/layout'), import('./en/page'), import('./en/q/page'), import('./en/chain/page'),
     import('./en/tours/page'), import('./en/tours/[id]/page'), import('./en/about/page'), import('./en/saved/page'),
-    import('./en/operators/page'), import('./en/operators/[id]/page'), import('./en/not-found')],
+    import('./en/operators/page'), import('./en/operators/[id]/page'), import('./en/not-found'),
+    import('./en/seasons/[id]/page')],
 ].map(async ([locale, ...modules]) => [locale, ...(await Promise.all(modules))]))) as [Locale, ...RouteModule[]][];
 
-it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+it.each(routes)('%s: the layout and every page pass that language (and their params and query), and their metadata is that language\'s', async (locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound, season) => {
   const searchParams = Promise.resolve({ dmin: '5' });
   const params = Promise.resolve({ id: 'japan' });
   const children = 'page';
@@ -157,6 +170,7 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
     tours: await import('./_site/tours-page'), destination: await import('./_site/destination-page'),
     about: await import('./_site/about-page'), saved: await import('./_site/saved-page'), notFound: await import('./_site/not-found-page'),
     operators: await import('./_site/operators-page'), operator: await import('./_site/operator-page'),
+    season: await import('./_site/season-page'),
   };
   const frame = await layout.default({ children });
   expect(frame.type).toBe(site.frame.SiteFrame);
@@ -173,6 +187,7 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
     [saved, site.saved.SavedPage, { searchParams }, { page: 'saved', locale }],
     [operatorsIndex, site.operators.OperatorsPage, {}, { page: 'operators', locale }],
     [operator, site.operator.OperatorPage, { params, searchParams }, { page: 'operator', locale, params, searchParams }],
+    [season, site.season.SeasonPage, { params, searchParams }, { page: 'season', locale, params, searchParams }],
   ];
   for (const [route, Page, props, metadata] of cases) {
     const page = await route.default({ ...props });
@@ -188,11 +203,11 @@ it.each(routes)('%s: the layout and every page pass that language (and their par
   expect(notFound.metadata).toEqual({ page: 'not-found', locale });
 });
 
-it.each(routes)('%s: the home page and the two indexes are stored copies, made again at most once an hour (revalidate 3600, a literal as Next.js requires); no other page or layout sets revalidate', (_locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound) => {
+it.each(routes)('%s: the home page and the two indexes are stored copies, made again at most once an hour (revalidate 3600, a literal as Next.js requires); no other page or layout sets revalidate', (_locale, layout, home, search, chain, tours, destination, about, saved, operatorsIndex, operator, notFound, season) => {
   expect(home.revalidate).toBe(3600);
   expect(tours.revalidate).toBe(3600);
   expect(operatorsIndex.revalidate).toBe(3600);
-  for (const other of [layout, search, chain, destination, about, saved, operator, notFound]) expect(other).not.toHaveProperty('revalidate');
+  for (const other of [layout, search, chain, destination, about, saved, operator, notFound, season]) expect(other).not.toHaveProperty('revalidate');
   // A stored page reads nothing from the request: its page and metadata take no props (no searchParams, no params).
   for (const stored of [home, tours, operatorsIndex]) {
     expect(stored.default.length).toBe(0);

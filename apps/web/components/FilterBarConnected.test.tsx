@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { OperatorInfo } from '@hktours/db/read';
 import { I18nProvider } from '../lib/i18n-client';
-import { FixedOperatorProvider } from '../lib/search-address';
+import { FixedOperatorProvider, FixedSeasonProvider } from '../lib/search-address';
+import { seasonWindow } from '../lib/seasons';
 import type { SearchState } from '../lib/search-params';
 import { FilterBarConnected } from './FilterBarConnected';
 
@@ -121,5 +122,55 @@ describe('on an operator\'s page (FixedOperatorProvider)', () => {
     await user.type(screen.getByRole('spinbutton', { name: '至' }), '9000');
     await user.click(screen.getByRole('button', { name: '套用' }));
     expect(push).toHaveBeenLastCalledWith('/operators/egl?dest=japan-kansai&dmin=4&pmax=9000&sort=days', { scroll: false });
+  });
+});
+
+describe('on a season\'s page (FixedSeasonProvider)', () => {
+  const christmas = seasonWindow('christmas', 2026)!;
+  const renderOn = (locale: 'zh-Hant' | 'zh-Hans' | 'en', state: SearchState) => render(
+    <I18nProvider locale={locale}>
+      <FixedSeasonProvider season={christmas}>
+        <FilterBarConnected state={state} operators={operators} today="2026-11-22" />
+      </FixedSeasonProvider>
+    </I18nProvider>,
+  );
+  const onChristmas = (filters: SearchState['filters']): SearchState =>
+    ({ filters: { ...filters, dateFrom: christmas.from, dateTo: christmas.to }, sort: 'days', page: 3 });
+
+  it.each([
+    ['zh-Hant', '日數：全部', '4–6日', '/seasons/christmas?dmin=4&dmax=6&sort=days'],
+    ['zh-Hans', '天数：不限', '4–6天', '/zh-hans/seasons/christmas?dmin=4&dmax=6&sort=days'],
+    ['en', 'Length: Any', '4–6 days', '/en/seasons/christmas?dmin=4&dmax=6&sort=days'],
+  ] as const)('in %s a change that keeps the season\'s days stays on its page, with no from or to in the address', async (locale, pill, option, href) => {
+    const user = userEvent.setup();
+    renderOn(locale, onChristmas({}));
+    await user.click(screen.getByRole('button', { name: pill }));
+    await user.click(screen.getByRole('button', { name: option }));
+    expect(push).toHaveBeenCalledWith(href, { scroll: false });
+  });
+
+  it('the departure dates show the season\'s days as chosen; other dates go to the search page with them, and clearing them too', async () => {
+    const user = userEvent.setup();
+    renderOn('zh-Hant', onChristmas({ destination: { countryId: 'japan', regionId: null }, daysMin: 4 }));
+    await user.click(screen.getByRole('button', { name: '出發日期：12/19 – 12/27' }));
+    let dialog = screen.getByRole('dialog', { name: '出發日期' });
+    const to = within(dialog).getByLabelText('至');
+    await user.clear(to);
+    await user.type(to, '2026-12-31');
+    await user.click(within(dialog).getByRole('button', { name: '套用' }));
+    expect(push).toHaveBeenLastCalledWith('/tours/japan?from=2026-12-19&to=2026-12-31&dmin=4&sort=days', { scroll: false });
+    await user.click(screen.getByRole('button', { name: '出發日期：12/19 – 12/27' }));
+    dialog = screen.getByRole('dialog', { name: '出發日期' });
+    await user.click(within(dialog).getByRole('button', { name: '清除' }));
+    expect(push).toHaveBeenLastCalledWith('/tours/japan?dmin=4&sort=days', { scroll: false });
+  });
+
+  it('the destination is a filter here: its ✕ stays on the page', async () => {
+    const user = userEvent.setup();
+    renderOn('en', onChristmas({ destination: { countryId: 'japan', regionId: 'japan-kansai' }, daysMin: 4 }));
+    await user.click(screen.getByRole('button', { name: 'Clear destination: Japan → Kansai' }));
+    expect(push).toHaveBeenLastCalledWith('/en/seasons/christmas?dmin=4&sort=days', { scroll: false });
+    // The operator filter stays: the path fixes only the dates.
+    expect(screen.getByRole('button', { name: /^Operators: / })).toBeInTheDocument();
   });
 });

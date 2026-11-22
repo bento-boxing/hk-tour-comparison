@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { it, expect, beforeAll, afterAll, describe, vi } from 'vitest';
 import { OPERATOR_IDS, type Destination, type NormalisedTour, type OperatorId, type ScrapedDeparture, type Stop } from '@hktours/core';
-import { countToursByDestination, getOperatorListings, saveOperatorRun, searchTours, type Db } from '@hktours/db';
+import { countToursByDestination, countToursInWindows, getOperatorListings, saveOperatorRun, searchTours, type Db } from '@hktours/db';
 // The in-memory test database is imported here, in the test, never by app code.
 import { createTestDb } from '@hktours/db/test';
 import type { SortKey } from '@hktours/db/read';
@@ -254,9 +254,13 @@ describe('with the in-process database', () => {
     expect(stored(cards)).toStrictEqual(cards);
 
     const counts = await reads.countToursByDestination(db, today);
-    expect(counts.all).toEqual({ tours: 3, operators: 3 });
+    expect(counts.all).toMatchObject({ tours: 3, operators: 3, range: expect.any(Object) });
     expect(counts.destinations.some(d => d.regionId === null) && counts.destinations.some(d => d.regionId !== null)).toBe(true);
     expect(stored(counts)).toStrictEqual(counts);
+
+    const windows = await reads.countToursInWindows(db, today, [{ from: '2026-11-13', to: '2027-12-31' }, { from: '2030-01-01', to: '2030-01-02' }]);
+    expect(windows).toEqual([expect.objectContaining({ tours: 3, range: expect.any(Object) }), { tours: 0, operators: 0 }]);
+    expect(stored(windows)).toStrictEqual(windows);
   });
 
   it('countToursByDestination: one key per build and day, the same answer as the database, and a second call makes no query', async () => {
@@ -275,6 +279,28 @@ describe('with the in-process database', () => {
       { build: BUILD, read: 'countToursByDestination', today },
       { build: BUILD, read: 'countToursByDestination', today },
       { build: BUILD, read: 'countToursByDestination', today: '2026-12-24' },
+    ]);
+  });
+
+  it('countToursInWindows: one key per build, day and windows, the same answer as the database, and a second call makes no query', async () => {
+    const store = jsonStore();
+    const counter = counting(db);
+    const reads = createReads(() => [], store.cache, BUILD);
+    const windows = [{ from: '2026-12-19', to: '2026-12-27' }, { from: '2027-02-03', to: '2027-02-10' }];
+    // Only the two dates of each window go into the key, whatever else the caller's objects carry.
+    const seasons = windows.map((w, i) => ({ ...w, season: i === 0 ? 'christmas' : 'lunar-new-year', year: 2026 + i }));
+    const first = await reads.countToursInWindows(counter.db, today, seasons);
+    expect(counter.queries).toBe(1);
+    const second = await reads.countToursInWindows(counter.db, today, windows);
+    expect(counter.queries).toBe(1);
+    expect(second).toStrictEqual(first);
+    expect(first).toStrictEqual(await countToursInWindows(db, today, windows));
+    await reads.countToursInWindows(counter.db, '2026-12-24', windows);
+    expect(counter.queries).toBe(2);
+    expect(store.keys.map(k => JSON.parse(k))).toEqual([
+      { build: BUILD, read: 'countToursInWindows', today, windows },
+      { build: BUILD, read: 'countToursInWindows', today, windows },
+      { build: BUILD, read: 'countToursInWindows', today: '2026-12-24', windows },
     ]);
   });
 
@@ -430,7 +456,7 @@ describe('the build is in every key, so different builds never share an entry', 
     expect(await keyIn('production')).not.toBe(await keyIn('preview'));
   });
 
-  it('all five reads put it in their key, and two builds give different keys for the same question', async () => {
+  it('all six reads put it in their key, and two builds give different keys for the same question', async () => {
     const keysFor = async (build: string) => {
       const store = jsonStore();
       const reads = createReads(() => [], store.cache, build);
@@ -440,12 +466,13 @@ describe('the build is in every key, so different builds never share an entry', 
       await reads.getToursByKeys(db, ['egl:KIX5'], today).catch(() => {});
       await reads.countToursByDestination(db, today).catch(() => {});
       await reads.getOperatorListings(db, today).catch(() => {});
+      await reads.countToursInWindows(db, today, [{ from: '2026-12-19', to: '2026-12-27' }]).catch(() => {});
       return store.keys;
     };
     const one = await keysFor('build-one');
     const two = await keysFor('build-two');
-    expect(one.map(k => JSON.parse(k).build)).toEqual(Array(5).fill('build-one'));
-    expect(two.map(k => JSON.parse(k).build)).toEqual(Array(5).fill('build-two'));
+    expect(one.map(k => JSON.parse(k).build)).toEqual(Array(6).fill('build-one'));
+    expect(two.map(k => JSON.parse(k).build)).toEqual(Array(6).fill('build-two'));
     one.forEach((key, i) => expect(key).not.toBe(two[i]));
     // Apart from the build, the keys are the same question.
     expect(one.map(k => ({ ...JSON.parse(k), build: null }))).toEqual(two.map(k => ({ ...JSON.parse(k), build: null })));

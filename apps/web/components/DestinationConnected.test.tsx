@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { places } from '@hktours/core';
 import { I18nProvider } from '../lib/i18n-client';
 import { parseSearchParams } from '../lib/search-params';
-import { FixedOperatorProvider } from '../lib/search-address';
+import { FixedOperatorProvider, FixedSeasonProvider } from '../lib/search-address';
+import { seasonWindow } from '../lib/seasons';
 import { DestinationSearchConnected, DestinationPanelsConnected } from './DestinationConnected';
 
 const push = vi.fn<(href: string) => void>();
@@ -103,4 +104,20 @@ it.each([
   );
   await user.click(screen.getAllByRole('button', { name: /^(清除|Clear)$/ }).at(-1)!);
   expect(push).toHaveBeenLastCalledWith(cleared);
+});
+
+it('on a season\'s page a destination is a filter of that page, and clearing it stays there too', async () => {
+  const user = userEvent.setup();
+  const easter = seasonWindow('easter', 2027)!;
+  const onEaster = (query: string) => state(`${query}&from=${easter.from}&to=${easter.to}`);
+  const { unmount } = render(
+    <I18nProvider locale="en"><FixedSeasonProvider season={easter}><DestinationSearchConnected state={onEaster('dmin=5&page=2')} /></FixedSeasonProvider></I18nProvider>,
+  );
+  await user.type(screen.getByRole('combobox'), 'Osaka');
+  await user.keyboard('{Enter}');
+  expect(push).toHaveBeenLastCalledWith('/en/seasons/easter?dest=japan-kansai&dmin=5');
+  unmount();
+  render(<I18nProvider locale="zh-Hant"><FixedSeasonProvider season={easter}><DestinationSearchConnected state={onEaster('dest=korea&sort=days')} /></FixedSeasonProvider></I18nProvider>);
+  await user.click(screen.getByRole('button', { name: '清除' }));
+  expect(push).toHaveBeenLastCalledWith('/seasons/easter?sort=days');
 });
