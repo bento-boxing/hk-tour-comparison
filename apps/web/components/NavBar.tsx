@@ -6,6 +6,7 @@ import type { T } from '../lib/i18n';
 import { localeHref } from '../lib/locale-path';
 import { SAVED_CAP } from '../lib/saved-list';
 import { getNoSavedTours, getSavedTours, subscribeSaved } from '../lib/saved-tours';
+import { useRememberedTrip } from '../lib/remembered-trip';
 import { LanguageSwitch } from './LanguageSwitch';
 import { Mark } from './Mark';
 import { ThemeSwitch } from './ThemeSwitch';
@@ -54,9 +55,11 @@ function SavedLink({ current, t }: { current: boolean; t: T }) {
  * two page links and 已收藏 (N) (in the bar's language, the current one bold with a gold underline), then the
  * language and theme switches at the right. The bar is ink in the light theme and near-black in the dark one. On a
  * phone the name and the switches come first, then the three links on one line.
- * `current` is the page whose link is highlighted, if any.
+ * `current` is the page whose link is highlighted, if any. 連續行程 goes to the trip this browser remembers (task 71:
+ * lib/remembered-trip), once hydrated; before that, and with none, to /chain, which then goes to it.
  */
 export function NavBar({ current, t }: { current?: NavPage; t: T }) {
+  const trip = useRememberedTrip();
   return (
     <nav className={styles.bar}>
       <div className={styles.inner}>
@@ -65,7 +68,7 @@ export function NavBar({ current, t }: { current?: NavPage; t: T }) {
           {links.map(({ page, path, label }) => (
             <SiteLink
               key={page}
-              href={localeHref(t.locale, path)}
+              href={localeHref(t.locale, page === 'chain' ? trip?.path ?? path : path)}
               className={page === current ? `${styles.link} ${styles.current}` : styles.link}
               aria-current={page === current ? 'page' : undefined}
             >

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   requestDb: vi.fn<() => Promise<Db>>(),
   loadChainPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<ChainPageData>>(),
   push: vi.fn<(href: string, opts?: { scroll?: boolean }) => void>(),
+  replace: vi.fn<(href: string, opts?: { scroll?: boolean }) => void>(),
   /** The raw address the browser shows; the page must never build a link from it. */
   query: { value: '' },
 }));
@@ -30,7 +31,7 @@ vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
 vi.mock('../../lib/chain-page-data', () => ({ loadChainPage: mocks.loadChainPage }));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real unstable_rethrow
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
   usePathname: () => '/chain',
   useSearchParams: () => new URLSearchParams(mocks.query.value),
 }));
@@ -69,7 +70,7 @@ const legs = resolveChain(chain, new Map([[A.key, A]]), today).legs;
 const data: ChainPageData = {
   address: { chain, search: { filters: { excludeCountryIds: ['japan'] }, sort: 'price', page: 1 } },
   legs, droppedCount: 0, departWindow: { from: '2026-12-24', to: '2026-12-26' },
-  next: { tours: [B, C], total: 30 }, full: false, operators,
+  next: { tours: [B, C], total: 30 }, full: false, operators, bare: false, requested: chain,
   filterOperators: [operators[1], operators[2]], // jetour and texpert
 };
 
@@ -83,6 +84,7 @@ beforeEach(() => {
   mocks.requestDb.mockReset();
   mocks.loadChainPage.mockReset();
   mocks.push.mockReset();
+  mocks.replace.mockReset();
   mocks.requestDb.mockResolvedValue(fakeDb);
   mocks.query.value = 'legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan';
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -154,8 +156,9 @@ it('each card says how many days of rest come before it', async () => {
   mocks.loadChainPage.mockResolvedValue(data);
   await renderPage({});
   const [sel, tpe] = tourRows();
-  expect(within(sel).getByText('休息 1–2 日後出發')).toBeInTheDocument(); // 12/24 and 12/25 after a tour ending 12/22
-  expect(within(tpe).getByText('休息 1 日後出發')).toBeInTheDocument();
+  // 12/24 and 12/25 after a tour ending 12/22: under the region, and on a phone among the notes under the dates.
+  expect(within(sel).getAllByText('休息 1–2 日後出發')).toHaveLength(2);
+  expect(within(tpe).getAllByText('休息 1 日後出發')).toHaveLength(2);
 });
 
 it('adding a card appends the leg and navigates, keeping the gap and filters', async () => {
@@ -195,7 +198,8 @@ it('no legs: the message with a link to the search page, and no list', async () 
   expect(screen.getByText('先在「搜尋旅行團」選擇第一個旅行團，再回來加入下一程。')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '搜尋旅行團' })).toHaveAttribute('href', '/');
   expect(tourRows()).toHaveLength(0);
-  expect(screen.queryByRole('heading', { name: '你的行程' })).toBeNull();
+  // The heading is the phone's only (task 71: its empty trip shows the button for the first tour under it).
+  expect(screen.getByRole('heading', { name: '你的行程' }).parentElement).toHaveClass(styles.phoneOnly);
   expect(screen.queryByText('部分旅行團已下架或日期已不適用，已從行程中移除。')).toBeNull();
 });
 

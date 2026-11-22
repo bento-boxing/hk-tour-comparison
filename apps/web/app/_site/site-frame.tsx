@@ -7,6 +7,7 @@ import { I18nProvider } from '../../lib/i18n-client';
 import { LanguageNotice } from '../../components/LanguageNotice';
 import { SiteNav } from '../../components/SiteNav';
 import { Footer } from '../../components/Footer';
+import { SiteTabBar } from '../../components/TabBar';
 import { ThemeScript } from '../../components/ThemeScript';
 import styles from './site-frame.module.css';
 
@@ -40,6 +41,8 @@ export function SiteFrame({ locale, children }: { locale: Locale; children: Reac
           {/* Full width: each page puts its content in the frame's .wrap (the band spans the window). */}
           <main className={styles.main}>{children}</main>
           <Footer t={t} />
+          {/* Phones only: the bottom bar, with a spacer of its height after the footer. */}
+          <SiteTabBar />
         </I18nProvider>
       </body>
     </html>

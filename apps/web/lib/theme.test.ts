@@ -175,6 +175,7 @@ const PAIRS: { what: string; fg: string; bg: string; min: number }[] = [
   { what: 'the band\'s search box outline and focus rings on the gold', fg: 'on-gold', bg: 'gold', min: 3 },
   { what: 'the band\'s search box outline against the box', fg: 'on-gold', bg: 'band-field-bg', min: 3 },
   { what: 'the header\'s current-page underline and focus rings', fg: 'header-accent', bg: 'header-bg', min: 3 },
+  { what: 'the bottom bar\'s other tabs (phones)', fg: 'header-muted', bg: 'header-bg', min: 4.5 },
   { what: 'a chosen control\'s fill against the surface', fg: 'selected-bg', bg: 'surface', min: 3 },
   // A saved tour's button (已收藏): its text, its star's outline (the text colour), and its own outline on every row.
   { what: 'a saved tour\'s button: its text and its star\'s outline', fg: 'ink', bg: 'saved-bg', min: 4.5 },

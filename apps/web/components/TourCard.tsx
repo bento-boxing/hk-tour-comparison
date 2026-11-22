@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Fragment, useId, useRef, useState, useSyncExternalStore,
+  Fragment, useEffect, useId, useRef, useState, useSyncExternalStore,
   type KeyboardEvent, type MouseEvent, type PointerEvent,
 } from 'react';
 import { isIsoDate, type IsoDate, type PlacesIndex } from '@hktours/core';
@@ -31,6 +31,12 @@ export interface TourCardProps {
   /** When given, the 加入行程 button is shown and calls this with the chosen date. */
   onAdd?: (departure: IsoDate) => void;
   footNote?: string;   // shown under the region, e.g. '休息 1–2 日後出發' on the chain page
+  /**
+   * The page's own action, the lower of the card's two buttons on a phone (under 640px): 'save' (收藏, the default:
+   * the search pages and the saved page) or 'add' (＋ 加入, which needs onAdd: the trip page's list of tours that can
+   * come next). On a phone the other is not shown; from 640px both are, as before.
+   */
+  phoneAction?: 'save' | 'add';
 }
 
 /** The date cells: three by two. A tour with more dates shows the first five and counts the rest in the sixth. */
@@ -86,6 +92,27 @@ function hideTip(event: PointerEvent<HTMLElement>) {
   event.currentTarget.removeAttribute('data-hover');
 }
 
+/**
+ * Whether the route takes more than two lines as drawn (true), or not (false); null until measured (on the server,
+ * before hydration, and where the browser has no ResizeObserver). Measured again whenever the route's box changes
+ * size (a narrower window, larger text). The route itself is never cut by script: on a phone the CSS cuts it.
+ */
+export function useRouteCut(ref: { current: HTMLElement | null }): boolean | null {
+  const [cut, setCut] = useState<boolean | null>(null);
+  useEffect(() => {
+    const route = ref.current;
+    if (!route || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const line = Number.parseFloat(getComputedStyle(route).lineHeight);
+      setCut(Number.isFinite(line) && line > 0 ? route.getBoundingClientRect().height > 2 * line + 1 : null);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(route);
+    return () => observer.disconnect();
+  }, [ref]);
+  return cut;
+}
+
 /** The star (the owner's drawing, RowsB13): an outline, filled once the tour is saved (CSS: --saved-star). */
 const STAR = 'M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.8Z';
 
@@ -132,8 +159,11 @@ function SaveButton({ tourKey, tour, t }: { tourKey: string; tour: string; t: T 
  * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程 and 收藏, two
  * equal buttons side by side (each as wide as the column allows, 加入行程 never narrower than its words). No tour code
  * and no tour name. On an English page's wide screen (the owner's drawing E1) the same, in six columns: the region
- * sits above the route, smaller and muted, and each 'place →' is one unit. On a phone the row becomes a stacked block
- * in the same order of importance; from 640px a two-column block.
+ * sits above the route, smaller and muted, and each 'place →' is one unit. From 640px a two-column block. On a phone
+ * (task 70, the owner's drawings Mobile6Home and Mobile18Hard) a card: line 1 the operator, the days, the region and
+ * the price; under it the route cut at two lines (全部 N 站 shows the rest), the dates that fit one line with +N (the
+ * list of all of them), and the notes; at the right the gold button over the page's own action (收藏, or ＋ 加入 on the
+ * trip page: `phoneAction`). No 加入行程 on a phone outside the trip page.
  *
  * The list is an ARIA table (Results): each row is a `row`, each column a `cell`, and the column names are in a
  * visually hidden header row.
@@ -153,11 +183,15 @@ function SaveButton({ tourKey, tour, t }: { tourKey: string; tour: string; t: T 
  * observed, never prevented or delayed. The marks are read in the browser after hydration (the server renders none);
  * they change no row's height.
  */
-export function TourCard({ tour, operator, places, today, t, now, onAdd, footNote }: TourCardProps) {
+export function TourCard({ tour, operator, places, today, t, now, onAdd, footNote, phoneAction = 'save' }: TourCardProps) {
   const [picking, setPicking] = useState(false);
+  const [listing, setListing] = useState(false);
   const [activeDate, setActiveDate] = useState(0);
   const addRef = useRef<HTMLButtonElement>(null);
+  const listOpenerRef = useRef<HTMLElement | null>(null);
   const dateRefs = useRef<(HTMLElement | null)[]>([]);
+  const routeRef = useRef<HTMLHeadingElement>(null);
+  const routeCut = useRouteCut(routeRef);
   const id = useId();
   const noteId = `${id}-note`;
   const changeId = `${id}-change`;
@@ -197,10 +231,17 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
     closePicker();
     onAdd?.(date);
   };
+  // The list of all dates (a phone's +N): the same rule for focus.
+  const closeList = (reason?: PickerCloseReason) => {
+    setListing(false);
+    if (reason !== 'outside') listOpenerRef.current?.focus({ preventScroll: true });
+  };
 
-  // The dates are one tab stop: the arrow keys, Home and End move between them (roving tabindex).
+  // The dates are one tab stop: the arrow keys, Home and End move between them (roving tabindex). On a phone only
+  // the dates that fit the line are drawn: the keys stop at the last of those.
   const moveDate = (e: KeyboardEvent) => {
-    const last = shown.length - 1;
+    const drawn = dateRefs.current.slice(0, shown.length).filter(el => el && getComputedStyle(el).display !== 'none').length;
+    const last = Math.max(drawn, 1) - 1;
     const next = { ArrowRight: active + 1, ArrowLeft: active - 1, Home: 0, End: last }[e.key];
     if (next === undefined) return;
     e.preventDefault();
@@ -223,34 +264,42 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
       className={styles.row}
       style={colorStyle}
       data-opened={openedState}
+      data-phone-action={phoneAction}
       onClick={noteOpened}
       onAuxClick={noteOpened}
     >
-      <div role="cell" className={styles.tagCell}>
-        <span className={tagDark ? `${styles.op} ${styles.opDark}` : styles.op}>{operatorText}</span>
-        {/* Its operator's data is old: shown here in the block layouts (one of the two is shown; see the CSS). */}
-        {staleText && <span className={`${styles.stale} ${styles.staleInTag}`}>{staleText}</span>}
-      </div>
+      {/*
+        On a phone, line 1 of the card: the operator, the days and the region in one box that may wrap (the days go under
+        the operator when the line is too short for both beside the price). From 640px it is no box at all (display:
+        contents): its three cells are the row's own, as before.
+      */}
+      <div className={styles.head}>
+        <div role="cell" className={styles.tagCell}>
+          <span className={tagDark ? `${styles.op} ${styles.opDark}` : styles.op}>{operatorText}</span>
+          {/* Its operator's data is old: shown here in two columns (one of its three places is shown at a time; see the CSS). */}
+          {staleText && <span className={`${styles.stale} ${styles.staleInTag}`}>{staleText}</span>}
+        </div>
 
-      <div role="cell" className={styles.days}>{days}</div>
+        <div role="cell" className={styles.days}>{days}</div>
 
-      <div role="cell" className={styles.region}>
-        {/*
-          Each name is one unit, its dot glued to it (a no-break space), so lines break between names; a name made of
-          several words may wrap between its own words when it alone is wider than the column (English), never inside
-          a word, and a Chinese name never. The count of the rest goes inside the last unit, with no dot: '南極洲 +3'.
-        */}
-        {region.names.map((name, i) => (
-          <Fragment key={i}>
-            {i > 0 && ' '}
-            <span className={styles.place}>
-              {name}
-              {i < region.names.length - 1 ? '\u00a0·' : region.more > 0 ? `\u00a0${t('card.moreRegions', { n: region.more })}` : ''}
-            </span>
-          </Fragment>
-        ))}
-        {note && <span id={noteId} className={styles.note}>{note}</span>}
-        {footNote !== undefined && <span className={styles.footNote}>{footNote}</span>}
+        <div role="cell" className={styles.region}>
+          {/*
+            Each name is one unit, its dot glued to it (a no-break space), so lines break between names; a name made of
+            several words may wrap between its own words when it alone is wider than the column (English), never inside
+            a word, and a Chinese name never. The count of the rest goes inside the last unit, with no dot: '南極洲 +3'.
+          */}
+          {region.names.map((name, i) => (
+            <Fragment key={i}>
+              {i > 0 && ' '}
+              <span className={styles.place}>
+                {name}
+                {i < region.names.length - 1 ? '\u00a0·' : region.more > 0 ? `\u00a0${t('card.moreRegions', { n: region.more })}` : ''}
+              </span>
+            </Fragment>
+          ))}
+          {note && <span id={noteId} className={styles.note}>{note}</span>}
+          {footNote !== undefined && <span className={styles.footNote}>{footNote}</span>}
+        </div>
       </div>
 
       <div role="cell" className={styles.routeCell}>
@@ -262,7 +311,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
           spaces stay (as one), and the arrow is drawn at the end of the unit before it instead, after a no-break space
           (CSS), so each 'place →' is one unit and a line breaks only after an arrow. The block layouts are as above.
         */}
-        <h3 className={styles.route}>
+        <h3 ref={routeRef} className={styles.route}>
           {route.map((name, i) => t.locale === 'en' ? (
             <Fragment key={i}>
               {i > 0 && <span className={styles.arrow}>{' '}<span className={styles.arrowBetween}>→</span>{' '}</span>}
@@ -275,6 +324,20 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
             </Fragment>
           ))}
         </h3>
+        {/*
+          On a phone the route is cut at two lines (CSS); under a cut one this says how many stops there are and shows
+          them all in place. Drawn only when the route is cut (CSS alone, so nothing moves when the page's scripts
+          start); once they run, it is also taken out of the tab order and the page's text where it is not
+          (useRouteCut). A native disclosure: it works without JavaScript. Not shown from 640px.
+        */}
+        {route.length > 1 && (
+          <details className={styles.allStops} hidden={routeCut === false}>
+            <summary className={styles.allStopsToggle}>
+              {t('card.allStops', { n: route.length })}
+              <span aria-hidden="true" className={styles.caret} />
+            </summary>
+          </details>
+        )}
         {openedState && (
           <span id={openedId} className={styles.visuallyHidden}>
             {t(openedState === 'latest' ? 'card.openedLatest' : 'card.openedEarlier')}
@@ -282,7 +345,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
         )}
       </div>
 
-      <div role="cell" className={styles.datesCell}>
+      <div role="cell" className={styles.datesCell} data-open={listing ? '' : undefined}>
         {/* Every date has passed since the page was made: said plainly, not an empty cell (the next copy drops the row). */}
         {shown.length === 0 && tour.departures.length > 0 && <p className={styles.passed}>{t('card.datesPassed')}</p>}
         {shown.length > 0 && (
@@ -303,7 +366,9 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
               );
               // Named by the full date (with its year, which the chip leaves out) and that date's price.
               const name = `${departureDateText(d.date, t) ?? day} ${priceText}`;
-              const pointer = { className: styles.d, onPointerEnter: showTip, onPointerLeave: hideTip };
+              // The tour's last date: on a phone it needs no room for a +N after it (CSS).
+              const className = d === departures.at(-1) ? `${styles.d} ${styles.lastDate}` : styles.d;
+              const pointer = { className, onPointerEnter: showTip, onPointerLeave: hideTip };
               return linkable ? (
                 <a
                   key={d.date}
@@ -327,6 +392,61 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
                 <span className={styles.visuallyHidden}>{t('card.moreDates', { n: moreDates })}</span>
               </span>
             )}
+            {/*
+              On a phone: only the dates that fit one line, then +N for the rest, a button that opens the list of all
+              of them. Which dates fit is the CSS's (container queries on the cell's width): one +N follows each date
+              that has more after it, and the CSS shows the one after the last date drawn. Not shown from 640px.
+            */}
+            {shown.map((_, i) => {
+              const rest = departures.length - (i + 1);
+              if (rest <= 0) return null;
+              const next = i + 1 === shown.length ? 'none' : i + 2 === departures.length ? 'last' : 'more';
+              return (
+                <button
+                  key={`more-${i}`}
+                  type="button"
+                  className={styles.moreButton}
+                  data-k={i + 1}
+                  data-next={next}
+                  aria-label={t('card.moreDates', { n: rest })}
+                  aria-haspopup="dialog"
+                  aria-expanded={listing}
+                  onClick={e => {
+                    if (listing) { closeList(); return; }
+                    listOpenerRef.current = e.currentTarget;
+                    setListing(true);
+                  }}
+                >
+                  {t('card.moreDatesShort', { n: rest })}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {listing && (
+          <DeparturePicker
+            departures={departures}
+            fallbackPriceHkd={tour.fallbackPriceHkd}
+            today={upcomingAfter}
+            t={t}
+            title={t('card.dates')}
+            link={linkable ? linkProps : undefined}
+            placement="start"
+            openerRef={listOpenerRef}
+            onClose={closeList}
+          />
+        )}
+        {/*
+          On a phone the notes come here, under the dates, one small line each (from 640px each is in its own place
+          instead; only one copy is shown at any width): where the tour starts and ends, old data, a price change, the
+          trip page's rest.
+        */}
+        {(note || staleText || change || footNote !== undefined) && (
+          <div className={styles.notes}>
+            {note && <p className={styles.noteLine}>{note}</p>}
+            {staleText && <p className={`${styles.noteLine} ${styles.staleLine}`}>{staleText}</p>}
+            {change && <p className={`${styles.noteLine} ${styles[change.tone]}`}>{change.text}</p>}
+            {footNote !== undefined && <p className={`${styles.noteLine} ${styles.footLine}`}>{footNote}</p>}
           </div>
         )}
       </div>
@@ -346,22 +466,27 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
             aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
             aria-describedby={describedBy || undefined}
           >
-            {t(openedState ? 'row.again' : 'row.goTo')}
+            {/* The words: these from 640px; on a phone the short 網站 ↗ (the name stays the same). */}
+            <span className={styles.wideText}>{t(openedState ? 'row.again' : 'row.goTo')}</span>
+            <span className={styles.phoneText}>{t('card.site')}</span>
           </a>
         )}
         {/* 加入行程 and 收藏, side by side; the picker opens under them, at the column's right edge. */}
         <div className={styles.pair} data-open={picking ? '' : undefined}>
           {onAdd && (
-            <div>
+            <div className={styles.addWrap}>
               <button
                 ref={addRef}
                 type="button"
                 className={styles.add}
+                // The same name at every width: on a phone its words are the short ＋ 加入.
+                aria-label={t('card.add')}
                 aria-expanded={picking}
                 aria-haspopup="dialog"
                 onClick={() => (picking ? closePicker() : setPicking(true))}
               >
-                {t('card.add')}
+                <span className={styles.wideText}>{t('card.add')}</span>
+                <span className={styles.phoneText}>{t('card.addShort')}</span>
               </button>
               {picking && (
                 <DeparturePicker

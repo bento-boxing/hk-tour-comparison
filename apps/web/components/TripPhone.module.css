@@ -1,0 +1,208 @@
+/*
+ * The trip page on a phone (task 71; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick; the exact
+ * sizes are boards_m16.py's). Nothing here is drawn from 640px: the wide page keeps its strip.
+ * The gold strips and the choosing screen's top run through the page column's side padding (16px; 12px under 360px:
+ * app/_site/site-frame.module.css), to the window's edges.
+ */
+.trip, .pick, .clear { display: none; }
+
+@media (max-width: 639px) {
+  .trip, .pick { display: block; }
+  .clear { display: inline-flex; }
+}
+
+/* 清空: a small underlined text button at the top right, 44px tall for a finger. */
+.clear {
+  align-items: center; min-height: 44px; margin: -12px -6px -12px 0; padding: 0 6px; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: 13px; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.clear:focus-visible, .undoButton:focus-visible, .remove:focus-visible, .restChip:focus-visible, .restDone:focus-visible,
+.back:focus-visible, .allStopsToggle:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+/* After a removal: one line, ink, with its undo. Nothing is drawn while there is none. */
+.undo {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 14px; padding: 0 4px 0 12px; min-height: 44px;
+  border-radius: var(--radius-control); background: var(--selected-bg); color: var(--on-selected); font-size: 14px; font-weight: 700;
+}
+.undoButton {
+  min-height: 44px; padding: 0 8px; border: 0; background: none; color: inherit; font: inherit;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.undoButton:focus-visible { outline-color: var(--on-selected); outline-offset: -4px; }
+
+/* A trip that is not the remembered one: one quiet line, with the button that makes it the remembered trip. */
+.other {
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; margin: -6px 0 10px;
+  font-size: 13px; color: var(--text-muted);
+}
+.adopt {
+  min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.adopt:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* The steps: numbered, 26px apart, joined by a line from each number down to the next. */
+.steps { margin: 0; padding: 0; list-style: none; }
+.step { position: relative; display: flex; align-items: flex-start; gap: 10px; padding-bottom: 26px; }
+.step::before {
+  content: ''; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--line-control);
+}
+.step:last-child { padding-bottom: 0; }
+.step:last-child::before { display: none; }
+.num {
+  position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 12px; background: var(--selected-bg); color: var(--on-selected);
+  font-size: 13px; font-weight: 900; line-height: 1;
+}
+.numNext { background: var(--surface); border: 2px dashed var(--ink); color: var(--ink); }
+
+/* A rest step: the real rest between the two tours, beside its number. */
+.rest { padding-top: 2px; font-size: 14px; line-height: 1.4; color: var(--text-muted); }
+
+/*
+ * A tour: line 1 its operator's tag, its days and its price; then its route (two lines at most, then 全部 N 站) and
+ * its dates on the left, its × on the right. The link to the operator's page lies over the whole tour; 全部 N 站 and
+ * the × lie over the link.
+ */
+.tour { position: relative; flex: 1 1 auto; min-width: 0; }
+.line1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.op {
+  min-width: 0; padding: 1px 7px; border-radius: 4px; background: var(--c); color: var(--on-operator-light);
+  font-size: 11px; font-weight: 700; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.opDark { color: var(--on-operator-dark); }
+.days { flex: none; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.price { flex: none; margin-left: auto; font-size: 14px; font-weight: 900; white-space: nowrap; }
+.from { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+
+.body { display: flex; align-items: flex-start; gap: 8px; margin-top: 2px; }
+.text { flex: 1 1 auto; min-width: 0; }
+
+/* As on the cards (TourCard.module.css): at most two lines; from a third on, 全部 N 站 covers it, with no script. */
+.routeBox { position: relative; max-height: 4.2em; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.routeBox:has(.allStops[open]) { max-height: none; }
+.route { margin: 0; }
+.allStops {
+  position: absolute; z-index: 1; top: 2.8em; left: 0; right: 0; height: 1.4em; background: var(--surface);
+}
+.allStops[hidden] { display: none; }
+.allStops[open] { position: relative; top: auto; height: auto; }
+.allStopsToggle {
+  display: flex; align-items: center; gap: 4px; width: fit-content; height: 100%; min-height: 2em;
+  font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; list-style: none;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.allStopsToggle::-webkit-details-marker { display: none; }
+.caret::before { content: '▾'; }
+.allStops[open] .caret::before { content: '▴'; }
+
+.dates { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
+
+/* The link over the whole tour: no text of its own (its name is the tour's); outlined while it has keyboard focus. */
+.open { position: absolute; inset: -4px; border-radius: var(--radius-control); }
+.open:focus-visible { outline: 2px solid var(--focus); }
+.tour:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+
+/* × : a 28px ring in a 44px target. */
+.remove {
+  position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -8px -8px -8px 0; padding: 0; border: 0; background: none; color: var(--text-muted);
+  font: inherit; cursor: pointer;
+}
+.remove > span {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 14px;
+  border: 1px solid var(--line-control); background: var(--surface); font-size: 15px; font-weight: 700; line-height: 1;
+}
+
+/* The dashed button for the next (or first) tour: one link, its number dashed too. */
+.addStep { align-items: center; }
+.add {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 48px; padding: 6px 12px; border: 2px dashed var(--ink); border-radius: var(--radius-card);
+  color: var(--ink); text-decoration: none;
+}
+.add:hover { background: var(--hit); }
+.add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.addText { min-width: 0; }
+.addTitle { display: block; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.addSub { display: block; font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+.chevron { flex: none; font-size: 18px; font-weight: 700; }
+
+/*
+ * The gold total: gold, ink text, ink rules above and below, across the page's whole width. The label and count on the
+ * left and the price on the right, each kept to one line; should both not fit (very large text, the longest prices),
+ * the price goes under, at the right, rather than out of the strip.
+ */
+.total {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 8px;
+  padding: 10px 16px; background: var(--gold); color: var(--on-gold);
+  border-top: 2px solid var(--on-gold); border-bottom: 2px solid var(--on-gold); font-size: 14px; line-height: 1.4;
+}
+.trip .total { margin: 20px -16px 0; }
+.totalCount { font-weight: 900; white-space: nowrap; }
+.totalLabel { margin-right: 0.6em; }
+.totalPrice { margin-left: auto; font-size: 16px; font-weight: 900; white-space: nowrap; }
+.total .from { color: inherit; }
+.smallPrint { margin: 12px 0 0; font-size: 13px; color: var(--text-muted); }
+
+/* The choosing screen's top: across the page's width, right under the header. */
+.pick { margin: -16px -16px 0; }
+.pickBar {
+  display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 0 8px;
+  background: var(--header-bg); color: var(--header-text);
+}
+.back {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  color: inherit; font-size: 22px; line-height: 1; text-decoration: none;
+}
+.back:focus-visible { outline-color: var(--header-accent); outline-offset: -2px; }
+.pickTitle { margin: 0; font-size: 16px; font-weight: 900; line-height: 1.3; }
+.pickTitle:focus { outline: none; }
+
+.windowRow {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 16px 4px;
+}
+.window { font-size: 13px; font-weight: 700; }
+
+/*
+ * The rest: one control (休息 1 至 3 日 ▾) and its popover with the two fields, under the row at its right edge
+ * (wherever the control has wrapped to), so it never leaves the window.
+ */
+.restControl { position: static; }
+.restChip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--line-control); border-radius: 20px; background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer;
+}
+.restChip[aria-expanded='true'] .caret::before { content: '▴'; }
+.restPanel {
+  position: absolute; z-index: 30; right: 16px; top: calc(100% + 2px);
+  display: flex; align-items: center; gap: 12px; padding: 6px 8px 6px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); color: var(--ink);
+  box-shadow: 0 6px 18px var(--shadow); font-weight: 700; white-space: nowrap;
+}
+.restDone {
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--radius-control);
+  background: var(--selected-bg); color: var(--on-selected); font: inherit; font-size: 14px; cursor: pointer;
+}
+
+@media (max-width: 359px) {
+  .total, .windowRow { padding-left: 12px; padding-right: 12px; }
+  /* No room for the label beside the count and the price (English): it is still read out. */
+  .restPanel { right: 12px; }
+  .totalLabel {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .trip .total { margin-left: -12px; margin-right: -12px; }
+  .pick { margin-left: -12px; margin-right: -12px; }
+}
+
+.visuallyHidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}

@@ -31,6 +31,8 @@
 
 .total { margin-left: auto; align-self: center; text-align: right; font-size: 14px; }
 .totalPrice { font-size: 22px; font-weight: 900; display: block; }
+/* The tours and the days (task 71): one line always. */
+.totalCount { white-space: nowrap; }
 /* 起 after an inexact total, as on the rows' price. */
 .from { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 
@@ -42,11 +44,4 @@
 .remove:hover { text-decoration-thickness: 2px; }
 .remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* Phones: one column, the connectors still between the boxes; the total below, still on the right. */
-@media (max-width: 639px) {
-  .chain { flex-direction: column; }
-  .leg { min-width: 0; }
-  .gap { padding: 4px 0; }
-  .total { margin-left: 0; align-self: stretch; }
-  .remove { min-height: 44px; }
-}
+/* Not drawn on phones (under 640px): the trip page shows components/TripPhone there instead (task 71). */

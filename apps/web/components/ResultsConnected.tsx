@@ -7,6 +7,8 @@ import type { TourRow } from '../lib/tour-row';
 import { useT } from '../lib/i18n-client';
 import { localeHref } from '../lib/locale-path';
 import { chainStartHref } from '../lib/chain-href';
+// 加入行程 starts a new trip: the visitor's own action, so it becomes the remembered trip (task 71).
+import { markTripAction } from '../lib/remembered-trip';
 import { Results } from './Results';
 
 // The server page cannot pass t or onAdd (functions) to client components, so this wrapper builds them here.
@@ -24,7 +26,7 @@ export function ResultsConnected({ tours, total, operators, today, now, clearPat
   return (
     <Results
       tours={tours} total={total} operators={operators} places={places} today={today} now={now} t={t} clearPath={clearPath}
-      onAdd={(tour, departure) => router.push(localeHref(t.locale, chainStartHref(tour.key, departure)))}
+      onAdd={(tour, departure) => { markTripAction(); router.push(localeHref(t.locale, chainStartHref(tour.key, departure))); }}
     />
   );
 }

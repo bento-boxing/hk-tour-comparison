@@ -18,3 +18,32 @@
 .emptyText { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 .link { color: var(--ink); font-size: 15px; font-weight: 700; }
 .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/*
+ * Task 71: on a phone the page is one of two screens (`data-view`, from the address): the trip alone ('trip': the
+ * heading, 清空 and components/TripPhone's steps on white across the page's width), or the screen for choosing a tour
+ * ('pick': TripPhone's bar and total, then the search box, the filters and the tours). From 640px none of the rules
+ * below apply: .phoneOnly is the only one drawn nowhere there.
+ */
+.phoneOnly { display: none; }
+
+@media (max-width: 639px) {
+  .phoneOnly { display: block; }
+  .wideOnly { display: none; }
+  .view[data-view='trip'] .next { display: none; }
+  /* The choosing screen says its window under its bar; the heading still names the list for screen readers. */
+  .nextHeading {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .view[data-view='pick'] .searchRow { margin-top: 8px; }
+
+  .tripArea { margin: 0 -16px 16px; padding: 14px 16px 16px; background: var(--surface); }
+  .tripArea:first-child { margin-top: -16px; }
+  .yoursRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .yoursRow .heading { margin: 0; font-size: 18px; font-weight: 900; }
+}
+/* The page column's side padding is 12px there (site-frame.module.css). */
+@media (max-width: 359px) {
+  .tripArea { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+}

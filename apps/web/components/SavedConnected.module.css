@@ -52,3 +52,9 @@
 @media (min-width: 640px) {
   .remove { min-height: 36px; }
 }
+
+/* Phones (task 70): the number saved, under the page's intro (small print there: saved-page.module.css). */
+.phoneLine { display: none; }
+@media (max-width: 639px) {
+  .phoneLine { display: block; margin: 0 0 12px; font-size: 13px; font-weight: 700; }
+}

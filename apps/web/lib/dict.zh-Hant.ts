@@ -24,6 +24,11 @@ const zh = {
   'nav.chain': '連續行程',
   'nav.saved': '已收藏', // the header's link to the saved tours, their number after it
   'nav.savedCount': '({n})',
+  // The bottom bar on phones (under 640px): its accessible name, its first tab (the other two are nav.chain and
+  // nav.saved), and the number on a tab's badge as read out (the badge itself shows the bare number).
+  'tabs.label': '主要頁面',
+  'tabs.search': '搜尋',
+  'tabs.count': '({n})',
   'notFound.title': '找不到這一頁', // the 404 page (app/global-not-found.tsx), which shows it in all three languages
   'notFound.text': '這個地址沒有頁面。', // the 404 inside a language's pages (an unknown /tours/<id>), under notFound.title
   // The error page inside a language's pages (app/(zh-hant)/error.tsx): a page could not be made, as when the database
@@ -177,6 +182,13 @@ const zh = {
   'card.startsAt': '{place}出發',
   'card.endsAt': '{place}解散',
   'card.moreRegions': '+{n}',
+  // A card on a phone (under 640px): the gold button's words (its accessible name stays card.linkLabel); the trip
+  // page's add button; the control under a route cut at two lines ({n}: its stops); the dates that do not fit, as a
+  // button opening the list of all of them (card.moreDates is its name).
+  'card.site': '網站 ↗',
+  'card.addShort': '＋ 加入',
+  'card.allStops': '全部 {n} 站',
+  'card.moreDatesShort': '+{n}',
   'card.linkLabel': '{operator}：{route}，{length}，{price}起', // the card link's accessible name
   // A row's save button (a toggle) and its accessible name, which says which tour: '收藏「東瀛遊：大阪、京都，5日4夜」'.
   'save.save': '收藏',
@@ -270,6 +282,8 @@ const zh = {
   // The saved page (/saved): its title, the line under it, its states and the no-longer-listed tours.
   'saved.title': '已收藏的旅行團',
   'saved.intro': '收藏只保存在這個瀏覽器內，本網站不設帳戶。只有打開這一頁時，清單才會傳送到本網站，用來顯示這些旅行團，網站不會儲存它。',
+  // On a phone, under saved.intro (there in small print): the number saved here.
+  'saved.countLine': '{n} 個',
   'saved.empty': '未有收藏的旅行團。',
   'saved.emptyHow': '在任何旅行團按「收藏」，它就會留在這裏，方便日後比較或再看。',
   'saved.unavailable': '這個瀏覽器不讓本網站保存資料（例如封鎖了網站資料），所以未能在這裏收藏旅行團。',
@@ -294,14 +308,47 @@ const zh = {
   'chain.pickNext': '＋ 從下方選擇下一個旅行團',
   'chain.window': '可出發日：{from} – {to}',
   'chain.total': '目前合計',
-  'chain.totalDays': '{days}日',
-  'chain.totalSpan': '{days}日（連休息共{span}日）',
   'chain.removeLast': '移除最後一程',
   'chain.nextHeading': '可接續的旅行團（{from} – {to} 出發）',
   'chain.afterRest': '休息 {n} 日後出發',
   'chain.afterRestRange': '休息 {a}–{b} 日後出發',
   'chain.full': '行程已達上限（8 程）。', // 8 is MAX_CHAIN_LEGS (pinned by a test)
   'chain.noNext': '這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。',
+  // Task 71: the total, at every width: the tours, and the days from the first departure to the last return, rest
+  // included (with the summed from-price beside it).
+  'chain.totalCount': '{n} 個旅行團 · {d} 日',
+  // The trip on a phone (under 640px; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick): the gold
+  // strip's label; 清空 and its accessible name; a tour's × ({tour} is save.tour); the message after a removal or 清空
+  // with its undo button; the rest between two tours when it is none (a tour may leave the day after the last one
+  // ends, never on that day); the dashed button (its ＋ is drawn apart) with the dates the next tour may leave, or, on
+  // an empty trip, what the page is for; the small print under the total.
+  'trip.total': '合計',
+  'trip.clear': '清空',
+  'trip.clearName': '清空行程',
+  'trip.remove': '移除「{tour}」',
+  'trip.removed': '已移除',
+  'trip.cleared': '已清空',
+  'trip.undo': '還原',
+  'trip.restNone': '休息 0 日（翌日出發）',
+  'trip.addNext': '加入下一個旅行團',
+  'trip.addFirst': '選擇第一個旅行團',
+  'trip.addWindow': '{from} – {to} 出發，可以不加',
+  'trip.firstHint': '逐個加入旅行團，看看連起來的日子和總價。',
+  'trip.smallPrint': '按旅行團可開啟旅行社的網頁。報名請到每間旅行社的網站分別辦理。',
+  // A tour of the trip: the accessible name of its link to the operator's page ({dates}: date.range; {price}: as shown).
+  'trip.tourName': '{operator}：{route}，{dates}，{price}',
+  // The screen for choosing a tour: its bar ({n}: the tour's place in the trip) and the ← link's name; the rest control
+  // (休息 1 至 3 日 ▾; chain.restDays when both are the same) and the button that closes it.
+  'trip.pickTitle': '選擇第 {n} 個旅行團',
+  'trip.back': '返回你的行程',
+  'trip.window': '{from} – {to} 出發', // the dates the next tour may leave, beside the rest control
+  'trip.restChip': '休息 {min} 至 {max} 日',
+  'trip.restDone': '完成',
+  // A trip shown that is not the one this browser remembers (a link someone shared, an older state reached with Back):
+  // the line above its steps, when another trip is remembered or none is, and its button, which remembers this one.
+  'trip.notYours': '這不是你儲存的行程',
+  'trip.notSaved': '這個行程未儲存',
+  'trip.adopt': '改用這個行程',
 };
 
 export default zh;

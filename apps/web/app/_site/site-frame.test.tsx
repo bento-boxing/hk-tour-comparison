@@ -143,3 +143,14 @@ it('the nav bar has the theme switch beside the language switch', async () => {
   expect(html).toContain('切換至深色模式');
   expect(html).toContain('切換至淺色模式');
 });
+
+it.each([
+  ['zh-Hant', '主要頁面', ['/', '/chain', '/saved']],
+  ['zh-Hans', '主要页面', ['/zh-hans', '/zh-hans/chain', '/zh-hans/saved']],
+  ['en', 'Main pages', ['/en', '/en/chain', '/en/saved']],
+] as const)('%s: every page ends with the phones\' bottom bar (after the footer), its links in the language', async (locale, label, hrefs) => {
+  const doc = new DOMParser().parseFromString(await renderLayout(locale), 'text/html');
+  const bar = doc.querySelector(`nav[aria-label="${label}"]`)!;
+  expect([...bar.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual(hrefs);
+  expect(doc.querySelector('footer')!.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

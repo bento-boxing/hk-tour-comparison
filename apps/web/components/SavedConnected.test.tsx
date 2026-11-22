@@ -314,3 +314,48 @@ describe('the other states', () => {
     expect(html).toContain('<noscript>');
   });
 });
+
+describe('on a phone (task 70)', () => {
+  const line = () => document.querySelector(`.${styles.phoneLine}`);
+
+  it('under the page\'s intro (small print on a phone, where the list is kept and when it is sent), one line: how many are saved here', () => {
+    store(['egl:KIX5', 'jetour:THB', 'egl:GONE1']);
+    render(<Page initial={savedHref(['egl:GONE1', 'jetour:THB', 'egl:KIX5'])} />);
+    expect(line()).toHaveTextContent(/^3 個$/);
+    const css = readFileSync(join(__dirname, 'SavedConnected.module.css'), 'utf8').replace(/\s+/g, ' ');
+    expect(css).toMatch(/\.phoneLine \{ display: none; \} @media \(max-width: 639px\) \{ \.phoneLine \{ display: block;/);
+    // The intro stays on a phone (nothing hides it), smaller.
+    const page = readFileSync(join(__dirname, '../app/_site/saved-page.module.css'), 'utf8').replace(/\s+/g, ' ');
+    expect(page).toMatch(/@media \(max-width: 639px\) \{ \.heading \{ font-size: 24px; \} \.intro \{ margin-bottom: 4px; font-size: 13px; \} \}/);
+    expect(page).not.toMatch(/\.intro \{[^}]*display: none/);
+  });
+
+  it.each([
+    ['zh-Hans', /^1 个$/],
+    ['en', /^1 tour$/],
+  ] as const)('in %s', (locale, text) => {
+    store(['egl:KIX5']);
+    render(<Page initial={savedHref(['egl:KIX5'])} locale={locale} />);
+    expect(line()).toHaveTextContent(text);
+  });
+
+  it('the server cannot know the number: the line is there, empty, and keeps its place when the number comes', () => {
+    store(['egl:KIX5', 'jetour:THB']);
+    const html = renderToString(<I18nProvider locale="zh-Hant"><SavedConnected asked={['egl:KIX5']} dropped={0} tours={[A]} operators={operators} today="2026-11-12" /></I18nProvider>);
+    expect(html).toContain(`class="${styles.phoneLine}">\u00a0</p>`);
+    expect(html).not.toContain('個</p>');
+    render(<Page initial={savedHref(['egl:KIX5', 'jetour:THB'])} locale="en" />);
+    expect(line()).toHaveTextContent(/^2 tours$/);
+  });
+
+  it('none for a list from a link (its note says what it is), nor where the browser keeps nothing', () => {
+    store(['egl:KIX5']);
+    const { unmount } = render(<Page initial={savedHref(['jetour:THB'])} />);
+    expect(line()).toBeNull();
+    unmount();
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    resetSavedCache();
+    render(<Page initial={savedHref(['jetour:THB'])} />);
+    expect(line()).toBeNull();
+  });
+});

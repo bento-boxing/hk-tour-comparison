@@ -86,9 +86,8 @@ export function ChainStrip({ legs, operators, places, today, t, gap, departWindo
             ? formatPrice(totals.priceHkd)
             : <PriceWithFrom price={formatPrice(totals.priceHkd)} t={t} fromClassName={styles.from} />}
         </b>
-        {legs.length > 1
-          ? t('chain.totalSpan', { days: totals.tourDays, span: totals.spanDays })
-          : t('chain.totalDays', { days: totals.tourDays })}
+        {/* Task 71: the tours and the whole span, rest included, on one line. */}
+        <span className={styles.totalCount}>{t('chain.totalCount', { n: legs.length, d: totals.spanDays })}</span>
         <button type="button" className={styles.remove} onClick={onRemoveLast}>{t('chain.removeLast')}</button>
       </div>
     </div>

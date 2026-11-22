@@ -7,6 +7,7 @@ import { hydrateRoot } from 'react-dom/client';
 import { NavBar } from './NavBar';
 import { makeT } from '../lib/i18n';
 import { resetSavedCache, saveTour, SAVED_KEY } from '../lib/saved-tours';
+import { rememberTrip, resetTripCache } from '../lib/remembered-trip';
 
 // The language switch inside reads the address.
 const address = vi.hoisted(() => ({ pathname: '/', search: '' }));
@@ -20,7 +21,7 @@ vi.mock('next/link', () => ({
 const tZh = makeT('zh-Hant');
 /** The page links (the brand's link home and the language switch's links are not among them). */
 const pageLinks = () => screen.getAllByRole('link').filter(link => !link.closest('[role="group"]') && link.textContent !== '跟邊團');
-beforeEach(() => { window.localStorage.clear(); resetSavedCache(); });
+beforeEach(() => { window.localStorage.clear(); resetSavedCache(); resetTripCache(); });
 afterEach(() => { vi.restoreAllMocks(); });
 const savedLink = () => screen.getByRole('link', { name: /^已收藏|^Saved/ });
 /** What a link shows: its text without the hidden copy that keeps the saved link's room. */
@@ -38,6 +39,14 @@ it('shows the site name, linking to the search page, the two page links and 已�
     ['搜尋旅行團', '/'], ['連續行程', '/chain'], ['已收藏 (0)', '/saved'],
   ]);
   expect(savedLink()).toHaveAccessibleName('已收藏 (0)');
+});
+
+// Task 71: the header's link has the bottom bar's fault fixed too (wide screens).
+it('連續行程 goes to the trip this browser remembers, once there is one', () => {
+  render(<NavBar current="search" t={makeT('en')} />);
+  expect(screen.getByRole('link', { name: 'Plan a trip' })).toHaveAttribute('href', '/en/chain');
+  act(() => { rememberTrip({ legs: [{ tourKey: 'egl:KIX5', departure: '2026-12-18' }], gap: { min: 1, max: 3 } }); });
+  expect(screen.getByRole('link', { name: 'Plan a trip' })).toHaveAttribute('href', '/en/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3');
 });
 
 it.each([
@@ -112,9 +121,13 @@ it('ends with the theme switch, after the language switch, named in the current 
   expect(group.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-it('on a phone: the name and the switches, then the three links on a line of their own, one line down to 320px', () => {
+it('on a phone: one 48px row, the name and the switches; the three links are in the bottom bar (components/TabBar)', () => {
+  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.inner \{ [^}]*min-height: 48px; flex-wrap: nowrap;[^}]*\}.*\.links \{ display: none; \}/);
+});
+
+it('on a phone turned sideways with a short screen (no bottom bar): the name and the switches, then the three links on a line of their own, one line down to 320px', () => {
   expect(css()).toMatch(/\.inner \{[^}]*flex-wrap: wrap/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{.*\.tools \{ order: 2;[^}]*\}.*\.links \{ order: 3; flex-basis: 100%;/);
+  expect(css()).toMatch(/@media \(max-width: 639px\) and \(orientation: landscape\) and \(max-height: 500px\) \{.*\.tools \{ order: 2;[^}]*\}.*\.links \{ display: flex; order: 3; flex-basis: 100%;/);
   // The two-by-two layout four links needed (Chinese below 360px, English below 430px) is gone with the fourth link.
   expect(css()).not.toMatch(/grid-template-columns: repeat\(2, max-content\)|@media \(max-width: (359|429|479)px\)/);
 });

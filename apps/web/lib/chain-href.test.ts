@@ -2,8 +2,8 @@ import { it, expect } from 'vitest';
 import { decodeChain, places, DEFAULT_GAP, MAX_CHAIN_LEGS } from '@hktours/core';
 import { parseSearchParams } from './search-params';
 import {
-  chainHref, chainPageHref, chainStartHref, withDestination, withGap, withLegAdded, withoutLastLeg, withSearch,
-  type ChainAddress,
+  chainHref, chainPageHref, chainStartHref, pickScreen, tripScreen, withDestination, withGap, withLegAdded, withoutFirstLeg,
+  withoutLastLeg, withoutLegs, withSearch, type ChainAddress,
 } from './chain-href';
 
 it('chainStartHref starts a chain with one leg and the default gap', () => {
@@ -99,6 +99,39 @@ it('choosing a destination replaces it, keeps the legs, gap and other filters, a
   const next = withDestination(address, { countryId: 'japan', regionId: 'japan-kansai' });
   expect(next.search.filters.destination).toEqual({ countryId: 'japan', regionId: 'japan-kansai' });
   expect(chainPageHref(next)).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&dest=japan-kansai&ex=japan&dmax=6&op=jetour&sort=days`);
+});
+
+// Task 71: the phone's screen for choosing the next tour is `pick=1` in the address.
+const two = withLegAdded(address, { tourKey: 'texpert:SEL5', departure: '2026-12-24' });
+const TWO = 'legs=egl%3AKIX5%402026-12-18%2Ctexpert%3ASEL5%402026-12-24&gap=1-3';
+
+it('the choosing screen is pick=1 after the chain, from page 1; the trip screen leaves it out', () => {
+  const pick = pickScreen(address);
+  expect(chainPageHref(pick)).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&pick=1&${KEEP}`);
+  expect(chainPageHref(tripScreen(pick))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}`);
+  expect(chainPageHref(pickScreen({ chain: { legs: [], gap: { min: 1, max: 3 } }, search: { filters: {}, sort: 'price', page: 1 } })))
+    .toBe('/chain?gap=1-3&pick=1');
+});
+
+it('on the choosing screen, the gap, the filters and paging keep it; adding a tour returns to the trip', () => {
+  const pick = pickScreen(address);
+  expect(chainPageHref(withGap(pick, { min: 0, max: 2 }))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=0-2&pick=1&${KEEP}`);
+  expect(chainPageHref(withSearch(pick, { filters: {}, sort: 'price', page: 3 }))).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&pick=1');
+  expect(chainPageHref(withDestination(pick, null))).toContain('&pick=1&');
+  expect(chainPageHref({ ...pick, search: { ...pick.search, page: 2 } })).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&pick=1&${KEEP}&page=2`);
+  expect(chainPageHref(withLegAdded(pick, { tourKey: 'texpert:SEL5', departure: '2026-12-24' }))).toBe(`/chain?${TWO}&${KEEP}`);
+});
+
+it('removing the first leg makes the second the first; the gap and filters stay', () => {
+  expect(chainPageHref(withoutFirstLeg({ ...two, search: { ...two.search, page: 2 } })))
+    .toBe(`/chain?legs=texpert%3ASEL5%402026-12-24&gap=1-3&${KEEP}`);
+  expect(withoutFirstLeg(address).chain.legs).toEqual([]);
+  expect(two.chain.legs).toHaveLength(2); // the original is not changed
+});
+
+it('清空 leaves no legs and keeps the gap and filters; removing returns to the trip screen', () => {
+  expect(chainPageHref(withoutLegs(pickScreen(two)))).toBe(`/chain?gap=1-3&${KEEP}`);
+  expect(chainPageHref(withoutLastLeg(pickScreen(two)))).toBe(`/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&${KEEP}`);
 });
 
 it('clearing the destination leaves the key out entirely, back on page 1', () => {

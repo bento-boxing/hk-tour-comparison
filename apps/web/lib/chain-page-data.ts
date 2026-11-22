@@ -1,4 +1,4 @@
-import { decodeChain, places, MAX_CHAIN_LEGS, type IsoDate } from '@hktours/core';
+import { decodeChain, places, MAX_CHAIN_LEGS, type ChainState, type IsoDate } from '@hktours/core';
 import type { Db, OperatorInfo } from '@hktours/db/read';
 import { withoutTitle, type TourRow } from './tour-row';
 import type { Reads } from './cached-reads';
@@ -20,8 +20,22 @@ export interface ChainPageData {
   droppedCount: number;
   /** Departure window for the next leg; null when there are no legs or the chain is full. */
   departWindow: { from: IsoDate; to: IsoDate } | null;
-  /** The tours that can come next, in that window; null exactly when `departWindow` is. */
+  /**
+   * The tours that can come next, in that window; null when `departWindow` is, except on the choosing screen of an
+   * empty trip, where it is every tour that can be the first (any upcoming date).
+   */
   next: { tours: TourRow[]; total: number } | null;
+  /**
+   * The address names no trip at all (neither `legs` nor `gap`): the bare /chain the header and the bottom bar link to
+   * before the page's scripts run, which asks for the trip this browser remembers (components/TripPhone TripMemory).
+   * Every address the page makes has a gap.
+   */
+  bare: boolean;
+  /**
+   * The trip the address asked for, as decodeChain read it, before any tour was dropped: the browser compares it with
+   * the trip it remembers (lib/remembered-trip tripToRemember), so a remembered trip whose tours have gone is pruned.
+   */
+  requested: ChainState;
   /** MAX_CHAIN_LEGS legs: no more can be added. */
   full: boolean;
   /** Every operator, for looking one up by id (the strip's and cards' names and colours). */
@@ -66,20 +80,22 @@ export async function loadChainPage(
   const resolved = resolveChain(decoded, rows, today);
   const { legs } = resolved;
   const droppedCount = resolved.droppedCount + unreadable;
+  const full = legs.length >= MAX_CHAIN_LEGS;
+  // The phone's screen for choosing the next tour (task 71): there is nothing to choose for a full trip.
+  const pick = first(raw, 'pick') === '1' && !full;
   const address: ChainAddress = {
     chain: { legs: legs.map(l => ({ tourKey: l.tour.key, departure: l.departure })), gap: decoded.gap },
     search,
+    ...(pick ? { pick } : {}),
   };
 
-  const full = legs.length >= MAX_CHAIN_LEGS;
   const departWindow = full ? null : nextWindow(legs, decoded.gap);
+  const page = { sort: search.sort, page: search.page, pageSize: pageSizeOf(search), today };
   const found = departWindow
-    ? await reads.searchTours(db, {
-      filters: { ...search.filters, dateFrom: departWindow.from, dateTo: departWindow.to },
-      sort: search.sort, page: search.page, pageSize: pageSizeOf(search), today,
-    }, locale)
-    : null;
+    ? await reads.searchTours(db, { filters: { ...search.filters, dateFrom: departWindow.from, dateTo: departWindow.to }, ...page }, locale)
+    // Choosing the first tour: any tour that leaves after today, with the visitor's filters.
+    : pick && legs.length === 0 ? await reads.searchTours(db, { filters: search.filters, ...page }, locale) : null;
   const next = found && { tours: found.tours.map(withoutTitle), total: found.total };
 
-  return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators };
+  return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators, bare: legsText === undefined && first(raw, 'gap') === undefined, requested: decoded };
 }

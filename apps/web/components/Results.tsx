@@ -17,6 +17,8 @@ export interface ResultsProps {
   now?: string;
   /** When given, every row has the 加入行程 button and calls this with the chosen date. */
   onAdd?: (tour: TourRow, departure: IsoDate) => void;
+  /** The lower of each card's two buttons on a phone: 收藏 ('save', the default) or ＋ 加入 ('add', with onAdd). */
+  phoneAction?: 'save' | 'add';
   /** When given, each row's note (shown under its price), e.g. '休息 1–2 日後出發'. */
   footNote?: (tour: TourRow) => string | undefined;
   /** When given, shown instead of the default empty message and its clear-all link (only when total is 0). */
@@ -39,10 +41,10 @@ const COLUMNS = ['col.operator', 'col.days', 'col.region', 'col.route', 'col.dat
  * that clears every filter. A page past the last (matches, but none on this page) gets a neutral line instead: the
  * pager below it links back to page 1. The count of matches is under the list (ListFooter).
  * The list is an ARIA table (role="table", "row", "cell"): the columns have no visible headings, so their names are in
- * a header row that only screen readers read. ARIA roles rather than <table>, because on a phone a row is a stacked
- * block, and a real table's semantics are lost in some browsers once its display is changed.
+ * a header row that only screen readers read. ARIA roles rather than <table>, because on a phone a row is a card
+ * and a real table's semantics are lost in some browsers once its display is changed.
  */
-export function Results({ tours, total, operators, places, today, t, now, onAdd, footNote, empty, clearPath = '/' }: ResultsProps) {
+export function Results({ tours, total, operators, places, today, t, now, onAdd, phoneAction, footNote, empty, clearPath = '/' }: ResultsProps) {
   const byId = new Map(operators.map(o => [o.id, o]));
   return (
     <>
@@ -76,6 +78,7 @@ export function Results({ tours, total, operators, places, today, t, now, onAdd,
               now={now}
               t={t}
               onAdd={onAdd && (departure => onAdd(tour, departure))}
+              phoneAction={phoneAction}
               footNote={footNote?.(tour)}
             />
           ))}

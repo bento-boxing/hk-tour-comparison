@@ -27,42 +27,77 @@ export function chainStartHref(tourKey: string, departure: IsoDate): string {
 
 /**
  * Everything the chain page's address says, already validated: the chain (only the legs that resolved,
- * and a clean gap) and the next-leg list's filters, sort and page. The page builds it from decodeChain,
- * resolveChain and parseSearchParams(…, { includeDates: false }); every link and navigation on the page
- * is made from it with the helpers below, never from the raw address.
+ * and a clean gap), the next-leg list's filters, sort and page, and whether a phone shows the screen for choosing
+ * the next tour (`pick`, task 71) rather than the trip. The page builds it from decodeChain, resolveChain and
+ * parseSearchParams(…, { includeDates: false }); every link and navigation on the page is made from it with the
+ * helpers below, never from the raw address.
  */
-export interface ChainAddress { chain: ChainState; search: SearchState }
+export interface ChainAddress { chain: ChainState; search: SearchState; pick?: boolean }
 
 /**
- * `/chain?legs=…&gap=…&dest=…&ex=…&…&sort=…&page=…`. Never `from`/`to` or `tfrom`/`tto`: the page sets the
- * window from the gap.
+ * `/chain?legs=…&gap=…&pick=1&dest=…&ex=…&…&sort=…&page=…` (`pick=1` only on the choosing screen). Never
+ * `from`/`to` or `tfrom`/`tto`: the page sets the window from the gap.
  */
 export function chainPageHref(address: ChainAddress): string {
   const query = chainQuery(address.chain);
+  if (address.pick) query.set('pick', '1');
   const { dateFrom: _from, dateTo: _to, travelFrom: _tfrom, travelTo: _tto, ...filters } = address.search.filters;
   for (const [name, value] of buildSearchQuery({ ...address.search, filters })) query.set(name, value);
   return `/chain?${query}`;
 }
 
-/** The chain with this leg added at the end (unchanged when it is already full), back on page 1. Filters and gap stay. */
-export function withLegAdded(address: ChainAddress, leg: ChainLegRef): ChainAddress {
-  const legs = address.chain.legs.length >= MAX_CHAIN_LEGS ? address.chain.legs : [...address.chain.legs, leg];
+/** A trip with these legs, on the trip (not the choosing screen), back on page 1. Filters and gap stay. */
+function withLegs(address: ChainAddress, legs: ChainLegRef[]): ChainAddress {
   return { chain: { ...address.chain, legs }, search: { ...address.search, page: 1 } };
 }
 
-/** The chain without its last leg, back on page 1. Filters and gap stay. */
+/**
+ * The chain with this leg added at the end (unchanged when it is already full), back on page 1 and on the trip (a
+ * phone returns from the choosing screen). Filters and gap stay.
+ */
+export function withLegAdded(address: ChainAddress, leg: ChainLegRef): ChainAddress {
+  return withLegs(address, address.chain.legs.length >= MAX_CHAIN_LEGS ? address.chain.legs : [...address.chain.legs, leg]);
+}
+
+/** The chain without its last leg, back on page 1, on the trip. Filters and gap stay. */
 export function withoutLastLeg(address: ChainAddress): ChainAddress {
-  return { chain: { ...address.chain, legs: address.chain.legs.slice(0, -1) }, search: { ...address.search, page: 1 } };
+  return withLegs(address, address.chain.legs.slice(0, -1));
 }
 
-/** A new gap for the next leg (cleaned as the address would clean it), back on page 1. Legs and filters stay. */
+/**
+ * The chain without its first leg (the second becomes the first), back on page 1, on the trip. Filters and gap stay.
+ * What is left is a valid trip: its legs were in order and still are, and the gap never applies to legs already chosen.
+ */
+export function withoutFirstLeg(address: ChainAddress): ChainAddress {
+  return withLegs(address, address.chain.legs.slice(1));
+}
+
+/** No legs at all (清空), on the trip. Filters and gap stay. */
+export function withoutLegs(address: ChainAddress): ChainAddress {
+  return withLegs(address, []);
+}
+
+/** The phone's screen for choosing the next (or the first) tour for this trip, from page 1. */
+export function pickScreen(address: ChainAddress): ChainAddress {
+  return { ...address, search: { ...address.search, page: 1 }, pick: true };
+}
+
+/** The trip itself, as the choosing screen's ← and the bottom bar show it: no `pick`, page 1. */
+export function tripScreen(address: ChainAddress): ChainAddress {
+  return withLegs(address, address.chain.legs);
+}
+
+/**
+ * A new gap for the next leg (cleaned as the address would clean it), back on page 1. Legs, filters and the screen
+ * stay.
+ */
 export function withGap(address: ChainAddress, gap: { min: number; max: number }): ChainAddress {
-  return { chain: { ...address.chain, gap: sanitiseGap(gap.min, gap.max) }, search: { ...address.search, page: 1 } };
+  return { ...address, chain: { ...address.chain, gap: sanitiseGap(gap.min, gap.max) }, search: { ...address.search, page: 1 } };
 }
 
-/** New filters or sort from the filter bar, back on page 1. Legs and gap stay. */
+/** New filters or sort from the filter bar, back on page 1. Legs, gap and the screen stay. */
 export function withSearch(address: ChainAddress, search: SearchState): ChainAddress {
-  return { chain: address.chain, search: { ...search, page: 1 } };
+  return { ...address, search: { ...search, page: 1 } };
 }
 
 /** A destination from the search box or the country panels (null clears it), back on page 1. Legs, gap and the other filters stay. */

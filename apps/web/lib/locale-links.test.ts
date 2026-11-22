@@ -33,6 +33,7 @@ const FOLDERS = ['app', 'components', 'lib'];
 const EXTERNAL_HREFS: Record<string, string[]> = {
   'components/Footer.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
   'components/TourCard.tsx': ['href: tour.url'], // the operator's own page
+  'components/TripPhone.tsx': ['href={tour.url}'], // the operator's own page (a tour of the trip, on a phone)
   'app/_site/about-page.tsx': ['href={`mailto:${contactEmail}`}'], // the contact address
   'app/_site/operator-page.tsx': ['href={officialSite}'], // the operator's own home page (lib/operators.ts officialSiteUrl)
   // Not leaving at all: the jump links to the parts of the world on the same page (#china), so no language to carry.

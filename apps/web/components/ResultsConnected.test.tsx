@@ -5,13 +5,14 @@ import type { OperatorInfo, TourCardData } from '@hktours/db/read';
 import { I18nProvider } from '../lib/i18n-client';
 import type { Locale } from '../lib/i18n';
 import { ResultsConnected } from './ResultsConnected';
+import { resetTripCache, takeTripAction } from '../lib/remembered-trip';
 
 const push = vi.fn<(href: string) => void>();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 beforeAll(() => { vi.setSystemTime(new Date('2026-11-12T04:00:00Z')); });
 afterAll(() => { vi.useRealTimers(); });
-beforeEach(() => { push.mockReset(); });
+beforeEach(() => { push.mockReset(); resetTripCache(); });
 
 const operators: OperatorInfo[] = [{ id: 'egl', nameZh: '東瀛遊', nameEn: 'EGL Tours', color: '#d62839', lastGoodRunAt: null }];
 const tour: TourCardData = {
@@ -36,4 +37,6 @@ it.each([
   await user.click(screen.getByRole('button', { name: add }));
   await user.click(screen.getByRole('button', { name: /18/ }));
   expect(push).toHaveBeenCalledWith(href);
+  // Task 71: starting a trip is the visitor's own action, so the trip page remembers it (lib/remembered-trip).
+  expect(takeTripAction()).toBe(true);
 });

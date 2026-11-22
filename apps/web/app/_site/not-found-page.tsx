@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SiteLink } from '../../components/SiteLink';
+import { NoCurrentTab } from '../../components/TabBar';
 import { makeT, type Locale } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { TOURS_PATH } from '../../lib/destinations';
@@ -20,6 +21,8 @@ export function NotFoundPage({ locale }: { locale: Locale }) {
   const t = makeT(locale);
   return (
     <div className={`${frame.wrap} ${frame.page}`}>
+      {/* Its address may look like a destination's ('/tours/atlantis'): the bottom bar marks no tab. */}
+      <NoCurrentTab />
       <div className={styles.notFound}>
         <h1 className={styles.heading}>{t('notFound.title')}</h1>
         <p className={styles.text}>{t('notFound.text')}</p>

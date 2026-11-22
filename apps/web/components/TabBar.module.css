@@ -1,0 +1,58 @@
+/*
+ * The bottom bar on phones (the owner's drawings, mobile_kit.py tabbar): the header's colours, 56px of tabs over the
+ * device's bottom safe area, fixed to the window's foot; the spacer keeps that height at the page's end. Neither is
+ * drawn from 640px, nor on a short landscape screen (see the end).
+ */
+.bar, .spacer { display: none; }
+
+@media (max-width: 639px) {
+  .spacer { display: block; height: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .bar {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--header-bg); color: var(--header-muted);
+    transition: transform 0.2s ease;
+  }
+  /* Scrolled down (TabBar): out of the window, by its own height. A transform: the page's layout never moves. */
+  .bar[data-hidden] { transform: translateY(100%); }
+  /* While a card's list of dates is open (components/DeparturePicker), out of the way too: it never covers the list. */
+  :global(body:has([data-departure-picker])) .bar { transform: translateY(100%); }
+}
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  .bar { transition: none; }
+}
+
+.list { display: flex; margin: 0; padding: 0; list-style: none; }
+.item { flex: 1 1 0; min-width: 0; }
+
+/* A tab: the icon over the name, 56px tall, the whole cell a target; the current one gold-edged, light and bold. */
+.tab {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  height: 56px; padding: 0 4px; border-top: 3px solid transparent;
+  color: inherit; text-decoration: none; font-size: 12px; font-weight: 500; line-height: 1.25;
+}
+.tab[aria-current='page'] { border-top-color: var(--header-accent); color: var(--header-text); font-weight: 700; }
+.tab:focus-visible { outline: 2px solid var(--header-accent); outline-offset: -4px; }
+.icon {
+  flex: none; width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The number over the icon's top right corner: gold, out of the layout, so nothing moves when it appears. */
+.badge {
+  position: absolute; top: 3px; left: calc(50% + 5px);
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--header-accent); color: var(--on-gold);
+  font-size: 11px; font-weight: 900; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+}
+
+.visuallyHidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* A phone turned sideways with a short screen: no bar (the header shows the page links instead). */
+@media (max-width: 639px) and (orientation: landscape) and (max-height: 500px) {
+  .bar, .spacer { display: none; }
+}

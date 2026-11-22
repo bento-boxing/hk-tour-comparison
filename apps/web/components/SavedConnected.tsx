@@ -9,6 +9,8 @@ import type { TourRow } from '../lib/tour-row';
 import { useT } from '../lib/i18n-client';
 import { localeHref } from '../lib/locale-path';
 import { chainStartHref } from '../lib/chain-href';
+// 加入行程 starts a new trip: the visitor's own action, so it becomes the remembered trip (task 71).
+import { markTripAction } from '../lib/remembered-trip';
 import { savedHref } from '../lib/saved-list';
 import { getNoSavedTours, getSavedTours, newestFirst, subscribeSaved, unsaveTour } from '../lib/saved-tours';
 import { Results } from './Results';
@@ -101,6 +103,14 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
 
   return (
     <div ref={listRef} onClickCapture={noteRemoval}>
+      {/*
+        On a phone, under the page's intro (saved-page.tsx, there in small print): how many tours are saved here. The
+        server (and hydration) cannot know the number: until then the line is kept empty, so nothing moves when it
+        comes. Not for a list from a link (its note says what it is), nor where the browser keeps nothing.
+      */}
+      {mode !== 'link' && saved?.available !== false && (
+        <p className={styles.phoneLine}>{mode === 'own' && own !== null ? t('saved.countLine', { n: own.length }) : '\u00a0'}</p>
+      )}
       {saved?.available === false && <p className={styles.notice} role="status">{t('saved.unavailable')}</p>}
       {mode === 'own' && linkHeldNothing && <p className={styles.notice} role="status">{t('saved.nothingReadable')}</p>}
       {mode === 'link' && (
@@ -131,7 +141,7 @@ export function SavedConnected({ asked, dropped, tours, operators, today, now }:
         <>
           <Results
             tours={rows} total={rows.length} operators={operators} places={places} today={today} now={now} t={t}
-            onAdd={(tour, departure) => router.push(localeHref(t.locale, chainStartHref(tour.key, departure)))}
+            onAdd={(tour, departure) => { markTripAction(); router.push(localeHref(t.locale, chainStartHref(tour.key, departure))); }}
           />
           <UpdatedNote operators={operators} t={t} />
         </>

@@ -93,6 +93,8 @@ function parseCss(source: string): Record<string, Record<string, Declarations>> 
       for (; depth > 0; j++) depth += text[j] === '{' ? 1 : text[j] === '}' ? -1 : 0;
       const body = text.slice(open + 1, j - 1);
       if (prelude.startsWith('@media')) read(body, prelude.slice('@media'.length).trim());
+      // A container query (the phone card's dates): its own key, as written ('@container dates (min-width: 15.8em)').
+      else if (prelude.startsWith('@container')) read(body, prelude);
       // @supports inside a layout: its own key, after the layout's ('(min-width: 1280px) @supports (…)').
       else if (prelude.startsWith('@supports')) read(body, `${media} ${prelude}`.trim());
       else {
@@ -113,8 +115,14 @@ function parseCss(source: string): Record<string, Record<string, Declarations>> 
   return sheet;
 }
 const sheet = parseCss(readFileSync(join(__dirname, 'TourCard.module.css'), 'utf8'));
-const PHONE = '';
-const ZOOMED = '(max-width: 319px)';
+/** The phone card's container queries on the dates' cell, by their least width in ems. */
+const containerQueries = () => Object.keys(sheet).filter(media => media.startsWith('@container'));
+/** What only a phone draws: 全部 N 站 and the +N buttons (in jsdom every element is drawn). */
+const isPhoneOnly = (el: Element | null) => !!el && (el.classList.contains(styles.moreButton) || !!el.closest(`.${styles.allStops}`));
+/** Outside any media query: what every layout shares, and what the wider layouts start from. */
+const BASE = '';
+/** The phone card (task 70): its rules over BASE. */
+const PHONE = '(max-width: 639px)';
 const TABLET = '(min-width: 640px)';
 const WIDE = '(min-width: 1280px)';
 /** The row's rule in each layout: from 1280px, the seven columns on Chinese pages, the six of drawing E1 on English ones. */
@@ -143,6 +151,10 @@ const withVars = (value: string, vars: Declarations) => value.replace(/var\((--[
 const px = (value: string | undefined) => Number(/^(\d+(?:\.\d+)?)px$/.exec(value ?? '')?.[1] ?? Number.NaN);
 
 let user: ReturnType<typeof userEvent.setup>;
+/** Tab, passing over what only a phone draws (全部 N 站, a +N): the tab order from 640px. */
+async function wideTab() {
+  do await user.tab(); while (isPhoneOnly(document.activeElement));
+}
 beforeEach(() => { user = userEvent.setup(); window.sessionStorage.clear(); resetOpenedCache(); window.localStorage.clear(); resetSavedCache(); });
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -159,7 +171,10 @@ describe('what a row shows, column by column', () => {
     expect(within(row[5]).getByText(/HK\$7,999/, priceDiv)).toHaveTextContent('HK$7,999 起');
     expect(within(row[5]).getByText('↓ 比7日前平 HK$500')).toBeInTheDocument();
     expect(within(row[6]).getByRole('link')).toHaveTextContent('去旅行社網站 ↗');
-    expect(within(row[6]).getAllByRole('button').map(b => b.textContent)).toEqual(['加入行程 +', '收藏']);
+    expect(within(row[6]).getAllByRole('button').map(b => b.querySelector(`.${styles.wideText}`)?.textContent ?? b.textContent)).toEqual(['加入行程 +', '收藏']);
+    // On a phone the same buttons with the short words (the names stay): 網站 ↗ and ＋ 加入.
+    expect(within(row[6]).getByRole('link').querySelector(`.${styles.phoneText}`)).toHaveTextContent('網站 ↗');
+    expect(within(row[6]).getByRole('button', { name: '加入行程 +' }).querySelector(`.${styles.phoneText}`)).toHaveTextContent('＋ 加入');
   });
 
   it('no tour code and no tour name anywhere on the row (the owner wants people on the operator\'s page)', () => {
@@ -170,10 +185,12 @@ describe('what a row shows, column by column', () => {
     expect(container.querySelector('img')).toBeNull();
   });
 
-  it('a start or end outside Hong Kong is noted under the region, and describes the link', () => {
+  it('a start or end outside Hong Kong is noted under the region (on a phone under the dates), and describes the link', () => {
     render(<TourCard {...props} tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }} />);
-    const note = screen.getByText('澳門出發 · 珠海解散');
+    const [note, onPhone] = screen.getAllByText('澳門出發 · 珠海解散');
     expect(note.closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西/);
+    expect(onPhone.closest('[role="cell"]')).toBe(cells()[4]);
+    expect(onPhone.parentElement).toHaveClass(styles.notes);
     expect(cardLink()).toHaveAccessibleDescription(/澳門出發 · 珠海解散/);
   });
 
@@ -182,27 +199,28 @@ describe('what a row shows, column by column', () => {
     expect(screen.queryByText(/日前/)).toBeNull();
     expect(cardLink()).not.toHaveAttribute('aria-describedby');
     unmount();
+    // Under the price, and on a phone under the dates: each in its colour.
     const up = render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'higher', diffHkd: 2000, sinceDate: '2026-11-05' } }} />);
-    expect(screen.getByText('↑ 比7日前貴 HK$2,000').className).toMatch(/up/);
+    expect(screen.getAllByText('↑ 比7日前貴 HK$2,000').map(el => el.className)).toEqual([expect.stringMatching(/up/), expect.stringMatching(/up/)]);
     up.unmount();
     const en = render(<TourCard {...props} t={makeT('en')} />);
-    expect(screen.getByText('↓ HK$500 less than 7 days ago').className).toMatch(/down/);
+    expect(screen.getAllByText('↓ HK$500 less than 7 days ago').map(el => el.className)).toEqual([expect.stringMatching(/down/), expect.stringMatching(/down/)]);
     en.unmount();
     render(<TourCard {...props} t={makeT('zh-Hans')} />);
-    expect(screen.getByText('↓ 比7天前便宜 HK$500')).toBeInTheDocument();
+    expect(screen.getAllByText('↓ 比7天前便宜 HK$500')).toHaveLength(2);
   });
 
   it('in English the change may take two lines, breaking only between "less" (or "more") and "than … ago" (drawing E1)', () => {
     const { unmount } = render(<TourCard {...props} t={makeT('en')} />);
-    const down = screen.getByText(/^↓/).textContent!;
+    const down = screen.getAllByText(/^↓/)[0].textContent!;
     // One ordinary space, the only place a line may break; every other space is a no-break space.
     expect(down.split(' ')).toEqual(['↓\u00a0HK$500\u00a0less', 'than\u00a07\u00a0days\u00a0ago']);
     unmount();
     render(<TourCard {...props} t={makeT('en')} tour={{ ...tour, priceChange: { kind: 'higher', diffHkd: 12300, sinceDate: '2026-11-11' } }} />);
-    expect(screen.getByText(/^↑/).textContent!.split(' ')).toEqual(['↑\u00a0HK$12,300\u00a0more', 'than\u00a01\u00a0day\u00a0ago']);
+    expect(screen.getAllByText(/^↑/)[0].textContent!.split(' ')).toEqual(['↑\u00a0HK$12,300\u00a0more', 'than\u00a01\u00a0day\u00a0ago']);
     // English lets the note wrap there; Chinese keeps it to one line.
-    expect(rule(PHONE, '.delta:lang(en)')).toEqual({ 'white-space': 'normal' });
-    expect(rule(PHONE, '.delta')['white-space']).toBe('nowrap');
+    expect(rule(BASE, '.delta:lang(en)')).toEqual({ 'white-space': 'normal' });
+    expect(rule(BASE, '.delta')['white-space']).toBe('nowrap');
   });
 
   it('hides the price change when the window price differs from the from-price', () => {
@@ -211,9 +229,31 @@ describe('what a row shows, column by column', () => {
     expect(screen.getByText(/HK\$8,999/, priceDiv)).toBeInTheDocument();
   });
 
-  it('a note (the chain page\'s rest) goes under the region, where the column has room', () => {
+  it('a note (the chain page\'s rest) goes under the region, where the column has room; on a phone the last of the notes under the dates', () => {
     render(<TourCard {...props} footNote="休息 1–2 日後出發" />);
-    expect(screen.getByText('休息 1–2 日後出發').closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西休息 1–2 日後出發$/);
+    const [note, onPhone] = screen.getAllByText('休息 1–2 日後出發');
+    expect(note.closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西休息 1–2 日後出發$/);
+    expect(onPhone.parentElement).toHaveClass(styles.notes);
+    expect(onPhone.parentElement!.lastElementChild).toBe(onPhone);
+  });
+
+  it('on a phone the notes are one small line each under the dates, in this order: start and end, old data, price change, rest', () => {
+    const first = render(<TourCard
+      {...props} now="2026-11-13T07:11:00Z" footNote="休息 1 日後出發"
+      tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }}
+    />);
+    const notes = first.container.querySelector(`.${styles.notes}`)!;
+    expect(notes.closest('[role="cell"]')).toBe(cells()[4]);
+    expect([...notes.children].map(n => n.textContent)).toEqual(['澳門出發 · 珠海解散', '資料為 11月12日', '↓ 比7日前平 HK$500', '休息 1 日後出發']);
+    // Not drawn from 640px; on a phone the notes' other places are not drawn.
+    expect(rule(BASE, '.notes')).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.notes')).toMatchObject({ display: 'flex', 'flex-direction': 'column' });
+    for (const selector of ['.region .note', '.region .footNote', '.staleInTag', '.delta']) expect(rule(PHONE, selector), selector).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.noteLine')).toMatchObject({ margin: '0', 'font-size': '12px' });
+    // A row without any of them has no notes block at all.
+    first.unmount();
+    const plain = render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'same', sinceDate: '2026-11-05' } }} />);
+    expect(plain.container.querySelector(`.${styles.notes}`)).toBeNull();
   });
 
   it('the price and its "from" are one unit: 起 always after the figure, "from" always before it, never on a line of their own', () => {
@@ -224,7 +264,7 @@ describe('what a row shows, column by column', () => {
     unmount();
     render(<TourCard {...props} />);
     expect(screen.getByText(/HK\$7,999/, priceDiv).lastElementChild).toHaveTextContent('起');
-    expect(rule(PHONE, '.price')['white-space']).toBe('nowrap');
+    expect(rule(BASE, '.price')['white-space']).toBe('nowrap');
   });
 });
 
@@ -254,9 +294,12 @@ describe('the region: the country, then its regions (or the countries), at most 
 
   it('the wrapping rule: a Chinese name never breaks; an English name may wrap between its own words; nothing breaks inside a word to fit', () => {
     // A unit is kept whole (inline-block, never wider than the column).
-    expect(rule(PHONE, '.place')).toMatchObject({ display: 'inline-block', 'max-width': '100%', 'white-space': 'nowrap' });
+    expect(rule(BASE, '.place')).toMatchObject({ display: 'inline-block', 'max-width': '100%', 'white-space': 'nowrap' });
     // English only: between the words of one name ('Bosnia and Herzegovina'). The page's language picks it.
-    expect(rule(PHONE, '.region:lang(en) .place')).toEqual({ 'white-space': 'normal' });
+    expect(rule(BASE, '.region:lang(en) .place')).toEqual({ 'white-space': 'normal' });
+    // On a phone the region is one line in every language, cut with … (line 1 of the card).
+    expect(rule(PHONE, '.region')).toMatchObject({ 'white-space': 'nowrap', overflow: 'hidden', 'text-overflow': 'ellipsis' });
+    expect(rule(PHONE, '.region:lang(en) .place')).toEqual({ display: 'inline', 'white-space': 'nowrap' });
     // No word is ever broken: nothing in the rows sets overflow-wrap, word-break or hyphens (the site-wide check is
     // lib/word-breaks.test.ts).
     for (const { selector, d } of allRules()) {
@@ -270,18 +313,76 @@ describe('the region: the country, then its regions (or the countries), at most 
 describe('the route', () => {
   const eleven = ['osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara'];
 
-  it('every stop, never cut, wrapping onto as many lines as it needs', () => {
+  it('from 640px every stop, never cut, wrapping onto as many lines as it needs', () => {
     render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
     expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良');
     expect(cardLink()).toHaveAccessibleName(/大阪、京都、奈良、神戶、大阪、京都、奈良、神戶、大阪、京都、奈良/);
-    // Nothing on the route or its cell can hide a stop.
+    // Nothing on the route or its cell can hide a stop from 640px.
     for (const selector of ['.route', '.routeCell', '.stop']) {
-      for (const media of [PHONE, TABLET, WIDE]) {
+      for (const media of [BASE, TABLET, WIDE]) {
         expect(rule(media, selector), selector).not.toHaveProperty('overflow');
         expect(rule(media, selector), selector).not.toHaveProperty('text-overflow');
         expect(rule(media, selector), selector).not.toHaveProperty('-webkit-line-clamp');
         expect(rule(media, selector)['white-space'], selector).toBeUndefined();
       }
+    }
+  });
+
+  it('on a phone at most two lines; a cut route has 全部 N 站 under it, which shows every stop in place and hides them again', async () => {
+    render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
+    // A native disclosure (it works without JavaScript), in the route's cell, after the route. The route itself is
+    // whole in the page (screen readers read every stop); only the CSS cuts it.
+    const toggle = screen.getByText('全部 11 站').closest('summary')!;
+    const disclosure = toggle.parentElement!;
+    expect(disclosure.tagName).toBe('DETAILS');
+    expect(disclosure.closest('[role="cell"]')).toBe(cells()[3]);
+    expect(disclosure.previousElementSibling).toBe(screen.getByRole('heading'));
+    expect(disclosure).not.toHaveAttribute('open');
+    await user.click(toggle);
+    expect(disclosure).toHaveAttribute('open');
+    await user.click(toggle);
+    expect(disclosure).not.toHaveAttribute('open');
+    // The cell is at most three of the route's lines tall; from the third line on, the control covers it (in the
+    // row's colour), so it shows exactly when the route is cut. Opened, the cell takes the whole route.
+    expect(rule(PHONE, '.routeCell')).toMatchObject({ position: 'relative', 'max-height': '4.5em', overflow: 'hidden', 'line-height': '1.5' });
+    expect(rule(PHONE, '.allStops')).toMatchObject({ position: 'absolute', top: '3em', height: '1.5em', background: 'var(--surface)' });
+    expect(rule(PHONE, '.routeCell:has(.allStops[open])')).toEqual({ 'max-height': 'none' });
+    expect(rule(PHONE, '.allStops[open]')).toMatchObject({ position: 'relative' });
+    expect(rule(PHONE, ".row[data-opened='earlier'] .allStops")).toEqual({ background: 'var(--viewed-bg)' });
+    expect(rule(PHONE, ".row[data-opened='latest'] .allStops")).toEqual({ background: 'var(--latest-bg)' });
+    // Not drawn from 640px.
+    expect(rule(BASE, '.allStops')).toEqual({ display: 'none' });
+  });
+
+  it('全部 N 站 in every language; none for a single stop', () => {
+    const { unmount } = render(<TourCard {...props} t={makeT('en')} />);
+    expect(screen.getByText('All 4 stops')).toBeInTheDocument();
+    unmount();
+    const hans = render(<TourCard {...props} t={makeT('zh-Hans')} />);
+    expect(screen.getByText('全部 4 站')).toBeInTheDocument();
+    hans.unmount();
+    const { container } = render(<TourCard {...props} tour={{ ...tour, stops: [kansai('japan-kansai-osaka')] }} />);
+    expect(container.querySelector('details')).toBeNull();
+  });
+
+  it('once the page\'s scripts run, a route that is not cut has no 全部 N 站 (out of the tab order and the page\'s text), measured again on a resize', () => {
+    let observed: (() => void) | undefined;
+    vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { observed = cb; } observe() {} disconnect() {} });
+    try {
+      // The route as a browser lays it out: 24px lines, two of them, then three.
+      let height = 48;
+      const real = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => (
+        el instanceof HTMLHeadingElement ? ({ lineHeight: '24px' } as CSSStyleDeclaration) : real(el, pseudo)));
+      vi.spyOn(HTMLHeadingElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ height } as DOMRect));
+      const { container } = render(<TourCard {...props} />);
+      act(() => observed!());
+      expect(container.querySelector('details')).toHaveAttribute('hidden'); // two lines: not cut
+      height = 72;
+      act(() => observed!());
+      expect(container.querySelector('details')).not.toHaveAttribute('hidden'); // three: cut
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 
@@ -296,7 +397,7 @@ describe('the route', () => {
     );
     expect(heading.childNodes).toHaveLength(eleven.length * 2 - 1);
     // A name wider than the whole column wraps between its words, never inside one.
-    expect(rule(PHONE, '.stop')).toEqual({ display: 'inline-block', 'max-width': '100%' });
+    expect(rule(BASE, '.stop')).toEqual({ display: 'inline-block', 'max-width': '100%' });
   });
 
   it('in English, in the wide row, each "place →" is one unit: the arrow is drawn at the end of the name before it (drawing E1)', () => {
@@ -314,7 +415,7 @@ describe('the route', () => {
     // of the name before it, after a no-break space, so it never starts a line.
     expect(rule(WIDE, '.arrowBetween:lang(en)')).toEqual({ display: 'none' });
     expect(rule(WIDE, '.stop:lang(en):not(:last-child)::after')).toEqual({ content: "'\\a0→'", 'font-weight': '400', color: 'var(--text-muted)' });
-    expect(rule(PHONE, '.arrow')).toEqual({ 'font-weight': '400', color: 'var(--text-muted)' });
+    expect(rule(BASE, '.arrow')).toEqual({ 'font-weight': '400', color: 'var(--text-muted)' });
   });
 
   it('in English, the route joined with the dictionary separator in the link\'s name; on screen the arrows', () => {
@@ -353,9 +454,77 @@ describe('the dates: three by two, the same on every row', () => {
     expect(screen.getByText('+3 個').closest('a')).toBeNull(); // plain text, not a link
   });
 
-  it('the grid: three equal columns; every chip as wide as its column, its text centred and on one line', () => {
-    expect(rule(PHONE, '.dates')['grid-template-columns']).toBe('repeat(3, minmax(0, 1fr))');
-    expect(rule(PHONE, '.chip')).toMatchObject({ width: '100%', 'text-align': 'center', 'white-space': 'nowrap' });
+  it('the grid (from 640px): three equal columns; every chip as wide as its column, its text centred and on one line', () => {
+    expect(rule(BASE, '.dates')['grid-template-columns']).toBe('repeat(3, minmax(0, 1fr))');
+    expect(rule(BASE, '.chip')).toMatchObject({ width: '100%', 'text-align': 'center', 'white-space': 'nowrap' });
+  });
+
+  it('on a phone: one line of the dates that fit, then +N (a button opening the list of all of them); the sixth cell is not drawn', () => {
+    render(<TourCard {...props} tour={eight} />);
+    // One +N after each date that has more after it (the CSS draws the one after the last date drawn): named by what
+    // it counts, its text the bare count.
+    const more = screen.getAllByRole('button', { name: /個出發日$/ });
+    expect(more.map(b => b.textContent)).toEqual(['+7', '+6', '+5', '+4', '+3']);
+    expect(more.map(b => b.getAttribute('aria-label'))).toEqual(['+7 個出發日', '+6 個出發日', '+5 個出發日', '+4 個出發日', '+3 個出發日']);
+    expect(more.map(b => b.dataset.k)).toEqual(['1', '2', '3', '4', '5']);
+    // What follows each: a date with more after it, the tour's last date (it needs no +N room), or none drawn.
+    expect(more.map(b => b.dataset.next)).toEqual(['more', 'more', 'more', 'more', 'none']);
+    expect(rule(BASE, '.moreButton')).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.more')).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.d')).toMatchObject({ display: 'none', 'min-width': '6.25em' });
+    expect(rule(PHONE, '.d:lang(en)')).toEqual({ 'min-width': '7.33em' });
+    expect(rule(PHONE, '.d:first-child')).toEqual({ display: 'flex' });
+    expect(rule(PHONE, ".moreButton[data-k='1']")).toEqual({ display: 'flex' });
+    expect(rule(PHONE, '.datesCell')).toMatchObject({ container: 'dates / inline-size', 'font-size': '12px' });
+  });
+
+  it('on a phone which dates fit is the CSS\'s alone (container queries on the cell\'s width, in ems): the k-th date when k chips and their gaps fit, with a +N\'s room unless it is the last date', () => {
+    const G = 0.4, M = 2.5;
+    const queries = containerQueries();
+    for (const [lang, chip] of [['zh', 6.25], ['en', 7.33]] as const) {
+      const need = (k: number, more: boolean) => Math.round((k * chip + (k - 1) * G + (more ? G + M : 0)) * 100) / 100;
+      const at = (selector: string) => queries.filter(q => selector in sheet[q]).map(q => Number(/min-width: ([\d.]+)em/.exec(q)![1]));
+      for (let k = 2; k <= DATE_CELLS; k++) {
+        expect(at(`.d:lang(${lang}):nth-child(${k})`), `${lang} ${k}`).toEqual([need(k, true)]);
+        expect(at(`.d.lastDate:lang(${lang}):nth-child(${k})`), `${lang} ${k} last`).toEqual([need(k, false)]);
+      }
+      for (let k = 1; k < DATE_CELLS; k++) {
+        expect(at(`.moreButton:lang(${lang})[data-k='${k}']`), `${lang} +N ${k}`).toEqual(k === 1 ? [] : [need(k, true)]);
+        expect(at(`.moreButton:lang(${lang})[data-k='${k}'][data-next='more']`)).toEqual([need(k + 1, true)]);
+        expect(at(`.moreButton:lang(${lang})[data-k='${k}'][data-next='last']`)).toEqual([need(k + 1, false)]);
+      }
+    }
+    // Every container query is about the dates' cell, and only shows or hides.
+    for (const q of queries) {
+      expect(q).toMatch(/^@container dates \(min-width: [\d.]+em\)$/);
+      for (const d of Object.values(sheet[q])) expect(Object.keys(d)).toEqual(['display']);
+    }
+    // The tour's last date is marked for it.
+    render(<TourCard {...props} />);
+    expect(dateLinks().map(a => a.classList.contains(styles.lastDate))).toEqual([false, false, false, false, false, true]);
+  });
+
+  it('+N opens the list of every date to come, each a link to the operator\'s page; Escape closes it and returns focus', async () => {
+    render(<TourCard {...props} tour={eight} />);
+    const more = screen.getByRole('button', { name: '+3 個出發日' });
+    expect(more).toHaveAttribute('aria-haspopup', 'dialog');
+    await user.click(more);
+    const list = screen.getByRole('dialog', { name: '出發日期' });
+    const links = within(list).getAllByRole('link');
+    expect(links).toHaveLength(8);
+    expect(links[0]).toHaveFocus();
+    expect(links[3]).toHaveTextContent('HK$7,499 起');
+    for (const a of links) {
+      expect(a).toHaveAttribute('href', tour.url);
+      expect(a).toHaveAttribute('target', '_blank');
+    }
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(more).toHaveFocus();
+    // Opening the operator's page from it marks the row opened, as the row's own dates do.
+    await user.click(more);
+    await user.click(within(screen.getByRole('dialog')).getAllByRole('link')[1]);
+    expect(screen.getAllByRole('row')[0]).toHaveAttribute('data-opened', 'latest');
   });
 
   it('each date is a link to the operator\'s page in a new tab; a date without its own price shows the stored from-price with 起', () => {
@@ -386,7 +555,7 @@ describe('the dates: three by two, the same on every row', () => {
 
   it('the dates are one tab stop, before the row link and the add button (the order they are drawn in); the arrow keys move between them', async () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
-    await user.tab();
+    await wideTab();
     const links = dateLinks();
     expect(links[0]).toHaveFocus();
     expect(links.map(a => a.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
@@ -401,12 +570,25 @@ describe('the dates: three by two, the same on every row', () => {
     expect(links.map(a => a.tabIndex)).toEqual([-1, -1, -1, -1, 0, -1]); // Tab comes back to the date last visited
     await user.keyboard('{Home}');
     expect(links[0]).toHaveFocus();
-    await user.tab();
+    await wideTab();
     expect(cardLink()).toHaveFocus();
-    await user.tab();
+    await wideTab();
     expect(screen.getByRole('button', { name: '加入行程 +' })).toHaveFocus();
-    await user.tab();
+    await wideTab();
     expect(screen.getByRole('button', { name: /^收藏/ })).toHaveFocus();
+  });
+
+  it('on a phone the arrow keys stop at the last date drawn (those that do not fit are not drawn)', async () => {
+    render(<TourCard {...props} />);
+    const links = dateLinks();
+    // As the CSS draws them on a narrow phone: the first two.
+    links.slice(2).forEach(a => { a.style.display = 'none'; });
+    await wideTab();
+    expect(links[0]).toHaveFocus();
+    await user.keyboard('{End}');
+    expect(links[1]).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(links[1]).toHaveFocus();
   });
 
   it('a mouse (or pen) over a date shows its price; leaving hides it; a finger does not', () => {
@@ -427,7 +609,7 @@ describe('the dates: three by two, the same on every row', () => {
     expect(screen.queryByRole('link')).toBeNull();
     const chip = screen.getByText('12/18', { exact: false }).parentElement!;
     expect(chip).not.toHaveAttribute('tabindex');
-    await user.tab();
+    await wideTab();
     // No date or link to stop at: the first tab stop is 收藏 (no add button here).
     expect(screen.getByRole('button', { name: /^收藏/ })).toHaveFocus();
     expect(chip).toHaveTextContent('12/18 (五) HK$7,999'); // screen readers still read the price with the date
@@ -463,9 +645,9 @@ describe('the dates: three by two, the same on every row', () => {
   });
 
   it('the price shows for a mouse (data-hover), on keyboard focus (:focus-visible, not a tap\'s :focus) and while measured, out of the layout', () => {
-    expect(rule(PHONE, '.tip')).toMatchObject({ position: 'absolute', bottom: 'calc(100% + 6px)' });
+    expect(rule(BASE, '.tip')).toMatchObject({ position: 'absolute', bottom: 'calc(100% + 6px)' });
     for (const selector of ['.d[data-hover] .tip', '.d:focus-visible .tip', '.tip[data-measure]']) {
-      expect(rule(PHONE, selector), selector).toMatchObject({ 'clip-path': 'none' });
+      expect(rule(BASE, selector), selector).toMatchObject({ 'clip-path': 'none' });
     }
     // Never on :hover or :focus alone: a finger's tap sets both and would leave the price stuck on screen. No
     // pressed look either: the dates are information, not buttons.
@@ -486,9 +668,11 @@ describe('the dates: three by two, the same on every row', () => {
 
 describe('an operator whose data is old', () => {
   // The operator's last good run: 19:10 UTC on 11 Nov (03:10 on 12 Nov in Hong Kong).
-  it('more than 36 hours later, a tag 資料為 and that day: beside the operator in the block layouts, under the price in the seven columns; it describes the link', () => {
+  it('more than 36 hours later, a tag 資料為 and that day: beside the operator in two columns, under the price in the seven, a note on a phone; it describes the link', () => {
     render(<TourCard {...props} now="2026-11-13T07:11:00Z" />);
-    const [inTag, inPrice] = screen.getAllByText('資料為 11月12日');
+    const [inTag, onPhone, inPrice] = screen.getAllByText('資料為 11月12日');
+    expect(onPhone).toHaveClass(styles.staleLine);
+    expect(onPhone.closest('[role="cell"]')).toBe(cells()[4]);
     // Never in the route's cell, where it would push a long route down.
     expect(within(cells()[3]).queryByText(/資料為/)).toBeNull();
     expect(cells()[0]).toContainElement(inTag);
@@ -499,10 +683,12 @@ describe('an operator whose data is old', () => {
     expect(cardLink()).toHaveAccessibleDescription(/資料為 11月12日/);
   });
 
-  it('each layout shows exactly one of the two: the one beside the operator until the seven columns, then the one under the price, right-aligned', () => {
-    expect(rule(PHONE, '.stale')).toMatchObject({ display: 'block', 'white-space': 'nowrap' });
-    expect(rule(PHONE, '.staleInPrice')).toEqual({ display: 'none' });
-    expect(rule(PHONE, '.tagCell')).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
+  it('each layout shows exactly one of the three: the note on a phone, the one beside the operator until the seven columns, then the one under the price, right-aligned', () => {
+    expect(rule(BASE, '.stale')).toMatchObject({ display: 'block', 'white-space': 'nowrap' });
+    expect(rule(BASE, '.staleInPrice')).toEqual({ display: 'none' });
+    expect(rule(BASE, '.tagCell')).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
+    expect(rule(PHONE, '.staleInTag')).toEqual({ display: 'none' });
+    expect(rule(BASE, '.notes')).toEqual({ display: 'none' });
     expect(rule(TABLET, '.staleInPrice')).toEqual({});
     expect(rule(WIDE, '.staleInTag:lang(zh)')).toEqual({ display: 'none' });
     expect(rule(WIDE, '.staleInPrice:lang(zh)')).toEqual({ display: 'block', margin: '4px 0 0 auto' });
@@ -532,10 +718,10 @@ describe('an operator whose data is old', () => {
 
   it('in the other languages', () => {
     const { unmount } = render(<TourCard {...props} t={makeT('en')} now="2026-11-14T00:00:00Z" />);
-    expect(screen.getAllByText('Data from 12 Nov')).toHaveLength(2);
+    expect(screen.getAllByText('Data from 12 Nov')).toHaveLength(3);
     unmount();
     render(<TourCard {...props} t={makeT('zh-Hans')} now="2026-11-14T00:00:00Z" />);
-    expect(screen.getAllByText('数据为 11月12日')).toHaveLength(2);
+    expect(screen.getAllByText('数据为 11月12日')).toHaveLength(3);
   });
 });
 
@@ -610,7 +796,7 @@ describe('rows opened this session are tinted', () => {
     expect(rows().map(c => c.getAttribute('data-opened'))).toEqual(['earlier', 'latest']);
     expect(screen.getByRole('link', { name: /^東瀛遊/ })).toHaveAccessibleDescription(/已看過/);
     expect(screen.getByRole('link', { name: /^捷旅/ })).toHaveAccessibleDescription(/上次打開/);
-    expect(screen.getAllByRole('link', { name: /^(東瀛遊|捷旅)/ }).map(a => a.textContent)).toEqual(['再看一次 ↗', '再看一次 ↗']);
+    expect(screen.getAllByRole('link', { name: /^(東瀛遊|捷旅)/ }).map(a => a.querySelector(`.${styles.wideText}`)!.textContent)).toEqual(['再看一次 ↗', '再看一次 ↗']);
     await user.click(screen.getByRole('link', { name: /^東瀛遊/ }));
     expect(rows().map(c => c.getAttribute('data-opened'))).toEqual(['latest', 'earlier']);
   });
@@ -656,12 +842,13 @@ describe('rows opened this session are tinted', () => {
   });
 
   it('the tints change colours only: the row\'s background, the chips on the surface, the button outlined; no tag, no greyed text, no size', () => {
-    expect(rule(PHONE, ".row[data-opened='earlier']")).toEqual({ background: 'var(--viewed-bg)' });
-    expect(rule(PHONE, ".row[data-opened='latest']")).toEqual({ background: 'var(--latest-bg)' });
-    expect(rule(PHONE, '.row[data-opened] .chip')).toEqual({ background: 'var(--surface)' });
-    expect(rule(PHONE, '.row[data-opened] .go')).toEqual({ background: 'var(--surface)', 'border-color': 'var(--ink)', color: 'var(--ink)' });
+    expect(rule(BASE, ".row[data-opened='earlier']")).toEqual({ background: 'var(--viewed-bg)' });
+    expect(rule(BASE, ".row[data-opened='latest']")).toEqual({ background: 'var(--latest-bg)' });
+    expect(rule(BASE, '.row[data-opened] .chip')).toEqual({ background: 'var(--surface)' });
+    expect(rule(BASE, '.row[data-opened] .go')).toEqual({ background: 'var(--surface)', 'border-color': 'var(--ink)', color: 'var(--ink)' });
+    // On a phone, 全部 N 站 covers the route's third line in the row's colour, tint included.
     const opened = allRules().filter(r => r.selector.includes('[data-opened'));
-    expect(opened).toHaveLength(4);
+    expect(opened).toHaveLength(6);
     for (const { selector, d } of opened) {
       for (const [property, value] of Object.entries(d)) {
         expect(['background', 'border-color', 'color'], `${selector} ${property}`).toContain(property);
@@ -683,9 +870,9 @@ describe('three layouts, switched by the window\'s width', () => {
     return { grid, at };
   }
 
-  it('below 640px a block; from 640px two columns; from 1280px one aligned row: seven columns in Chinese, six in English with the region above the route', () => {
-    expect(Object.keys(sheet)).toEqual([PHONE, ZOOMED, TABLET, WIDE, CAP]);
-    expect(placements(PHONE).grid[0]).toHaveLength(2);
+  it('below 640px a card; from 640px two columns; from 1280px one aligned row: seven columns in Chinese, six in English with the region above the route', () => {
+    expect(Object.keys(sheet)).toEqual([BASE, PHONE, ...containerQueries(), TABLET, WIDE, CAP]);
+    expect(placements(PHONE).grid[0]).toHaveLength(3);
     expect(placements(TABLET).grid[0]).toHaveLength(3);
     expect(placements(WIDE).grid).toEqual([SEVEN]);
     // The drawing E1: the region over the route in one column; every other cell spans both lines.
@@ -695,11 +882,11 @@ describe('three layouts, switched by the window\'s width', () => {
     ]);
   });
 
-  it('every layout places each of the seven cells exactly once, as one rectangle, with as many tracks as its areas have columns', () => {
+  it('every layout places each of the seven cells exactly once, as one rectangle, with as many tracks as its areas have columns (on a phone the first three in line 1\'s box)', () => {
     for (const [media, selector] of [[PHONE, ROW[PHONE]], [TABLET, ROW[TABLET]], [WIDE, ROW[WIDE]], [WIDE, EN_ROW]]) {
       const { grid, at } = placements(media, selector);
       expect(grid.every(line => line.length === grid[0].length), media).toBe(true);
-      expect(Object.keys(at).sort(), media).toEqual([...SEVEN].sort());
+      expect(Object.keys(at).sort(), media).toEqual((media === PHONE ? ['head', 'route', 'dates', 'price', 'actions'] : [...SEVEN]).sort());
       for (const [name, p] of Object.entries(at)) {
         const rows = [...p.rows], cols = [...p.cols];
         expect(Math.max(...rows) - Math.min(...rows) + 1, `${media} ${name}`).toBe(rows.length);
@@ -713,14 +900,51 @@ describe('three layouts, switched by the window\'s width', () => {
 
   it('each cell is placed by its own area name, in the order a screen reader reads them', () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
-    const placedBy = (area: string) => Object.entries(sheet[PHONE]).find(([, d]) => d['grid-area'] === area)![0].slice(1);
+    const placedBy = (area: string) => Object.entries(sheet[BASE]).find(([, d]) => d['grid-area'] === area)![0].slice(1);
     SEVEN.forEach((area, i) => expect(cells()[i], area).toHaveClass(styles[placedBy(area)]));
+    // Line 1's box holds the first three; from 640px it is no box (display: contents), so they are the row's own.
+    expect(cells()[0].parentElement).toHaveClass(styles.head);
+    expect([...cells()[0].parentElement!.children]).toEqual(cells().slice(0, 3));
+    expect(rule(BASE, '.head')).toEqual({ display: 'contents' });
   });
 
-  it('on a phone: the operator and the days, then the price, the region, the route, the dates and the buttons, each button at most 360px', () => {
-    expect(placements(PHONE).grid.map(line => [...new Set(line)].join(' '))).toEqual(['tag days', 'price', 'region', 'route', 'dates', 'actions']);
-    expect(px(rule(PHONE, '.actions > *')['max-width'])).toBeLessThanOrEqual(360);
-    expect(px(rule(PHONE, '.dates')['max-width'])).toBeLessThanOrEqual(360);
+  it('on a phone (the drawings Mobile6Home, Mobile18Hard): line 1 the operator, the days, the region and the price; then the route and the dates on the left, the buttons in a fixed 88px column on the right', () => {
+    expect(placements(PHONE).grid).toEqual([
+      ['head', 'price', 'price'],
+      ['route', 'route', 'actions'],
+      ['dates', 'dates', 'actions'],
+    ]);
+    // The price may be wider than the buttons' column: the auto track before it takes the difference, so the left
+    // column's width never depends on the price.
+    expect(trackList(rule(PHONE, '.row')['grid-template-columns'])).toEqual(['minmax(0, 1fr)', 'auto', '88px']);
+    // Line 1's box: the price never gives way; the region does first (from nothing), then the days move under the
+    // operator, and only an operator wider than the whole line alone is cut with ….
+    expect(rule(PHONE, '.head')).toMatchObject({ 'grid-area': 'head', display: 'flex', 'flex-wrap': 'wrap', 'min-width': '0' });
+    expect(rule(PHONE, '.region')).toMatchObject({ flex: '1 1 0' });
+    expect(rule(PHONE, '.days')).toMatchObject({ flex: '0 1 auto' });
+    expect(rule(PHONE, '.tagCell')).toMatchObject({ flex: '0 1 auto' });
+    expect(rule(PHONE, '.row')).toMatchObject({ padding: '12px', border: '1px solid var(--line)', 'border-radius': 'var(--radius-card)' });
+    // Line 1 is one line: the tag never wraps (cut with … only when even the region has no room), the region is cut.
+    expect(rule(PHONE, '.op')).toMatchObject({ 'white-space': 'nowrap', overflow: 'hidden', 'text-overflow': 'ellipsis', 'font-size': '12px' });
+    expect(rule(PHONE, '.priceCell')).toEqual({ 'align-self': 'center', 'justify-self': 'end' });
+    // The two buttons: 40px tall each (the drawing's 34px, made comfortably tappable), 6px apart, the page's own
+    // action under the gold one; the other action is not shown.
+    expect(rule(BASE, '.actions')).toMatchObject({ 'flex-direction': 'column', gap: '6px' });
+    for (const selector of ['.go', '.add', '.save']) expect(rule(PHONE, selector), selector).toMatchObject({ height: '40px', 'min-height': '40px' });
+    expect(rule(PHONE, ".row[data-phone-action='save'] .addWrap")).toEqual({ display: 'none' });
+    expect(rule(PHONE, ".row[data-phone-action='add'] .save")).toEqual({ display: 'none' });
+    expect(rule(PHONE, '.add')).toMatchObject({ background: 'var(--selected-bg)', color: 'var(--on-selected)' });
+    expect(rule(PHONE, '.wideText')).toEqual({ display: 'none' });
+    expect(rule(BASE, '.phoneText')).toEqual({ display: 'none' });
+  });
+
+  it('on a phone the lower button is the page\'s own action: 收藏, or ＋ 加入 on the trip page', () => {
+    const { unmount } = render(<TourCard {...props} onAdd={vi.fn()} />);
+    expect(screen.getByRole('row')).toHaveAttribute('data-phone-action', 'save');
+    expect(screen.getByRole('button', { name: '加入行程 +' }).parentElement).toHaveClass(styles.addWrap);
+    unmount();
+    render(<TourCard {...props} onAdd={vi.fn()} phoneAction="add" />);
+    expect(screen.getByRole('row')).toHaveAttribute('data-phone-action', 'add');
   });
 
   it('on a tablet: the facts on the left; the price and the buttons stacked in a right-hand column of at most 360px', () => {
@@ -729,7 +953,7 @@ describe('three layouts, switched by the window\'s width', () => {
     expect(grid.flatMap(line => line.slice(0, -1))).not.toContain('price');
     const right = trackList(rule(TABLET, '.row')['grid-template-columns']).at(-1);
     expect(px(right)).toBeLessThanOrEqual(360);
-    expect(rule(TABLET, '.actions')['flex-direction']).toBe('column');
+    expect(rule(BASE, '.actions')['flex-direction']).toBe('column');
   });
 
   it('from 1280px, on Chinese pages: the same seven tracks on every row; only the route flexes', () => {
@@ -744,7 +968,7 @@ describe('three layouts, switched by the window\'s width', () => {
     // The tracks are the row's alone (the dates' own grid is inside their cell): nothing a row holds can change them,
     // so every row has the same ones.
     const setters = allRules().filter(({ d }) => 'grid-template-columns' in d || Object.keys(d).some(p => p.startsWith('--col-')));
-    expect(setters.map(r => `${r.media} ${r.selector}`)).toEqual([' .row', ' .dates', `${ZOOMED} .dates`, `${TABLET} .row`, `${WIDE} .row:lang(zh)`, `${WIDE} .row:lang(en)`, `${CAP} .row:lang(en)`]);
+    expect(setters.map(r => `${r.media} ${r.selector}`)).toEqual([' .dates', `${PHONE} .row`, `${TABLET} .row`, `${WIDE} .row:lang(zh)`, `${WIDE} .row:lang(en)`, `${CAP} .row:lang(en)`]);
   });
 
   it('from 1280px, on English pages (drawing E1): six tracks, the same on every row, in the row font\'s own units with the drawing\'s px as floors', () => {
@@ -783,8 +1007,8 @@ describe('three layouts, switched by the window\'s width', () => {
   it('in the English wide row the price change is as narrow as its longest unbreakable part: two lines, a column gap from the buttons', () => {
     expect(rule(WIDE, '.delta:lang(en)')).toEqual({ width: 'min-content', 'margin-left': 'auto', 'line-height': '1.25' });
     // The pair's columns are equal and never narrower than a button's words with its 8px padding.
-    expect(rule(PHONE, '.add').padding).toBe('0 8px');
-    expect(rule(PHONE, '.pair')).toMatchObject({ 'grid-auto-columns': '1fr' });
+    expect(rule(BASE, '.add').padding).toBe('0 8px');
+    expect(rule(BASE, '.pair')).toMatchObject({ 'grid-auto-columns': '1fr' });
     // The change's right edge is the price column's: a column gap, at least 12px, from the buttons.
     expect(Number.parseFloat(rule(WIDE, EN_ROW)['column-gap'])).toBeGreaterThanOrEqual(12);
   });
@@ -807,22 +1031,18 @@ describe('three layouts, switched by the window\'s width', () => {
     expect(rule(WIDE, '.d:lang(en)')).toEqual({ 'min-height': '0' });
   });
 
-  it('a zoomed phone (below 320px): two dates a line, so no chip spills', () => {
-    expect(sheet[ZOOMED]).toEqual({ '.dates': { 'grid-template-columns': 'repeat(2, minmax(0, 1fr))' } });
-  });
-
   it('from 1280px every row is as tall as its stacked buttons at least; the thin line before the route spans the row', () => {
     for (const lang of ['zh', 'en']) {
       const vertical = Number(/^(\d+)px/.exec(rule(WIDE, `.row:lang(${lang})`).padding)![1]);
-      const stacked = px(rule(WIDE, `.go:lang(${lang})`)['min-height']) + px(rule(TABLET, '.actions').gap) + px(rule(WIDE, `.add:lang(${lang})`)['min-height']);
+      const stacked = px(rule(WIDE, `.go:lang(${lang})`)['min-height']) + px(rule(BASE, '.actions').gap) + px(rule(WIDE, `.add:lang(${lang})`)['min-height']);
       expect(px(rule(WIDE, `.row:lang(${lang})`)['min-height']), lang).toBe(stacked + 2 * vertical);
     }
     expect(rule(WIDE, '.routeCell:lang(zh)')).toMatchObject({ 'align-self': 'stretch', 'border-left': '1px solid var(--line)' });
   });
 
-  it('text never shrinks to fit: no layout changes a font size but the English wide row\'s, to the drawing E1\'s fixed sizes; no size follows the window', () => {
+  it('text never shrinks to fit: no layout changes a font size but the phone card\'s and the English wide row\'s, to their drawings\' fixed sizes; no size follows the window', () => {
     for (const { media, selector, d } of allRules()) {
-      if (media !== PHONE) {
+      if (media !== BASE && media !== PHONE) {
         expect(d, `${media} ${selector}`).not.toHaveProperty('font');
         if (!(media === WIDE && selector.includes(':lang(en)'))) expect(d, `${media} ${selector}`).not.toHaveProperty('font-size');
       }
@@ -832,27 +1052,31 @@ describe('three layouts, switched by the window\'s width', () => {
     expect(sized).toEqual(['.op:lang(en) 13px', '.region:lang(en) 14px', '.route:lang(en) 17px']);
   });
 
-  it('nothing is cut off: only the visually hidden helpers clip; no ellipsis or line clamp anywhere', () => {
-    const clipping = allRules().filter(({ d }) => /hidden|clip/.test(d.overflow ?? '')).map(r => r.selector);
-    expect(clipping).toEqual(['.visuallyHidden', '.tip']);
+  it('from 640px nothing is cut off (only the visually hidden helpers clip); on a phone only line 1\'s region and tag (with …) and the route (at two lines, with 全部 N 站)', () => {
+    const clipping = allRules().filter(({ d }) => /hidden|clip/.test(d.overflow ?? '')).map(r => `${r.media} ${r.selector}`);
+    expect(clipping.sort()).toEqual([' .tip', ' .visuallyHidden', `${PHONE} .op`, `${PHONE} .region`, `${PHONE} .routeCell`]);
+    const ellipsis = allRules().filter(({ d }) => 'text-overflow' in d).map(r => `${r.media} ${r.selector}`);
+    expect(ellipsis.sort()).toEqual([`${PHONE} .op`, `${PHONE} .region`]);
     for (const { selector, d } of allRules()) {
-      expect(d, selector).not.toHaveProperty('text-overflow');
       expect(d, selector).not.toHaveProperty('-webkit-line-clamp');
       expect(d, selector).not.toHaveProperty('line-clamp');
     }
   });
 
-  it('only the route and the region may take more lines (and the English price change two): every other cell\'s text keeps to one line', () => {
+  it('only the route and the region may take more lines (and the English price change two; on a phone, as a last resort, the days): every other cell\'s text keeps to one line', () => {
     for (const selector of ['.days', '.price', '.delta', '.stale', '.chip', '.more', '.go', '.add', '.save']) {
-      expect(rule(PHONE, selector)['white-space'], selector).toBe('nowrap');
+      expect(rule(BASE, selector)['white-space'], selector).toBe('nowrap');
     }
     // The English change breaks at its one ordinary space only (the dictionary's no-break spaces; tested above).
     const wraps = allRules().filter(({ d }) => d['white-space'] === 'normal').map(r => `${r.media} ${r.selector}`);
-    expect(wraps).toEqual([' .region:lang(en) .place', ' .delta:lang(en)']);
+    expect(wraps).toEqual([' .region:lang(en) .place', ' .delta:lang(en)', `${PHONE} .days`]);
   });
 
-  it('44px touch targets in the block layouts (the dates, the gold button, 加入行程, 收藏); 36px buttons in the wide rows', () => {
-    for (const selector of ['.d', '.go', '.add', '.save']) expect(rule(PHONE, selector)['min-height'], selector).toBe('44px');
+  it('44px touch targets in two columns (the dates, the gold button, 加入行程, 收藏); 36px buttons in the wide rows; on a phone 40px buttons and 24px dates', () => {
+    for (const selector of ['.d', '.go', '.add', '.save']) expect(rule(BASE, selector)['min-height'], selector).toBe('44px');
+    // A phone's dates and +N: at least 24px (each date opens the same page as the row around it).
+    expect(rule(PHONE, '.d')['min-height']).toBe('24px');
+    expect(rule(PHONE, '.moreButton')['min-height']).toBe('24px');
     for (const lang of ['zh', 'en']) {
       expect(rule(WIDE, `.go:lang(${lang})`)['min-height']).toBe('36px');
       expect(rule(WIDE, `.add:lang(${lang})`)['min-height']).toBe('36px');
@@ -875,15 +1099,15 @@ describe('three layouts, switched by the window\'s width', () => {
   });
 
   it('the pair: equal columns that are never narrower than their words, so 加入行程 is never cut and nothing moves when a tour is saved', () => {
-    expect(rule(PHONE, '.pair')).toMatchObject({ display: 'grid', 'grid-auto-flow': 'column', 'grid-auto-columns': '1fr' });
-    // 8px between the words (or star) and the border, at least, in every layout (the owner's minimum).
-    expect(rule(PHONE, '.add').padding).toBe('0 8px');
-    for (const { media, selector, d } of allRules().filter(r => r.media !== PHONE || !['.add', '.save'].includes(r.selector))) {
-      if (/^\.(add|save)\b/.test(selector)) expect(d, `${media} ${selector}`).not.toHaveProperty('padding');
+    expect(rule(BASE, '.pair')).toMatchObject({ display: 'grid', 'grid-auto-flow': 'column', 'grid-auto-columns': '1fr' });
+    // 8px between the words (or star) and the border, at least, from 640px (the owner's minimum). On a phone each
+    // button is the column's fixed 88px, its words centred, 4px at least.
+    expect(rule(BASE, '.add').padding).toBe('0 8px');
+    for (const { media, selector, d } of allRules().filter(r => r.media !== BASE || !['.add', '.save'].includes(r.selector))) {
+      if (/^\.(add|save)\b/.test(selector) && media !== PHONE) expect(d, `${media} ${selector}`).not.toHaveProperty('padding');
     }
-    // On a phone the pair takes the wider share of a line it shares with the gold button.
-    expect(px(rule(PHONE, '.actions > .pair')['flex-basis'])).toBeGreaterThan(px(rule(PHONE, '.actions > .go')['flex-basis']));
-    expect(rule(TABLET, '.actions > .pair')).toMatchObject({ flex: 'none' });
+    expect(rule(PHONE, '.save').padding).toBe('0 4px');
+    expect(rule(BASE, '.actions > *')).toEqual({ flex: 'none' });
     // 1fr, not minmax(0, 1fr): a column's least width is its button's words.
     for (const { selector, d } of allRules().filter(r => r.selector.startsWith('.pair'))) {
       expect(JSON.stringify(d), selector).not.toMatch(/minmax\(0/);
@@ -891,6 +1115,7 @@ describe('three layouts, switched by the window\'s width', () => {
     }
     // The two buttons look alike: the same box, the same text.
     for (const property of ['min-height', 'padding', 'border', 'font-size', 'font-weight', 'white-space']) {
+      expect(rule(BASE, '.save')[property], property).toBe(rule(BASE, '.add')[property]);
       expect(rule(PHONE, '.save')[property], property).toBe(rule(PHONE, '.add')[property]);
     }
   });
@@ -1033,15 +1258,15 @@ describe('收藏 (save)', () => {
   });
 
   it('saved: colours only (the pale gold, the gold outline, a deeper gold under the pointer, the star filled); nothing changes a size', () => {
-    expect(rule(PHONE, ".save[aria-pressed='true']")).toEqual({ background: 'var(--saved-bg)', 'border-color': 'var(--saved-line)' });
+    expect(rule(BASE, ".save[aria-pressed='true']")).toEqual({ background: 'var(--saved-bg)', 'border-color': 'var(--saved-line)' });
     // The hover comes after, so a saved button shows the pointer too.
-    expect(rule(PHONE, ".save[aria-pressed='true']:hover")).toEqual({ background: 'var(--saved-hover)' });
-    const order = Object.keys(sheet[PHONE]);
+    expect(rule(BASE, ".save[aria-pressed='true']:hover")).toEqual({ background: 'var(--saved-hover)' });
+    const order = Object.keys(sheet[BASE]);
     expect(order.indexOf(".save[aria-pressed='true']:hover")).toBeGreaterThan(order.indexOf(".save[aria-pressed='true']"));
-    expect(rule(PHONE, ".save[aria-pressed='true'] .star")).toEqual({ fill: 'var(--saved-star)' });
-    expect(rule(PHONE, '.star')).toMatchObject({ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor' });
+    expect(rule(BASE, ".save[aria-pressed='true'] .star")).toEqual({ fill: 'var(--saved-star)' });
+    expect(rule(BASE, '.star')).toMatchObject({ width: '14px', height: '14px', fill: 'none', stroke: 'currentColor' });
     // Its own colours, not the most recent row's gold tint, so it shows on that row too (lib/theme.test.ts).
-    expect(JSON.stringify(rule(PHONE, ".save[aria-pressed='true']"))).not.toMatch(/latest-bg/);
+    expect(JSON.stringify(rule(BASE, ".save[aria-pressed='true']"))).not.toMatch(/latest-bg/);
   });
 });
 
@@ -1072,15 +1297,20 @@ describe('the row link', () => {
   });
 
   it('a click anywhere on the row reaches the row link, except on a date (its own link) and the add button', () => {
-    expect(rule(PHONE, '.row').position).toBe('relative');
-    expect(rule(PHONE, '.go::after')).toEqual({ content: "''", position: 'absolute', inset: '0' });
-    expect(rule(PHONE, '.datesCell')).toMatchObject({ position: 'relative', 'z-index': '1', 'pointer-events': 'none' });
-    expect(rule(PHONE, '.d')['pointer-events']).toBe('auto');
+    expect(rule(BASE, '.row').position).toBe('relative');
+    expect(rule(BASE, '.go::after')).toEqual({ content: "''", position: 'absolute', inset: '0' });
+    expect(rule(BASE, '.datesCell')).toMatchObject({ position: 'relative', 'z-index': '1', 'pointer-events': 'none' });
+    expect(rule(BASE, '.d')['pointer-events']).toBe('auto');
+    // On a phone: +N and 全部 N 站 take their own presses too, and the list +N opens is above the rows below.
+    expect(rule(PHONE, '.moreButton')['pointer-events']).toBe('auto');
+    expect(rule(PHONE, '.allStops')['z-index']).toBe('1');
+    expect(rule(PHONE, '.datesCell[data-open]')).toEqual({ 'z-index': '30' });
+    expect(rule(PHONE, ".datesCell > [role='dialog']")).toEqual({ 'pointer-events': 'auto' });
     // 加入行程 and 收藏 are above the stretched link (their pair, raised further while the picker is open).
-    expect(rule(PHONE, '.pair')).toMatchObject({ position: 'relative', 'z-index': '1' });
-    expect(rule(PHONE, '.pair[data-open]')).toEqual({ 'z-index': '30' });
+    expect(rule(BASE, '.pair')).toMatchObject({ position: 'relative', 'z-index': '1' });
+    expect(rule(BASE, '.pair[data-open]')).toEqual({ 'z-index': '30' });
     // Keyboard focus on the row link rings the button and the whole row.
-    expect(rule(PHONE, '.row:has(.go:focus-visible)')).toEqual({ 'box-shadow': 'inset 0 0 0 2px var(--focus)' });
+    expect(rule(BASE, '.row:has(.go:focus-visible)')).toEqual({ 'box-shadow': 'inset 0 0 0 2px var(--focus)' });
   });
 
   it.each(['javascript:alert(1)', 'data:text/html,x', 'http://example.com', '/website/itinerary/KIX5'])(
@@ -1114,7 +1344,7 @@ describe('the operator\'s colour', () => {
     expect(screen.getByText('東瀛遊').className).not.toMatch(/opDark/);
     const users = allRules().filter(({ d }) => Object.values(d).some(v => v.includes('var(--c)')));
     expect(users.map(r => [r.selector, r.d.background])).toEqual([['.op', 'var(--c)']]);
-    expect(rule(PHONE, '.opDark')).toEqual({ color: 'var(--on-operator-dark)' });
+    expect(rule(BASE, '.opDark')).toEqual({ color: 'var(--on-operator-dark)' });
     unmount();
     render(<TourCard {...props} operator={{ ...operator, color: '#ee7b06' }} />);
     expect(screen.getByText('東瀛遊').className).toMatch(/opDark/);
@@ -1140,7 +1370,7 @@ describe('加入行程', () => {
   it('has no add button without onAdd (收藏 is then alone on its line)', () => {
     render(<TourCard {...props} />);
     expect(screen.queryByRole('button', { name: /加入行程/ })).toBeNull();
-    expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['收藏']);
+    expect(screen.getAllByRole('button').filter(b => !isPhoneOnly(b)).map(b => b.textContent)).toEqual(['收藏']);
   });
 
   it('the add button is outside the link and opens the picker; choosing a date adds it and returns focus to the button', async () => {
@@ -1162,9 +1392,9 @@ describe('加入行程', () => {
     render(<TourCard {...props} onAdd={onAdd} />);
     const button = screen.getByRole('button', { name: '加入行程 +' });
     expect(button).toHaveAttribute('aria-expanded', 'false');
-    await user.tab(); // the departure dates (one tab stop)
-    await user.tab(); // the row link
-    await user.tab(); // the add button
+    await wideTab(); // the departure dates (one tab stop)
+    await wideTab(); // the row link
+    await wideTab(); // the add button
     expect(button).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(button).toHaveAttribute('aria-expanded', 'true');
@@ -1225,10 +1455,12 @@ describe('加入行程', () => {
 
   it('keeps its words in every language (the owner found a bare "+" unclear)', () => {
     const { unmount } = render(<TourCard {...props} onAdd={vi.fn()} t={makeT('en')} />);
-    expect(screen.getByRole('button', { expanded: false })).toHaveTextContent('+ Add to trip');
+    expect(screen.getByRole('button', { name: '+ Add to trip' })).toHaveTextContent('+ Add to trip');
+    // On a phone, where the button is the trip page's own action: '+ Add' (a word too, never the bare '+').
+    expect(screen.getByRole('button', { name: '+ Add to trip' }).querySelector(`.${styles.phoneText}`)).toHaveTextContent(/^\+ Add$/);
     unmount();
     render(<TourCard {...props} onAdd={vi.fn()} t={makeT('zh-Hans')} />);
-    expect(screen.getByRole('button', { expanded: false })).toHaveTextContent('加入行程 +');
+    expect(screen.getByRole('button', { name: '加入行程 +' })).toHaveTextContent('加入行程 +');
   });
 });
 
@@ -1273,7 +1505,8 @@ describe('a stored page made before Hong Kong midnight, seen after it', () => {
     render(<TourCard {...props} tour={{ ...tour, departures: [tomorrow] }} onAdd={vi.fn()} />);
     expect(screen.queryByRole('group', { name: '出發日期' })).toBeNull();
     const cell = cells().find(c => c.className.includes(styles.datesCell))!;
-    expect(cell).toHaveTextContent(/^出發日期已過$/);
+    expect(cell.firstElementChild).toHaveTextContent(/^出發日期已過$/);
+    expect(cell.firstElementChild).toHaveClass(styles.passed);
     await user.click(screen.getByRole('button', { name: '加入行程 +' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('出發日期已過');
     expect(screen.getByRole('button', { name: '關閉' })).toHaveFocus();
@@ -1283,9 +1516,11 @@ describe('a stored page made before Hong Kong midnight, seen after it', () => {
   });
 
   it('the line in the dates\' place is as tall as the line of chips it replaces, so nothing below moves', () => {
-    // Below 1280px a chip's box is at least 44px tall: so is the line, its text centred as a chip's is.
-    expect(rule(PHONE, '.d')['min-height']).toBe('44px');
-    expect(rule(PHONE, '.passed')).toMatchObject({ display: 'flex', 'align-items': 'center', 'min-height': '44px' });
+    // From 640px to 1280px a chip's box is at least 44px tall: so is the line, its text centred as a chip's is.
+    expect(rule(BASE, '.d')['min-height']).toBe('44px');
+    expect(rule(BASE, '.passed')).toMatchObject({ display: 'flex', 'align-items': 'center', 'min-height': '44px' });
+    // On a phone, a note in the old-data colour where the chips would be.
+    expect(rule(PHONE, '.passed')).toMatchObject({ 'min-height': '0', 'font-size': '12px', color: 'var(--stale)' });
     // From 1280px the chips are as tall as their text (the row's height comes from its buttons): the line too, its text
     // where a chip's text would be (the dates' 2px, then the chip's 4px).
     for (const lang of ['zh', 'en']) {

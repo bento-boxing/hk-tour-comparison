@@ -125,7 +125,7 @@ it.each([
 it('passes the render\'s time to the rows, which mark an operator\'s old data', () => {
   render(<Results {...props} now="2026-11-14T00:00:00Z" />);
   // Both operators last ran on 11 Nov (19:10 UTC, 12 Nov in Hong Kong): more than 36 hours before.
-  expect(screen.getAllByText('資料為 11月12日')).toHaveLength(4); // two rows, each with the tag in both of its places (one shown per layout)
+  expect(screen.getAllByText('資料為 11月12日')).toHaveLength(6); // two rows, each with the tag in its three places (one shown per layout)
 });
 
 it('an empty message replaces the default one and its clear link', () => {

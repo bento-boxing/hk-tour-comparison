@@ -416,7 +416,7 @@ it('under the pager, when the data was last updated; rows carry the render\'s ti
   await renderPage({ dest: 'japan-kansai', sort: 'days' });
   const note = screen.getByText('資料更新：11月9日 · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準');
   expect(screen.getByRole('link', { name: '下一頁' }).compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(within(oneRow()).getAllByText('資料為 11月9日')).toHaveLength(2);
+  expect(within(oneRow()).getAllByText('資料為 11月9日')).toHaveLength(3); // in each of its places (one shown per layout)
 });
 
 it.each([

@@ -5,6 +5,8 @@
   padding: 10px; background: var(--surface); color: var(--ink);
   border: 1px solid var(--line-control); border-radius: var(--radius-card); box-shadow: 0 6px 18px var(--shadow);
 }
+/* Opened from the left of its opener (a phone card's +N, in the card's left column): it grows rightwards. */
+.start { left: 0; right: auto; }
 .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; padding-left: 4px; }
 .title { font-size: 14px; font-weight: 700; }
 .close {
@@ -22,6 +24,10 @@
   font: inherit; font-size: 14px; color: var(--ink); cursor: pointer;
 }
 .date:hover { background: var(--hit); }
+/* A listed date that only links to the operator's page (a phone card's list of all its dates): no underline. */
+a.date { text-decoration: none; }
+span.date { cursor: default; }
+span.date:hover { background: none; }
 .date:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--hit); }
 .price { font-weight: 700; white-space: nowrap; }
 .from { font-size: 12px; font-weight: 500; color: var(--text-muted); }

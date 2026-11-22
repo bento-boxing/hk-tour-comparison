@@ -71,6 +71,29 @@ it('a leg that starts on the last day of the previous one overlaps it and is dro
   expect(r.legs).toHaveLength(1);
 });
 
+// Task 71: the rest setting (gap) only sets the window for the next leg; the legs already chosen need only be in order.
+it('legs already chosen are never checked against the gap: any rest of 0 days or more keeps them', () => {
+  const D = card('jetour:D9', 2, [{ date: '2027-01-20', priceHkd: 900 }], 900);
+  const all = new Map([A, B, C, D].map(t => [t.key, t]));
+  const gaps = [{ min: 0, max: 0 }, { min: 1, max: 3 }, { min: 5, max: 5 }, { min: 30, max: 30 }];
+  for (const gap of gaps) {
+    // Rests of 0 (TPE4 the day after KIX5 ends) and 24 days (D9): outside most of these gaps.
+    const state = { ...st(['egl:KIX5', '2026-12-18'], ['bigline:TPE4', '2026-12-23'], ['jetour:D9', '2027-01-20']), gap };
+    const r = resolveChain(state, all, today);
+    expect(r.droppedCount).toBe(0);
+    expect(r.legs.map(l => l.gapBefore)).toEqual([null, 0, 24]);
+  }
+});
+
+it('removing the first leg leaves a valid trip: the rest are still in order, the new first has no rest before it', () => {
+  const D = card('jetour:D9', 2, [{ date: '2027-01-20', priceHkd: 900 }], 900);
+  const all = new Map([A, C, D].map(t => [t.key, t]));
+  const r = resolveChain(st(['bigline:TPE4', '2026-12-23'], ['jetour:D9', '2027-01-20']), all, today);
+  expect(r.droppedCount).toBe(0);
+  expect(r.legs.map(l => l.gapBefore)).toEqual([null, 24]);
+  expect(chainTotals(r.legs)).toMatchObject({ priceHkd: 4880, spanDays: 30 });
+});
+
 it('drops a leg that departs before today, with everything after it', () => {
   // getToursByKeys lists only upcoming departures, but resolveChain does not rely on that.
   const r = resolveChain(st(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']), tours, '2026-12-20');

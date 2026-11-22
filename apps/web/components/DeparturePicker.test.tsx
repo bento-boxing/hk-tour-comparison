@@ -137,3 +137,50 @@ it('reads naturally in English', () => {
   expect(screen.getByRole('button', { name: 'Fri 18 Dec 2026 HK$7,999' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Sun 20 Dec 2026 from HK$7,999' })).toBeInTheDocument();
 });
+
+it('without onPick (a phone card\'s list of all its dates): titled as asked, each date a link to the operator\'s page; focus on the first', () => {
+  render(<DeparturePicker
+    departures={departures} fallbackPriceHkd={7999} today="2026-11-12" t={tZh} onClose={onClose} title="出發日期"
+    link={{ href: 'https://example.test/egl/KIX5', target: '_blank', rel: 'noopener noreferrer' }}
+  />);
+  const dialog = screen.getByRole('dialog', { name: '出發日期' });
+  const links = screen.getAllByRole('link');
+  expect(links).toHaveLength(3);
+  expect(links[0]).toHaveFocus();
+  expect(links[1]).toHaveTextContent('2026年12月20日（日） HK$7,999 起');
+  for (const a of links) expect(a).toHaveAttribute('href', 'https://example.test/egl/KIX5');
+  expect(screen.queryByRole('button', { name: /2026年/ })).toBeNull();
+  expect(dialog.className).not.toMatch(/start/);
+});
+
+it('without onPick or a link: the dates as text; opened from the left (placement start) it grows rightwards', () => {
+  render(<DeparturePicker departures={departures} fallbackPriceHkd={7999} today="2026-11-12" t={tZh} onClose={onClose} placement="start" />);
+  expect(screen.queryAllByRole('link')).toHaveLength(0);
+  expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  expect(screen.getByRole('button', { name: '關閉' })).toHaveFocus();
+  expect(screen.getByRole('dialog').className).toMatch(/start/);
+});
+
+it('on a phone it is scrolled fully into view as it opens; not from 640px', () => {
+  const scroll = vi.fn();
+  Element.prototype.scrollIntoView = scroll;
+  try {
+    for (const [phone, calls] of [[true, 1], [false, 0]] as const) {
+      scroll.mockClear();
+      window.matchMedia = vi.fn().mockReturnValue({ matches: phone }) as unknown as typeof window.matchMedia;
+      const { unmount } = renderPicker();
+      expect(window.matchMedia).toHaveBeenCalledWith('(max-width: 639px)');
+      expect(scroll).toHaveBeenCalledTimes(calls);
+      if (calls) {
+        expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+        expect(scroll.mock.contexts[0]).toBe(screen.getByRole('dialog'));
+        // Marked for the bottom bar, which slides away while it is open (components/TabBar.module.css).
+        expect(screen.getByRole('dialog')).toHaveAttribute('data-departure-picker');
+      }
+      unmount();
+    }
+  } finally {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+    delete (window as Partial<Window>).matchMedia;
+  }
+});

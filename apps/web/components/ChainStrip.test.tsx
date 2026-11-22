@@ -108,25 +108,40 @@ it('without a window (a full chain) shows neither the gap selector nor the place
   expect(screen.getByText('目前合計', { exact: false })).toBeInTheDocument();
 });
 
-it('shows the total, marking an inexact total with 起', () => {
+// Task 71: the total is the summed price (起 when inexact, as before), the tours, and the whole span (first departure to
+// last return, rest included), on one line.
+it('shows the total: the summed price, the tours and the whole span, rest included', () => {
   const { unmount } = renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']));
   const total = screen.getByText('目前合計', { exact: false });
-  expect(within(total).getByText('HK$13,698')).toBeInTheDocument();
-  expect(total).toHaveTextContent('目前合計HK$13,69810日（連休息共11日）');
+  expect(total).toHaveTextContent('目前合計HK$13,6982 個旅行團 · 11 日');
   expect(total).not.toHaveTextContent('起');
+  expect(total).not.toHaveTextContent('連休息');
+  expect(within(total).getByText('2 個旅行團 · 11 日')).toHaveClass(/totalCount/);
+  expect(css()).toMatch(/\.totalCount \{ white-space: nowrap; \}/);
   unmount();
 
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']));
-  const inexact = screen.getByText('目前合計', { exact: false });
-  expect(inexact).toHaveTextContent('HK$13,698 起');
-  expect(inexact).toHaveTextContent('10日（連休息共12日）');
+  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('HK$13,698 起2 個旅行團 · 12 日');
 });
 
-it('a single leg shows only its days', () => {
+it('a single leg: one tour and its own days', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']));
-  const total = screen.getByText('目前合計', { exact: false });
-  expect(total).toHaveTextContent('目前合計HK$7,9995日');
-  expect(total).not.toHaveTextContent('連休息');
+  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('目前合計HK$7,9991 個旅行團 · 5 日');
+});
+
+it.each([
+  ['zh-Hans', '目前合计HK$13,6982 个旅行团 · 11 天'],
+  ['en', 'Total so farHK$13,6982 tours · 11 days'],
+] as const)('in %s, the total in the language\'s words', (locale, text) => {
+  renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']), { t: makeT(locale) });
+  expect(screen.getByText(/目前合计|Total so far/)).toHaveTextContent(text);
+});
+
+it('in English, one tour and one day are singular', () => {
+  const D = card('egl:D1', 1, [kansai('osaka')], [{ date: '2026-12-18', priceHkd: 500 }], 500);
+  const legs = resolveChain({ legs: [{ tourKey: D.key, departure: '2026-12-18' }], gap: { min: 1, max: 3 } }, new Map([[D.key, D]]), today).legs;
+  renderStrip(legs, { t: makeT('en') });
+  expect(screen.getByText(/Total so far/)).toHaveTextContent('1 tour · 1 day');
 });
 
 it('remove-last calls back', async () => {
@@ -177,11 +192,11 @@ it('in English: day-first dates and "from" before an inexact price, in the legs 
   expect(second).toHaveTextContent('Travel Expert · 25 Dec – 29 Dec · from HK$5,699');
   const total = screen.getByText('Total so far', { exact: false });
   expect(total).toHaveTextContent('from HK$13,698');
-  expect(total).toHaveTextContent('10 days (12 including rest)');
+  expect(total).toHaveTextContent('2 tours · 12 days');
   expect(screen.getByText('Departing 24 Dec – 26 Dec', { exact: false })).toBeInTheDocument();
 });
 
-it('in Simplified Chinese the total reads 含休息', () => {
+it('in Simplified Chinese the total reads the tours and the days, rest included', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']), { t: makeT('zh-Hans') });
-  expect(screen.getByText('目前合计', { exact: false })).toHaveTextContent('10天（含休息共12天）');
+  expect(screen.getByText('目前合计', { exact: false })).toHaveTextContent('2 个旅行团 · 12 天');
 });

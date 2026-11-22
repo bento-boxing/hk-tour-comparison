@@ -10,6 +10,8 @@ import { restRange, type ResolvedLeg } from '../lib/chain';
 import {
   chainPageHref, withDestination, withGap, withLegAdded, withoutLastLeg, withSearch, type ChainAddress,
 } from '../lib/chain-href';
+import { markTripAction } from '../lib/remembered-trip';
+import { requestTripFocus } from '../lib/trip-undo';
 import { ChainStrip } from './ChainStrip';
 import { DestinationPanels } from './DestinationPanels';
 import { DestinationSearch } from './DestinationSearch';
@@ -40,8 +42,9 @@ export function ChainStripConnected({ address, legs, departWindow, operators, to
     <ChainStrip
       legs={legs} operators={operators} places={places} today={today} t={t}
       gap={address.chain.gap} departWindow={departWindow}
-      onGapChange={gap => goTo(withGap(address, gap))}
-      onRemoveLast={() => goTo(withoutLastLeg(address))}
+      // The visitor's own changes to the trip: the trip they lead to is remembered (lib/remembered-trip).
+      onGapChange={gap => { markTripAction(); goTo(withGap(address, gap)); }}
+      onRemoveLast={() => { markTripAction(); goTo(withoutLastLeg(address)); }}
     />
   );
 }
@@ -84,23 +87,37 @@ export function ChainFilterBarConnected({ address, operators, today }: { address
  * leg (gap and filters kept, page reset) and goes to the new address, scrolled to the top to show the strip.
  */
 export function ChainResultsConnected({ address, lastEndDate, tours, total, operators, today, now }: {
-  address: ChainAddress; lastEndDate: IsoDate; tours: TourRow[]; total: number; operators: OperatorInfo[]; today: IsoDate;
+  address: ChainAddress;
+  /** The trip's last day; none when choosing the first tour (then no card says how much rest comes before it). */
+  lastEndDate?: IsoDate;
+  tours: TourRow[]; total: number; operators: OperatorInfo[]; today: IsoDate;
   /** The server's time of this render (ISO), for the rows' old-data warning. */
   now?: string;
 }) {
   const t = useT();
   const router = useRouter();
   const footNote = (tour: TourRow) => {
+    if (lastEndDate === undefined) return undefined;
     const rest = restRange(lastEndDate, tour.departures.map(d => d.date));
     if (rest === null) return undefined;
     return rest.min === rest.max ? t('chain.afterRest', { n: rest.min }) : t('chain.afterRestRange', { a: rest.min, b: rest.max });
+  };
+  const add = (tour: TourRow, departure: IsoDate) => {
+    const next = chainPageHref(withLegAdded(address, { tourKey: tour.key, departure }));
+    markTripAction(); // the visitor's own change: the trip it leads to is remembered
+    if (!address.pick) { router.push(localeHref(t.locale, next)); return; }
+    // From a phone's choosing screen, back to the trip with the new tour focused. In place of the choosing screen
+    // in the history, so Back from the trip goes where Back from the choosing screen would have.
+    requestTripFocus('last');
+    router.replace(localeHref(t.locale, next));
   };
   return (
     <Results
       tours={tours} total={total} operators={operators} places={places} today={today} now={now} t={t}
       footNote={footNote}
-      empty={<p className={styles.noNext}>{t('chain.noNext')}</p>}
-      onAdd={(tour, departure) => router.push(localeHref(t.locale, chainPageHref(withLegAdded(address, { tourKey: tour.key, departure }))))}
+      phoneAction="add"
+      empty={<p className={styles.noNext}>{t(lastEndDate === undefined ? 'search.empty' : 'chain.noNext')}</p>}
+      onAdd={add}
     />
   );
 }

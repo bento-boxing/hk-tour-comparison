@@ -48,15 +48,25 @@
 }
 
 /*
- * Phones: the name with the switches at the right, then the three links (14px, 44px tall) on a line of their own.
- * Since the destinations link left the header (task 58), one line holds them down to 320px in every language (with
- * room for '(100)'); the two-by-two layout the four links needed below 360px (Chinese) and 430px (English) is gone.
+ * Phones (the owner's drawings, task 70): one row, 48px: the name at the left, the switches at the right. The three
+ * page links are in the bottom bar (components/TabBar) instead.
  */
 @media (max-width: 639px) {
-  .inner { padding: 0 16px; min-height: 0; column-gap: 8px; }
-  .name { font-size: 19px; letter-spacing: 0; order: 1; }
-  .tools { order: 2; column-gap: 0; }
-  .links { order: 3; flex-basis: 100%; column-gap: 18px; }
+  .inner { padding: 0 16px; min-height: 48px; flex-wrap: nowrap; column-gap: 8px; }
+  .name { font-size: 18px; letter-spacing: 0; }
+  .tools { column-gap: 0; }
+  .links { display: none; }
+}
+/*
+ * A phone turned sideways with a short screen (no bottom bar there): as before task 70, the name with the switches,
+ * then the three links (14px, 44px tall) on a line of their own, which holds them down to 320px in every language
+ * (with room for '(100)').
+ */
+@media (max-width: 639px) and (orientation: landscape) and (max-height: 500px) {
+  .inner { min-height: 0; flex-wrap: wrap; }
+  .name { font-size: 19px; order: 1; }
+  .tools { order: 2; }
+  .links { display: flex; order: 3; flex-basis: 100%; column-gap: 18px; }
   .links:lang(zh) { column-gap: 12px; }
   .link { font-size: 14px; }
 }

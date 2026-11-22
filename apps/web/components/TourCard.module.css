@@ -2,8 +2,9 @@
  * One tour as a row: the owner's final row (mock-up RowsB13). --c (the operator colour) is set inline.
  *
  * Three layouts, each placing the same seven cells; no cell paints outside its own track at any width:
- *   below 640px (phones): a block. The operator with the days; the price (its note beside it, or under it when the
- *     line is too short); the region; the route; the dates, three by two; the two buttons.
+ *   below 640px (phones, task 70): a card. Line 1: the operator, the days, the region and the price; under it the
+ *     route and the dates that fit one line on the left, and two stacked buttons on the right. Its rules are in one
+ *     block (max-width: 639px) over the rules below, which are those of the wider layouts and of every layout.
  *   from 640px: two columns. The facts on the left (operator, days and region, route, dates); the price and the
  *     buttons in a 210px column on the right.
  *   from 1280px, one aligned row, the same tracks on every row, so each column starts at the same x down the page.
@@ -14,13 +15,13 @@
  * Text never shrinks to fit: the tracks are sized for the longest text they hold (measured: a chip with its weekday,
  * HK$999,999 with 起, the price note at its longest). No text breaks inside a word anywhere: the operator's name and
  * an English region or stop name may wrap between their words, the route at its arrows, and nothing else wraps.
+ * On a phone, line 1 is one line: the region (and, only when even that has no room left, the operator's name) is cut
+ * with … there, and the route at two lines (全部 N 站 shows the rest).
  */
 .row {
   position: relative; /* anchors the stretched link, the picker and the dates' tooltips */
   display: grid; align-items: start; column-gap: 12px; row-gap: 6px;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  grid-template-areas: 'tag days' 'price price' 'region region' 'route route' 'dates dates' 'actions actions';
-  padding: 12px 8px; background: var(--surface); border-bottom: 1px solid var(--line);
+  background: var(--surface); border-bottom: 1px solid var(--line);
 }
 .row:last-child { border-bottom: 0; }
 
@@ -43,7 +44,7 @@
 }
 .opDark { color: var(--on-operator-dark); }
 
-.days { grid-area: days; font-size: 18px; font-weight: 900; line-height: 1.35; white-space: nowrap; text-align: right; }
+.days { grid-area: days; font-size: 18px; font-weight: 900; line-height: 1.35; white-space: nowrap; }
 
 /*
  * The region: names in ink, each one unit (its dot glued to it). A Chinese name is never broken; an English name of
@@ -131,9 +132,9 @@ a.d { cursor: pointer; }
 
 /*
  * The lowest price ('HK$999,999 起', 'from HK$999,999': always one line, the marker always in the same place) and
- * under it only a change, also always one line. On a phone the note sits beside the price when the line has room.
+ * under it only a change, also always one line (on a phone the change is a note under the dates instead).
  */
-.priceCell { grid-area: price; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+.priceCell { grid-area: price; min-width: 0; text-align: right; }
 .price { font-size: 21px; font-weight: 900; line-height: 1.35; white-space: nowrap; }
 .from { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 .delta { font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
@@ -142,12 +143,9 @@ a.d { cursor: pointer; }
 .down { color: var(--price-down); }
 .up { color: var(--price-up); }
 
-/*
- * The actions: the gold button, then 加入行程 and 收藏 side by side; on a phone the gold button and that pair are side by
- * side too when the block is wide enough, each at most 360px.
- */
-.actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.actions > * { flex: 1 1 200px; max-width: 360px; }
+/* The actions, stacked: the gold button, then 加入行程 and 收藏 side by side (on a phone, only one of the two). */
+.actions { grid-area: actions; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.actions > * { flex: none; }
 .go {
   display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 10px;
   border: 2px solid var(--gold); border-radius: var(--radius-control); background: var(--gold); color: var(--on-gold);
@@ -174,9 +172,6 @@ a.d { cursor: pointer; }
 .pair { position: relative; z-index: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 /* Open: above the rows below it too (each later row's dates sit at z-index 1). */
 .pair[data-open] { z-index: 30; }
-/* On a phone, the pair wants the wider share of a shared line, so its halves keep that room in English too. */
-.actions > .go { flex-basis: 160px; }
-.actions > .pair { flex-basis: 240px; }
 .add, .save {
   width: 100%; min-height: 44px; padding: 0 8px; border: 1px solid var(--line-control); border-radius: var(--radius-control);
   background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
@@ -194,10 +189,217 @@ a.d { cursor: pointer; }
 .save[aria-pressed='true']:hover { background: var(--saved-hover); }
 .save[aria-pressed='true'] .star { fill: var(--saved-star); }
 
-/* A zoomed phone (narrower than 320 CSS px): two dates a line, so the chips keep their text. */
-@media (max-width: 319px) {
-  .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* The phone card's own parts (task 70): never drawn from 640px. Its line 1 (.head) is no box there either. */
+.allStops, .notes, .moreButton, .phoneText { display: none; }
+.head { display: contents; }
+
+/*
+ * Below 640px (phones): a card (the owner's drawings Mobile6Home, Mobile18Hard, Mobile19HardEn; mobile_kit.py card).
+ * One skeleton everywhere:
+ *   line 1: the operator's tag (never wraps) · the days · the region (one line, cut with …) … the price at the right.
+ *     The price never gives way; the region does first, then the days move under the operator, and only an operator
+ *     wider than the whole line alone is cut with …;
+ *   then two columns: on the left the route (two lines at most, then 全部 N 站), the dates that fit one line with +N
+ *     for the rest, and the notes; on the right, fixed, 88px: the gold 網站 ↗ over the page's own action (收藏, or
+ *     ＋ 加入 on the trip page), 40px tall each, 6px apart, top-aligned under line 1.
+ * Padding 12px all round; the cards 8px apart (Results). The price may be wider than the right column: the track
+ * before it (auto) takes the difference, so the left column never depends on the price.
+ */
+@media (max-width: 639px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto 88px;
+    grid-template-areas: 'head price price' 'route route actions' 'dates dates actions';
+    column-gap: 8px; row-gap: 6px; padding: 12px;
+    border: 1px solid var(--line); border-radius: var(--radius-card);
+  }
+  .row:last-child { border-bottom: 1px solid var(--line); }
+
+  /* Line 1. */
+  .head {
+    grid-area: head; align-self: center; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px;
+  }
+  .tagCell { flex: 0 1 auto; flex-wrap: nowrap; }
+  /* Alone on its line and still too wide (very large text), the days wrap between number and word, never overlap. */
+  .days { flex: 0 1 auto; white-space: normal; }
+  .region { flex: 1 1 0; }
+  .priceCell { align-self: center; justify-self: end; }
+  .op {
+    min-width: 0; padding: 1px 7px; font-size: 12px; line-height: 1.5;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .days { font-size: 13px; font-weight: 700; line-height: 1.5; }
+  .region {
+    font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .place, .region:lang(en) .place { display: inline; white-space: nowrap; }
+  .price { font-size: 18px; line-height: 1.35; }
+  .from { font-size: 11px; }
+  /* Each note is under the dates instead (.notes). */
+  .region .note, .region .footNote, .staleInTag, .delta { display: none; }
+
+  /*
+   * The route: at most two lines. The cell is as tall as the route, up to three of its lines; from a third line on,
+   * 全部 N 站 covers the third line (in the row's colour), so it shows exactly when the route is cut, with no script.
+   * Opened, the cell takes the whole route and the control follows it.
+   */
+  .routeCell { position: relative; max-height: 4.5em; overflow: hidden; font-size: 16px; line-height: 1.5; }
+  .route { font-size: 1em; line-height: inherit; }
+  .routeCell:has(.allStops[open]) { max-height: none; }
+  .allStops {
+    display: block; position: absolute; z-index: 1; top: 3em; left: 0; right: 0; height: 1.5em;
+    background: var(--surface);
+  }
+  .row[data-opened='earlier'] .allStops { background: var(--viewed-bg); }
+  .row[data-opened='latest'] .allStops { background: var(--latest-bg); }
+  .allStops[hidden] { display: none; }
+  .allStops[open] { position: relative; top: auto; height: auto; }
+  .allStopsToggle {
+    display: flex; align-items: center; gap: 4px; width: fit-content; height: 100%; min-height: 2em;
+    font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; list-style: none;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .allStopsToggle::-webkit-details-marker { display: none; }
+  .allStopsToggle:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .caret::before { content: '▾'; }
+  .allStops[open] .caret::before { content: '▴'; }
+
+  /*
+   * The dates: one line of chips, each as wide as the widest date of the year (so how many fit depends on the cell's
+   * width alone: the container queries below), then +N, a button opening the list of all of them.
+   */
+  .datesCell { container: dates / inline-size; font-size: 12px; }
+  .datesCell[data-open] { z-index: 30; }
+  .datesCell > [role='dialog'] { pointer-events: auto; }
+  .dates { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; max-width: none; }
+  .d { display: none; min-width: 6.25em; min-height: 24px; }
+  .d:lang(en) { min-width: 7.33em; }
+  .d:first-child { display: flex; }
+  .chip { padding: 2px 0; font-size: 12px; line-height: 1.4; }
+  .more { display: none; }
+  .moreButton {
+    position: relative; align-items: center; justify-content: center; min-width: 2.5em; min-height: 24px; padding: 0 2px;
+    border: 0; border-radius: var(--radius-control); background: none; color: var(--ink);
+    font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; pointer-events: auto;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .moreButton[data-k='1'] { display: flex; }
+  .moreButton:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+  .passed { min-height: 0; font-size: 12px; font-weight: 700; color: var(--stale); }
+
+  /* The notes, one small line each. */
+  .notes { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .noteLine { margin: 0; font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--text-muted); }
+  .noteLine.staleLine { font-weight: 700; color: var(--stale); }
+  .noteLine.down { font-weight: 700; color: var(--price-down); }
+  .noteLine.up { font-weight: 700; color: var(--price-up); }
+  .noteLine.footLine { font-weight: 700; color: var(--ink); }
+
+  /* The two buttons, stacked: the gold 網站 ↗, then the page's own action; the other is not shown. */
+  .go, .add, .save { height: 40px; min-height: 40px; padding: 0 4px; font-size: 13px; font-weight: 700; }
+  .wideText { display: none; }
+  .phoneText { display: inline; }
+  .row[data-phone-action='save'] .addWrap, .row[data-phone-action='add'] .save { display: none; }
+  .add, .add:hover, .add[aria-expanded='true'] { border-color: var(--selected-bg); background: var(--selected-bg); color: var(--on-selected); }
 }
+
+/*
+ * How many dates a phone card draws: as many as fit the cell's one line. Every chip is as wide (6.25em in Chinese,
+ * 7.33em in English, of the chip's 12px: the widest date of the year with its weekday), 0.4em apart, and a +N needs
+ * 2.5em after its gap. So the k-th date is drawn when the cell is at least k chips and their gaps wide, plus a +N's
+ * room unless it is the tour's last date; and the +N after the k-th date is the one drawn when that date is and the
+ * next is not. In ems of the cell's 12px, so the same dates fit at any text size. The first date is always drawn.
+ */
+@container dates (min-width: 12.9em) {
+  .d.lastDate:lang(zh):nth-child(2) { display: flex; }
+  .moreButton:lang(zh)[data-k='1'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 15.8em) {
+  .d:lang(zh):nth-child(2) { display: flex; }
+  .moreButton:lang(zh)[data-k='1'][data-next='more'] { display: none; }
+  .moreButton:lang(zh)[data-k='2'] { display: flex; }
+}
+@container dates (min-width: 19.55em) {
+  .d.lastDate:lang(zh):nth-child(3) { display: flex; }
+  .moreButton:lang(zh)[data-k='2'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 22.45em) {
+  .d:lang(zh):nth-child(3) { display: flex; }
+  .moreButton:lang(zh)[data-k='2'][data-next='more'] { display: none; }
+  .moreButton:lang(zh)[data-k='3'] { display: flex; }
+}
+@container dates (min-width: 26.2em) {
+  .d.lastDate:lang(zh):nth-child(4) { display: flex; }
+  .moreButton:lang(zh)[data-k='3'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 29.1em) {
+  .d:lang(zh):nth-child(4) { display: flex; }
+  .moreButton:lang(zh)[data-k='3'][data-next='more'] { display: none; }
+  .moreButton:lang(zh)[data-k='4'] { display: flex; }
+}
+@container dates (min-width: 32.85em) {
+  .d.lastDate:lang(zh):nth-child(5) { display: flex; }
+  .moreButton:lang(zh)[data-k='4'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 35.75em) {
+  .d:lang(zh):nth-child(5) { display: flex; }
+  .moreButton:lang(zh)[data-k='4'][data-next='more'] { display: none; }
+  .moreButton:lang(zh)[data-k='5'] { display: flex; }
+}
+@container dates (min-width: 39.5em) {
+  .d.lastDate:lang(zh):nth-child(6) { display: flex; }
+  .moreButton:lang(zh)[data-k='5'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 42.4em) {
+  .d:lang(zh):nth-child(6) { display: flex; }
+  .moreButton:lang(zh)[data-k='5'][data-next='more'] { display: none; }
+}
+@container dates (min-width: 15.06em) {
+  .d.lastDate:lang(en):nth-child(2) { display: flex; }
+  .moreButton:lang(en)[data-k='1'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 17.96em) {
+  .d:lang(en):nth-child(2) { display: flex; }
+  .moreButton:lang(en)[data-k='1'][data-next='more'] { display: none; }
+  .moreButton:lang(en)[data-k='2'] { display: flex; }
+}
+@container dates (min-width: 22.79em) {
+  .d.lastDate:lang(en):nth-child(3) { display: flex; }
+  .moreButton:lang(en)[data-k='2'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 25.69em) {
+  .d:lang(en):nth-child(3) { display: flex; }
+  .moreButton:lang(en)[data-k='2'][data-next='more'] { display: none; }
+  .moreButton:lang(en)[data-k='3'] { display: flex; }
+}
+@container dates (min-width: 30.52em) {
+  .d.lastDate:lang(en):nth-child(4) { display: flex; }
+  .moreButton:lang(en)[data-k='3'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 33.42em) {
+  .d:lang(en):nth-child(4) { display: flex; }
+  .moreButton:lang(en)[data-k='3'][data-next='more'] { display: none; }
+  .moreButton:lang(en)[data-k='4'] { display: flex; }
+}
+@container dates (min-width: 38.25em) {
+  .d.lastDate:lang(en):nth-child(5) { display: flex; }
+  .moreButton:lang(en)[data-k='4'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 41.15em) {
+  .d:lang(en):nth-child(5) { display: flex; }
+  .moreButton:lang(en)[data-k='4'][data-next='more'] { display: none; }
+  .moreButton:lang(en)[data-k='5'] { display: flex; }
+}
+@container dates (min-width: 45.98em) {
+  .d.lastDate:lang(en):nth-child(6) { display: flex; }
+  .moreButton:lang(en)[data-k='5'][data-next='last'] { display: none; }
+}
+@container dates (min-width: 48.88em) {
+  .d:lang(en):nth-child(6) { display: flex; }
+  .moreButton:lang(en)[data-k='5'][data-next='more'] { display: none; }
+}
+
 
 /* From 640px: the facts on the left; the price and the buttons stacked in a 210px column on the right. */
 @media (min-width: 640px) {
@@ -206,10 +408,6 @@ a.d { cursor: pointer; }
     grid-template-areas: 'tag tag price' 'days region price' 'route route actions' 'dates dates actions';
     column-gap: 16px; padding: 12px 14px;
   }
-  .days { text-align: left; }
-  .priceCell { display: block; text-align: right; }
-  .actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
-  .actions > *, .actions > .go, .actions > .pair { flex: none; max-width: none; }
 }
 
 /* From 1280px, on Traditional and Simplified Chinese pages: the seven columns. */

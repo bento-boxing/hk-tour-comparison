@@ -216,6 +216,45 @@ it(`a chain of ${MAX_CHAIN_LEGS} legs is full: no window and no list; more legs 
   expect(nextKeys(shorter)).toEqual([]);
 });
 
+// Task 71: the phone's screen for choosing a tour (pick=1), and whether the address named a trip at all.
+describe('the choosing screen (pick=1)', () => {
+  it('with no legs: every tour that can be the first, with the filters, and no window', async () => {
+    const data = await loadChainPage(db, query('gap=1-3&pick=1&ex=korea'), today);
+    expect(data).toMatchObject({ legs: [], departWindow: null, full: false, bare: false });
+    expect(data.address.pick).toBe(true);
+    expect(nextKeys(data)).toEqual(['bigline:DAY1', 'bigline:TPE4', 'jetour:OSA6', 'egl:KIX5', 'jetour:FAR4']); // by price, no Korea
+    // Without pick=1 an empty trip lists nothing, as before.
+    expect((await loadChainPage(db, query('gap=1-3&ex=korea'), today)).next).toBeNull();
+  });
+
+  it('with legs: the same list as the trip has, and the screen is kept in the address', async () => {
+    const pick = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3&pick=1'), today);
+    const trip = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3'), today);
+    expect(nextKeys(pick)).toEqual(nextKeys(trip));
+    expect(chainPageHref(pick.address)).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&pick=1');
+    expect(trip.address.pick).toBeUndefined();
+    expect(pick.bare).toBe(false);
+  });
+
+  it('anything but pick=1 is the trip; a full trip has nothing to choose', async () => {
+    expect((await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&pick=yes'), today)).address.pick).toBeUndefined();
+    const legs = Array.from({ length: MAX_CHAIN_LEGS }, (_, i) => `bigline:DAY1@${dayTrip(i)}`).join(',');
+    const full = await loadChainPage(db, query(`legs=${legs}&gap=0-0&pick=1`), today);
+    expect(full).toMatchObject({ full: true, next: null });
+    expect(full.address.pick).toBeUndefined();
+  });
+
+  it('bare: the address names no trip at all (no legs, no gap); one whose every tour is gone is not bare', async () => {
+    expect((await loadChainPage(db, {}, today)).bare).toBe(true);
+    expect((await loadChainPage(db, query('ex=japan'), today)).bare).toBe(true);
+    expect((await loadChainPage(db, query('gap=1-3'), today)).bare).toBe(false);
+    const gone = await loadChainPage(db, query('legs=egl:GONE@2026-12-18&gap=1-3'), today);
+    expect(gone).toMatchObject({ legs: [], droppedCount: 1, bare: false });
+    // What the address asked for, the dropped tour included (the browser prunes its remembered trip by it).
+    expect(gone.requested).toEqual({ legs: [{ tourKey: 'egl:GONE', departure: '2026-12-18' }], gap: { min: 1, max: 3 } });
+  });
+});
+
 it('a database error is passed to the caller', async () => {
   const broken: Db = { ...db, query: () => Promise.reject(new Error('connection refused')) };
   await expect(loadChainPage(broken, query('legs=egl:KIX5@2026-12-18'), today)).rejects.toThrow('connection refused');
