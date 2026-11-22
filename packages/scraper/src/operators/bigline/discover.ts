@@ -1,4 +1,5 @@
 import { readSitemapUrls } from '../../sitemap';
+import type { LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 
 const ORIGIN = 'https://bigline.hk';
@@ -20,6 +21,14 @@ const API = `https://${API_HOST}`;
 /** The departures of one month, POSTed with `datesBody`. */
 export const DATES_URL = `${API}/bigline/global/product/release/page`;
 
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site, `bigline.hk` (the sitemap and its child,
+ * docs/operators/bigline.md "Tour pages in the sitemap"), and the API host (the detail GETs and the dates POSTs).
+ * `www.bigline.hk` is never requested; it is allowed only in case the site one night redirects to that form of its
+ * own domain (an assumption: no note shows either form redirecting).
+ */
+export const ALLOWED_HOSTS = ['bigline.hk', 'www.bigline.hk', API_HOST] as const;
+
 /** The page's id, or null if it is not a single-tour page on https://bigline.hk. */
 export function tourIdOf(url: string): string | null {
   let parsed: URL;
@@ -37,9 +46,14 @@ export function isTourUrl(url: string): boolean {
   return tourIdOf(url) !== null;
 }
 
-/** Every tour page in the sitemap (an index with one child), as the public page URL, each once. */
-export async function discover(fetcher: Fetcher): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL);
+/**
+ * Every tour page in the sitemap (an index with one child), as the public page URL, each once. `log`: the run's (see
+ * readSitemapUrls).
+ */
+export async function discover(
+  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
+): Promise<string[]> {
+  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
   const tours = new Set<string>();
   for (const url of urls) {
     const id = tourIdOf(url);

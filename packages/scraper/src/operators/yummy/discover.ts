@@ -14,6 +14,13 @@ const API = 'https://api.yummyholiday.net';
 export const LISTING_URL = `${API}/bussiness/line/index?limit=500`;
 
 const SITE = 'https://www.yummyholiday.net';
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the API host, the only one requested (the listing, then
+ * each tour's detail and dates), and the site's own host, which is never requested (its tour pages are only links)
+ * and is allowed only in case the API one night redirects there. Not the image host `img.yummyholiday.net`: no
+ * request of the module goes there (docs/operators/yummy.md, "Where each fact comes from").
+ */
+export const ALLOWED_HOSTS = ['api.yummyholiday.net', 'www.yummyholiday.net'] as const;
 /** A Yummy Holiday tour id: the only text that goes into a request URL. */
 const TOUR_ID = /^[1-9][0-9]{0,9}$/;
 /** The site's tour page, a hash route of its single-page app: `/#/pages/detail/detail?id=<id>`, exactly. */

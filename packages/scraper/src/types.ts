@@ -5,8 +5,9 @@ import type { LogView } from './public-log';
 export interface FetchOptions {
   /**
    * Follow a redirect only to the same origin (scheme, host and port) as the URL asked for: a redirect anywhere
-   * else (`http://`, another host or port) is not requested and the page counts as not fetched. Unset: any
-   * http(s) redirect is followed, under the same robots.txt and spacing rules.
+   * else (`http://`, another host or port) is not requested and the page counts as not fetched. Unset: a redirect
+   * is followed anywhere on the fetcher's allowed hosts (see FetcherOptions.allowedHosts), under the same robots.txt
+   * and spacing rules.
    */
   sameOriginRedirectsOnly?: boolean;
 }
@@ -35,8 +36,9 @@ export interface OperatorScraper {
   /**
    * URLs of tour pages to fetch tonight, already filtered to tour pages. A line it logs about one page shows the
    * page's address through `logView` (the run's: PUBLIC_LOG in a real run, whose log is public; unset means that).
+   * `log` is the run's log, which the runner passes (unset: console.log).
    */
-  discover(fetcher: Fetcher, logView?: LogView): Promise<string[]>;
+  discover(fetcher: Fetcher, logView?: LogView, log?: (line: string) => void): Promise<string[]>;
   /**
    * What `parse` receives for one discovered URL, fetched through the run's fetcher (never another network
    * path): for an operator whose facts need more than the page itself, such as EGL's dates request, the
@@ -52,6 +54,13 @@ export interface OperatorScraper {
    * robots.txt, nor to another host a redirect leads to). Unset: none.
    */
   requestHeaders?: RequestHeaders;
+  /**
+   * Every host this operator's module sends a request to, by host name (since 2026-11-21): its site, and its API host
+   * where it has one. The CLI makes the run's fetcher with exactly these, and the fetcher requests nothing anywhere
+   * else (`https://` on the default port only; robots.txt and every redirect hop included); a sitemap's child sitemaps
+   * are read only on them. Required, so a new operator cannot be run without one.
+   */
+  allowedHosts: readonly string[];
   /** Pure function. null when the page is not a tour page or cannot be parsed. */
   parse(html: string, url: string): ScrapedTour | null;
   /**

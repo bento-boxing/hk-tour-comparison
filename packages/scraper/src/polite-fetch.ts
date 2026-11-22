@@ -43,6 +43,14 @@ const NO_ROBOTS_STATUSES = [404, 410];
 export interface FetcherOptions {
   /** Sent on every request. No default: the run's own, userAgentFor(its identity); a test's invented one. */
   userAgent: string;
+  /**
+   * The only places a request may go (since 2026-11-21): page requests, POSTs, robots.txt and every redirect hop.
+   * Each entry is a host name (`www.example.com`, any case), which means `https://` on the default port only, or an
+   * exact http(s) origin (`http://127.0.0.1:8080`, for tests). No default, and at least one: the run's are the running
+   * operator's (OperatorScraper.allowedHosts). A URL anywhere else (another host, an IP address, `http://`, another
+   * port) is never requested, nor its robots.txt: the page is not fetched, and the log names only the refused host.
+   */
+  allowedHosts: readonly string[];
   delayMs?: number;                   // per site, from the end of one request to the start of the next; defaults to REQUEST_DELAY_MS
   timeoutMs?: number;                 // per request; defaults to REQUEST_TIMEOUT_MS
   log?: (line: string) => void;       // defaults to console.log
@@ -158,20 +166,54 @@ function httpUrl(url: string, base?: URL): URL | null {
   }
 }
 
-/** A bare host name, as an extraHeaders key. */
+/** A bare host name, as an extraHeaders key or an allowedHosts entry. */
 const HOST_NAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
 
 /**
- * The origin an extraHeaders key names: `https://<host>` (default port) for a bare host name, or the key's
- * own origin for an http(s) origin. Throws for anything else, so a mistyped key cannot widen where headers go.
+ * The origin an extraHeaders key or an allowedHosts entry (`what`) names: `https://<host>` (default port) for a bare
+ * host name, or the key's own origin for an http(s) origin. Throws for anything else, so a mistyped key cannot widen
+ * where headers or requests go.
  */
-function headersOrigin(key: string): string {
+function keyOrigin(what: string, key: string): string {
   if (HOST_NAME.test(key)) return `https://${key.toLowerCase()}`;
   const origin = httpUrl(key);
   if (origin === null || !key.includes('://') || origin.href.replace(/\/$/, '') !== origin.origin) {
-    throw new Error(`extraHeaders key ${JSON.stringify(key)} is neither a host name nor an origin`);
+    throw new Error(`${what} ${JSON.stringify(key)} is neither a host name nor an origin`);
   }
   return origin.origin;
+}
+
+/**
+ * The origins named by a list of allowed hosts (see FetcherOptions.allowedHosts). Throws for an empty list, or for an
+ * entry that is neither a host name nor an http(s) origin.
+ */
+export function allowedOriginsOf(allowedHosts: readonly string[]): ReadonlySet<string> {
+  if (!Array.isArray(allowedHosts) || allowedHosts.length === 0) throw new Error('allowedHosts must name at least one host');
+  return new Set(allowedHosts.map(entry => keyOrigin('allowedHosts entry', entry)));
+}
+
+/**
+ * null when `url` is on one of `origins` (see allowedOriginsOf), otherwise which host it is on, for the log: the host
+ * name, with `http://` or the port when that is what is wrong. Never the path or query (which may carry anything).
+ */
+export function offAllowedHosts(url: URL, origins: ReadonlySet<string>): string | null {
+  if (origins.has(url.origin)) return null;
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'a URL that is not http(s)';
+  const scheme = url.protocol === 'https:' ? '' : 'http://';
+  return `${scheme}${url.host}`;
+}
+
+/**
+ * The only call to `fetch` in the scraper: `url` with `init`, unless `url` is off `origins` (see allowedOriginsOf), in
+ * which case nothing is sent and the answer says why (the host only). Every caller has already checked the allowed
+ * hosts, to log why; this is the last guard before the network, whatever path led here. Exported for its own test.
+ */
+export async function fetchOnAllowedHosts(
+  url: URL, origins: ReadonlySet<string>, init: RequestInit,
+): Promise<{ response: Response } | { notSent: string }> {
+  const offHosts = offAllowedHosts(url, origins);
+  if (offHosts !== null) return { notSent: `${offHosts} is not one of the allowed hosts, so nothing was sent` };
+  return { response: await fetch(url, init) };
 }
 
 function errorMessage(error: unknown): string {
@@ -183,13 +225,19 @@ function errorMessage(error: unknown): string {
  * request, and asks each site (see `siteOf`) for one page at a time, spaced by
  * the delay (or by the site's Crawl-delay when that is longer). robots.txt is
  * read per origin. Redirects are followed by hand so every hop is checked
- * against robots.txt and spaced like any request.
+ * against the allowed hosts and robots.txt and spaced like any request. Nothing
+ * is ever requested off the allowed hosts (FetcherOptions.allowedHosts).
  */
 export function createFetcher(opts: FetcherOptions): PoliteFetcher {
   // Also checked when it runs: a caller in plain JavaScript, or one that casts, still gets no default identity.
   const given: unknown = (opts as FetcherOptions | undefined)?.userAgent;
   if (typeof given !== 'string' || given.trim() === '') throw new Error('createFetcher needs a userAgent');
   const userAgent: string = given;
+  // The same: a caller that leaves the list out gets no fetcher, rather than one that goes anywhere.
+  const givenHosts: unknown = (opts as FetcherOptions).allowedHosts;
+  if (!Array.isArray(givenHosts)) throw new Error('createFetcher needs allowedHosts');
+  /** Where requests may go: a copy, fixed when the fetcher is made. */
+  const allowed = allowedOriginsOf(givenHosts);
   const delayMs = opts.delayMs ?? REQUEST_DELAY_MS;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   const log = opts.log ?? (line => console.log(line));
@@ -197,7 +245,8 @@ export function createFetcher(opts: FetcherOptions): PoliteFetcher {
   // Origins and site names are logged as they are: a host name is the operator's, not a tour's.
   const view = opts.logView ?? PUBLIC_LOG;
   /** By origin. */
-  const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {}).map(([key, headers]) => [headersOrigin(key), headers]));
+  const extraHeaders = new Map(Object.entries(opts.extraHeaders ?? {})
+    .map(([key, headers]) => [keyOrigin('extraHeaders key', key), headers]));
 
   const queues = new Map<string, SiteQueue>();              // by site
   const rules = new Map<string, Promise<OriginRules>>();    // by origin
@@ -264,13 +313,15 @@ export function createFetcher(opts: FetcherOptions): PoliteFetcher {
       }
       let res: Response;
       try {
-        res = await fetch(url, {
+        const sent = await fetchOnAllowedHosts(url, allowed, {
           method: post ? 'POST' : 'GET',
           body: post?.json,
           headers,
           redirect: 'manual',
           signal: AbortSignal.timeout(timeoutMs),
         });
+        if ('notSent' in sent) return { kind: 'not-sent', why: sent.notSent };
+        res = sent.response;
       } catch (error) {
         return { kind: 'error', message: errorMessage(error) };
       }
@@ -302,13 +353,17 @@ export function createFetcher(opts: FetcherOptions): PoliteFetcher {
   }
 
   /**
-   * Requests `start`, following up to MAX_REDIRECTS redirects. Before each hop,
-   * `whyNot` says whether that URL may be requested at all (null) or why not.
-   * Returns the 200 body, or why there is none and the URL (`at`) where that happened.
+   * Requests `start`, following up to MAX_REDIRECTS redirects. `start` and each hop must be on the allowed hosts: a URL
+   * that is not is refused before anything is asked of it (its robots.txt included), and a refused hop is named only
+   * by its host (`at` is then the URL that redirected to it). Before each allowed hop, `whyNot` says whether that URL
+   * may be requested at all (null) or why not. Returns the 200 body, or why there is none and the URL (`at`) where
+   * that happened.
    */
   async function getFollowingRedirects(
     start: URL, isPage: boolean, whyNot: (url: URL) => Promise<string | null>,
   ): Promise<{ body: Uint8Array } | { failure: Answer | string; at: URL }> {
+    const startOff = offAllowedHosts(start, allowed);
+    if (startOff !== null) return { failure: `${startOff} is not one of the allowed hosts, so nothing was requested`, at: start };
     let url = start;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const refusal = await whyNot(url);
@@ -319,6 +374,8 @@ export function createFetcher(opts: FetcherOptions): PoliteFetcher {
         ? httpUrl(answer.location, url)
         : null;
       if (next === null) return { failure: answer, at: url };
+      const nextOff = offAllowedHosts(next, allowed);
+      if (nextOff !== null) return { failure: `a redirect to ${nextOff}, not one of the allowed hosts, is not followed`, at: url };
       url = next;
     }
     return { failure: 'too many redirects', at: url };
@@ -438,7 +495,9 @@ export function createFetcher(opts: FetcherOptions): PoliteFetcher {
       log(`not an http(s) URL: ${view.address(url)}`);
       return null;
     }
-    const answer = await whyNotAllowed(target) ?? await request(target, true, { json });
+    const offHosts = offAllowedHosts(target, allowed);
+    const answer = (offHosts === null ? null : `${offHosts} is not one of the allowed hosts, so nothing was requested`)
+      ?? await whyNotAllowed(target) ?? await request(target, true, { json });
     if (typeof answer !== 'string' && answer.kind === 'response' && answer.status === 200) {
       return decodeText(answer.body ?? new Uint8Array());
     }

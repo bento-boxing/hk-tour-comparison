@@ -52,8 +52,9 @@ export function recordDryRun(scraper: OperatorScraper, limit: number | null): Dr
       minExpectedTours: scraper.minExpectedTours,
       fetchPage: scraper.fetchPage,
       requestHeaders: scraper.requestHeaders,
-      async discover(fetcher, logView) {
-        const urls = [...new Set(await scraper.discover(fetcher, logView))];
+      allowedHosts: scraper.allowedHosts,
+      async discover(fetcher, logView, log) {
+        const urls = [...new Set(await scraper.discover(fetcher, logView, log))];
         discovered = urls.length;
         return limit === null ? urls : urls.slice(0, limit);
       },

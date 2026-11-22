@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { readdir, readFile } from 'node:fs/promises';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { performance } from 'node:perf_hooks';
 import {
-  BOT_PRODUCT, createFetcher, siteOf, userAgentFor, MAX_CONSECUTIVE_PUSHBACK, MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS,
-  REQUEST_TIMEOUT_MS, type FetcherOptions, type PoliteFetcher,
+  allowedOriginsOf, BOT_PRODUCT, createFetcher, fetchOnAllowedHosts, siteOf, userAgentFor, MAX_CONSECUTIVE_PUSHBACK,
+  MAX_CRAWL_DELAY_MS, REQUEST_DELAY_MS, REQUEST_TIMEOUT_MS, type FetcherOptions, type PoliteFetcher,
 } from './polite-fetch';
 import { addressRef, DRY_RUN_LOG, logRef, type LogView } from './public-log';
 import { resolveSiteIdentity } from '@hktours/core';
@@ -42,13 +43,36 @@ async function startServer(handler: Handler, host: '127.0.0.1' | 'localhost' = '
   });
   await new Promise<void>(resolve => server.listen(0, host, resolve));
   const { port } = server.address() as AddressInfo;
+  const origin = `http://${host}:${port}`;
+  liveOrigins.add(origin);
   return {
-    url: path => `http://${host}:${port}${path}`,
+    url: path => `${origin}${path}`,
     requests,
     close: () => new Promise<void>(resolve => {
+      liveOrigins.delete(origin);
       server.closeAllConnections();
       server.close(() => resolve());
     }),
+  };
+}
+
+/** The origins of the local test servers now running. */
+const liveOrigins = new Set<string>();
+/** Hosts the tests reach only through a replaced fetch (no network). */
+const STUBBED_HOSTS = ['shop.test', 'example.invalid', 'other.invalid', 'xn--fsq.example.invalid'];
+
+/**
+ * createFetcher, allowed (unless the test gives its own `allowedHosts`) to request every local test server running when
+ * the fetcher is first used, and the STUBBED_HOSTS. Made on first use, since most tests start their servers after
+ * beforeEach has made `f`; the list is then fixed, as createFetcher's always is.
+ */
+function testFetcher(opts: Omit<FetcherOptions, 'allowedHosts'> & { allowedHosts?: readonly string[] }): PoliteFetcher {
+  let made: PoliteFetcher | undefined;
+  const fetcher = () => (made ??= createFetcher({ allowedHosts: [...liveOrigins, ...STUBBED_HOSTS], ...opts }));
+  return {
+    fetchText: (address, options) => fetcher().fetchText(address, options),
+    fetchBytes: address => fetcher().fetchBytes(address),
+    postJson: (address, body) => fetcher().postJson(address, body),
   };
 }
 
@@ -100,7 +124,7 @@ beforeEach(() => {
   main.requests.length = 0;
   flakyCalls = 0;
   logLines = [];
-  f = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line) });
+  f = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line) });
 });
 
 /** Start times of the given requests, in order, and checks none overlapped the one before it. */
@@ -193,13 +217,26 @@ it('sameOriginRedirectsOnly refuses an http:// downgrade of the same host, befor
     return new Response('plain-http page', { status: 200 });
   });
   try {
-    const g = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line) });
+    // http://shop.test is allowed here as an origin, so only sameOriginRedirectsOnly stands in the way.
+    const g = testFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), allowedHosts: ['shop.test', 'http://shop.test'],
+    });
     expect(await g.fetchText('https://shop.test/tour', { sameOriginRedirectsOnly: true })).toBeNull();
     expect(requested).toEqual(['https://shop.test/robots.txt', 'https://shop.test/tour']);
     expect(logLines).toContain(
       'not fetched https://shop.test/tour (redirected to http://shop.test/tour): a redirect leaving https://shop.test is not followed');
-    // Without the option the downgrade is followed, as before.
+    // Without the option the downgrade is followed, since this list allows http://shop.test.
     expect(await g.fetchText('https://shop.test/tour')).toBe('plain-http page');
+
+    // With the host name alone (https only), the downgrade is refused with or without the option, and never requested.
+    requested.length = 0;
+    logLines.length = 0;
+    const h = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), allowedHosts: ['shop.test'] });
+    expect(await h.fetchText('https://shop.test/tour', { sameOriginRedirectsOnly: true })).toBeNull();
+    expect(await h.fetchText('https://shop.test/tour')).toBeNull();
+    expect(requested).toEqual(['https://shop.test/robots.txt', 'https://shop.test/tour', 'https://shop.test/tour']);
+    expect(logLines).toEqual(Array(2).fill(
+      'not fetched https://shop.test/tour: a redirect to http://shop.test, not one of the allowed hosts, is not followed'));
   } finally {
     vi.unstubAllGlobals();
   }
@@ -212,7 +249,7 @@ it('sameOriginRedirectsOnly keeps the redirect limit: a same-origin loop stops a
     return send(res, 302, '', { location: `/loop?hop=${hop + 1}` });
   });
   try {
-    const g = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line) });
+    const g = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line) });
     expect(await g.fetchText(looping.url('/loop'), { sameOriginRedirectsOnly: true })).toBeNull();
     // the first request and 5 redirects followed; the 6th redirect is not
     expect(looping.requests.map(r => r.path)).toEqual(['/robots.txt', '/loop', ...[1, 2, 3, 4, 5].map(n => `/loop?hop=${n}`)]);
@@ -278,7 +315,7 @@ it('spaces requests by at least the delay', async () => {
 });
 
 it('waits for a slow request to finish before starting the next', async () => {
-  const fast = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 50, log: () => {} });
+  const fast = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 50, log: () => {} });
   const bodies = await Promise.all([fast.fetchText(url('/slow')), fast.fetchText(url('/a'))]);
   expect(bodies).toEqual(['ok-slow', 'ok-a']);
   const [slow] = requestsTo('/slow');
@@ -311,7 +348,7 @@ it.each(['/blocked', '/too-many'])('returns null for %s (403/429) without retryi
 });
 
 it('times out a request that never answers, and retries it', async () => {
-  const quick = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 20, timeoutMs: 150, log: () => {} });
+  const quick = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 20, timeoutMs: 150, log: () => {} });
   expect(await quick.fetchText(url('/hang'))).toBeNull();
   expect(requestsTo('/hang')).toHaveLength(3);
 });
@@ -591,7 +628,7 @@ it('a site refused after pushback does not affect another site', async () => {
 });
 
 it('fetchBytes returns the exact bytes, through the same robots.txt check, queue and User-Agent', async () => {
-  const bytes = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line) });
+  const bytes = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line) });
   expect(await bytes.fetchBytes(url('/private/binary'))).toBeNull();
   expect(Buffer.from((await bytes.fetchBytes(url('/binary')))!)).toEqual(BINARY);
   expect(await bytes.fetchBytes(url('/missing'))).toBeNull();
@@ -608,7 +645,7 @@ const originOf = (serverUrl: string) => new URL(serverUrl).origin;
  * server's), and tries (and fails) to replace the User-Agent there.
  */
 function fetcherWithExtraHeaders(origin = originOf(url('/'))): PoliteFetcher {
-  return createFetcher({
+  return testFetcher({
     userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
     extraHeaders: { [origin]: { 'x-site-key': 'k1', 'User-Agent': 'Mozilla/5.0 pretend' } },
   });
@@ -643,7 +680,7 @@ it('extraHeaders never go to another host, even when a redirect leads there, nor
 it('a host-name key means https on the default port only: an http:// request to that host gets none', async () => {
   const local = await startServer((req, res) => send(res, req.url === '/robots.txt' ? 404 : 200, 'ok'), 'localhost');
   try {
-    const h = createFetcher({
+    const h = testFetcher({
       userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
       extraHeaders: { LocalHost: { 'x-site-key': 'k2' } },
     });
@@ -674,7 +711,7 @@ it('an origin key is matched exactly, its host whatever its case', async () => {
   const local = await startServer((req, res) => send(res, req.url === '/robots.txt' ? 404 : 200, 'ok'), 'localhost');
   try {
     const port = new URL(local.url('/')).port;
-    const h = createFetcher({
+    const h = testFetcher({
       userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
       extraHeaders: { [`http://LocalHost:${port}`]: { 'x-site-key': 'k2' } },
     });
@@ -689,7 +726,7 @@ it('an origin key is matched exactly, its host whatever its case', async () => {
 
 it.each(['example.com:8443', 'example.com/path', 'not a host', 'ftp://example.com'])(
   'refuses an extraHeaders key that is neither a host name nor an http(s) origin: %s', key => {
-    expect(() => createFetcher({ userAgent: 'test-bot/0.1', extraHeaders: { [key]: { 'x-site-key': 'k' } } }))
+    expect(() => createFetcher({ userAgent: 'test-bot/0.1', allowedHosts: ['shop.test'], extraHeaders: { [key]: { 'x-site-key': 'k' } } }))
       .toThrow(/neither a host name nor an origin/);
   });
 
@@ -701,24 +738,25 @@ describe('extraHeaders that cannot be sent', () => {
     ['a name that is not a header name', { 'bad name': 'k1' }],
     ['a value that throws when read', throwing],
   ])('fail that request once, logged, with nothing sent, and the queue keeps going: %s', async (_name, headers) => {
-    const h = createFetcher({
-      userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line), extraHeaders: { [originOf(url('/'))]: headers },
-    });
-    expect(await h.fetchText(url('/a'))).toBeNull();
-    expect(await h.postJson(url('/echo'), {})).toBeNull();
-    expect(main.requests.map(r => r.path)).toEqual(['/robots.txt']); // robots.txt never carries extra headers
-    expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
-    expect(logLines.filter(line => line.includes(url('/a')) && /extra headers/.test(line))).toHaveLength(1);
-    expect(logLines.join('\n')).not.toMatch(/injected|boom/); // the value is never logged
+    // Started before the fetcher's first use, so its origin is on the fetcher's allowed list (see testFetcher).
     const other = await startServer((_req, res) => send(res, 200, 'ok'), 'localhost');
     try {
+      const h = testFetcher({
+        userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line), extraHeaders: { [originOf(url('/'))]: headers },
+      });
+      expect(await h.fetchText(url('/a'))).toBeNull();
+      expect(await h.postJson(url('/echo'), {})).toBeNull();
+      expect(main.requests.map(r => r.path)).toEqual(['/robots.txt']); // robots.txt never carries extra headers
+      expect(logLines.some(line => line.startsWith('retry'))).toBe(false);
+      expect(logLines.filter(line => line.includes(url('/a')) && /extra headers/.test(line))).toHaveLength(1);
+      expect(logLines.join('\n')).not.toMatch(/injected|boom/); // the value is never logged
       expect(await h.fetchText(other.url('/a'))).toBe('ok'); // other hosts are unaffected
     } finally {
       await other.close();
     }
   });
   it('do not break the site\'s queue: requests queued behind one each fail once, in turn', async () => {
-    const h = createFetcher({
+    const h = testFetcher({
       userAgent: 'test-bot/0.1', delayMs: 200, log: line => logLines.push(line),
       extraHeaders: { [originOf(url('/'))]: { 'x-site-key': 'bad\nvalue' } },
     });
@@ -809,7 +847,7 @@ describe('postJson with a body that is not JSON', () => {
 });
 
 it('postJson is not retried after a timeout, and the next request to the site is still spaced', async () => {
-  const quick = createFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, timeoutMs: 150, log: line => logLines.push(line) });
+  const quick = testFetcher({ userAgent: 'test-bot/0.1', delayMs: 200, timeoutMs: 150, log: line => logLines.push(line) });
   expect(await quick.postJson(url('/hang'), {})).toBeNull();
   expect(await quick.fetchText(url('/a'))).toBe('ok-a');
   expect(requestsTo('/hang')).toHaveLength(1);
@@ -883,7 +921,7 @@ describe('a logged address that may carry a title is shown as the log view allow
     }
   }
   const fetcher = (logView?: LogView) =>
-    createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), logView });
+    testFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), logView });
 
   it('a page not fetched: its public address (by default), or the whole address and the same reference (DRY_RUN_LOG)', async () => {
     await onShop(() => new Response(null, { status: 404 }), async () => {
@@ -984,12 +1022,12 @@ it('createFetcher has no default User-Agent: a caller must pass one', () => {
   // @ts-expect-error: the options, with their userAgent, are required
   expect(() => createFetcher()).toThrow('createFetcher needs a userAgent');
   expect(() => createFetcher({ log: () => {} } as unknown as FetcherOptions)).toThrow('createFetcher needs a userAgent');
-  expect(() => createFetcher({ userAgent: '  ', log: () => {} })).toThrow('createFetcher needs a userAgent');
+  expect(() => createFetcher({ userAgent: '  ', allowedHosts: ['shop.test'], log: () => {} })).toThrow('createFetcher needs a userAgent');
   expect(main.requests).toEqual([]);
 });
 
 it('sends the User-Agent it is given on every request, robots.txt included', async () => {
-  const plain = createFetcher({ userAgent: USER_AGENT, delayMs: 0, log: () => {} });
+  const plain = testFetcher({ userAgent: USER_AGENT, delayMs: 0, log: () => {} });
   expect(await plain.fetchText(url('/a'))).toBe('ok-a');
   expect(main.requests.map(r => r.path)).toEqual(['/robots.txt', '/a']);
   for (const r of main.requests) expect(r.userAgent).toBe('tour-comparison-bot/0.1 (+https://example.invalid; bot@example.invalid)');
@@ -1028,7 +1066,7 @@ describe('robots.txt group matching is unchanged by the site and contact in the 
       return String(input).endsWith('/robots.txt') ? new Response(robots, { status: 200 }) : new Response('page', { status: 200 });
     });
     try {
-      const g = createFetcher({ userAgent, delayMs: 0, log: () => {} });
+      const g = testFetcher({ userAgent, delayMs: 0, log: () => {} });
       return { a: await g.fetchText('https://shop.test/a') !== null, b: await g.fetchText('https://shop.test/b') !== null, sentAs };
     } finally {
       vi.unstubAllGlobals();
@@ -1054,7 +1092,7 @@ describe('robots.txt group matching is unchanged by the site and contact in the 
       vi.stubGlobal('fetch', async (input: URL | string) =>
         (String(input).endsWith('/robots.txt') ? new Response(robots, { status: 200 }) : new Response('page', { status: 200 })));
       try {
-        const g = createFetcher({ userAgent, delayMs: 0, log: line => lines.push(line) });
+        const g = testFetcher({ userAgent, delayMs: 0, log: line => lines.push(line) });
         expect(await g.fetchText('https://shop.test/a'), userAgent).toBeNull();
         expect(lines[0], userAgent).toBe(
           'not crawling site shop.test: robots.txt at https://shop.test asks for Crawl-delay 99 s, over the 30 s cap');
@@ -1062,5 +1100,220 @@ describe('robots.txt group matching is unchanged by the site and contact in the 
         vi.unstubAllGlobals();
       }
     }
+  });
+});
+
+/**
+ * Task 66: a fetcher requests only its allowed hosts (https, default port), on every request and every redirect hop.
+ * fetch is replaced (no network): `routes` answers by exact address, robots.txt allows everything, anything else is 404.
+ */
+describe('allowedHosts: requests go only to the hosts the fetcher was given', () => {
+  /** An invented operator on both forms of its domain. */
+  const HOSTS = ['www.operator.test', 'operator.test'];
+  let requested: string[];
+  let routes: Map<string, () => Response>;
+  const redirect = (location: string, status = 302) => () => new Response(null, { status, headers: { location } });
+  const page = (text: string) => () => new Response(text, { status: 200 });
+
+  beforeEach(() => {
+    requested = [];
+    routes = new Map();
+    vi.stubGlobal('fetch', async (input: URL | string) => {
+      const href = String(input);
+      requested.push(href);
+      const route = routes.get(href);
+      if (route) return route();
+      return href.endsWith('/robots.txt') ? new Response('User-agent: *\nDisallow:', { status: 200 }) : new Response(null, { status: 404 });
+    });
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const fetcher = (allowedHosts: readonly string[] = HOSTS) =>
+    createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), allowedHosts });
+
+  it('fetches a page on an allowed host, with its robots.txt', async () => {
+    routes.set('https://www.operator.test/tour/1', page('ok'));
+    expect(await fetcher().fetchText('https://www.operator.test/tour/1')).toBe('ok');
+    expect(requested).toEqual(['https://www.operator.test/robots.txt', 'https://www.operator.test/tour/1']);
+  });
+
+  it.each([
+    ['another host', 'https://elsewhere.test/collect?secret=1', 'elsewhere.test'],
+    ['an IPv4 address', 'https://169.254.169.254/latest/meta-data?secret=1', '169.254.169.254'],
+    ['a private IPv4 address', 'https://10.0.0.1/admin?secret=1', '10.0.0.1'],
+    ['an IPv6 address', 'https://[::1]/admin?secret=1', '[::1]'],
+    ['localhost', 'https://localhost/admin?secret=1', 'localhost'],
+    ['localhost over http, on a port', 'http://localhost:5432/?secret=1', 'http://localhost:5432'],
+    ['a look-alike ending in another domain', 'https://operator.test.evil.test/x?secret=1', 'operator.test.evil.test'],
+    ['a look-alike with a prefix', 'https://eviloperator.test/x?secret=1', 'eviloperator.test'],
+    ['a look-alike subdomain of an allowed host', 'https://evil.www.operator.test/x?secret=1', 'evil.www.operator.test'],
+    ['an allowed host with a trailing dot', 'https://www.operator.test./x?secret=1', 'www.operator.test.'],
+    ['an allowed host over http', 'http://www.operator.test/x?secret=1', 'http://www.operator.test'],
+    ['an allowed host on another port', 'https://www.operator.test:8443/x?secret=1', 'www.operator.test:8443'],
+    ['a scheme-relative address on another host', '//elsewhere.test/x?secret=1', 'elsewhere.test'],
+  ])('refuses a redirect to %s before requesting anything of it, and logs only its host', async (_name, location, shown) => {
+    routes.set('https://www.operator.test/tour/1', redirect(location));
+    expect(await fetcher().fetchText('https://www.operator.test/tour/1')).toBeNull();
+    expect(requested).toEqual(['https://www.operator.test/robots.txt', 'https://www.operator.test/tour/1']);
+    expect(logLines).toEqual([
+      `not fetched https://www.operator.test/tour/1: a redirect to ${shown}, not one of the allowed hosts, is not followed`,
+    ]);
+    for (const line of logLines) expect(line).not.toContain('secret');
+  });
+
+  it('follows a redirect between the two allowed forms of the domain, each with its own robots.txt', async () => {
+    routes.set('https://operator.test/tour/1', redirect('https://www.operator.test/tour/1', 301));
+    routes.set('https://www.operator.test/tour/1', page('ok'));
+    expect(await fetcher().fetchText('https://operator.test/tour/1')).toBe('ok');
+    expect(requested).toEqual([
+      'https://operator.test/robots.txt', 'https://operator.test/tour/1', 'https://www.operator.test/robots.txt', 'https://www.operator.test/tour/1',
+    ]);
+  });
+
+  it('treats an explicit :443 as the default port', async () => {
+    routes.set('https://www.operator.test/tour/1', redirect('https://www.operator.test:443/tour/2'));
+    routes.set('https://www.operator.test/tour/2', page('ok'));
+    expect(await fetcher().fetchText('https://www.operator.test/tour/1')).toBe('ok');
+  });
+
+  it('refuses a chain that leaves the allowed hosts and would come back: nothing after the hop that leaves', async () => {
+    routes.set('https://operator.test/a', redirect('https://www.operator.test/b'));
+    routes.set('https://www.operator.test/b', redirect('https://elsewhere.test/c?secret=1'));
+    routes.set('https://elsewhere.test/c?secret=1', redirect('https://www.operator.test/d'));
+    routes.set('https://www.operator.test/d', page('back home'));
+    expect(await fetcher().fetchText('https://operator.test/a')).toBeNull();
+    expect(requested).toEqual([
+      'https://operator.test/robots.txt', 'https://operator.test/a', 'https://www.operator.test/robots.txt', 'https://www.operator.test/b',
+    ]);
+    expect(logLines).toEqual([
+      'not fetched https://operator.test/a (redirected to https://www.operator.test/b): '
+        + 'a redirect to elsewhere.test, not one of the allowed hosts, is not followed',
+    ]);
+  });
+
+  it('never requests a page, a POST or a file off the allowed hosts, nor its robots.txt', async () => {
+    const f = fetcher();
+    expect(await f.fetchText('https://elsewhere.test/a')).toBeNull();
+    expect(await f.fetchBytes('https://10.0.0.1/file.pdf')).toBeNull();
+    expect(await f.postJson('https://eviloperator.test/api', { id: 1 })).toBeNull();
+    expect(requested).toEqual([]);
+    expect(logLines).toEqual([
+      'not fetched https://elsewhere.test/a: elsewhere.test is not one of the allowed hosts, so nothing was requested',
+      'not fetched https://10.0.0.1/file.pdf: 10.0.0.1 is not one of the allowed hosts, so nothing was requested',
+      'not fetched https://eviloperator.test/api (POST, not retried): eviloperator.test is not one of the allowed hosts, so nothing was requested',
+    ]);
+  });
+
+  it('a robots.txt that redirects off the allowed hosts is unreadable: the origin is not crawled, and nothing goes there', async () => {
+    routes.set('https://www.operator.test/robots.txt', redirect('https://elsewhere.test/robots.txt?secret=1'));
+    const f = fetcher();
+    expect(await f.fetchText('https://www.operator.test/tour/1')).toBeNull();
+    expect(await f.fetchText('https://www.operator.test/tour/2')).toBeNull();
+    expect(requested).toEqual(['https://www.operator.test/robots.txt']);
+    expect(logLines[0]).toBe('not crawling https://www.operator.test: robots.txt unreadable '
+      + '(a redirect to elsewhere.test, not one of the allowed hosts, is not followed)');
+    for (const line of logLines) expect(line).not.toContain('secret');
+  });
+
+  it('a refused redirect is not a pushback: the site keeps being requested', async () => {
+    for (const n of [1, 2, 3, 4]) routes.set(`https://www.operator.test/tour/${n}`, redirect('https://elsewhere.test/'));
+    routes.set('https://www.operator.test/tour/5', page('ok'));
+    const f = fetcher();
+    for (const n of [1, 2, 3, 4]) expect(await f.fetchText(`https://www.operator.test/tour/${n}`)).toBeNull();
+    expect(await f.fetchText('https://www.operator.test/tour/5')).toBe('ok');
+  });
+
+  it('a one-host list refuses the other form of the domain, with sameOriginRedirectsOnly or without', async () => {
+    routes.set('https://operator.test/a', redirect('https://www.operator.test/a'));
+    const f = fetcher(['operator.test']);
+    expect(await f.fetchText('https://operator.test/a', { sameOriginRedirectsOnly: true })).toBeNull();
+    expect(await f.fetchText('https://operator.test/a')).toBeNull();
+    expect(requested).toEqual(['https://operator.test/robots.txt', 'https://operator.test/a', 'https://operator.test/a']);
+  });
+
+  it('extraHeaders still go only to their own host, hop by hop, within the allowed hosts', async () => {
+    const sent: Array<[string, string | null]> = [];
+    vi.stubGlobal('fetch', async (input: URL | string, init?: RequestInit) => {
+      const href = String(input);
+      sent.push([href, new Headers(init?.headers).get('x-site-key')]);
+      if (href.endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow:', { status: 200 });
+      if (href === 'https://api.operator.test/a') return redirect('https://www.operator.test/b')();
+      return new Response('ok', { status: 200 });
+    });
+    const f = createFetcher({
+      userAgent: 'test-bot/0.1', delayMs: 0, log: () => {}, allowedHosts: ['api.operator.test', 'www.operator.test'],
+      extraHeaders: { 'api.operator.test': { 'x-site-key': 'k' } },
+    });
+    expect(await f.fetchText('https://api.operator.test/a')).toBe('ok');
+    expect(sent).toEqual([
+      ['https://api.operator.test/robots.txt', null], ['https://api.operator.test/a', 'k'],
+      ['https://www.operator.test/robots.txt', null], ['https://www.operator.test/b', null],
+    ]);
+  });
+
+  it('createFetcher needs a list of at least one host name or origin', () => {
+    const base = { userAgent: 'test-bot/0.1', log: () => {} };
+    expect(() => createFetcher(base as unknown as FetcherOptions)).toThrow('createFetcher needs allowedHosts');
+    expect(() => createFetcher({ ...base, allowedHosts: [] })).toThrow('allowedHosts must name at least one host');
+    for (const entry of ['operator.test:8443', 'operator.test/path', 'not a host', 'ftp://operator.test', '*.operator.test', '']) {
+      expect(() => createFetcher({ ...base, allowedHosts: [entry] }), entry)
+        .toThrow(/allowedHosts entry .* is neither a host name nor an origin/);
+    }
+  });
+
+  it('keeps its own copy of the list: changing the array afterwards allows nothing more', async () => {
+    const hosts = ['www.operator.test'];
+    const f = fetcher(hosts);
+    hosts.push('elsewhere.test');
+    expect(await f.fetchText('https://elsewhere.test/a')).toBeNull();
+    expect(requested).toEqual([]);
+  });
+});
+
+/**
+ * Task 66, fix 1: the last guard sits in the one function that calls fetch (fetchOnAllowedHosts). Every other check
+ * runs before it, so it is tested directly; the second test keeps it the only call to fetch in the scraper's code.
+ */
+describe('fetchOnAllowedHosts: the last guard before the network', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  const origins = allowedOriginsOf(['www.operator.test', 'operator.test']);
+
+  it.each([
+    'https://elsewhere.test/a?secret=1', 'https://10.0.0.1/a', 'https://localhost/a', 'http://www.operator.test/a',
+    'https://www.operator.test:8443/a', 'https://eviloperator.test/a', 'https://www.operator.test.evil.test/a',
+  ])('sends nothing to %s, and says why by host only', async address => {
+    const sent: string[] = [];
+    vi.stubGlobal('fetch', async (input: URL | string) => { sent.push(String(input)); return new Response('x'); });
+    const answer = await fetchOnAllowedHosts(new URL(address), origins, { method: 'GET' });
+    expect(sent).toEqual([]);
+    expect(answer).toEqual({ notSent: expect.stringMatching(/ is not one of the allowed hosts, so nothing was sent$/) });
+    expect(JSON.stringify(answer)).not.toContain('secret');
+  });
+
+  it('sends a request on an allowed host, as given', async () => {
+    const sent: Array<[string, string | undefined]> = [];
+    vi.stubGlobal('fetch', async (input: URL | string, init?: RequestInit) => {
+      sent.push([String(input), init?.method]);
+      return new Response('ok', { status: 200 });
+    });
+    const answer = await fetchOnAllowedHosts(new URL('https://operator.test/a'), origins, { method: 'POST' });
+    expect(sent).toEqual([['https://operator.test/a', 'POST']]);
+    expect('response' in answer && await answer.response.text()).toBe('ok');
+  });
+
+  it('is the only call to fetch in the scraper\'s code (tests aside)', async () => {
+    const root = new URL('..', import.meta.url);
+    const calls: string[] = [];
+    for (const dir of ['src', 'scripts']) {
+      for (const entry of await readdir(new URL(`${dir}/`, root), { recursive: true })) {
+        if (!entry.endsWith('.ts') || entry.endsWith('.test.ts')) continue;
+        const text = await readFile(new URL(`${dir}/${entry}`, root), 'utf8');
+        for (const [i, line] of text.split('\n').entries()) {
+          if (/(?<![.\w])fetch\(/.test(line) && !/^\s*(\/\/|\*|\/\*)/.test(line)) calls.push(`${dir}/${entry}:${i + 1}`);
+        }
+      }
+    }
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^src\/polite-fetch\.ts:/);
   });
 });

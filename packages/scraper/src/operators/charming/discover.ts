@@ -2,6 +2,12 @@ import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 
 const ORIGIN = 'https://www.charming-online.com';
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site, where the REST list and every tour page are
+ * (docs/operators/charming.md). The bare `charming-online.com` is never requested; it is allowed only in case the site
+ * one night redirects to that form of its own domain (an assumption: no note shows either form redirecting).
+ */
+export const ALLOWED_HOSTS = ['www.charming-online.com', 'charming-online.com'] as const;
 /** Posts per list page: the most WordPress gives. 789 tour posts on 2026-11-13 took 8 pages. */
 export const PER_PAGE = 100;
 /** A ceiling on list pages (2,000 posts): a list said to be longer fails discovery rather than being cut short. */

@@ -23,6 +23,12 @@ export const MAX_LIST_PAGES = 60;
 /** Every request: a redirect is followed only within https://tastetravel.com.hk; one that leaves it is not requested. */
 export const SAME_SITE = { sameOriginRedirectsOnly: true } as const;
 
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site's one host, which SAME_SITE already holds
+ * every request to; the fetcher refuses anything else too, `www.tastetravel.com.hk` included, so the two rules agree.
+ */
+export const ALLOWED_HOSTS = ['tastetravel.com.hk'] as const;
+
 /** A tour's id on the site (`693`, `1175`): the only text that goes into a tour's request URLs. */
 const TOUR_ID = /^[1-9]\d{0,8}$/;
 /** A tour page as tourPageUrl writes it, exactly. */

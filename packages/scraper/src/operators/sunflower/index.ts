@@ -1,10 +1,10 @@
 import type { OperatorScraper } from '../../types';
-import { bookingUrl, discoverTours } from './discover';
+import { ALLOWED_HOSTS, bookingUrl, discoverTours } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
 import type { PublicEntry } from './public';
 
-export { bookingUrl, codeOf, discoverTours, isTourUrl, LISTING_URL, readListing } from './discover';
+export { ALLOWED_HOSTS, bookingUrl, codeOf, discoverTours, isTourUrl, LISTING_URL, readListing } from './discover';
 export { createFetchPage, joinPage, splitPage } from './fetch-page';
 export { laterDates, parse, readTour } from './parse';
 export { publicBookingPage, publicEntry } from './public';
@@ -28,6 +28,7 @@ export function createSunflowerScraper(opts: { log?: (line: string) => void } = 
       return tours.map(tour => bookingUrl(tour.ItinCode));
     },
     fetchPage: createFetchPage(code => entries.get(code)),
+    allowedHosts: ALLOWED_HOSTS,
     // A rejected page throws its reason (a fixed text, see readTour), so the crawl log says why.
     parse: (text, url) => {
       const tour = readTour(text, url);

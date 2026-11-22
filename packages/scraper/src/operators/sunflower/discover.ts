@@ -19,6 +19,12 @@ export const LISTING_URL = `${SITE}/App/Tour/Get?Region=&Area=&Subarea=&keyword=
  */
 export const SAME_SITE = { sameOriginRedirectsOnly: true } as const;
 
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site's one host, which SAME_SITE already holds
+ * every request to; the fetcher refuses anything else too, so the two rules agree.
+ */
+export const ALLOWED_HOSTS = ['www.sunflower.com.hk'] as const;
+
 /** A tour code (`ItinCode`, `KKFE05WR`, `LWZA05X1`): the only text that goes into a request URL. */
 const CODE = /^[A-Za-z0-9]{1,40}$/;
 /** The booking page as bookingUrl writes it, exactly. */

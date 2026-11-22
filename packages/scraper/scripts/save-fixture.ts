@@ -2,7 +2,8 @@
  * Saves a trimmed operator page as a test fixture.
  *
  *   pnpm --filter @hktours/scraper fixture <url> <output-path>
- *     fetches <url> through the polite fetcher (robots.txt, honest User-Agent, 3-second spacing),
+ *     fetches <url> through the polite fetcher (robots.txt, honest User-Agent, 3-second spacing; https on <url>'s own
+ *     host only, so a redirect to another host, to http:// or to another port is not followed),
  *     trims it with trimFixture and writes it to <output-path>. Needs SITE_URL and CONTACT_EMAIL, as
  *     `pnpm scrape` does (the User-Agent names them); without them it stops before any request.
  *
@@ -107,7 +108,14 @@ async function main(): Promise<void> {
       if (error instanceof SiteIdentityError) fail(error.message);
       throw error;
     }
-    const fetched = await createFetcher({ userAgent }).fetchText(args[0]);
+    // Only the page's own host (https, default port): a redirect anywhere else is not followed (since 2026-11-21).
+    let host: string;
+    try {
+      host = new URL(args[0]).hostname;
+    } catch {
+      fail(`nothing saved: ${args[0]} is not a URL`);
+    }
+    const fetched = await createFetcher({ userAgent, allowedHosts: [host] }).fetchText(args[0]);
     if (fetched === null) fail(`nothing saved: ${args[0]} was not fetched (see the line above)`);
     html = fetched;
   }

@@ -14,12 +14,24 @@ const tour = (fields: Partial<ScrapedTour>): ScrapedTour => ({
 it('the recorded scraper hands discover the run\'s log view (task 36)', async () => {
   const views: unknown[] = [];
   const scraper: OperatorScraper = {
-    id: 'egl', parse: () => null,
+    id: 'egl', allowedHosts: ['example.test'], parse: () => null,
     discover: async (_fetcher, logView) => { views.push(logView); return ['https://example.test/t/1']; },
   };
   const fetcher: Fetcher = { fetchText: async () => null };
   expect(await recordDryRun(scraper, null).scraper.discover(fetcher, DRY_RUN_LOG)).toEqual(['https://example.test/t/1']);
   expect(views).toEqual([DRY_RUN_LOG]);
+});
+
+it('the recorded scraper hands discover the run\'s log, and keeps the scraper\'s allowed hosts (task 66)', async () => {
+  const lines: string[] = [];
+  const scraper: OperatorScraper = {
+    id: 'egl', allowedHosts: ['example.test'], parse: () => null,
+    discover: async (_fetcher, _logView, log) => { log?.('from discover'); return []; },
+  };
+  const recorded = recordDryRun(scraper, null).scraper;
+  await recorded.discover({ fetchText: async () => null }, DRY_RUN_LOG, line => lines.push(line));
+  expect(lines).toEqual(['from discover']);
+  expect(recorded.allowedHosts).toBe(scraper.allowedHosts);
 });
 
 describe('the dry-run page line carries the page\'s reference, as the public log gives it (task 36 fix 1)', () => {

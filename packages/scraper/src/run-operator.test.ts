@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { places, type IsoDate, type OperatorId, type ScrapedTour } from '@hktours/core';
 import type { Db } from '@hktours/db';
 import { createTestDb } from '@hktours/db/test';
+import { jetourScraper } from './operators/jetour';
+import { createFetcher } from './polite-fetch';
 import { DRY_RUN_LOG, logRef, PUBLIC_LOG } from './public-log';
 import { runOperator, type RunDeps } from './run-operator';
 import type { Fetcher, OperatorScraper } from './types';
@@ -45,6 +47,7 @@ function fakeFetcher(pages: Site): Fetcher & { asked: string[] } {
 function fakeScraper(pages: Site, patch: Partial<OperatorScraper> = {}): OperatorScraper {
   return {
     id: 'jetour',
+    allowedHosts: ['www.jetour.com.hk'],
     discover: async () => [...pages.keys()],
     parse: html => JSON.parse(html) as ScrapedTour | null,
     ...patch,
@@ -127,6 +130,54 @@ it('3 pages in 10 that cannot be fetched fail the run: nothing saved, last night
   ]);
   expect(logLines.at(-1)).toBe(
     'jetour: failed (too-many-fetch-failures), 0 tours saved, 7 tour pages, 0 parse failures, 0 unmatched names');
+});
+
+describe('a page whose redirect leaves the allowed hosts (task 66), through the real fetcher', () => {
+  // fetch is replaced (no network): robots.txt allows everything, a page in `away` redirects to another host, and
+  // every other page answers its tour's JSON.
+  let requested: string[];
+  function realFetcher(pages: Site, away: Set<string>): Fetcher {
+    requested = [];
+    vi.stubGlobal('fetch', async (input: URL | string) => {
+      const href = String(input);
+      requested.push(href);
+      if (href.endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow:', { status: 200 });
+      if (away.has(href)) return new Response(null, { status: 302, headers: { location: 'https://elsewhere.test/x?y=1' } });
+      const page = pages.get(href);
+      return page == null ? new Response(null, { status: 404 }) : new Response(page, { status: 200 });
+    });
+    return createFetcher({ userAgent: 'test-bot/0.1', delayMs: 0, log: line => logLines.push(line), allowedHosts: ['www.jetour.com.hk'] });
+  }
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('is a page not fetched: logged by host, the run goes on, and nothing is requested of the other host', async () => {
+    const pages = site(goodTours(10));
+    const outcome = await runOperator(fakeScraper(pages), deps(realFetcher(pages, new Set([pageUrl('T1')]))));
+    expect(outcome).toEqual({ operatorId: 'jetour', ok: true, reasons: [], toursSaved: 9 });
+    expect(requested.some(href => href.includes('elsewhere.test'))).toBe(false);
+    expect(logLines).toContain(
+      `not fetched ${pageUrl('T1')}: a redirect to elsewhere.test, not one of the allowed hosts, is not followed`);
+    expect(logLines).toContain(`jetour: skipped ${pageUrl('T1')}: not fetched`);
+    expect(logLines.some(line => line.includes('y=1'))).toBe(false);
+  });
+
+  it('a child sitemap off the hosts is skipped on the run\'s own log (the runner hands discover its log)', async () => {
+    const index = '<sitemapindex><sitemap><loc>https://elsewhere.test/child.xml?y=1</loc></sitemap></sitemapindex>';
+    const fetcher: Fetcher = { fetchText: async url => (url === 'https://www.jetour.com.hk/sitemap.xml' ? index : null) };
+    const outcome = await runOperator(jetourScraper, deps(fetcher));
+    expect(outcome).toMatchObject({ ok: false, toursSaved: 0 });
+    expect(outcome.reasons).toContain('no-tours');
+    expect(logLines).toContain('sitemap: skipped 1 child sitemap not on the operator\'s hosts (elsewhere.test)');
+  });
+
+  it('counts toward the fetch-failure limit like any page not fetched: 3 in 10 save nothing, last night\'s tours stay', async () => {
+    const pages = site(goodTours(10));
+    expect(await runOperator(fakeScraper(pages), deps(realFetcher(pages, new Set()), NIGHT_1))).toMatchObject({ ok: true, toursSaved: 10 });
+    const away = new Set(['T1', 'T2', 'T3'].map(pageUrl));
+    const night2 = await runOperator(fakeScraper(pages), deps(realFetcher(pages, away), NIGHT_2));
+    expect(night2).toEqual({ operatorId: 'jetour', ok: false, reasons: ['too-many-fetch-failures'], toursSaved: 0 });
+    expect(await activeCodes()).toHaveLength(10);
+  });
 });
 
 describe('a scraper that fetches each page itself (fetchPage)', () => {

@@ -1,9 +1,9 @@
 import type { OperatorScraper } from '../../types';
-import { discover } from './discover';
+import { ALLOWED_HOSTS, discover } from './discover';
 import { fetchPage, splitPage } from './fetch-page';
 import { parse } from './parse';
 
-export { datesUrl, discover, isTourUrl } from './discover';
+export { ALLOWED_HOSTS, datesUrl, discover, isTourUrl } from './discover';
 export { fetchPage, joinPage, splitPage } from './fetch-page';
 export { pageTourCode, parse } from './parse';
 
@@ -19,6 +19,7 @@ export const eglScraper: OperatorScraper = {
     const page = splitPage(text);
     return page === null ? null : parse(page.html, page.datesJson, url);
   },
+  allowedHosts: ALLOWED_HOSTS,
   // First-run floor: a third of the tours that would have been saved in the 2026-11-13 practice crawl
   // (495 of 573 pages; docs/operators/egl.md, "Practice crawl").
   minExpectedTours: 165,

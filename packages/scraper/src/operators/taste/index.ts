@@ -1,10 +1,10 @@
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { OperatorScraper } from '../../types';
-import { discoverTours } from './discover';
+import { ALLOWED_HOSTS, discoverTours } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
 
-export { discoverTours, eventUrl, isTourUrl, listUrl, MAX_LIST_PAGES, readListPage, tourIdOf, tourPageUrl } from './discover';
+export { ALLOWED_HOSTS, discoverTours, eventUrl, isTourUrl, listUrl, MAX_LIST_PAGES, readListPage, tourIdOf, tourPageUrl } from './discover';
 export { createFetchPage, joinPage, splitPage } from './fetch-page';
 export { gatheringPoint, parse, readTour } from './parse';
 export { BOOKABLE_STATUSES, publicDates, publicTourPage } from './public';
@@ -27,6 +27,7 @@ export function createTasteScraper(opts: { log?: (line: string) => void } = {}):
       return discoverTours(fetcher, log, logView);
     },
     fetchPage: createFetchPage(log, () => view),
+    allowedHosts: ALLOWED_HOSTS,
     // A rejected page throws its reason (a fixed text, see readTour), so the crawl log says why.
     parse: (text, url) => {
       const tour = readTour(text, url);

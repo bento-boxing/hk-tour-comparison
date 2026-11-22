@@ -1,9 +1,16 @@
 import { TOUR_CODE_PATTERN } from '@hktours/core';
 import { readSitemapUrls } from '../../sitemap';
+import type { LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 
 const ORIGIN = 'https://www.egltours.com';
 const SITEMAP_URL = `${ORIGIN}/sitemap.xml`;
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site, where the sitemap, the tour pages and their
+ * dates JSON are (docs/operators/egl.md). The bare `egltours.com` is never requested; it is allowed only in case the
+ * site one night redirects to that form of its own domain (an assumption: no note shows either form redirecting).
+ */
+export const ALLOWED_HOSTS = ['www.egltours.com', 'egltours.com'] as const;
 /**
  * `/website/itinerary/<CODE>`: one tour (573 in the 2026-11-12 sitemap, codes such as `HTJSJG06`).
  * `/website/itinerary-premier/…` and `/website/itinerary-hii-fly/…` (3 pages) use other templates, not examined.
@@ -31,9 +38,11 @@ export function isTourUrl(url: string): boolean {
   return tourPageUrl(url) !== null;
 }
 
-/** Every single-tour page in the sitemap, without query strings, each once. */
-export async function discover(fetcher: Fetcher): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL);
+/** Every single-tour page in the sitemap, without query strings, each once. `log`: the run's (see readSitemapUrls). */
+export async function discover(
+  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
+): Promise<string[]> {
+  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
   const tours = new Set<string>();
   for (const url of urls) {
     const tour = tourPageUrl(url);

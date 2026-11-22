@@ -1,9 +1,9 @@
 import { todayInHongKong } from '@hktours/core';
 import type { OperatorScraper } from '../../types';
-import { discover } from './discover';
+import { ALLOWED_HOSTS, discover } from './discover';
 import { parse } from './parse';
 
-export { discover, isTourUrl, listUrl } from './discover';
+export { ALLOWED_HOSTS, discover, isTourUrl, listUrl } from './discover';
 export { parse } from './parse';
 
 /**
@@ -15,6 +15,7 @@ export const charmingScraper: OperatorScraper = {
   id: 'charming',
   discover,
   parse: (html, url) => parse(html, url, todayInHongKong()),
+  allowedHosts: ALLOWED_HOSTS,
   // First-run floor: a third of the 153 tours the 2026-11-14 practice crawl would have saved (789 pages
   // fetched; most of the rest are old posts with no dates left). docs/operators/charming.md, "Practice crawl".
   minExpectedTours: 51,

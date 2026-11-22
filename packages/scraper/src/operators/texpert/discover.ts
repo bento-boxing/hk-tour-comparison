@@ -1,8 +1,15 @@
 import { readSitemapUrls } from '../../sitemap';
+import type { LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
 
 const ORIGIN = 'https://www.texpert.com';
 const SITEMAP_URL = `${ORIGIN}/sitemap/sitemap_tour_zh-hk.xml`;
+/**
+ * Every host a run may request (OperatorScraper.allowedHosts): the site, where the tour sitemap and the tour pages are
+ * (docs/operators/texpert.md). The bare `texpert.com` is never requested; it is allowed only in case the site one
+ * night redirects to that form of its own domain (an assumption: no note shows either form redirecting).
+ */
+export const ALLOWED_HOSTS = ['www.texpert.com', 'texpert.com'] as const;
 /**
  * `/zh-hk/tour/<id>-<english-slug>`: one tour product, e.g. `1272-5-day-hengyang-changsha-…`.
  * `/zh-hk/tour/list` is the search page; `/en/` pages are the English copies and are never fetched.
@@ -28,9 +35,11 @@ export function isTourUrl(url: string): boolean {
   return tourPageUrl(url) !== null;
 }
 
-/** Every single-tour page in the tour sitemap, without query strings, each once. */
-export async function discover(fetcher: Fetcher): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL);
+/** Every single-tour page in the tour sitemap, without query strings, each once. `log`: the run's (see readSitemapUrls). */
+export async function discover(
+  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
+): Promise<string[]> {
+  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
   const tours = new Set<string>();
   for (const url of urls) {
     const tour = tourPageUrl(url);

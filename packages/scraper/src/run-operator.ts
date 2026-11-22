@@ -98,7 +98,7 @@ export async function runOperator(scraper: OperatorScraper, deps: RunDeps): Prom
 
   let urls: string[];
   try {
-    urls = [...new Set(await scraper.discover(fetcher, view))];
+    urls = [...new Set(await scraper.discover(fetcher, view, log))];
   } catch (error) {
     log(`${operatorId}: discover failed: ${view.message(errorMessage(error))}`);
     const reasons = ['discover-error'];

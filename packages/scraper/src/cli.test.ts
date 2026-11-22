@@ -65,6 +65,7 @@ function fakeFetcher(pages: Site): Fetcher & { asked: string[] } {
 /** A jetour scraper whose discover lists the site's URLs and whose parse reads the page as JSON. */
 const fakeScraper = (pages: Site): OperatorScraper => ({
   id: 'jetour',
+  allowedHosts: ['www.jetour.com.hk'],
   discover: async () => [...pages.keys()],
   parse: html => JSON.parse(html) as ScrapedTour | null,
 });
@@ -149,7 +150,9 @@ describe('runCli without the site\'s identity (task 49)', () => {
   function forbiddingEverything(withDefaultFetcher: boolean) {
     const used: string[] = [];
     const refuse = (what: string) => { used.push(what); throw new Error(`used without an identity: ${what}`); };
-    const scraper: OperatorScraper = { id: 'jetour', discover: async () => refuse('discover'), parse: () => refuse('parse') };
+    const scraper: OperatorScraper = {
+      id: 'jetour', allowedHosts: ['shop.invalid'], discover: async () => refuse('discover'), parse: () => refuse('parse'),
+    };
     const h = harness(new Map(), {
       scrapers: { jetour: scraper },
       makeFetcher: () => refuse('makeFetcher'),
@@ -328,7 +331,7 @@ describe('runCli', () => {
     });
     try {
       const asking: OperatorScraper = {
-        id: 'jetour', parse: () => null,
+        id: 'jetour', allowedHosts: ['shop.invalid'], parse: () => null,
         discover: async fetcher => { await fetcher.fetchText('https://shop.invalid/a'); return []; },
       };
       const h = harness(new Map(), { scrapers: { jetour: asking } });
@@ -361,6 +364,48 @@ describe('runCli', () => {
     };
     await runCli(['--operator', operator, '--dry-run'], IDENTITY, harness(pages, { scrapers, makeFetcher }).deps);
     expect(madeWith).toEqual([expected]);
+  });
+
+  it.each([['jetour', ['www.jetour.com.hk']], ['texpert', ['api.example.invalid', 'www.example.invalid']]])(
+    'makes the fetcher with the running scraper\'s allowed hosts only (%s, task 66)', async (operator, expected) => {
+      const pages = site(goodTours(2));
+      const madeWith: unknown[] = [];
+      const makeFetcher: CliDeps['makeFetcher'] = (_userAgent, _headers, _logView, allowedHosts) => {
+        madeWith.push(allowedHosts);
+        return fakeFetcher(pages);
+      };
+      const scrapers = {
+        jetour: fakeScraper(pages),
+        texpert: { ...fakeScraper(pages), id: 'texpert' as const, allowedHosts: ['api.example.invalid', 'www.example.invalid'] },
+      };
+      await runCli(['--operator', operator, '--dry-run'], IDENTITY, harness(pages, { scrapers, makeFetcher }).deps);
+      expect(madeWith).toEqual([expected]);
+    });
+
+  it('the default fetcher requests nothing off the running scraper\'s hosts, not even robots.txt (task 66)', async () => {
+    const sent: string[] = [];
+    vi.stubGlobal('fetch', async (input: unknown) => {
+      sent.push(String(input));
+      return new Response('User-agent: *\nDisallow: /', { status: 200 });
+    });
+    try {
+      const asking: OperatorScraper = {
+        id: 'jetour', allowedHosts: ['shop.invalid'], parse: () => null,
+        discover: async fetcher => {
+          await fetcher.fetchText('https://elsewhere.invalid/a');
+          await fetcher.fetchText('https://shop.invalid/a');
+          return [];
+        },
+      };
+      const h = harness(new Map(), { scrapers: { jetour: asking } });
+      delete h.deps.makeFetcher;
+      await runCli(['--operator', 'jetour', '--dry-run'], IDENTITY, h.deps);
+      expect(sent).toEqual(['https://shop.invalid/robots.txt']);
+      expect(h.printed).toContain(
+        'not fetched https://elsewhere.invalid/a: elsewhere.invalid is not one of the allowed hosts, so nothing was requested');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('dry-run prints unmatched names and writes nothing to the real database', async () => {
@@ -514,7 +559,7 @@ describe('runCli', () => {
     it('the default fetcher is made with the run\'s log view: whole text in a dry run, hidden in a real run', async () => {
       // No request is made: a text that is not an http(s) address is refused by the fetcher before any network use.
       const asking: OperatorScraper = {
-        id: 'jetour', parse: () => null,
+        id: 'jetour', allowedHosts: ['shop.invalid'], parse: () => null,
         discover: async fetcher => { await fetcher.fetchText('測試之旅'); return []; },
       };
       const dry = harness(new Map(), { scrapers: { jetour: asking } });

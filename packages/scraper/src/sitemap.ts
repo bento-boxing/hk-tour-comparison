@@ -1,3 +1,4 @@
+import { allowedOriginsOf, offAllowedHosts } from './polite-fetch';
 import type { Fetcher } from './types';
 
 /** `<url>…</url>` and `<sitemap>…</sitemap>` entries; `\b` keeps `<urlset>` and `<sitemapindex>` out. */
@@ -36,16 +37,51 @@ export function parseSitemapXml(xml: string): { urls: string[]; sitemaps: string
   return { urls, sitemaps };
 }
 
-/** Follows a sitemap index one level deep. Returns [] if the sitemap cannot be fetched. */
-export async function readSitemapUrls(fetcher: Fetcher, sitemapUrl: string): Promise<string[]> {
+/** The skipped-children line names at most this many hosts, then how many more there were. */
+export const MAX_HOSTS_LOGGED = 5;
+
+/** The child's address as a URL, or null when it is not an absolute address. */
+function absoluteUrl(text: string): URL | null {
+  try {
+    return new URL(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Follows a sitemap index one level deep. Returns [] if the sitemap cannot be fetched. A child sitemap is requested
+ * only when it is on the operator's `allowedHosts` (https on the default port, as the fetcher allows them; see
+ * FetcherOptions.allowedHosts): the others are skipped, and counted in one line on `log` (the run's log, which the
+ * runner passes through discover; unset: console.log) naming only their hosts, at most MAX_HOSTS_LOGGED of them.
+ */
+export async function readSitemapUrls(
+  fetcher: Fetcher, sitemapUrl: string, allowedHosts: readonly string[], log: (line: string) => void = line => console.log(line),
+): Promise<string[]> {
+  const allowed = allowedOriginsOf(allowedHosts);
   const xml = await fetcher.fetchText(sitemapUrl);
   if (xml === null) return [];
   const { urls, sitemaps } = parseSitemapXml(xml);
   const found = new Set(urls);
+  const skippedHosts = new Set<string>();
+  let skipped = 0;
   for (const child of sitemaps) {
+    const childUrl = absoluteUrl(child);
+    const offHosts = childUrl === null ? 'an address that is not absolute' : offAllowedHosts(childUrl, allowed);
+    if (offHosts !== null) {
+      skipped++;
+      skippedHosts.add(offHosts);
+      continue;
+    }
     const childXml = await fetcher.fetchText(child);
     if (childXml === null) continue;
     for (const url of parseSitemapXml(childXml).urls) found.add(url);
+  }
+  if (skipped > 0) {
+    const hosts = [...skippedHosts];
+    const more = hosts.length > MAX_HOSTS_LOGGED ? `, +${hosts.length - MAX_HOSTS_LOGGED} more` : '';
+    log(`sitemap: skipped ${skipped} child ${skipped === 1 ? 'sitemap' : 'sitemaps'} not on the operator's hosts `
+      + `(${hosts.slice(0, MAX_HOSTS_LOGGED).join(', ')}${more})`);
   }
   return [...found];
 }

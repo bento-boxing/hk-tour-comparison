@@ -30,9 +30,12 @@ export interface CliDeps {
    * Called once per process, and only once the site's identity is resolved: every request of the run goes
    * through this one fetcher. `userAgent` is userAgentFor(the identity from SITE_URL and CONTACT_EMAIL).
    * `requestHeaders` are the running operator's own (see OperatorScraper.requestHeaders), never another
-   * operator's. `logView`: PUBLIC_LOG for a real run, DRY_RUN_LOG for a dry run (see public-log.ts).
+   * operator's. `logView`: PUBLIC_LOG for a real run, DRY_RUN_LOG for a dry run (see public-log.ts). `allowedHosts`
+   * are the running operator's (OperatorScraper.allowedHosts): the only hosts the fetcher may request.
    */
-  makeFetcher: (userAgent: string, requestHeaders?: RequestHeaders, logView?: LogView) => Fetcher;
+  makeFetcher: (
+    userAgent: string, requestHeaders: RequestHeaders | undefined, logView: LogView, allowedHosts: readonly string[],
+  ) => Fetcher;
   /** `ca` is DATABASE_CA_CERT normalised, or undefined when it is not set. */
   makeDb: (databaseUrl: string, ca: string | undefined) => Promise<Db>;
   makeDryRunDb: () => Promise<Db>;
@@ -129,8 +132,8 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
 
   const {
     scrapers = SCRAPERS,
-    makeFetcher = (userAgent: string, requestHeaders?: RequestHeaders, logView?: LogView) =>
-      createFetcher({ userAgent, log: print, extraHeaders: requestHeaders, logView }),
+    makeFetcher = (userAgent: string, requestHeaders: RequestHeaders | undefined, logView: LogView, allowedHosts: readonly string[]) =>
+      createFetcher({ userAgent, allowedHosts, log: print, extraHeaders: requestHeaders, logView }),
     makeDb = async (url: string, ca: string | undefined) => createPgDb(url, { ca }),
     makeDryRunDb = createDryRunDb,
     now = () => new Date(),
@@ -166,7 +169,7 @@ export async function runCli(argv: string[], env: Env, deps: Partial<CliDeps> = 
   if (proxyWanted(env)) installProxy(env);
   // A real run's log is public (GitHub Actions); a dry run's is not, so it prints addresses and messages whole.
   const logView = args.dryRun ? DRY_RUN_LOG : PUBLIC_LOG;
-  const fetcher = makeFetcher(userAgentFor(identity), scraper.requestHeaders, logView);
+  const fetcher = makeFetcher(userAgentFor(identity), scraper.requestHeaders, logView, scraper.allowedHosts);
   const today = todayInHongKong(now());
 
   if (!args.dryRun) {

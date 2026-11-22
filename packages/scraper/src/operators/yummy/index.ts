@@ -1,9 +1,9 @@
 import type { OperatorScraper } from '../../types';
-import { discover } from './discover';
+import { ALLOWED_HOSTS, discover } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
 
-export { datesUrl, detailUrl, discover, isTourUrl, LISTING_URL, tourIdOf, tourPageUrl } from './discover';
+export { ALLOWED_HOSTS, datesUrl, detailUrl, discover, isTourUrl, LISTING_URL, tourIdOf, tourPageUrl } from './discover';
 export { createFetchPage, joinTour, splitTour } from './fetch-page';
 export { parse, readTour } from './parse';
 export { publicDates, publicDetail, publicListing } from './public';
@@ -25,6 +25,7 @@ export const yummyScraper: OperatorScraper = {
     if ('why' in tour) throw new Error(tour.why);
     return tour;
   },
+  allowedHosts: ALLOWED_HOSTS,
   // First-run floor: a third of the 312 tours the 2026-11-14 practice crawl would have saved (329 pages
   // fetched; 10 parse failures, 7 with no departures). docs/operators/yummy.md, "Practice crawl".
   minExpectedTours: 104,
