@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ListedCount } from '@hktours/db/read';
-import { makeT, type DictKey, type Locale, type T } from '../../lib/i18n';
+import { makeT, type Locale, type T } from '../../lib/i18n';
 import { pageMetadata } from '../../lib/site-metadata';
 import { TOURS_PATH } from '../../lib/destinations';
 import { formatCount, formatDayRange, formatPrice } from '../../lib/format';
-import { seasonFromId, seasonPath, seasonSearchHref, type SeasonId, type SeasonWindow } from '../../lib/seasons';
+import { SEASON_NAME_KEYS, seasonFromId, seasonPath, seasonSearchHref, type SeasonWindow } from '../../lib/seasons';
 import { breadcrumbJsonLd } from '../../lib/structured-data';
 import { FixedSeasonProvider } from '../../lib/search-address';
 import { JsonLd } from '../../components/JsonLd';
@@ -15,16 +15,9 @@ import { SearchError, SearchList } from './search-page';
 
 type Params = Promise<{ id: string }>;
 
-/** Each season's name in the heading and the title, and in the descriptions (Simplified Chinese says 春节 there). */
-const SEASON_NAME: Record<SeasonId, { name: DictKey; description: DictKey }> = {
-  christmas: { name: 'season.christmas', description: 'season.christmas.description' },
-  'lunar-new-year': { name: 'season.lunar-new-year', description: 'season.lunar-new-year.description' },
-  easter: { name: 'season.easter', description: 'season.easter.description' },
-};
-
 /** A season's page's heading, in `t`'s language: '2026 聖誕旅行團', 'Christmas 2026 group tours'. */
 export function seasonHeading(t: T, window: SeasonWindow): string {
-  return t('season.heading', { season: t(SEASON_NAME[window.season].name), year: window.year });
+  return t('season.heading', { season: t(SEASON_NAME_KEYS[window.season].name), year: window.year });
 }
 
 /** The season's days, as the page says them: '12月19日至27日', '19 to 27 Dec'. */
@@ -38,7 +31,7 @@ export function seasonDates(t: T, window: SeasonWindow): string {
  * opening and where to book, with no numbers.
  */
 export function seasonDescription(t: T, window: SeasonWindow, count: ListedCount | null): string {
-  const vars = { season: t(SEASON_NAME[window.season].description), year: window.year, dates: seasonDates(t, window) };
+  const vars = { season: t(SEASON_NAME_KEYS[window.season].description), year: window.year, dates: seasonDates(t, window) };
   if (count === null || count.tours === 0 || count.range === undefined) return t('season.descriptionNone', vars);
   return t('season.description', {
     ...vars, tours: formatCount(count.tours), operators: formatCount(count.operators), price: formatPrice(count.range.minPriceHkd),
@@ -67,7 +60,7 @@ export async function seasonPageMetadata(locale: Locale, params: Params, searchP
   const { window, load } = await seasonLoad(locale, params, searchParams);
   const t = makeT(locale);
   return pageMetadata(t, seasonPath(window.season), {
-    title: t('season.title', { season: t(SEASON_NAME[window.season].name), year: window.year }),
+    title: t('season.title', { season: t(SEASON_NAME_KEYS[window.season].name), year: window.year }),
     description: seasonDescription(t, window, load.ok ? load.data.count : null),
     noindex: !load.ok || load.data.count.tours === 0,
   });

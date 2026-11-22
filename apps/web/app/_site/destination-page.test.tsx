@@ -15,7 +15,11 @@ const mocks = vi.hoisted(() => ({
   loadSearchPage: vi.fn<(db: Db, raw: Record<string, string | string[] | undefined>, today: string, locale?: string, reads?: unknown) => Promise<SearchPageData>>(),
 }));
 vi.mock('../../lib/db', () => ({ requestDb: mocks.requestDb }));
-vi.mock('../../lib/search-page-data', () => ({ loadSearchPage: mocks.loadSearchPage, cachedReads: { name: 'cachedReads' } }));
+vi.mock('../../lib/search-page-data', () => ({
+  loadSearchPage: mocks.loadSearchPage,
+  // The band's seasons (lib/season-counts.ts): none has tours here.
+  cachedReads: { name: 'cachedReads', countToursInWindows: async (_db: unknown, _today: string, windows: unknown[]) => windows.map(() => ({ tours: 0, operators: 0 })) },
+}));
 vi.mock('next/navigation', async importOriginal => ({
   ...(await importOriginal<typeof import('next/navigation')>()), // the real notFound and unstable_rethrow
   useRouter: () => ({ push: vi.fn() }),

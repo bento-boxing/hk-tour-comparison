@@ -57,7 +57,9 @@ const zh = {
   // in Chinese (the English may take two).
   'band.lede': '按目的地、出發日期、日數及價錢比較香港旅行團',
   'band.placeholder': '想去邊？輸入國家、地區或城市', // the band's search box (colloquial on purpose, the owner's wish)
-  'band.shortcuts': '旅行團最多的目的地', // the accessible name of the row of destination shortcuts
+  // Task 68: the label of the row of destination shortcuts, which names it (shown on phones; on wide screens it only
+  // names the row for screen readers). The seasons' row is labelled tours.seasons.
+  'band.popular': '熱門目的地',
   'band.allDestinations': '所有目的地 →', // the last shortcut: the destinations index
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',

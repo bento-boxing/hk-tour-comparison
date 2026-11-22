@@ -65,14 +65,30 @@ async function attempt<T>(page: string, today: IsoDate, load: () => Promise<T>):
 }
 
 /**
- * The search page's data: on '/' (destinationId null; a `dest` in the query is ignored, see movedSearchHref) or on
- * a destination's page, whose id (from the path, already checked by the caller) is the destination.
+ * What the search view renders (the home page and a destination's page: app/_site/search-page.tsx SearchView): the
+ * search page's data, and the seasons' current windows with their tours, for the gold band's row of season boxes.
  */
-export const loadSearch = cache(async (locale: Locale, destinationId: string | null, query: string): Promise<Loaded<SearchPageData>> => {
+export interface SearchViewData extends SearchPageData {
+  /** Every season with a current window (lib/season-counts.ts), with or without tours, in SEASON_IDS order. */
+  seasons: SeasonCount[];
+}
+
+/** The search page's data and the seasons' counts, read side by side (the seasons through the shared cached read). */
+async function searchViewData(db: Db, raw: RawParams, today: IsoDate, locale: Locale): Promise<SearchViewData> {
+  const [search, seasons] = await Promise.all([loadSearchPage(db, raw, today, locale, cachedReads), seasonCounts(db, today, cachedReads)]);
+  return { ...search, seasons };
+}
+
+/**
+ * The search page's data: on '/' (destinationId null; a `dest` in the query is ignored, see movedSearchHref) or on
+ * a destination's page, whose id (from the path, already checked by the caller) is the destination. With the
+ * seasons' counts for the band (searchViewData).
+ */
+export const loadSearch = cache(async (locale: Locale, destinationId: string | null, query: string): Promise<Loaded<SearchViewData>> => {
   const today = todayInHongKong();
   const { dest: _ignored, ...rest } = paramsOf(query);
   const raw = destinationId === null ? rest : { ...rest, dest: destinationId };
-  return attempt('search page', today, async () => loadSearchPage(await requestDb(), raw, today, locale, cachedReads));
+  return attempt('search page', today, async () => searchViewData(await requestDb(), raw, today, locale));
 });
 
 /** The chaining page's data (its `dest` stays in the query: the chain page has no destination pages). */
@@ -251,12 +267,13 @@ export const loadStoredSeasons = cache(async (): Promise<StoredLoad<SeasonCount[
 
 /**
  * The home page's data for its stored copy, in `locale`: the search page without any filter (no query string at all;
- * its filtered addresses are answered by its per-request copy, which uses loadSearch: lib/search-rewrites.ts). No
- * tours (none counted, or none found): an error.
+ * its filtered addresses are answered by its per-request copy, which uses loadSearch: lib/search-rewrites.ts), with
+ * the seasons' counts for the band (searchViewData). No tours (none counted, or none found): an error. The seasons'
+ * read failing is a failed read like any other (it throws); no season having tours is not an error.
  */
-export const loadStoredSearch = cache(async (locale: Locale): Promise<StoredLoad<SearchPageData>> => {
+export const loadStoredSearch = cache(async (locale: Locale): Promise<StoredLoad<SearchViewData>> => {
   const today = todayInHongKong();
-  return stored('home page', today, db => loadSearchPage(db, {}, today, locale, cachedReads),
+  return stored('home page', today, db => searchViewData(db, {}, today, locale),
     data => data.total === 0 || data.counts.all.tours === 0);
 });
 

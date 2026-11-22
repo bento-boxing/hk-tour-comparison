@@ -2,7 +2,8 @@
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { notFound } from 'next/navigation';
 import { isIsoDate } from '@hktours/core';
-import { normaliseCaCert, type Db, type DestinationCounts, type OperatorListing } from '@hktours/db/read';
+import { normaliseCaCert, type DateWindow, type Db, type DestinationCounts, type ListedCount, type OperatorListing } from '@hktours/db/read';
+import { currentWindows } from '../../lib/seasons';
 import type { SearchPageData } from '../../lib/search-page-data';
 
 // The stored pages' loaders (the home page, the destinations and operators indexes). Their pages are made at build time
@@ -15,14 +16,18 @@ const mocks = vi.hoisted(() => ({
   countToursByDestination: vi.fn<(db: Db, today: string) => Promise<DestinationCounts>>(),
   getOperatorListings: vi.fn<(db: Db, today: string) => Promise<OperatorListing[]>>(),
   loadSearchPage: vi.fn<(db: Db, raw: Record<string, unknown>, today: string, locale: string, reads: unknown) => Promise<SearchPageData>>(),
+  countToursInWindows: vi.fn<(db: Db, today: string, windows: DateWindow[]) => Promise<ListedCount[]>>(),
 }));
 vi.mock('../../lib/db', () => ({ storedDb: mocks.storedDb, requestDb: mocks.requestDb }));
 vi.mock('../../lib/search-page-data', () => ({
-  cachedReads: { countToursByDestination: mocks.countToursByDestination, getOperatorListings: mocks.getOperatorListings },
+  cachedReads: {
+    countToursByDestination: mocks.countToursByDestination, getOperatorListings: mocks.getOperatorListings,
+    countToursInWindows: mocks.countToursInWindows,
+  },
   loadSearchPage: mocks.loadSearchPage,
 }));
 
-const { loadStoredCounts, loadStoredOperatorListings, loadStoredSearch } = await import('./page-data');
+const { loadStoredCounts, loadStoredOperatorListings, loadStoredSearch, loadStoredSeasons } = await import('./page-data');
 const { cachedReads } = await import('../../lib/search-page-data');
 
 const fakeDb = {} as Db;
@@ -42,6 +47,8 @@ beforeEach(() => {
   mocks.countToursByDestination.mockReset().mockResolvedValue(counts);
   mocks.getOperatorListings.mockReset().mockResolvedValue([listing('egl', '2026-11-12T18:00:00.000Z'), listing('taste', null)]);
   mocks.loadSearchPage.mockReset().mockResolvedValue(searchData);
+  // No season has tours: a normal state, never an error.
+  mocks.countToursInWindows.mockReset().mockImplementation(async (_db, _today, windows) => windows.map(() => ({ tours: 0, operators: 0 })));
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.stubEnv('DATABASE_URL', URL_WITH_SECRET);
 });
@@ -51,6 +58,9 @@ const loaders = [
   ['destinations index', () => loadStoredCounts(), mocks.countToursByDestination],
   ['operators index', () => loadStoredOperatorListings(), mocks.getOperatorListings],
   ['home page', () => loadStoredSearch('en'), mocks.loadSearchPage],
+  // The home page's band and the destinations index read the seasons too: that read failing is a failed read as well.
+  ['home page', () => loadStoredSearch('en'), mocks.countToursInWindows],
+  ['destinations index', () => loadStoredSeasons(), mocks.countToursInWindows],
 ] as const;
 
 it('the destinations index reads its counts through the stored pages\' handle, never the per-request one', async () => {
@@ -72,10 +82,13 @@ it('the operators index reads the listings through the stored pages\' handle, an
 
 it('the home page reads its data (the page without any filter) through the stored pages\' handle, in its language, never the per-request one', async () => {
   const load = await loadStoredSearch('zh-Hans');
-  expect(load).toEqual({ ok: true, today: expect.any(String), now: expect.any(String), data: searchData });
+  const seasons = currentWindows(load.today).map(window => ({ window, count: { tours: 0, operators: 0 } }));
+  expect(load).toEqual({ ok: true, today: expect.any(String), now: expect.any(String), data: { ...searchData, seasons } });
   expect(isIsoDate(load.today)).toBe(true);
   // No query string at all: the stored copy is the page without filters (its filtered addresses have their own copy).
   expect(mocks.loadSearchPage).toHaveBeenCalledWith(fakeDb, {}, load.today, 'zh-Hans', cachedReads);
+  // The seasons for the band: their current windows on the same today, through the same handle.
+  expect(mocks.countToursInWindows).toHaveBeenCalledWith(fakeDb, load.today, currentWindows(load.today));
   expect(mocks.storedDb).toHaveBeenCalledTimes(1);
   expect(mocks.requestDb).not.toHaveBeenCalled();
 });

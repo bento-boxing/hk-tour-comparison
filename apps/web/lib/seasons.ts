@@ -1,5 +1,6 @@
 import { addDays, type IsoDate } from '@hktours/core';
 import type { DateWindow } from '@hktours/db/read';
+import type { DictKey } from './i18n';
 import { buildSearchQuery, searchHref, type SearchState } from './search-params';
 
 // A season's page is '/seasons/<id>' in each language ('/seasons/christmas', '/en/seasons/lunar-new-year'): the search
@@ -10,6 +11,16 @@ import { buildSearchQuery, searchHref, type SearchState } from './search-params'
 /** The seasons with a page, in the order the site lists them. */
 export const SEASON_IDS = ['christmas', 'lunar-new-year', 'easter'] as const;
 export type SeasonId = (typeof SEASON_IDS)[number];
+
+/**
+ * Each season's name in the dictionary: in headings, titles and the band's boxes (`name`), and in descriptions
+ * (`description`: Simplified Chinese says 春节 there).
+ */
+export const SEASON_NAME_KEYS: Readonly<Record<SeasonId, { name: DictKey; description: DictKey }>> = {
+  christmas: { name: 'season.christmas', description: 'season.christmas.description' },
+  'lunar-new-year': { name: 'season.lunar-new-year', description: 'season.lunar-new-year.description' },
+  easter: { name: 'season.easter', description: 'season.easter.description' },
+};
 
 /** The season an id names, exactly as spelled in SEASON_IDS; undefined for anything else. */
 export function seasonFromId(id: string): SeasonId | undefined {

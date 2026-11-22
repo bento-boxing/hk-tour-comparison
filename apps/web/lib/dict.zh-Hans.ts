@@ -41,7 +41,7 @@ const zhHans = {
   'band.subline': '现有 {tours} 个旅行团 · 报名请前往旅行社自己的网站',
   'band.lede': '按目的地、出发日期、天数和价格比较香港旅行团',
   'band.placeholder': '想去哪里？输入国家、地区或城市',
-  'band.shortcuts': '旅行团最多的目的地',
+  'band.popular': '热门目的地',
   'band.allDestinations': '所有目的地 →',
   'tours.title': '旅行团目的地',
   'tours.description': '按国家和地区浏览香港多家旅行社的旅行团，并查看每个目的地目前列出多少个旅行团。',

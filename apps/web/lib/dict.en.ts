@@ -41,7 +41,7 @@ const en = {
   'band.subline': '{tours} [tours:tour|tours] listed now · book on the operator\'s own website',
   'band.lede': 'Compare by destination, date, length and price',
   'band.placeholder': 'Where to? Enter a country, region or city',
-  'band.shortcuts': 'Destinations with the most tours',
+  'band.popular': 'Popular destinations',
   'band.allDestinations': 'All destinations →',
   'tours.title': 'Tour destinations',
   'tours.description': 'Browse group tours from several Hong Kong tour operators by country and region, with how many tours each destination has now.',

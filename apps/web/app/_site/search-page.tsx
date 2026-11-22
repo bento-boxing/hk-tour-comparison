@@ -16,7 +16,7 @@ import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
 import type { StateHref } from '../../components/Pager';
-import { loadSearch, loadStoredSearch, queryOf, type Loaded, type SearchParams } from './page-data';
+import { loadSearch, loadStoredSearch, queryOf, type Loaded, type SearchParams, type SearchViewData } from './page-data';
 import { SearchBand } from './search-band';
 import { JsonLd } from '../../components/JsonLd';
 import { websiteJsonLd } from '../../lib/structured-data';
@@ -98,10 +98,11 @@ export async function StoredSearchPage({ locale }: { locale: Locale }) {
  *
  * The home page's heading counts the operators that list tours now and its line the tours (counts.all, from the
  * cached countToursByDestination read the page already makes: no extra statement); the shortcuts come from the same
- * counts. Under them, the home page only says in one line what the site does (band.lede), and gives search engines
- * the site's WebSite block (lib/structured-data.ts).
+ * counts. Under them, the seasons with tours now (their boxes link to the season pages), from the load's own season
+ * counts. Under the heading, the home page only says in one line what the site does (band.lede), and gives search
+ * engines the site's WebSite block (lib/structured-data.ts).
  */
-export function SearchView({ t, destination, load }: { t: T; destination: Destination | null; load: Loaded<SearchPageData> }) {
+export function SearchView({ t, destination, load }: { t: T; destination: Destination | null; load: Loaded<SearchViewData> }) {
   const place = destination ? destinationName(destination, places, t) : null;
   // The home page says what the site does in the words people search, whatever its data.
   const lede = place === null ? t('band.lede') : undefined;
@@ -130,6 +131,7 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
       {site}
       <SearchBand
         t={t} heading={heading} line={line} lede={lede} state={state} shortcuts={topDestinations(places, counts)}
+        seasons={load.data.seasons}
         related={destination && <Related t={t} destination={destination} data={load.data} />}
       />
       {/* On a destination's page, clearing every filter keeps the destination. */}

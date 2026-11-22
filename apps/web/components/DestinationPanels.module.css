@@ -10,7 +10,8 @@
 .panels { position: relative; }
 
 .toggle {
-  height: var(--search-height, 46px); padding: 0 22px;
+  /* --toggle-width and --toggle-height: the band makes the button the full width and 48px tall on phones. */
+  width: var(--toggle-width, auto); height: var(--toggle-height, var(--search-height, 46px)); padding: 0 22px;
   border: 2px solid var(--toggle-border, var(--line-control)); border-radius: var(--radius-card);
   background: var(--toggle-bg, var(--surface)); color: var(--toggle-text, var(--ink));
   font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap;
@@ -63,4 +64,6 @@
   .panels { position: static; }
   .panel { left: 0; right: auto; }
   .chip, .back { min-height: 44px; }
+  /* With very large text the button's words wrap inside it (it grows taller) rather than run wider than the window. */
+  .toggle { height: auto; min-height: var(--toggle-height, var(--search-height, 46px)); white-space: normal; }
 }
