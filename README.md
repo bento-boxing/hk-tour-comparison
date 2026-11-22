@@ -116,7 +116,7 @@ The code is in [`packages/db/src/save-run.ts`](packages/db/src/save-run.ts).
 
 ## Removing your listings
 
-If you represent a tour operator and want your listings removed, please email hello@ganbintuen.com or open an issue in this repository's GitHub **Issues** tab. Your listings will be removed and your site will no longer be scraped.
+If you represent a tour operator and want your listings removed, please email hello@ganbintuen.com. Your listings will be removed and your site will no longer be scraped.
 
 ## Working on it
 
