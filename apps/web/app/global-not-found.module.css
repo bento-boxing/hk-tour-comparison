@@ -13,7 +13,7 @@
 .link { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-size: 15px; font-weight: 700; }
 .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .barInner { padding: 0 16px; }
   .content { padding: 16px 16px 32px; }
 }

@@ -104,7 +104,7 @@ it('is 44px tall for touch, marks the current language bold with the gold underl
   expect(css()).toMatch(/\.option\[aria-current='true'\] \{ font-weight: 700; border-bottom-color: var\(--header-accent\); \}/);
   expect(css()).toMatch(/\.option:focus-visible \{ outline: 2px solid var\(--header-accent\)/);
   expect(css()).toMatch(/\.short \{ display: none; \}/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*\.long \{ display: none; \}[^@]*\.short \{ display: inline; \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{[^@]*\.long \{ display: none; \}[^@]*\.short \{ display: inline; \}/);
   // Phones: 30px wide (above the 24px minimum touch target) and 44px tall.
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*\.option \{ min-width: 30px;/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{[^@]*\.option \{ min-width: 30px;/);
 });

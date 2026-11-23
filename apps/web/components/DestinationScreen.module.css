@@ -1,6 +1,6 @@
 /*
  * The phone destination search (task 73, the owner's drawing Mobile2Search): the box on the page, and the full-screen
- * view it opens. Shown under 640px only (the band and the trip page hide it from 640px). On the gold band the box reads
+ * view it opens. Shown under 1024px only (the band and the trip page hide it from 1024px). On the gold band the box reads
  * the band's hooks (--search-*: white with an ink outline, see search-band.module.css); elsewhere the defaults.
  */
 .searchBox { position: relative; }
@@ -112,3 +112,12 @@
   background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700;
 }
 .regionCount { font-size: 12px; font-weight: 500; }
+
+/*
+ * Task 74: from 640px the screen is a panel in the middle of the window, as the filter sheet is (the page behind
+ * dimmed); its suggestions keep to it (DestinationSearch.module.css .inlineList).
+ */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .screen { max-width: 640px; margin: 0 auto; box-shadow: 0 0 0 1px var(--line), 0 12px 40px var(--shadow); }
+  .screen::backdrop { background: var(--scrim); }
+}

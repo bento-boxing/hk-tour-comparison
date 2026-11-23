@@ -6,7 +6,7 @@ import { chainHref } from './chain-href';
 
 // The visitor's trip (連續行程), remembered in this browser (task 71). The trip lives in the trip page's address, which
 // the server validates on every visit; this keeps the visitor's own trip, so it survives leaving the page: the bottom
-// bar's 連續行程 tab (and the header's link from 640px) go back to it, and the tab's badge counts its tours on every
+// bar's 連續行程 tab (and the header's link from 1024px) go back to it, and the tab's badge counts its tours on every
 // page. Like the saved tours (lib/saved-tours.ts): localStorage, shared by every tab of the site (a change in one
 // reaches the others through the `storage` event), read only in the browser (the server renders no badge and plain
 // /chain links; useSyncExternalStore with getNoRememberedTrip), never sent anywhere by itself.

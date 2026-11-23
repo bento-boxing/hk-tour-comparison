@@ -49,12 +49,12 @@
 .remove:hover { background: var(--hit); }
 .remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .remove { min-height: 36px; }
 }
 
 /* Phones (task 70): the number saved, under the page's intro (small print there: saved-page.module.css). */
 .phoneLine { display: none; }
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .phoneLine { display: block; margin: 0 0 12px; font-size: 13px; font-weight: 700; }
 }

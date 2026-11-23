@@ -37,21 +37,10 @@
 .tools { margin-left: auto; display: flex; align-items: center; column-gap: 6px; }
 
 /*
- * Tablets and small laptops (640–1023px): the gaps closer and the links at the phones' 14px. With the three links
- * (task 58) the bar is one row from about 680px in Chinese and 700px in English (measured 663–700px across the
- * container's font and Arial/Inter/Roboto stand-ins); below that its switches wrap to a second row, nothing overlaps.
- */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .inner { column-gap: 12px; }
-  .links { column-gap: 12px; }
-  .link { font-size: 14px; }
-}
-
-/*
  * Phones (the owner's drawings, task 70): one row, 48px: the name at the left, the switches at the right. The three
  * page links are in the bottom bar (components/TabBar) instead.
  */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .inner { padding: 0 16px; min-height: 48px; flex-wrap: nowrap; column-gap: 8px; }
   .name { font-size: 18px; letter-spacing: 0; }
   .tools { column-gap: 0; }
@@ -62,13 +51,23 @@
  * then the three links (14px, 44px tall) on a line of their own, which holds them down to 320px in every language
  * (with room for '(100)').
  */
-@media (max-width: 639px) and (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 1023px) and (orientation: landscape) and (max-height: 500px) {
   .inner { min-height: 0; flex-wrap: wrap; }
   .name { font-size: 19px; order: 1; }
   .tools { order: 2; }
   .links { display: flex; order: 3; flex-basis: 100%; column-gap: 18px; }
   .links:lang(zh) { column-gap: 12px; }
   .link { font-size: 14px; }
+}
+/*
+ * Task 74: such a phone 640px wide or more (844×390, 932×430): the links on the name's row, between it and the
+ * switches, as the wide header has them (they wrap to a row of their own where they do not fit): the short screen
+ * keeps 44px more of the page.
+ */
+@media (min-width: 640px) and (max-width: 1023px) and (orientation: landscape) and (max-height: 500px) {
+  .inner { column-gap: 18px; }
+  .links { order: 2; flex-basis: auto; }
+  .tools { order: 3; }
 }
 @media (max-width: 399px) {
   .inner { padding: 0 12px; }

@@ -1,11 +1,11 @@
 /*
  * The bottom bar on phones (the owner's drawings, mobile_kit.py tabbar): the header's colours, 56px of tabs over the
  * device's bottom safe area, fixed to the window's foot; the spacer keeps that height at the page's end. Neither is
- * drawn from 640px, nor on a short landscape screen (see the end).
+ * drawn from 1024px, nor on a short landscape screen (see the end).
  */
 .bar, .spacer { display: none; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .spacer { display: block; height: calc(56px + env(safe-area-inset-bottom, 0px)); }
   .bar {
     display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
@@ -18,7 +18,7 @@
   /* While a card's list of dates is open (components/DeparturePicker), out of the way too: it never covers the list. */
   :global(body:has([data-departure-picker])) .bar { transform: translateY(100%); }
 }
-@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
   .bar { transition: none; }
 }
 
@@ -53,6 +53,12 @@
 }
 
 /* A phone turned sideways with a short screen: no bar (the header shows the page links instead). */
-@media (max-width: 639px) and (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 1023px) and (orientation: landscape) and (max-height: 500px) {
   .bar, .spacer { display: none; }
+}
+
+/* Task 74: from 640px (a tablet upright, a half-width window) the three tabs keep together in the middle, not a third
+   of the window apart; the bar itself still spans the window. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .list { max-width: 480px; margin: 0 auto; }
 }

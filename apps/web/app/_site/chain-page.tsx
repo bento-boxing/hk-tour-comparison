@@ -32,10 +32,10 @@ export async function chainPageMetadata(locale: Locale, searchParams: Promise<Se
  * The root layout supplies the nav bar and footer. Rendered per request (requestDb), but the database results
  * are reused (cachedReads): a result shown is at most an hour old (see cached-reads.ts).
  *
- * On a phone (under 640px; task 71) the same page is two screens, by the address: the trip alone, as numbered steps
+ * On a phone (under 1024px; task 71) the same page is two screens, by the address: the trip alone, as numbered steps
  * (TripSteps), or, with `pick=1`, the screen for choosing the next (or first) tour: its bar and the trip's total
  * (TripPickHead) over this page's search box, filters and tours. CSS shows the one the address names (`data-view`);
- * from 640px the page is as it was, whatever the address says of the screen.
+ * from 1024px the page is as it was, whatever the address says of the screen.
  */
 export async function ChainPage({ locale, searchParams }: { locale: Locale; searchParams: Promise<SearchParams> }) {
   const t = makeT(locale);
@@ -56,7 +56,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
 
       {droppedCount > 0 && <p className={styles.notice} role="status">{t('chain.dropped')}</p>}
 
-      {/* The trip: from 640px the heading and strip (or the empty message); on a phone the heading, 清空 and the steps. */}
+      {/* The trip: from 1024px the heading and strip (or the empty message); on a phone the heading, 清空 and the steps. */}
       {!pick && (
         <div className={styles.tripArea}>
           {lastLeg ? (
@@ -83,7 +83,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
           <TripSteps address={address} requested={requested} legs={legs} departWindow={departWindow} operators={operators} today={today} />
         </div>
       )}
-      {/* The choosing screen's address, opened at 640px or wider, is the trip page as it always was. */}
+      {/* The choosing screen's address, opened at 1024px or wider, is the trip page as it always was. */}
       {pick && lastLeg && (
         <div className={styles.wideOnly}>
           <h2 className={styles.heading}>{t('chain.yours')}</h2>
@@ -101,7 +101,7 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
 
       {next && (
         // On a phone, part of the choosing screen only. Without a window (the first tour of an empty trip), there is
-        // no such list from 640px.
+        // no such list from 1024px.
         <section
           aria-labelledby={departWindow ? 'next-heading' : 'pick-heading'}
           className={departWindow ? styles.next : `${styles.next} ${styles.phoneOnly}`}

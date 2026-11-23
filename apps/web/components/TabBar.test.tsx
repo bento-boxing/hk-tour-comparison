@@ -176,17 +176,17 @@ it('listens to scrolling passively and slides with a transform only (no layout),
   render(<TabBar t={tZh} />);
   expect(add).toHaveBeenCalledWith('scroll', expect.any(Function), { passive: true });
   expect(css()).toMatch(/\.bar\[data-hidden\] \{ transform: translateY\(100%\); \}/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) and \(prefers-reduced-motion: reduce\) \{ \.bar \{ transition: none; \} \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) and \(prefers-reduced-motion: reduce\) \{ \.bar \{ transition: none; \} \}/);
   // Hidden only by the attribute the script sets: the server's HTML has none.
   expect(renderToString(<TabBar t={tZh} />)).not.toContain('data-hidden');
 });
 
-it('phones only: fixed to the window\'s foot, 56px plus the bottom safe area, with a spacer as tall ending the page; not from 640px, nor on a short landscape screen', () => {
+it('phones only: fixed to the window\'s foot, 56px plus the bottom safe area, with a spacer as tall ending the page; not from 1024px, nor on a short landscape screen', () => {
   expect(css()).toMatch(/^.*?\.bar, \.spacer \{ display: none; \}/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.spacer \{ display: block; height: calc\(56px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{ \.spacer \{ display: block; height: calc\(56px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
   expect(css()).toMatch(/\.bar \{ display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding-bottom: env\(safe-area-inset-bottom, 0px\);/);
   expect(css()).toMatch(/\.tab \{[^}]*height: 56px;/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) and \(orientation: landscape\) and \(max-height: 500px\) \{ \.bar, \.spacer \{ display: none; \} \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) and \(orientation: landscape\) and \(max-height: 500px\) \{ \.bar, \.spacer \{ display: none; \} \}/);
   render(<TabBar t={tZh} />);
   expect(bar().previousElementSibling).toHaveAttribute('aria-hidden', 'true');
 });
@@ -205,5 +205,5 @@ it('a page that belongs to no tab though its address looks like one (a not-found
 });
 
 it('slides away while a card\'s list of dates is open, so it never covers the list', () => {
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{[^@]*:global\(body:has\(\[data-departure-picker\]\)\) \.bar \{ transform: translateY\(100%\); \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{[^@]*:global\(body:has\(\[data-departure-picker\]\)\) \.bar \{ transform: translateY\(100%\); \}/);
 });

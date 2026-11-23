@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { places } from '@hktours/core';
 import { placeName } from './place-names';
 import { EN_COUNTRY_EM, EN_REGION_EM } from './english-name-widths';
-import { COMMA_PX, COUNTRY_PX, PHONE_COL_EM, REGION_PX, phoneCell, phoneFitCss } from './directory-cells';
+import { COMMA_PX, COUNTRY_PX, PHONE_COL_EM, REGION_PX, WIDEST_GRID_PX, phoneCell, phoneFitCss } from './directory-cells';
+import { PHONE_COLUMN_PX, WIDE_FROM } from './breakpoints';
 
 const SCRIPT = 'apps/web/scripts/measure-english-names.mjs';
 /** Every region the directory can list: not an area, in a country with more than one region. */
@@ -114,9 +115,10 @@ it('on phones the container queries let a marked cell into its column wherever t
     // The browser may lay the least width out rounded to its unit (Firefox: 1/60px; 114.002px as 114): a grid at a
     // column count's boundary may have either count.
     const rounded = Math.round(least * 60) / 60;
-    // Every grid width a phone has at the normal text size (320-639px, less 24px of margins), and wider ones as
-    // with smaller text, up to the widest the queries cover; in half px.
-    for (let halves = 592; halves <= 1920; halves++) {
+    // Every grid width the phone layout has at the normal text size (320px up, less 24px of margins, to its column's
+    // 688px), and wider ones as with smaller text, up to the widest the queries cover; in half px.
+    expect(WIDEST_GRID_PX).toBe(1075);
+    for (let halves = 592; halves <= WIDEST_GRID_PX * 2; halves++) {
       const grid = halves / 2;
       const counts = [least, rounded].map(l => Math.floor(grid / l + 1e-9));
       const roomy = counts.every(n => n >= 2 && grid / n >= needPx(fit));
@@ -139,19 +141,20 @@ it('on phones the container queries let a marked cell into its column wherever t
   const inAt = (grid: number) => (rules.get(seoul) ?? []).some(([from, to]) => grid / REGION_PX >= from && grid / REGION_PX <= to);
   expect([341, 342, 343].map(inAt)).toEqual([true, false, false]);
   // Bangkok & Central Thailand never fits a column on a phone; Northern Taiwan 61 from a 375px phone, not at 320.
+  // A window's grid: its width, or from 720px the phone column's, less the sides.
   const at = (fit: string | undefined, phone: number) => (rules.get(fit!) ?? []).some(([from, to]) => {
-    const em = (phone - 24) / REGION_PX;
+    const em = (Math.min(phone, PHONE_COLUMN_PX) - 24) / REGION_PX;
     return em >= from && em <= to;
   });
   const bangkok = phoneCell('region', 'en', 'Bangkok & Central Thailand', 144).fit;
-  for (let phone = 320; phone < 640; phone++) expect(at(bangkok, phone), `${phone}`).toBe(false);
+  for (let phone = 320; phone < WIDE_FROM; phone++) expect(at(bangkok, phone), `${phone}`).toBe(false);
   const taiwan = phoneCell('region', 'en', 'Northern Taiwan', 61).fit;
   expect([320, 360, 375, 414, 480].map(phone => at(taiwan, phone))).toEqual([false, true, true, true, true]);
 });
 
 it('the stylesheet sizes the phones\' columns in ems of each grid\'s font, the same as the decision assumes, and makes each grid a query container', () => {
   const css = readFileSync(join(__dirname, '../app/_site/tours-page.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
-  const phone = css.slice(css.indexOf('@media (max-width: 639px)'));
+  const phone = css.slice(css.indexOf('@media (max-width: 1023px)'));
   expect(phone).toMatch(new RegExp(`\\.regions \\{ font-size: ${REGION_PX}px; \\}`));
   expect(css).toMatch(new RegExp(`\\.plain \\{[^}]*font-size: ${COUNTRY_PX}px;`));
   expect(phone).toContain(`.page { --col-region: ${PHONE_COL_EM.region.zh}em; --col-plain: ${PHONE_COL_EM.plain.zh}em; }`);

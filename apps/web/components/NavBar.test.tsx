@@ -122,12 +122,12 @@ it('ends with the theme switch, after the language switch, named in the current 
 });
 
 it('on a phone: one 48px row, the name and the switches; the three links are in the bottom bar (components/TabBar)', () => {
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.inner \{ [^}]*min-height: 48px; flex-wrap: nowrap;[^}]*\}.*\.links \{ display: none; \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{ \.inner \{ [^}]*min-height: 48px; flex-wrap: nowrap;[^}]*\}.*\.links \{ display: none; \}/);
 });
 
 it('on a phone turned sideways with a short screen (no bottom bar): the name and the switches, then the three links on a line of their own, one line down to 320px', () => {
   expect(css()).toMatch(/\.inner \{[^}]*flex-wrap: wrap/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) and \(orientation: landscape\) and \(max-height: 500px\) \{.*\.tools \{ order: 2;[^}]*\}.*\.links \{ display: flex; order: 3; flex-basis: 100%;/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) and \(orientation: landscape\) and \(max-height: 500px\) \{.*\.tools \{ order: 2;[^}]*\}.*\.links \{ display: flex; order: 3; flex-basis: 100%;/);
   // The two-by-two layout four links needed (Chinese below 360px, English below 430px) is gone with the fourth link.
   expect(css()).not.toMatch(/grid-template-columns: repeat\(2, max-content\)|@media \(max-width: (359|429|479)px\)/);
 });

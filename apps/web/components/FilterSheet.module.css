@@ -1,6 +1,6 @@
 /*
  * The phone filter sheet (the owner's drawing Mobile3Filters): the whole window, a fixed head (篩選 and ×), the
- * sections scrolling between, and a fixed foot (清除全部 and 顯示結果). Opened only from the phone bar (under 640px),
+ * sections scrolling between, and a fixed foot (清除全部 and 顯示結果). Opened only from the phone bar (under 1024px),
  * as a modal dialog: the browser's top layer, over everything, whatever the page's layers.
  */
 .sheet {
@@ -93,4 +93,13 @@
 
 .close:focus-visible, .chip:focus-visible, .input:focus-visible, .clear:focus-visible, .apply:focus-visible {
   outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
+/*
+ * Task 74: from 640px the sheet is a panel in the middle of the window, as wide as the phone column's content (the
+ * page behind dimmed), not the window's whole width.
+ */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .sheet { max-width: 640px; margin: 0 auto; box-shadow: 0 0 0 1px var(--line), 0 12px 40px var(--shadow); }
+  .sheet::backdrop { background: var(--scrim); }
 }

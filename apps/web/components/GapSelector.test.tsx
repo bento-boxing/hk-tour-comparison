@@ -71,7 +71,7 @@ describe('the fields', () => {
 
   it('use the text size of the box, and 16 px only on phones (to stop iOS zooming in)', () => {
     expect(inputRule()).not.toContain('font-size');
-    expect(css()).toMatch(/@media \(max-width: 639px\) \{ \.input \{ font-size: 16px; \} \}/);
+    expect(css()).toMatch(/@media \(max-width: 1023px\) \{ \.input \{ font-size: 16px; \} \}/);
   });
 });
 

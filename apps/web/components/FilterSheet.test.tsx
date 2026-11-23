@@ -254,10 +254,10 @@ it('without JavaScript on a season\'s page, the dates (the path\'s) are not sent
   expect(trip).not.toContain('name="ex"');
 });
 
-it('the phone bar and the sheet are not drawn from 640px; under it the bar sticks and the row\'s boxes leave it', () => {
+it('the phone bar and the sheet are not drawn from 1024px; under it the bar sticks and the row\'s boxes leave it', () => {
   const bar = css('FilterBar.module.css');
-  expect(bar).toMatch(/^.*\.sheetButton, \.countBox, \.pillShort \{ display: none; \}.*@media \(max-width: 639px\)/);
-  const phone = bar.slice(bar.indexOf('@media (max-width: 639px)'));
+  expect(bar).toMatch(/^.*\.sheetButton, \.countBox, \.pillShort \{ display: none; \}.*@media \(max-width: 1023px\)/);
+  const phone = bar.slice(bar.indexOf('@media (max-width: 1023px)'));
   expect(phone).toMatch(/\.filters \{ position: sticky; top: var\(--notice-h, 0px\);/);
   expect(phone).toContain('.filters > .f, .filters > .slot:not(.sortSlot) { display: none; }');
   expect(phone).toMatch(/scroll-padding-top: calc\(61px \+ 0\.5rem\)/);

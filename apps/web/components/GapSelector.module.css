@@ -19,6 +19,6 @@
 .input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* Phones: 16px stops iOS zooming into the field on focus, as in the filter bar. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .input { font-size: 16px; }
 }

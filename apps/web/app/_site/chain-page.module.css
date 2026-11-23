@@ -22,12 +22,12 @@
 /*
  * Task 71: on a phone the page is one of two screens (`data-view`, from the address): the trip alone ('trip': the
  * heading, 清空 and components/TripPhone's steps on white across the page's width), or the screen for choosing a tour
- * ('pick': TripPhone's bar and total, then the search box, the filters and the tours). From 640px none of the rules
+ * ('pick': TripPhone's bar and total, then the search box, the filters and the tours). From 1024px none of the rules
  * below apply: .phoneOnly is the only one drawn nowhere there.
  */
 .phoneOnly { display: none; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .phoneOnly { display: block; }
   .wideOnly { display: none; }
   .view[data-view='trip'] .next { display: none; }

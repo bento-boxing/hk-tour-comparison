@@ -122,8 +122,8 @@ const isPhoneOnly = (el: Element | null) => !!el && (el.classList.contains(style
 /** Outside any media query: what every layout shares, and what the wider layouts start from. */
 const BASE = '';
 /** The phone card (task 70): its rules over BASE. */
-const PHONE = '(max-width: 639px)';
-const TABLET = '(min-width: 640px)';
+const PHONE = '(max-width: 1023px)';
+const TABLET = '(min-width: 1024px)';
 const WIDE = '(min-width: 1280px)';
 /** The row's rule in each layout: from 1280px, the seven columns on Chinese pages, the six of drawing E1 on English ones. */
 const ROW: Record<string, string> = { [PHONE]: '.row', [TABLET]: '.row', [WIDE]: '.row:lang(zh)' };
@@ -151,7 +151,7 @@ const withVars = (value: string, vars: Declarations) => value.replace(/var\((--[
 const px = (value: string | undefined) => Number(/^(\d+(?:\.\d+)?)px$/.exec(value ?? '')?.[1] ?? Number.NaN);
 
 let user: ReturnType<typeof userEvent.setup>;
-/** Tab, passing over what only a phone draws (全部 N 站, a +N): the tab order from 640px. */
+/** Tab, passing over what only a phone draws (全部 N 站, a +N): the tab order from 1024px. */
 async function wideTab() {
   do await user.tab(); while (isPhoneOnly(document.activeElement));
 }
@@ -245,7 +245,7 @@ describe('what a row shows, column by column', () => {
     const notes = first.container.querySelector(`.${styles.notes}`)!;
     expect(notes.closest('[role="cell"]')).toBe(cells()[4]);
     expect([...notes.children].map(n => n.textContent)).toEqual(['澳門出發 · 珠海解散', '資料為 11月12日', '↓ 比7日前平 HK$500', '休息 1 日後出發']);
-    // Not drawn from 640px; on a phone the notes' other places are not drawn.
+    // Not drawn from 1024px; on a phone the notes' other places are not drawn.
     expect(rule(BASE, '.notes')).toEqual({ display: 'none' });
     expect(rule(PHONE, '.notes')).toMatchObject({ display: 'flex', 'flex-direction': 'column' });
     for (const selector of ['.region .note', '.region .footNote', '.staleInTag', '.delta']) expect(rule(PHONE, selector), selector).toEqual({ display: 'none' });
@@ -313,11 +313,11 @@ describe('the region: the country, then its regions (or the countries), at most 
 describe('the route', () => {
   const eleven = ['osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara', 'kobe', 'osaka', 'kyoto', 'nara'];
 
-  it('from 640px every stop, never cut, wrapping onto as many lines as it needs', () => {
+  it('from 1024px every stop, never cut, wrapping onto as many lines as it needs', () => {
     render(<TourCard {...props} tour={{ ...tour, stops: eleven.map(c => kansai(`japan-kansai-${c}`)) }} />);
     expect(screen.getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良 → 神戶 → 大阪 → 京都 → 奈良');
     expect(cardLink()).toHaveAccessibleName(/大阪、京都、奈良、神戶、大阪、京都、奈良、神戶、大阪、京都、奈良/);
-    // Nothing on the route or its cell can hide a stop from 640px.
+    // Nothing on the route or its cell can hide a stop from 1024px.
     for (const selector of ['.route', '.routeCell', '.stop']) {
       for (const media of [BASE, TABLET, WIDE]) {
         expect(rule(media, selector), selector).not.toHaveProperty('overflow');
@@ -350,7 +350,7 @@ describe('the route', () => {
     expect(rule(PHONE, '.allStops[open]')).toMatchObject({ position: 'relative' });
     expect(rule(PHONE, ".row[data-opened='earlier'] .allStops")).toEqual({ background: 'var(--viewed-bg)' });
     expect(rule(PHONE, ".row[data-opened='latest'] .allStops")).toEqual({ background: 'var(--latest-bg)' });
-    // Not drawn from 640px.
+    // Not drawn from 1024px.
     expect(rule(BASE, '.allStops')).toEqual({ display: 'none' });
   });
 
@@ -454,7 +454,7 @@ describe('the dates: three by two, the same on every row', () => {
     expect(screen.getByText('+3 個').closest('a')).toBeNull(); // plain text, not a link
   });
 
-  it('the grid (from 640px): three equal columns; every chip as wide as its column, its text centred and on one line', () => {
+  it('the grid (from 1024px): three equal columns; every chip as wide as its column, its text centred and on one line', () => {
     expect(rule(BASE, '.dates')['grid-template-columns']).toBe('repeat(3, minmax(0, 1fr))');
     expect(rule(BASE, '.chip')).toMatchObject({ width: '100%', 'text-align': 'center', 'white-space': 'nowrap' });
   });
@@ -870,7 +870,7 @@ describe('three layouts, switched by the window\'s width', () => {
     return { grid, at };
   }
 
-  it('below 640px a card; from 640px two columns; from 1280px one aligned row: seven columns in Chinese, six in English with the region above the route', () => {
+  it('below 1024px a card; from 1024px two columns; from 1280px one aligned row: seven columns in Chinese, six in English with the region above the route', () => {
     expect(Object.keys(sheet)).toEqual([BASE, PHONE, ...containerQueries(), TABLET, WIDE, CAP]);
     expect(placements(PHONE).grid[0]).toHaveLength(3);
     expect(placements(TABLET).grid[0]).toHaveLength(3);
@@ -902,7 +902,7 @@ describe('three layouts, switched by the window\'s width', () => {
     render(<TourCard {...props} onAdd={vi.fn()} />);
     const placedBy = (area: string) => Object.entries(sheet[BASE]).find(([, d]) => d['grid-area'] === area)![0].slice(1);
     SEVEN.forEach((area, i) => expect(cells()[i], area).toHaveClass(styles[placedBy(area)]));
-    // Line 1's box holds the first three; from 640px it is no box (display: contents), so they are the row's own.
+    // Line 1's box holds the first three; from 1024px it is no box (display: contents), so they are the row's own.
     expect(cells()[0].parentElement).toHaveClass(styles.head);
     expect([...cells()[0].parentElement!.children]).toEqual(cells().slice(0, 3));
     expect(rule(BASE, '.head')).toEqual({ display: 'contents' });
@@ -1052,7 +1052,7 @@ describe('three layouts, switched by the window\'s width', () => {
     expect(sized).toEqual(['.op:lang(en) 13px', '.region:lang(en) 14px', '.route:lang(en) 17px']);
   });
 
-  it('from 640px nothing is cut off (only the visually hidden helpers clip); on a phone only line 1\'s region and tag (with …) and the route (at two lines, with 全部 N 站)', () => {
+  it('from 1024px nothing is cut off (only the visually hidden helpers clip); on a phone only line 1\'s region and tag (with …) and the route (at two lines, with 全部 N 站)', () => {
     const clipping = allRules().filter(({ d }) => /hidden|clip/.test(d.overflow ?? '')).map(r => `${r.media} ${r.selector}`);
     expect(clipping.sort()).toEqual([' .tip', ' .visuallyHidden', `${PHONE} .op`, `${PHONE} .region`, `${PHONE} .routeCell`]);
     const ellipsis = allRules().filter(({ d }) => 'text-overflow' in d).map(r => `${r.media} ${r.selector}`);
@@ -1100,7 +1100,7 @@ describe('three layouts, switched by the window\'s width', () => {
 
   it('the pair: equal columns that are never narrower than their words, so 加入行程 is never cut and nothing moves when a tour is saved', () => {
     expect(rule(BASE, '.pair')).toMatchObject({ display: 'grid', 'grid-auto-flow': 'column', 'grid-auto-columns': '1fr' });
-    // 8px between the words (or star) and the border, at least, from 640px (the owner's minimum). On a phone each
+    // 8px between the words (or star) and the border, at least, from 1024px (the owner's minimum). On a phone each
     // button is the column's fixed 88px, its words centred, 4px at least.
     expect(rule(BASE, '.add').padding).toBe('0 8px');
     for (const { media, selector, d } of allRules().filter(r => r.media !== BASE || !['.add', '.save'].includes(r.selector))) {
@@ -1516,7 +1516,7 @@ describe('a stored page made before Hong Kong midnight, seen after it', () => {
   });
 
   it('the line in the dates\' place is as tall as the line of chips it replaces, so nothing below moves', () => {
-    // From 640px to 1280px a chip's box is at least 44px tall: so is the line, its text centred as a chip's is.
+    // From 1024px to 1280px a chip's box is at least 44px tall: so is the line, its text centred as a chip's is.
     expect(rule(BASE, '.d')['min-height']).toBe('44px');
     expect(rule(BASE, '.passed')).toMatchObject({ display: 'flex', 'align-items': 'center', 'min-height': '44px' });
     // On a phone, a note in the old-data colour where the chips would be.

@@ -27,9 +27,9 @@ import { SiteLink } from './SiteLink';
 import { useRouteCut } from './TourCard';
 import styles from './TripPhone.module.css';
 
-// The trip page on a phone (under 640px; task 71, the owner's drawings Mobile16Trip, Mobile20TripLong and
+// The trip page on a phone (under 1024px; task 71, the owner's drawings Mobile16Trip, Mobile20TripLong and
 // Mobile17Pick): the trip as numbered steps with its gold total, and the screen for choosing the next tour (`pick=1`
-// in the address). From 640px none of this is drawn (CSS): the wide page keeps its strip. Every address comes from
+// in the address). From 1024px none of this is drawn (CSS): the wide page keeps its strip. Every address comes from
 // lib/chain-href, from the validated one, in the page's language, as on the rest of the page.
 
 /** Navigates to a path (without a language: lib/chain-href's) in the page's language, without jumping to the top. */

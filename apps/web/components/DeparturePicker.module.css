@@ -33,7 +33,7 @@ span.date:hover { background: none; }
 .from { font-size: 12px; font-weight: 500; color: var(--text-muted); }
 
 /* Taller rows for touch on phones. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .date { min-height: 44px; padding: 10px 8px; font-size: 15px; }
   .close { min-height: 44px; }
 }

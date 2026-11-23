@@ -8,9 +8,9 @@
 /*
  * Fixed columns, so eight operators never leave an empty slot, and every box is one line high: a name never wraps in
  * its tag (as the rows' English tags) and its count stays beside it. The widest pair, "Charming Holidays" and its
- * count, needs about 247px inside a box. One column on phones (half a 320px screen is about 130px), two up to
- * 1279px (half the column at 640px leaves about 257px inside), four from 1280px (about 268px inside; at 1180px it
- * would be about 243px, too narrow for English).
+ * count, needs about 247px inside a box. One column on phones under 640px (half a 320px screen is about 130px), two
+ * from 640px up to 1279px (half the phone column at 640px leaves about 270px inside; half the wide column at 1024px
+ * about 257px), four from 1280px (about 268px inside; at 1180px it would be about 243px, too narrow for English).
  */
 .operators {
   display: grid; grid-template-columns: 1fr; gap: 10px 14px;

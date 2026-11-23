@@ -1,7 +1,8 @@
 import type { Locale } from './i18n';
 import { EN_COUNTRY_EM, EN_REGION_EM } from './english-name-widths';
+import { PHONE_COLUMN_PX } from './breakpoints';
 
-// The destinations directory's cells on phones (app/_site/tours-page.module.css, below 640px): does a region, or a
+// The destinations directory's cells on phones (app/_site/tours-page.module.css, below 1024px): does a region, or a
 // country without regions, fit its column, or must it take the whole row? Its column's width depends on the phone's
 // width and the text size, so the server only works out what the cell needs, in ems of its grid's font (from the
 // name's measured width and the count as the page writes it); container queries on the grid, in the same ems, then let it into
@@ -31,7 +32,7 @@ const FONT_PX: Readonly<Record<Kind, number>> = { region: REGION_PX, plain: COUN
 
 /**
  * Each column's least width on phones, in ems of its grid's font: the stylesheet's --col-region and --col-plain below
- * 640px (directory-cells.test.ts checks they are the same). The grids repeat as many columns as fit, with no gap, so a
+ * 1024px (directory-cells.test.ts checks they are the same). The grids repeat as many columns as fit, with no gap, so a
  * grid W wide has floor(W / least) columns of W / that each. Chinese regions: three columns on a 375px phone (114px);
  * English regions and every country without regions: two on a 320px one ((320 - 2 × 12) / 2 = 148px; Chinese 146px).
  */
@@ -76,10 +77,11 @@ export function phoneCell(kind: Kind, locale: Locale, name: string, tours: numbe
 const milli = (em: number) => Math.round(em * 1000);
 
 /**
- * The widest grid the queries cover: a 639px phone's (615px) with the text down to 64% of the normal size. Where a
- * grid is wider in ems than this (smaller text still), a marked cell keeps the whole row: never too narrow.
+ * The widest grid the queries cover: the phone layout's widest (task 74: its column, PHONE_COLUMN_PX less its 16px
+ * sides, 688px, from 704px up to the wide layout) with the text down to 64% of the normal size. Where a grid is wider
+ * in ems than this (smaller text still), a marked cell keeps the whole row: never too narrow.
  */
-const WIDEST_GRID_PX = 960;
+export const WIDEST_GRID_PX = Math.ceil((PHONE_COLUMN_PX - 32) / 0.64);
 
 /**
  * The container queries that let marked cells into a column (inside the page, after the stylesheet). A grid of

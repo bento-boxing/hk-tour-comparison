@@ -50,6 +50,11 @@
 .inlineList .option:last-child { border-bottom: 1px solid var(--line); }
 
 /* 16px stops iOS zooming into the field on focus. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .input { font-size: max(16px, var(--search-font, 16px)); height: var(--search-height, 48px); }
+}
+
+/* Task 74: the phone search screen is a 640px panel from 640px (DestinationScreen.module.css): its suggestions too. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .inlineList { right: calc(50% - 320px); left: calc(50% - 320px); }
 }

@@ -12,7 +12,7 @@
  */
 .withNotice { scroll-padding-top: 5rem; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .wrap { padding: 0 16px; }
   .page { padding-top: 16px; }
 }
@@ -20,4 +20,13 @@
 /* The narrowest phones: a little more room for the rows' three date chips (English '30 Nov Wed'). */
 @media (max-width: 359px) {
   .wrap { padding-left: 12px; padding-right: 12px; }
+}
+
+/*
+ * Task 74: from 640px up to the wide layout (tablets upright, half-width desktop windows) the phone layout is drawn in
+ * a centred column of 720px, its 16px sides included (lib/breakpoints.ts PHONE_COLUMN_PX): the band's content, the
+ * bar, the cards, the trip's steps. The header, the band's gold and the bottom bar still span the window.
+ */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .wrap { max-width: 720px; }
 }

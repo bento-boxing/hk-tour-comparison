@@ -83,12 +83,12 @@
 
 /*
  * Phones only: 篩選 (which opens the filter sheet, components/FilterSheet) and the number of tours. Not drawn from
- * 640px, so the row there is exactly as before.
+ * 1024px, so the row there is exactly as before.
  */
 .sheetButton, .countBox, .pillShort { display: none; }
 
 /* Phones: a popover spans the whole row instead of hanging off its box past the screen edge. Touch: 44px. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   /*
    * The row becomes one bar (the owner's drawing Mobile6Home): 篩選, the sort control, the count at the right. It
    * sticks to the window's top while the list scrolls (below the fixed language notice where there is one: --notice-h,

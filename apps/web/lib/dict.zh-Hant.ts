@@ -24,7 +24,7 @@ const zh = {
   'nav.chain': '連續行程',
   'nav.saved': '已收藏', // the header's link to the saved tours, their number after it
   'nav.savedCount': '({n})',
-  // The bottom bar on phones (under 640px): its accessible name, its first tab (the other two are nav.chain and
+  // The bottom bar on phones (under 1024px): its accessible name, its first tab (the other two are nav.chain and
   // nav.saved), and the number on a tab's badge as read out (the badge itself shows the bare number).
   'tabs.label': '主要頁面',
   'tabs.search': '搜尋',
@@ -190,7 +190,7 @@ const zh = {
   'card.startsAt': '{place}出發',
   'card.endsAt': '{place}解散',
   'card.moreRegions': '+{n}',
-  // A card on a phone (under 640px): the gold button's words (its accessible name stays card.linkLabel); the trip
+  // A card on a phone (under 1024px): the gold button's words (its accessible name stays card.linkLabel); the trip
   // page's add button; the control under a route cut at two lines ({n}: its stops); the dates that do not fit, as a
   // button opening the list of all of them (card.moreDates is its name).
   'card.site': '網站 ↗',
@@ -254,7 +254,7 @@ const zh = {
   'filter.clearDestination': '清除目的地：{dest}', // the destination pill's accessible name
   'filter.travel': '可出行日期', // the visitor's free dates: only tours that leave and come back inside them
   'filter.travelHint': '只列出出發及回程都在這段日子內的旅行團',
-  // Phones (under 640px): the bar's 篩選 button and count, and the full-height filter sheet 篩選 opens.
+  // Phones (under 1024px): the bar's 篩選 button and count, and the full-height filter sheet 篩選 opens.
   'filter.sheet': '篩選',
   'filter.onCount': '（已選 {n} 項）', // after 篩選, for screen readers: how many filters are on (the badge shows {n})
   'filter.count': '{n} 個旅行團', // the bar's count of the tours found
@@ -349,7 +349,7 @@ const zh = {
   // Task 71: the total, at every width: the tours, and the days from the first departure to the last return, rest
   // included (with the summed from-price beside it).
   'chain.totalCount': '{n} 個旅行團 · {d} 日',
-  // The trip on a phone (under 640px; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick): the gold
+  // The trip on a phone (under 1024px; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick): the gold
   // strip's label; 清空 and its accessible name; a tour's × ({tour} is save.tour); the message after a removal or 清空
   // with its undo button; the rest between two tours when it is none (a tour may leave the day after the last one
   // ends, never on that day); the dashed button (its ＋ is drawn apart) with the dates the next tour may leave, or, on

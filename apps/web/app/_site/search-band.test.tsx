@@ -200,23 +200,23 @@ describe('the look', () => {
     expect(text).toContain('.shortcut.selected { padding: 2px 10px; }');
     expect(text).toContain('.clear { margin-left: 8px; font-weight: 700; }');
     expect(text).toContain('.faded { opacity: 0.4; }');
-    expect(media('min-width: 640px')).toMatch(/\.unit, \.whereLabel \{ position: absolute; width: 1px; height: 1px;[^}]*clip-path: inset\(50%\)/);
+    expect(media('min-width: 1024px')).toMatch(/\.unit, \.whereLabel \{ position: absolute; width: 1px; height: 1px;[^}]*clip-path: inset\(50%\)/);
   });
 
   it('the disclosure hides its regions only while closed, and only where the browser can tell (:has): elsewhere all show', () => {
-    expect(media('min-width: 640px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }');
-    expect(media('max-width: 639px')).toContain('.prow:not(:has(details[open])) > .pmoreItem { display: none; }');
+    expect(media('min-width: 1024px')).toContain('.shortcutList:not(:has(details[open])) > .moreOnWide { display: none; }');
+    expect(media('max-width: 1023px')).toContain('.prow:not(:has(details[open])) > .pmoreItem { display: none; }');
     expect(css()).toContain('.more[open] .moreClosed, .more:not([open]) .moreOpen { display: none; }');
-    expect(media('max-width: 639px')).toContain('.pmore[open] .moreClosed, .pmore:not([open]) .moreOpen { display: none; }');
+    expect(media('max-width: 1023px')).toContain('.pmore[open] .moreClosed, .pmore:not([open]) .moreOpen { display: none; }');
   });
 
-  it('each width draws only its own parts: the phone layout nowhere from 640px, the wide parts nowhere under it', () => {
-    expect(media('min-width: 640px')).toContain('.phoneOnly { display: none; }');
-    expect(media('max-width: 639px')).toContain('.lede, .wideOnly { display: none; }');
+  it('each width draws only its own parts: the phone layout nowhere from 1024px, the wide parts nowhere under it', () => {
+    expect(media('min-width: 1024px')).toContain('.phoneOnly { display: none; }');
+    expect(media('max-width: 1023px')).toContain('.lede, .wideOnly { display: none; }');
   });
 
   it('phones (task 73, drawings Mobile6Home and Mobile4Results): 20px heading, 13px line, rows 10px apart; boxes 40px, name and count side by side; two, four and three columns (two in English)', () => {
-    const phone = media('max-width: 639px');
+    const phone = media('max-width: 1023px');
     expect(phone).toContain('.inner { padding-top: 12px; padding-bottom: 14px; gap: 10px; }');
     expect(phone).toContain('.heading { font-size: 20px; letter-spacing: 0; line-height: 1.3; }');
     expect(phone).toContain('.line { font-size: 13px; line-height: 1.5; }');

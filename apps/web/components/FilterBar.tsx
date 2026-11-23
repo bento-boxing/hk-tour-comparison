@@ -28,7 +28,7 @@ export interface FilterBarProps {
   show?: { dates?: boolean; exclude?: boolean; operators?: boolean };
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
-  // Phones only (under 640px), for the bar and its filter sheet; a page that does not know one leaves it out.
+  // Phones only (under 1024px), for the bar and its filter sheet; a page that does not know one leaves it out.
   /** The number of tours the page found, shown at the bar's right end. */
   total?: number;
   /** The seasons the sheet offers as one-tap departure windows (lib/filter-sheet.ts sheetSeasons). */
@@ -93,7 +93,7 @@ function priceText(f: TourFilters, t: T): string | null {
  * departure dates, travel dates, length, price, operators (unless turned off), exclusions (only when asked); a box whose filter is set
  * is filled. Then, at the right end of the row, the sort control, set apart by its heavier outline.
  *
- * Under 640px the row is one bar instead (the owner's drawing Mobile6Home), stuck to the top of the window while the
+ * Under 1024px the row is one bar instead (the owner's drawing Mobile6Home), stuck to the top of the window while the
  * list scrolls: 篩選 (with a badge counting the filters that are on: lib/filter-sheet.ts activeFilterCount), the same
  * sort control showing the current order, and the number of tours. 篩選 opens the filter sheet (FilterSheet), which
  * holds every box of the row; the destination stays with the band. Both are drawn at every width and shown by CSS.
@@ -135,7 +135,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
 
   const clearDestination = () => {
     // The pill disappears once the new address renders, so move focus to the next pill now.
-    // (Not the phones' 篩選, unseen on a wide screen; under 640px there is no destination pill.)
+    // (Not the phones' 篩選, unseen on a wide screen; under 1024px there is no destination pill.)
     barRef.current?.querySelector<HTMLElement>(`[aria-haspopup]:not(.${styles.sheetButton})`)?.focus({ preventScroll: true });
     update({ destination: undefined });
   };

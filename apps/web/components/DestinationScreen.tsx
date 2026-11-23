@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Destination, PlacesIndex } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import { formatCount } from '../lib/format';
+import { WIDE_MEDIA } from '../lib/breakpoints';
 import { choosesWholeCountry, offeredCountryGroups, regionChoices } from '../lib/destination-choices';
 import { destinationFromId, destinationId } from '../lib/destinations';
 import { placeName } from '../lib/place-names';
@@ -86,9 +87,9 @@ export function DestinationScreen({ places, t, value, onSelect, screen, placehol
       pending.current = null;
       if (next) selectRef.current(next.dest);
     };
-    // From 640px the box is not drawn, and the screen is not opened (nor left open, unseen, over a page it makes inert:
+    // From 1024px the box is not drawn, and the screen is not opened (nor left open, unseen, over a page it makes inert:
     // a phone turned sideways closes it).
-    const wide = window.matchMedia?.('(min-width: 640px)');
+    const wide = window.matchMedia?.(WIDE_MEDIA);
     const openFromHistory = () => { if (!dialog.open && !wide?.matches) dialog.showModal(); };
     // Reloaded on the screen's entry: open it again.
     if (onScreenEntry()) openFromHistory();

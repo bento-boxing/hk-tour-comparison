@@ -7,7 +7,7 @@
 }
 
 /* Phones (task 70): the heading, the intro in small print, then SavedConnected's line with the number saved. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .heading { font-size: 24px; }
   .intro { margin-bottom: 4px; font-size: 13px; }
 }

@@ -295,7 +295,7 @@ it('the band\'s shortcuts are boxes (ink, the name bold, its count lighter and s
   expect(rules['']['.shortcutList']).toMatchObject({ display: 'flex', 'flex-wrap': 'wrap' });
   expect(Object.values(rules).flatMap(r => Object.values(r)).some(d => /auto|scroll/.test(d['overflow-x'] ?? d.overflow ?? ''))).toBe(false);
   // On phones (task 73: drawings Mobile6Home, Mobile4Results) the boxes are the phone layout's own (.pbox), 40px tall.
-  expect(rules['(max-width: 639px)']['.pbox']).toMatchObject({ 'min-height': '40px' });
+  expect(rules['(max-width: 1023px)']['.pbox']).toMatchObject({ 'min-height': '40px' });
 });
 
 const languages = {
@@ -497,7 +497,7 @@ it('the line saying what the site does takes a row of its own under the headline
   const css = readFileSync(join(__dirname, 'search-band.module.css'), 'utf8').replace(/\s+/g, ' ');
   expect(css).toContain('.lede { flex-basis: 100%; margin: 0; font-size: 16px; font-weight: 500; }');
   // Phones (task 73): not shown.
-  expect(css).toMatch(/@media \(max-width: 639px\) \{.*\.lede, \.wideOnly \{ display: none; \}/);
+  expect(css).toMatch(/@media \(max-width: 1023px\) \{.*\.lede, \.wideOnly \{ display: none; \}/);
 });
 
 it('the headline\'s numbers are the live ones: one operator, twelve, twenty-one', async () => {

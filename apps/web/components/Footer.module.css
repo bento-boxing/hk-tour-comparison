@@ -9,9 +9,14 @@
 .link { color: inherit; text-decoration: underline; }
 .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .footer { padding: 0 16px 24px; }
   /* English: the three links on one line down to 320px (each is 44px tall for touch). Chinese fits with the usual gap. */
   .links:lang(en) { gap: 0 12px; }
   .links .link { min-height: 44px; }
+}
+
+/* Task 74: in the phone column from 640px (site-frame.module.css .wrap). */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .footer { max-width: 720px; }
 }

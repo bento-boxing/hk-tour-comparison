@@ -267,9 +267,9 @@ describe('the panel scrolls inside the viewport', () => {
 
 describe('the panel never reaches past the viewport sideways', () => {
   const css = () => readFileSync(join(__dirname, 'DestinationPanels.module.css'), 'utf8').replace(/\s+/g, ' ');
-  const phoneBlock = () => /@media \(max-width: 639px\) \{(.*)\}\s*$/.exec(css())?.[1] ?? '';
+  const phoneBlock = () => /@media \(max-width: 1023px\) \{(.*)\}\s*$/.exec(css())?.[1] ?? '';
 
-  it('from 640 px, beside the search box, it is right-aligned under its button and opens leftwards', () => {
+  it('from 1024 px, beside the search box, it is right-aligned under its button and opens leftwards', () => {
     expect(css()).toMatch(/^[^@]*\.panels \{ position: relative; \}/);
     const panel = /^[^@]*\.panel \{([^}]*)\}/.exec(css())?.[1] ?? '';
     expect(panel).toContain('right: 0;');
@@ -277,7 +277,7 @@ describe('the panel never reaches past the viewport sideways', () => {
     expect(panel).toContain('width: 480px;');
   });
 
-  it('below 640 px it hangs off the left edge of the search row, as wide as the screen allows', () => {
+  it('below 1024 px it hangs off the left edge of the search row, as wide as the screen allows', () => {
     const block = phoneBlock();
     expect(block).toContain('.panels { position: static; }');
     expect(block).toMatch(/\.panel \{ left: 0; right: auto; \}/);

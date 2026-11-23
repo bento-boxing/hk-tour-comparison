@@ -16,7 +16,7 @@
 .short { display: none; }
 
 /* Phones: 繁 / 简 / EN, 30px wide each (44px tall), beside the name on the header's first row. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .group { column-gap: 0; }
   .option { min-width: 30px; padding: 0 4px; }
   .long { display: none; }

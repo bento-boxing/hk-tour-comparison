@@ -16,7 +16,7 @@
 .where { display: none; color: var(--text-muted); }
 
 /* Phones: ‹ 上一頁 · 第 3 / 89 頁 · 下一頁 ›, on one line from 320px. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .pager { width: 100%; justify-content: space-between; flex-wrap: nowrap; }
   .numbers { display: none; }
   .where { display: inline; white-space: nowrap; }

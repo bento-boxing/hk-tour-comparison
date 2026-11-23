@@ -29,7 +29,7 @@
 .allTours { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .allTours:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .notes { gap: 8px; }
   .notOfficial { font-size: 14px; }
   .official { font-size: 15px; padding: 6px 14px; }

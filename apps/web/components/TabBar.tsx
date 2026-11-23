@@ -52,7 +52,7 @@ const ICONS: Record<Tab, string> = {
 };
 
 /**
- * The bottom bar on phones (under 640px; the owner's drawings Mobile6Home to Mobile21Saved): fixed to the window's
+ * The bottom bar on phones (under 1024px; the owner's drawings Mobile6Home to Mobile21Saved): fixed to the window's
  * foot, 56px plus the device's bottom safe area: 搜尋, 連續行程 and 已收藏, each an icon over its name, the current one
  * marked (a gold top edge, the header's text colour, bold) with aria-current="page". Real links (SiteLink), so it
  * works without JavaScript.
@@ -66,7 +66,7 @@ const ICONS: Record<Tab, string> = {
  * focus moves into it. One passive scroll listener, read at most once a frame; the slide is a transform (no layout),
  * instant with reduced motion. With JavaScript off it simply stays.
  *
- * A spacer of the bar's height ends the page, so nothing ends up behind the bar, the footer included. From 640px,
+ * A spacer of the bar's height ends the page, so nothing ends up behind the bar, the footer included. From 1024px,
  * and on a phone turned sideways with a short screen (landscape, at most 500px tall: the header shows the page links
  * there instead), neither is drawn.
  */

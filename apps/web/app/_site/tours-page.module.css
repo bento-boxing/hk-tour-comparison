@@ -106,7 +106,7 @@
  * of the grid's font, so they hold at any text size) put such a cell back in its column there. A browser without
  * container queries keeps every .long cell on a whole row.
  */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .page { --col-region: 8.143em; --col-plain: 7.685em; }
   .page:lang(en) { --col-region: 10.571em; --col-plain: 7.789em; }
   .heading { font-size: 24px; }

@@ -39,6 +39,8 @@
   /* Focus rings (on the band they use --on-gold instead: see search-band.module.css). */
   --focus: #14213d;
   --shadow: rgba(0, 0, 0, 0.14);
+  /* Task 74: the page behind a sheet shown as a panel (640px up to the wide layout): dimmed. */
+  --scrim: rgba(20, 33, 61, 0.55);
   --price-down: #1f794d; --price-up: #a8432a;
   /*
    * Rows opened in this tab (TourCard): a tint for those opened before (a light ink in light; in dark a neutral
@@ -79,6 +81,7 @@
   --band-field-bg: #fffdf6; --band-field-muted: #5f605a;
   --focus: #ecebe6;
   --shadow: rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.6);
   --price-down: #5cc28f; --price-up: #f08a6c;
   --viewed-bg: #383934; --latest-bg: #3a3220;
   --saved-bg: #54441c; --saved-line: #f0b429; --saved-hover: #64511f; --saved-star: #f0b429;
@@ -100,6 +103,7 @@
     --band-field-bg: #fffdf6; --band-field-muted: #5f605a;
     --focus: #ecebe6;
     --shadow: rgba(0, 0, 0, 0.45);
+    --scrim: rgba(0, 0, 0, 0.6);
     --price-down: #5cc28f; --price-up: #f08a6c;
     --viewed-bg: #383934; --latest-bg: #3a3220;
     --saved-bg: #54441c; --saved-line: #f0b429; --saved-hover: #64511f; --saved-star: #f0b429;
@@ -114,9 +118,9 @@ body { background: var(--page); color: var(--ink); font-family: var(--font); mar
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Phones: the bottom bar (components/TabBar) is fixed over the window's foot, so whatever is scrolled into view stops above it. */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   html { scroll-padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
 }
-@media (max-width: 639px) and (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 1023px) and (orientation: landscape) and (max-height: 500px) {
   html { scroll-padding-bottom: 0; }
 }

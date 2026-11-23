@@ -5,6 +5,7 @@ import { isIsoDate, type IsoDate, type ScrapedDeparture } from '@hktours/core';
 import type { T } from '../lib/i18n';
 import { usePopoverDismiss } from '../lib/use-popover-dismiss';
 import { formatPrice } from '../lib/format';
+import { PHONE_MEDIA } from '../lib/breakpoints';
 import { departureDateText } from '../lib/card-text';
 import { PriceWithFrom } from './PriceWithFrom';
 import styles from './DeparturePicker.module.css';
@@ -44,8 +45,8 @@ export function DeparturePicker({
   useEffect(() => {
     // On a phone a list opened near the window's foot is scrolled into view whole first (the bottom bar, which would
     // cover it, slides away while any list is open: data-departure-picker, components/TabBar.module.css). Not from
-    // 640px, where nothing changes.
-    if (window.matchMedia?.('(max-width: 639px)').matches) rootRef.current?.scrollIntoView?.({ block: 'nearest' });
+    // 1024px, where nothing changes.
+    if (window.matchMedia?.(PHONE_MEDIA).matches) rootRef.current?.scrollIntoView?.({ block: 'nearest' });
     (firstRef.current ?? closeRef.current)?.focus();
   }, []);
 

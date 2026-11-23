@@ -161,7 +161,7 @@ it('without onPick or a link: the dates as text; opened from the left (placement
   expect(screen.getByRole('dialog').className).toMatch(/start/);
 });
 
-it('on a phone it is scrolled fully into view as it opens; not from 640px', () => {
+it('on a phone it is scrolled fully into view as it opens; not from 1024px', () => {
   const scroll = vi.fn();
   Element.prototype.scrollIntoView = scroll;
   try {
@@ -169,7 +169,7 @@ it('on a phone it is scrolled fully into view as it opens; not from 640px', () =
       scroll.mockClear();
       window.matchMedia = vi.fn().mockReturnValue({ matches: phone }) as unknown as typeof window.matchMedia;
       const { unmount } = renderPicker();
-      expect(window.matchMedia).toHaveBeenCalledWith('(max-width: 639px)');
+      expect(window.matchMedia).toHaveBeenCalledWith('(max-width: 1023px)');
       expect(scroll).toHaveBeenCalledTimes(calls);
       if (calls) {
         expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });

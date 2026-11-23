@@ -323,10 +323,10 @@ describe('on a phone (task 70)', () => {
     render(<Page initial={savedHref(['egl:GONE1', 'jetour:THB', 'egl:KIX5'])} />);
     expect(line()).toHaveTextContent(/^3 個$/);
     const css = readFileSync(join(__dirname, 'SavedConnected.module.css'), 'utf8').replace(/\s+/g, ' ');
-    expect(css).toMatch(/\.phoneLine \{ display: none; \} @media \(max-width: 639px\) \{ \.phoneLine \{ display: block;/);
+    expect(css).toMatch(/\.phoneLine \{ display: none; \} @media \(max-width: 1023px\) \{ \.phoneLine \{ display: block;/);
     // The intro stays on a phone (nothing hides it), smaller.
     const page = readFileSync(join(__dirname, '../app/_site/saved-page.module.css'), 'utf8').replace(/\s+/g, ' ');
-    expect(page).toMatch(/@media \(max-width: 639px\) \{ \.heading \{ font-size: 24px; \} \.intro \{ margin-bottom: 4px; font-size: 13px; \} \}/);
+    expect(page).toMatch(/@media \(max-width: 1023px\) \{ \.heading \{ font-size: 24px; \} \.intro \{ margin-bottom: 4px; font-size: 13px; \} \}/);
     expect(page).not.toMatch(/\.intro \{[^}]*display: none/);
   });
 

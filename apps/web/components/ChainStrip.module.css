@@ -44,4 +44,4 @@
 .remove:hover { text-decoration-thickness: 2px; }
 .remove:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* Not drawn on phones (under 640px): the trip page shows components/TripPhone there instead (task 71). */
+/* Not drawn on phones (under 1024px): the trip page shows components/TripPhone there instead (task 71). */

@@ -209,10 +209,10 @@ it('the look (drawing D1): no boxes; ink links underlined only under the pointer
   expect(text).toMatch(/\.countryLink:focus-visible, \.regionLink:focus-visible, \.jumpLink:focus-visible \{ outline: 2px solid var\(--focus\); outline-offset: 2px; \}/);
   // On phones a country without regions: its count close under its name, more room between rows, and the ring on the
   // name's line box (no offset) so it stays clear of the count.
-  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry \{[^}]*row-gap: 2px; padding: 0\.32em 0; \}/);
-  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry > \.countryLink:focus-visible \{ outline-offset: 0; \}/);
+  expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.plainCountry \{[^}]*row-gap: 2px; padding: 0\.32em 0; \}/);
+  expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.plainCountry > \.countryLink:focus-visible \{ outline-offset: 0; \}/);
   // The ring's side room: wider by 3px each side, pulled back by the same, so the name does not move.
-  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.plainCountry > \.countryLink \{ padding: 0 3px; margin: 0 -3px; \}/);
+  expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.plainCountry > \.countryLink \{ padding: 0 3px; margin: 0 -3px; \}/);
   expect(text).toMatch(/\.count, \.regionCount \{[^}]*color: var\(--text-muted\);[^}]*font-variant-numeric: tabular-nums;/);
   // No word is ever broken inside itself (lib/word-breaks.test.ts): names stay whole.
   expect(text).not.toMatch(/overflow-wrap|word-break/);
@@ -236,8 +236,8 @@ it('the columns: the same everywhere on the page for each kind, in ems of each g
 });
 
 it('on phones a cell whose name and count need more than its column takes the whole row (.long), in its place, unless a query lets it in', () => {
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{.* \.long \{ grid-column: 1 \/ -1; \} \}/);
-  expect(css()).toMatch(/@media \(max-width: 639px\) \{.* \.regions, \.plain \{ container-type: inline-size; \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{.* \.long \{ grid-column: 1 \/ -1; \} \}/);
+  expect(css()).toMatch(/@media \(max-width: 1023px\) \{.* \.regions, \.plain \{ container-type: inline-size; \}/);
 });
 
 it('marks a cell .long, in every language, only where its name and count need more than its phone column', async () => {
@@ -288,8 +288,8 @@ it('a jump moves the keyboard to the section: each section can take focus (not b
 it('touch targets: jump links 32px tall on wide screens and 44px on phones, as every link of the directory there', () => {
   const text = css();
   expect(text).toMatch(/\.jumpLink \{[^}]*min-height: 32px/);
-  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.jumpLink \{ min-height: 44px; \}/);
-  expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.countryLine, \.region, \.plainCountry, \.top > \.browseLine \{ min-height: 44px; \}/);
+  expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.jumpLink \{ min-height: 44px; \}/);
+  expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.countryLine, \.region, \.plainCountry, \.top > \.browseLine \{ min-height: 44px; \}/);
 });
 
 it.each([
@@ -402,6 +402,6 @@ describe('the row of season pages', () => {
   it('the row sits quietly: the regions\' links and muted counts, side by side, 44px tall on phones', () => {
     const text = css();
     expect(text).toMatch(/\.seasons \{ display: flex; flex-wrap: wrap;[^}]*font-size: 15px; \}/);
-    expect(text).toMatch(/@media \(max-width: 639px\) \{.*\.season \{ min-height: 44px; \}/);
+    expect(text).toMatch(/@media \(max-width: 1023px\) \{.*\.season \{ min-height: 44px; \}/);
   });
 });

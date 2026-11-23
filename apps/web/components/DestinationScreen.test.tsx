@@ -205,7 +205,7 @@ it('in English: the names and the screen\'s words', async () => {
   expect(within(d).getByRole('button', { name: 'Close' })).toBeInTheDocument();
 });
 
-it('from 640px it is not opened from the history, and a window grown to 640px (a phone turned sideways) closes it', async () => {
+it('from 1024px it is not opened from the history, and a window grown to 1024px (a phone turned sideways) closes it', async () => {
   let listener: (() => void) | undefined;
   const query = { matches: false, addEventListener: (_: string, l: () => void) => { listener = l; }, removeEventListener: () => {} };
   window.matchMedia = vi.fn(() => query) as unknown as typeof window.matchMedia;

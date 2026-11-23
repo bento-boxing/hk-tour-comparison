@@ -1,12 +1,12 @@
 /*
  * The trip page on a phone (task 71; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick; the exact
- * sizes are boards_m16.py's). Nothing here is drawn from 640px: the wide page keeps its strip.
+ * sizes are boards_m16.py's). Nothing here is drawn from 1024px: the wide page keeps its strip.
  * The gold strips and the choosing screen's top run through the page column's side padding (16px; 12px under 360px:
  * app/_site/site-frame.module.css), to the window's edges.
  */
 .trip, .pick, .clear { display: none; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .trip, .pick { display: block; }
   .clear { display: inline-flex; }
 }

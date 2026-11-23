@@ -41,5 +41,5 @@ it('no stylesheet lets a word break: no overflow-wrap, word-wrap, word-break or 
   expect(found.filter(f => ALLOWED.includes(f))).toEqual(ALLOWED);
   const band = readFileSync(join(WEB, 'app/_site/search-band.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
   // Task 73: the phone boxes are their own markup (.pname); the wide boxes' names never break.
-  expect(band).toMatch(/@media \(max-width: 639px\) \{[^@]*\.pname \{[^}]*hyphens: auto; overflow-wrap: anywhere; [^}]*\}/);
+  expect(band).toMatch(/@media \(max-width: 1023px\) \{[^@]*\.pname \{[^}]*hyphens: auto; overflow-wrap: anywhere; [^}]*\}/);
 });

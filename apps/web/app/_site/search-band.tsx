@@ -150,7 +150,7 @@ function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
  * The rows are navigation landmarks, each named by its label (row 1's visually hidden). A chosen country with more
  * regions than shown ends row 1 with a disclosure (native <details>, closed on every load) that shows the others in place.
  *
- * Phones (task 73: under 640px the wide search row and rows are not drawn, nor the home page's sentence): a compact
+ * Phones (task 73: under 1024px the wide search row and rows are not drawn, nor the home page's sentence): a compact
  * band: the heading over its line, the search box that opens the full-screen search (DestinationScreen; without
  * JavaScript a link to the destinations directory), then the same boxes in rows of their own (PhoneRows). An operator's
  * page has no rows; its search screen gets the popular destinations without counts (`screen`).

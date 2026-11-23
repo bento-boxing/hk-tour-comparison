@@ -32,9 +32,9 @@ export interface TourCardProps {
   onAdd?: (departure: IsoDate) => void;
   footNote?: string;   // shown under the region, e.g. '休息 1–2 日後出發' on the chain page
   /**
-   * The page's own action, the lower of the card's two buttons on a phone (under 640px): 'save' (收藏, the default:
+   * The page's own action, the lower of the card's two buttons on a phone (under 1024px): 'save' (收藏, the default:
    * the search pages and the saved page) or 'add' (＋ 加入, which needs onAdd: the trip page's list of tours that can
-   * come next). On a phone the other is not shown; from 640px both are, as before.
+   * come next). On a phone the other is not shown; from 1024px both are, as before.
    */
   phoneAction?: 'save' | 'add';
 }
@@ -159,7 +159,7 @@ function SaveButton({ tourKey, tour, t }: { tourKey: string; tour: string; t: T 
  * three by two | the lowest price with its change | the gold button to the operator's site over 加入行程 and 收藏, two
  * equal buttons side by side (each as wide as the column allows, 加入行程 never narrower than its words). No tour code
  * and no tour name. On an English page's wide screen (the owner's drawing E1) the same, in six columns: the region
- * sits above the route, smaller and muted, and each 'place →' is one unit. From 640px a two-column block. On a phone
+ * sits above the route, smaller and muted, and each 'place →' is one unit. From 1024px a two-column block. On a phone
  * (task 70, the owner's drawings Mobile6Home and Mobile18Hard) a card: line 1 the operator, the days, the region and
  * the price; under it the route cut at two lines (全部 N 站 shows the rest), the dates that fit one line with +N (the
  * list of all of them), and the notes; at the right the gold button over the page's own action (收藏, or ＋ 加入 on the
@@ -270,7 +270,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
     >
       {/*
         On a phone, line 1 of the card: the operator, the days and the region in one box that may wrap (the days go under
-        the operator when the line is too short for both beside the price). From 640px it is no box at all (display:
+        the operator when the line is too short for both beside the price). From 1024px it is no box at all (display:
         contents): its three cells are the row's own, as before.
       */}
       <div className={styles.head}>
@@ -328,7 +328,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
           On a phone the route is cut at two lines (CSS); under a cut one this says how many stops there are and shows
           them all in place. Drawn only when the route is cut (CSS alone, so nothing moves when the page's scripts
           start); once they run, it is also taken out of the tab order and the page's text where it is not
-          (useRouteCut). A native disclosure: it works without JavaScript. Not shown from 640px.
+          (useRouteCut). A native disclosure: it works without JavaScript. Not shown from 1024px.
         */}
         {route.length > 1 && (
           <details className={styles.allStops} hidden={routeCut === false}>
@@ -395,7 +395,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
             {/*
               On a phone: only the dates that fit one line, then +N for the rest, a button that opens the list of all
               of them. Which dates fit is the CSS's (container queries on the cell's width): one +N follows each date
-              that has more after it, and the CSS shows the one after the last date drawn. Not shown from 640px.
+              that has more after it, and the CSS shows the one after the last date drawn. Not shown from 1024px.
             */}
             {shown.map((_, i) => {
               const rest = departures.length - (i + 1);
@@ -437,7 +437,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
           />
         )}
         {/*
-          On a phone the notes come here, under the dates, one small line each (from 640px each is in its own place
+          On a phone the notes come here, under the dates, one small line each (from 1024px each is in its own place
           instead; only one copy is shown at any width): where the tour starts and ends, old data, a price change, the
           trip page's rest.
         */}
@@ -466,7 +466,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
             aria-label={t('card.linkLabel', { operator: operatorText, route: route.join(t('dest.listSeparator')), length, price })}
             aria-describedby={describedBy || undefined}
           >
-            {/* The words: these from 640px; on a phone the short 網站 ↗ (the name stays the same). */}
+            {/* The words: these from 1024px; on a phone the short 網站 ↗ (the name stays the same). */}
             <span className={styles.wideText}>{t(openedState ? 'row.again' : 'row.goTo')}</span>
             <span className={styles.phoneText}>{t('card.site')}</span>
           </a>

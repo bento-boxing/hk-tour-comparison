@@ -257,7 +257,7 @@ it('the remembered trip itself, with tours the server dropped, is pruned; with a
   expect(window.localStorage.getItem(TRIP_KEY)).toBeNull();
 });
 
-it('from 640px too: the strip\'s remove-last and rest fields are the visitor\'s own changes', async () => {
+it('from 1024px too: the strip\'s remove-last and rest fields are the visitor\'s own changes', async () => {
   const user = userEvent.setup();
   remember(THREE.slice(0, 2));
   const two = await renderPage(pageFor(THREE.slice(0, 2)));
@@ -346,7 +346,7 @@ it('the first tour: any tour that leaves, no total, no rest notes; adding it sta
   expect(document.querySelector('[data-total]')).toBeNull();
   expect(screen.queryByRole('button', { name: /^休息/ })).toBeNull();
   expect(screen.queryByText(/後出發/)).toBeNull();
-  // The list is the phone's only: from 640px an empty trip shows its message, as before.
+  // The list is the phone's only: from 1024px an empty trip shows its message, as before.
   expect(screen.getByRole('region', { name: '選擇第 1 個旅行團' })).toHaveClass(styles.phoneOnly);
   const tpe = screen.getAllByRole('row').find(row => row.textContent?.includes('大航假期'))!;
   await user.click(within(tpe).getByRole('button', { name: '加入行程 +' }));
@@ -364,9 +364,9 @@ it.each([
   expect(steps().at(-1)).toHaveTextContent(add);
 });
 
-it('on a phone each screen shows only its own parts; from 640px the page is as before', () => {
+it('on a phone each screen shows only its own parts; from 1024px the page is as before', () => {
   const css = readFileSync(join(__dirname, 'chain-page.module.css'), 'utf8').replace(/\s+/g, ' ');
-  const phone = css.slice(css.indexOf('@media (max-width: 639px) { .phoneOnly'));
+  const phone = css.slice(css.indexOf('@media (max-width: 1023px) { .phoneOnly'));
   expect(phone).toMatch(/\.wideOnly \{ display: none; \}/);
   expect(phone).toMatch(/\.view\[data-view='trip'\] \.next \{ display: none; \}/);
   const trip = readFileSync(join(__dirname, '../../components/TripPhone.module.css'), 'utf8').replace(/\s+/g, ' ');
@@ -374,7 +374,7 @@ it('on a phone each screen shows only its own parts; from 640px the page is as b
 });
 
 // Task 73: on the choosing screen a phone has the search box that opens the full-screen search (the wide search box and
-// 按國家選擇 are drawn from 640px only); it builds this page's addresses, as the wide pickers do.
+// 按國家選擇 are drawn from 1024px only); it builds this page's addresses, as the wide pickers do.
 it('the choosing screen\'s phone search box opens the full-screen search; a choice keeps the trip and the screen', async () => {
   const user = userEvent.setup();
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };

@@ -2,10 +2,10 @@
  * One tour as a row: the owner's final row (mock-up RowsB13). --c (the operator colour) is set inline.
  *
  * Three layouts, each placing the same seven cells; no cell paints outside its own track at any width:
- *   below 640px (phones, task 70): a card. Line 1: the operator, the days, the region and the price; under it the
+ *   below 1024px (phones, task 70): a card. Line 1: the operator, the days, the region and the price; under it the
  *     route and the dates that fit one line on the left, and two stacked buttons on the right. Its rules are in one
- *     block (max-width: 639px) over the rules below, which are those of the wider layouts and of every layout.
- *   from 640px: two columns. The facts on the left (operator, days and region, route, dates); the price and the
+ *     block (max-width: 1023px) over the rules below, which are those of the wider layouts and of every layout.
+ *   from 1024px: two columns. The facts on the left (operator, days and region, route, dates); the price and the
  *     buttons in a 210px column on the right.
  *   from 1280px, one aligned row, the same tracks on every row, so each column starts at the same x down the page.
  *     Traditional and Simplified Chinese pages: seven columns, operator | days | region | route (1fr, after a thin
@@ -189,12 +189,12 @@ a.d { cursor: pointer; }
 .save[aria-pressed='true']:hover { background: var(--saved-hover); }
 .save[aria-pressed='true'] .star { fill: var(--saved-star); }
 
-/* The phone card's own parts (task 70): never drawn from 640px. Its line 1 (.head) is no box there either. */
+/* The phone card's own parts (task 70): never drawn from 1024px. Its line 1 (.head) is no box there either. */
 .allStops, .notes, .moreButton, .phoneText { display: none; }
 .head { display: contents; }
 
 /*
- * Below 640px (phones): a card (the owner's drawings Mobile6Home, Mobile18Hard, Mobile19HardEn; mobile_kit.py card).
+ * Below 1024px (phones): a card (the owner's drawings Mobile6Home, Mobile18Hard, Mobile19HardEn; mobile_kit.py card).
  * One skeleton everywhere:
  *   line 1: the operator's tag (never wraps) · the days · the region (one line, cut with …) … the price at the right.
  *     The price never gives way; the region does first, then the days move under the operator, and only an operator
@@ -205,7 +205,7 @@ a.d { cursor: pointer; }
  * Padding 12px all round; the cards 8px apart (Results). The price may be wider than the right column: the track
  * before it (auto) takes the difference, so the left column never depends on the price.
  */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .row {
     grid-template-columns: minmax(0, 1fr) auto 88px;
     grid-template-areas: 'head price price' 'route route actions' 'dates dates actions';
@@ -401,8 +401,8 @@ a.d { cursor: pointer; }
 }
 
 
-/* From 640px: the facts on the left; the price and the buttons stacked in a 210px column on the right. */
-@media (min-width: 640px) {
+/* From 1024px: the facts on the left; the price and the buttons stacked in a 210px column on the right. */
+@media (min-width: 1024px) {
   .row {
     grid-template-columns: max-content minmax(0, 1fr) 210px;
     grid-template-areas: 'tag tag price' 'days region price' 'route route actions' 'dates dates actions';

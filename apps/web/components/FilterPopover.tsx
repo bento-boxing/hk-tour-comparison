@@ -39,7 +39,7 @@ export interface FilterPopoverProps {
   sort?: boolean;
   /**
    * What phones show in place of `label` (the sort control in the phone bar shows '價錢 低→高' or 'Cheapest first',
-   * not '排序：價錢 低→高'). `label` stays the accessible name, hidden from sight under 640px only.
+   * not '排序：價錢 低→高'). `label` stays the accessible name, hidden from sight under 1024px only.
    */
   shortLabel?: string;
   /** Controlled by the filter bar, which keeps at most one popover open. */
@@ -83,7 +83,7 @@ export function FilterPopover({ label, title, on, wide, sort, shortLabel, open, 
       >
         {sort && <SortIcon />}
         {shortLabel ? (
-          // One box, as the bare text was: the row lays it out exactly as before. Under 640px the label is hidden
+          // One box, as the bare text was: the row lays it out exactly as before. Under 1024px the label is hidden
           // from sight and the short text shows instead, drawn by CSS from data-short (not part of the name).
           <span className={styles.pillText}>
             <span className={styles.pillFull}>{label}</span>

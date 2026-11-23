@@ -3,9 +3,9 @@
  * colours, see search-band.module.css) and is as tall as the search box; elsewhere (the chain page) an outlined box.
  * The panel keeps the page's colours. Choices are outlined boxes like the filters; the current one is filled.
  *
- * From 640px the button sits beside the search box, so the panel is right-aligned under it and opens leftwards.
+ * From 1024px the button sits beside the search box, so the panel is right-aligned under it and opens leftwards.
  * The search box (at least 320px, growing to fill the row) puts the button at least ~600px from the page's left
- * edge, so a 480px panel stays on screen. Below 640px see the end of the file.
+ * edge, so a 480px panel stays on screen. Below 1024px see the end of the file.
  */
 .panels { position: relative; }
 
@@ -60,7 +60,7 @@
  * popovers hang off the filter bar. With max-width calc(100vw - 32px) it ends 16px from the right edge.
  * Choices are 44px tall for touch.
  */
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .panels { position: static; }
   .panel { left: 0; right: auto; }
   .chip, .back { min-height: 44px; }
