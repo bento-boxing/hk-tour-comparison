@@ -216,3 +216,38 @@ it('in English: the row\'s label names the country', () => {
   expect(bandRows(makeT('en'), stateOf({ dest: 'japan' }), site, seasons).where.label).toBe('Regions of Japan');
   expect(bandRows(makeT('zh-Hans'), stateOf({ dest: 'japan' }), site, seasons).where.label).toBe('日本地区');
 });
+
+// Task 77: the phone band's chips, from the same addresses as the boxes.
+describe('the chips', () => {
+  const chipsOf = (query: Record<string, string>) => summary(rowsOf(query).chips).map(([key, , path, chosen]) => [key, path, chosen]);
+
+  it('nothing chosen: none', () => {
+    expect(rowsOf({}).chips).toEqual([]);
+  });
+
+  it('a country: its chip, to no destination (the other filters kept)', () => {
+    expect(chipsOf({ dest: 'japan', dmin: '5' })).toEqual([['japan', '/?dmin=5', true]]);
+  });
+
+  it('a region: the country\'s chip (to no destination) then the region\'s (to its country), by its own name', () => {
+    const { chips } = rowsOf({ dest: 'japan-kansai' });
+    expect(summary(chips).map(([key, , path]) => [key, path])).toEqual([['japan', '/'], ['japan-kansai', '/tours/japan']]);
+    expect(chips.map(c => c.name)).toEqual(['日本', '關西']);
+  });
+
+  it('a region, a country and a season: three chips; ✕ on either destination keeps the season, on the season keeps the destination', () => {
+    expect(chipsOf({ dest: 'japan-kansai', from: christmas.from, to: christmas.to })).toEqual([
+      ['japan', '/seasons/christmas', true], ['japan-kansai', '/seasons/christmas?dest=japan', true], ['christmas', '/tours/japan-kansai', true],
+    ]);
+  });
+
+  it('a region the rows do not list (an area region): still the country and the region, the region\'s ✕ to its country', () => {
+    const { chips } = rowsOf({ dest: 'china-area-east' });
+    expect(summary(chips).map(([key, , path]) => [key, path])).toEqual([['china', '/'], ['china-area-east', '/tours/china']]);
+    expect(chips[1].name).not.toContain('中國');
+  });
+
+  it('a season alone: its chip, to home', () => {
+    expect(chipsOf({ from: christmas.from, to: christmas.to })).toEqual([['christmas', '/', true]]);
+  });
+});

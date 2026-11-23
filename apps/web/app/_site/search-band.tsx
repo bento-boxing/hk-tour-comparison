@@ -71,33 +71,42 @@ function whereItemClass(box: BandBox): string | undefined {
 }
 
 /**
- * A box on phones (task 73, drawings Mobile6Home and Mobile4Results): one line, 40px tall, its name and count side by
- * side (the count's unit for screen readers only), ✕ after a chosen box's count; a name too long for its column wraps
- * inside the box, the count after it or under it, and the box grows. A link, or faded plain text, as on wide screens.
+ * A box on phones (task 73, drawings Mobile6Home and Mobile4Results): a region or a season not chosen (the chosen
+ * ones are chips: PhoneChip). One line, 40px tall, its name and count side by side (the count's unit for screen
+ * readers only); a name too long for its column wraps inside the box, the count after it or under it, and the box
+ * grows. A link, or faded plain text, as on wide screens.
  */
 function PhoneBox({ t, box, kind }: { t: T; box: BandBox; kind: 'region' | 'season' }) {
-  const className = [styles.pbox, box.chosen ? styles.pchosen : styles[kind === 'region' ? 'pregion' : 'pseason'], box.path === null && styles.faded]
-    .filter(Boolean).join(' ');
-  const text = (
-    <>
-      <span className={styles.pname}>{box.name}</span>{' '}<BoxCount t={t} tours={box.tours} />
-      {box.chosen && <span className={styles.pclear} aria-hidden="true">✕</span>}
-    </>
-  );
+  const className = [styles.pbox, styles[kind === 'region' ? 'pregion' : 'pseason'], box.path === null && styles.faded].filter(Boolean).join(' ');
+  const text = <><span className={styles.pname}>{box.name}</span>{' '}<BoxCount t={t} tours={box.tours} /></>;
   if (box.path === null) return <span className={className}>{text}</span>;
-  const name = box.chosen ? t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) }) : undefined;
-  return <SiteLink className={className} href={localeHref(t.locale, box.path)} aria-label={name}>{text}</SiteLink>;
+  return <SiteLink className={className} href={localeHref(t.locale, box.path)}>{text}</SiteLink>;
+}
+
+/**
+ * A choice on phones (task 77): a chip as wide as its name, white with an ink border and ring, ✕ after the name (the
+ * count is in the heading's line; screen readers hear it in the name, band.selected), 40px tall and 44px to touch.
+ * Pressing it un-chooses it (lib/band-rows.ts chips).
+ */
+function PhoneChip({ t, box }: { t: T; box: BandBox }) {
+  const name = t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) });
+  return (
+    <SiteLink className={styles.pchip} href={localeHref(t.locale, box.path!)} aria-label={name}>
+      <span className={styles.pname}>{box.name}</span>
+      <span className={styles.pclear} aria-hidden="true">✕</span>
+    </SiteLink>
+  );
 }
 
 /**
  * The band's boxes on phones (task 73; the owner's drawings Mobile6Home and Mobile4Results), one row each, from the
- * same rows as wide screens (the same boxes, counts, fading and addresses): first the chosen boxes (the destination,
- * the season: two columns); then, with a country (or one of its regions) chosen, its other regions (four columns:
+ * same rows as wide screens (the same boxes, counts, fading and addresses): first every choice as a chip (task 77: the
+ * country, the region, the season, as wide as their names, wrapping only when they do not fit); then, with a country (or one of its regions) chosen, its other regions (four columns:
  * the first three, and 全部 {n} ▾ to show the rest in place, unless four fit); then, with no season chosen, the seasons
  * (three columns). No other destination boxes: they are on the search screen. English: two columns for each.
  */
 function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
-  const chosen = [...rows.where.boxes.filter(b => b.chosen), ...rows.when.filter(b => b.chosen)];
+  const chosen = rows.chips;
   const regions = rows.where.regions ? rows.where.boxes.slice(1).filter(b => !b.chosen) : [];
   const more = rows.where.moreRegions?.onPhone ? rows.where.moreRegions : null;
   const seasons = rows.when.some(b => b.chosen) ? [] : rows.when;
@@ -105,8 +114,8 @@ function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
   return (
     <div className={`${styles.phoneOnly} ${styles.phoneRows}`}>
       {chosen.length > 0 && (
-        <ul className={`${styles.prow} ${styles.pchosenRow}`} aria-label={t('band.chosen')}>
-          {chosen.map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="region" /></li>)}
+        <ul className={styles.pchips} aria-label={t('band.chosen')}>
+          {chosen.map(box => <li key={box.key}><PhoneChip t={t} box={box} /></li>)}
         </ul>
       )}
       {regions.length > 0 && (

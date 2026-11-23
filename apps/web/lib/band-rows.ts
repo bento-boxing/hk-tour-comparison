@@ -59,6 +59,12 @@ export interface WhereRow {
 export interface BandRows {
   where: WhereRow;
   when: BandBox[];
+  /**
+   * The phone band's chips (task 77): every choice, in this order: the country, the region (a region chosen: both),
+   * the season. Each is chosen (✕): the country's goes to no destination, the region's to its country, the season's
+   * keeps the destination; every other choice stays. The region's and the season's are their row's own chosen boxes.
+   */
+  chips: BandBox[];
   /** The phone search screen's popular destinations and counts, in the same context as row 1 (task 73). */
   screen: ScreenData;
 }
@@ -167,5 +173,18 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
     };
   });
 
-  return { where, when, screen: screenData(siteCounts, scope, places) };
+  // The chips: the country first, chosen, ✕ to no destination (on a country's page, the same as its chosen box); then a
+  // chosen region by its own name, ✕ to its country (in the regions row, its own chosen box); then the season's.
+  const chips: BandBox[] = [];
+  if (chosenPlace && country) {
+    chips.push(box(country, true, choose(undefined)));
+    if (chosenPlace.regionId !== null) {
+      const region = places.region(chosenPlace.regionId);
+      const inRow = where.regions ? where.boxes.find(b => b.chosen) : undefined;
+      chips.push(inRow ?? box(chosenPlace, true, choose(country), { name: region ? placeName(region, t.locale) : chosenPlace.regionId }));
+    }
+  }
+  chips.push(...when.filter(b => b.chosen));
+
+  return { where, when, chips, screen: screenData(siteCounts, scope, places) };
 }
