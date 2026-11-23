@@ -132,6 +132,11 @@ export interface FilterSheetProps {
    * whose addresses carry its own state) the sheet needs JavaScript, as every filter did before.
    */
   clearHref?: string;
+  /**
+   * The departure dates when the page sets them itself (the trip's choosing screen for a later tour: the trip and its
+   * rest setting): the 出發日期 section is this one plain line, with no fields (task 75).
+   */
+  datesNote?: string;
   /** Rendered in the browser: the one-tap choices and the buttons work (without JavaScript they are links or hidden). */
   hydrated: boolean;
   /** The bar's id, where the × goes without JavaScript. */
@@ -183,7 +188,7 @@ export function FilterSheet(props: FilterSheetProps) {
   );
 }
 
-function SheetForm({ state, operators, places, t, today, sections, seasons, fixedDates, clearHref, hydrated, barId, titleId, onDone }:
+function SheetForm({ state, operators, places, t, today, sections, seasons, fixedDates, clearHref, datesNote, hydrated, barId, titleId, onDone }:
   FilterSheetProps & { titleId: string; onDone: (next: SearchState | null) => void }) {
   const [draft, setDraft] = useState<SheetDraft>(() => draftOf(state));
   const set = (patch: Partial<SheetDraft>) => setDraft(current => ({ ...current, ...patch }));
@@ -243,6 +248,11 @@ function SheetForm({ state, operators, places, t, today, sections, seasons, fixe
                 <input className={styles.input} type="date" name={datesFixed ? undefined : name('to')} value={draft.to} onChange={e => set({ to: e.target.value })} />
               </Field>
             </Pair>
+          </Section>
+        )}
+        {!sections.dates && datesNote !== undefined && (
+          <Section id={`${SHEET_ID}-dates`} title={t('filter.dates')}>
+            <p className={styles.note}>{datesNote}</p>
           </Section>
         )}
 
@@ -308,7 +318,7 @@ function SheetForm({ state, operators, places, t, today, sections, seasons, fixe
           </Section>
         )}
 
-        {sections.dates && (
+        {(sections.travel ?? sections.dates) && (
           <Section id={`${SHEET_ID}-travel`} title={t('filter.travel')}>
             <p id={hintId} className={styles.hint}>{t('filter.travelHint')}</p>
             <Pair>
@@ -323,21 +333,29 @@ function SheetForm({ state, operators, places, t, today, sections, seasons, fixe
         )}
 
         {sections.exclude && (
-          <Section id={`${SHEET_ID}-exclude`} title={t('filter.exclude')}>
-            {groupCountries(places.data.countries.filter(c => !HIDDEN_COUNTRY_IDS.includes(c.id))).map(g => (
-              // Grouped by part of the world, as in the destination panel.
-              <div key={g.id} role="group" aria-labelledby={`${groupIdPrefix}-${g.id}`} className={styles.group}>
-                <div id={`${groupIdPrefix}-${g.id}`} className={styles.groupLabel}>{t(`countryGroup.${g.id}`)}</div>
-                <div className={styles.chips}>
-                  {g.countries.map(c => (
-                    <CheckChip key={c.id} name={name('ex')} value={c.id} checked={draft.ex.includes(c.id)} onChange={() => set({ ex: toggle(draft.ex, c.id) })}>
-                      {placeName(c, t.locale)}
-                    </CheckChip>
-                  ))}
+          // One row, 排除國家：無 ▾ (task 75), that opens the countries in place: a native disclosure, closed at each
+          // opening of the sheet, working without JavaScript too. Its count is what the boxes ticked now say.
+          <div role="group" aria-labelledby={`${SHEET_ID}-exclude`} className={styles.section}>
+            <details className={styles.disclosure}>
+              <summary id={`${SHEET_ID}-exclude`} className={styles.summary}>
+                {draft.ex.length === 0 ? t('filter.excludeNone') : t('filter.excludeSome', { n: draft.ex.length })}
+                <span className={styles.summaryMark} aria-hidden="true">▾</span>
+              </summary>
+              {groupCountries(places.data.countries.filter(c => !HIDDEN_COUNTRY_IDS.includes(c.id))).map(g => (
+                // Grouped by part of the world, as in the destination panel.
+                <div key={g.id} role="group" aria-labelledby={`${groupIdPrefix}-${g.id}`} className={styles.group}>
+                  <div id={`${groupIdPrefix}-${g.id}`} className={styles.groupLabel}>{t(`countryGroup.${g.id}`)}</div>
+                  <div className={styles.chips}>
+                    {g.countries.map(c => (
+                      <CheckChip key={c.id} name={name('ex')} value={c.id} checked={draft.ex.includes(c.id)} onChange={() => set({ ex: toggle(draft.ex, c.id) })}>
+                        {placeName(c, t.locale)}
+                      </CheckChip>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </Section>
+              ))}
+            </details>
+          </div>
         )}
       </div>
 

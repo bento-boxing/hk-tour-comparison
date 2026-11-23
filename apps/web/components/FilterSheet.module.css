@@ -43,6 +43,22 @@
 .section { padding: 12px 16px 14px; border-bottom: 1px solid var(--line); }
 .sectionTitle { margin: 0 0 8px; font-size: 14px; font-weight: 900; }
 .hint { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); }
+/* A section the page sets itself (task 75: the trip's later tours' departure dates): one plain line, no fields. */
+.note { margin: 0; font-size: 14px; }
+
+/*
+ * A long list behind one row (task 75: 排除國家：無 ▾): the row is the section's title, 44px to touch; the list opens
+ * under it, in place.
+ */
+.disclosure > .summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin: -6px 0;
+  font-size: 14px; font-weight: 900; list-style: none; cursor: pointer;
+}
+.disclosure > .summary::-webkit-details-marker { display: none; }
+.disclosure > .summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.disclosure[open] > .summary { margin-bottom: 4px; }
+.disclosure[open] .summaryMark { transform: rotate(180deg); }
+.summaryMark { flex: none; color: var(--text-muted); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chips + .pair { margin-top: 10px; }

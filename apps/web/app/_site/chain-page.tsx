@@ -117,8 +117,14 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
             <ChainDestinationPanelsConnected address={address} />
           </div>
           {/* On a phone, the search box that opens the full-screen search (task 73), in place of both. */}
-          <div className={`${styles.phoneSearch} ${styles.phoneOnly}`}><ChainDestinationScreenConnected address={address} /></div>
-          <ChainFilterBarConnected address={address} operators={filterOperators} today={today} />
+          <div className={`${styles.phoneSearch} ${styles.phoneOnly}`}><ChainDestinationScreenConnected address={address} screen={data.screen} /></div>
+          <ChainFilterBarConnected
+            address={address} operators={filterOperators} today={today} seasons={data.seasons ?? []}
+            // Its phone sheet's departure dates (task 75): the first tour's, as on the search page; a later one's, set by the trip.
+            sheetDates={departWindow
+              ? { note: `${t('trip.window', { from: date(departWindow.from), to: date(departWindow.to) })} · ${t('filter.setByTrip')}` }
+              : 'edit'}
+          />
           <ChainResultsConnected
             address={address} lastEndDate={lastLeg?.endDate}
             tours={next.tours} total={next.total} operators={operators} today={today} now={load.now}

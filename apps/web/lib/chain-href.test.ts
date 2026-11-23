@@ -36,9 +36,19 @@ it('chainPageHref writes the chain first, then the filters, sort and page', () =
   expect(chainPageHref({ chain: { legs: [], gap: { min: 1, max: 3 } }, search: { filters: {}, sort: 'price', page: 1 } })).toBe('/chain?gap=1-3');
 });
 
-it('chainPageHref never writes a departure window: the page sets it from the gap', () => {
+it('chainPageHref never writes a departure window once the trip has a tour: the page sets it from the gap', () => {
   const withDates = { ...address, search: { ...address.search, filters: { ...address.search.filters, dateFrom: '2026-12-01', dateTo: '2026-12-31' } } };
   expect(chainPageHref(withDates)).toBe(chainPageHref(address));
+});
+
+it('task 75: a trip with no tour yet keeps the first tour\'s departure window; adding a tour drops it', () => {
+  const empty: ChainAddress = {
+    chain: { legs: [], gap: { min: 1, max: 3 } },
+    search: { filters: { dateFrom: '2026-12-01', dateTo: '2026-12-31', travelFrom: '2027-01-01', travelTo: '2027-01-05' }, sort: 'price', page: 1 },
+    pick: true,
+  };
+  expect(chainPageHref(empty)).toBe('/chain?gap=1-3&pick=1&from=2026-12-01&to=2026-12-31');
+  expect(chainPageHref(withLegAdded(empty, { tourKey: 'egl:KIX5', departure: '2026-12-18' }))).toBe('/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3');
 });
 
 it('chainPageHref never writes a travel window either', () => {

@@ -384,14 +384,17 @@ it('the choosing screen\'s phone search box opens the full-screen search; a choi
     this.dispatchEvent(new Event('close'));
   };
   window.history.replaceState(null, '');
-  await renderPage(pageFor(THREE.slice(0, 1), {}, true));
+  await renderPage(pageFor(THREE.slice(0, 1), { screen: { popular: ['japan', 'korea', 'taiwan'], tours: null } }, true));
   const box = screen.getByRole('button', { name: '輸入國家、地區或城市' });
   expect(box.closest(`.${styles.phoneOnly}`)).not.toBeNull();
   expect(screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.wideOnly}`)).not.toBeNull();
   await user.click(box);
   const dialog = screen.getByRole('dialog', { name: '選擇目的地' });
-  // No popular destinations or counts here: the site's counts are not the tours that fit the trip.
-  expect(within(dialog).queryByRole('region', { name: '熱門目的地' })).toBeNull();
+  // Task 75: the search page's popular destinations, without counts (the site's counts are not the tours that fit the
+  // trip); then 按地區瀏覽.
+  const popular = within(dialog).getByRole('region', { name: '熱門目的地' });
+  expect(within(popular).getAllByRole('button').map(b => b.textContent)).toEqual(['日本', '韓國', '台灣']);
+  expect(within(dialog).getByRole('region', { name: '按地區瀏覽' })).toBeInTheDocument();
   await user.keyboard('大阪{Enter}');
   await act(() => new Promise(r => setTimeout(r, 60)));
   expect(mocks.push).toHaveBeenCalledTimes(1);
@@ -400,4 +403,25 @@ it('the choosing screen\'s phone search box opens the full-screen search; a choi
   expect([href.slice(0, href.indexOf('?')), query.get('legs'), query.get('dest'), query.get('ex'), query.get('pick'), options])
     .toEqual(['/chain', 'egl:KIX5@2026-12-18', 'japan-kansai', 'japan', '1', { scroll: false }]);
   window.history.replaceState(null, '');
+});
+
+// Task 75: the choosing screen's filter sheet is the search page's, with the trip's own dates.
+it.each([
+  ['a later tour: 出發日期 is the trip\'s window, one line', THREE.slice(0, 1), '12/24 – 12/26 出發 · 由行程決定'],
+  ['the first tour: 出發日期 as on the search page', [], null],
+] as const)('the choosing screen\'s sheet, %s', async (_, legs, note) => {
+  const user = userEvent.setup();
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
+  await renderPage(pageFor([...legs], legs.length ? {} : { seasons: [] }, true));
+  await user.click(screen.getByRole('button', { name: /^篩選/ }));
+  const sheet = screen.getByRole('dialog', { name: '篩選' });
+  const dates = within(sheet).getByRole('group', { name: '出發日期' });
+  if (note) {
+    expect(dates).toHaveTextContent(note);
+    expect(dates.querySelector('input')).toBeNull();
+  } else {
+    expect(dates.querySelectorAll('input[type=date]')).toHaveLength(2);
+  }
+  expect(within(sheet).queryByRole('group', { name: '可出行日期' })).toBeNull();
+  expect(within(sheet).getByRole('group', { name: '排除國家：1 個' })).toBeInTheDocument();
 });

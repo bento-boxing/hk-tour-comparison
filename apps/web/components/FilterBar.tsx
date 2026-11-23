@@ -26,6 +26,11 @@ export interface FilterBarProps {
    * operators defaults to true; an operator's page, whose operator is fixed by its path, turns it off.
    */
   show?: { dates?: boolean; exclude?: boolean; operators?: boolean };
+  /**
+   * The phone sheet's departure dates where the row has none (task 75, the trip's choosing screen): 'edit', the first
+   * tour's, as on the search page (no travel window); or a plain line saying the dates the trip sets for a later tour.
+   */
+  sheetDates?: 'edit' | { note: string };
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
   // Phones only (under 1024px), for the bar and its filter sheet; a page that does not know one leaves it out.
@@ -98,11 +103,12 @@ function priceText(f: TourFilters, t: T): string | null {
  * sort control showing the current order, and the number of tours. 篩選 opens the filter sheet (FilterSheet), which
  * holds every box of the row; the destination stays with the band. Both are drawn at every width and shown by CSS.
  */
-export function FilterBar({ state, operators, places, t, onChange, show, today = todayInHongKong(), total, seasons = [], fixedDates = null, hrefFor }: FilterBarProps) {
+export function FilterBar({ state, operators, places, t, onChange, show, sheetDates, today = todayInHongKong(), total, seasons = [], fixedDates = null, hrefFor }: FilterBarProps) {
   const showDates = show?.dates ?? true;
   const showExclude = show?.exclude ?? false;
   const showOperators = show?.operators ?? true;
-  const sections: SheetSections = { dates: showDates, operators: showOperators, exclude: showExclude };
+  const sections: SheetSections = { dates: showDates || sheetDates === 'edit', travel: showDates, operators: showOperators, exclude: showExclude };
+  const datesNote = typeof sheetDates === 'object' ? sheetDates.note : undefined;
   const f = state.filters;
   const barRef = useRef<HTMLDivElement>(null);
   const sheetOpenerRef = useRef<HTMLElement>(null);
@@ -366,7 +372,7 @@ export function FilterBar({ state, operators, places, t, onChange, show, today =
     </div>
     <FilterSheet
       control={sheet} state={state} operators={operators} places={places} t={t} today={today}
-      sections={sections} seasons={seasons} fixedDates={fixedDates} clearHref={clearHref} hydrated={hydrated} barId={BAR_ID}
+      sections={sections} seasons={seasons} fixedDates={fixedDates} clearHref={clearHref} datesNote={datesNote} hydrated={hydrated} barId={BAR_ID}
     />
     </>
   );

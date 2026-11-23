@@ -36,12 +36,14 @@ export interface ChainAddress { chain: ChainState; search: SearchState; pick?: b
 
 /**
  * `/chain?legs=…&gap=…&pick=1&dest=…&ex=…&…&sort=…&page=…` (`pick=1` only on the choosing screen). Never
- * `from`/`to` or `tfrom`/`tto`: the page sets the window from the gap.
+ * `tfrom`/`tto`, and `from`/`to` only for a trip with no tour yet (task 75: the first tour's departure window, chosen
+ * in the filter sheet); once a tour is in, the page sets the window from the gap, so adding one drops them.
  */
 export function chainPageHref(address: ChainAddress): string {
   const query = chainQuery(address.chain);
   if (address.pick) query.set('pick', '1');
-  const { dateFrom: _from, dateTo: _to, travelFrom: _tfrom, travelTo: _tto, ...filters } = address.search.filters;
+  const { dateFrom, dateTo, travelFrom: _tfrom, travelTo: _tto, ...rest } = address.search.filters;
+  const filters = address.chain.legs.length === 0 ? { ...rest, dateFrom, dateTo } : rest;
   for (const [name, value] of buildSearchQuery({ ...address.search, filters })) query.set(name, value);
   return `/chain?${query}`;
 }

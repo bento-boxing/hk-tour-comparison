@@ -246,6 +246,11 @@ const zh = {
   'filter.label': '{name}：{value}', // a pill: '日數：4–6日'
   'filter.pricePlus': '{min}以上', // {min} is a formatted price: 'HK$5,000以上'
   'filter.exclude': '排除',
+  // Task 75: the filter sheet's 排除 list behind one row (none / how many ticked), and the trip's later tours' fixed
+  // departure dates (after trip.window: '12/24 – 12/26 出發 · 由行程決定').
+  'filter.excludeNone': '排除國家：無',
+  'filter.excludeSome': '排除國家：{n} 個',
+  'filter.setByTrip': '由行程決定',
   'filter.none': '無', // '排除：無'
   'filter.from': '由',
   'filter.to': '至',

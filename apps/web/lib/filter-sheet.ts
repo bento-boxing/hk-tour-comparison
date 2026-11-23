@@ -10,8 +10,15 @@ import { buildSearchQuery, parseSearchParams, withFilters, type SearchState } fr
 // the next search state. Every value goes through the address rules (parseSearchParams), as the wide pills' do, so
 // the sheet never sets a filter a reload would drop.
 
-/** Which of the sheet's sections a page has: the same choices as the wide row (FilterBar's `show`). */
-export interface SheetSections { dates: boolean; operators: boolean; exclude: boolean }
+/**
+ * Which of the sheet's sections a page has: the same choices as the wide row (FilterBar's `show`). `dates` is the
+ * departure window; `travel` the travel window, the same as `dates` unless given (task 75: the trip's choosing screen
+ * edits the first tour's departure window, and has no travel window).
+ */
+export interface SheetSections { dates: boolean; travel?: boolean; operators: boolean; exclude: boolean }
+
+/** Whether the sheet holds the travel window. */
+const hasTravel = (sections: SheetSections) => sections.travel ?? sections.dates;
 
 /**
  * The sheet's fields, as typed (strings, '' for empty) and ticked: the departure window (from, to), the travel window
@@ -54,10 +61,8 @@ export function stateFromDraft(state: SearchState, draft: SheetDraft, sections: 
   const changes: Record<string, string> = {
     dmin: trim(draft.dmin), dmax: trim(draft.dmax), pmin: trim(draft.pmin), pmax: trim(draft.pmax),
   };
-  if (sections.dates) {
-    [changes.from, changes.to] = inOrder(trim(draft.from), trim(draft.to));
-    [changes.tfrom, changes.tto] = inOrder(trim(draft.tfrom), trim(draft.tto));
-  }
+  if (sections.dates) [changes.from, changes.to] = inOrder(trim(draft.from), trim(draft.to));
+  if (hasTravel(sections)) [changes.tfrom, changes.tto] = inOrder(trim(draft.tfrom), trim(draft.tto));
   if (sections.operators) changes.op = OPERATOR_IDS.filter(id => draft.op.includes(id)).join(',');
   if (sections.exclude) changes.ex = draft.ex.join(',');
   const merged = Object.fromEntries(Object.entries({ ...current, ...changes }).filter(([, v]) => v !== ''));
@@ -76,9 +81,8 @@ export function sameSearch(a: SearchState, b: SearchState): boolean {
  */
 export function clearedState(state: SearchState, sections: SheetSections, fixedDates?: DateWindow | null): SearchState {
   const patch: Partial<TourFilters> = { daysMin: undefined, daysMax: undefined, priceMin: undefined, priceMax: undefined };
-  if (sections.dates) {
-    Object.assign(patch, { dateFrom: fixedDates?.from, dateTo: fixedDates?.to, travelFrom: undefined, travelTo: undefined });
-  }
+  if (sections.dates) Object.assign(patch, { dateFrom: fixedDates?.from, dateTo: fixedDates?.to });
+  if (hasTravel(sections)) Object.assign(patch, { travelFrom: undefined, travelTo: undefined });
   if (sections.operators) patch.operators = undefined;
   if (sections.exclude) patch.excludeCountryIds = undefined;
   return withFilters(state, patch);
@@ -94,7 +98,7 @@ export function activeFilterCount(state: SearchState, sections: SheetSections, f
   const fixed = fixedDates != null && f.dateFrom === fixedDates.from && f.dateTo === fixedDates.to;
   return [
     sections.dates && !fixed && (f.dateFrom !== undefined || f.dateTo !== undefined),
-    sections.dates && (f.travelFrom !== undefined || f.travelTo !== undefined),
+    hasTravel(sections) && (f.travelFrom !== undefined || f.travelTo !== undefined),
     f.daysMin !== undefined || f.daysMax !== undefined,
     f.priceMin !== undefined || f.priceMax !== undefined,
     sections.operators && (f.operators?.length ?? 0) > 0,

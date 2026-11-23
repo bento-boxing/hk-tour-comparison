@@ -210,13 +210,18 @@ it('on a season\'s page: its season is the chosen one-tap, 清除全部 keeps it
   expect(seasonSearchHref(christmas, onChange.mock.calls[0]![0])).toBe('/seasons/christmas');
 });
 
-it('the trip page\'s sheet: no dates, the countries left out, grouped by part of the world', async () => {
+it('the trip page\'s sheet: no dates, the countries left out behind one row (排除國家), grouped by part of the world', async () => {
   renderBar({ filters: { excludeCountryIds: ['japan'] }, sort: 'price', page: 1 }, { show: { dates: false, exclude: true }, hrefFor: undefined, total: undefined, seasons: [] });
   expect(opener()).toHaveAccessibleName('篩選（已選 1 項）');
   await user.click(opener());
   expect(within(sheet()).queryByRole('heading', { name: '出發日期' })).not.toBeInTheDocument();
   expect(within(sheet()).queryByRole('heading', { name: '可出行日期' })).not.toBeInTheDocument();
-  const exclude = within(sheet()).getByRole('group', { name: '排除' });
+  // Task 75: one row, closed, saying how many are ticked; it opens the list in place (a native disclosure).
+  const exclude = within(sheet()).getByRole('group', { name: '排除國家：1 個' });
+  const details = exclude.querySelector('details')!;
+  expect(details).not.toHaveAttribute('open');
+  await user.click(details.querySelector('summary')!);
+  expect(details).toHaveAttribute('open');
   expect(within(exclude).getByRole('group', { name: '日本及韓國' })).toBeInTheDocument();
   await user.click(within(exclude).getByRole('checkbox', { name: '日本' }));
   await user.click(within(exclude).getByRole('checkbox', { name: '韓國' }));
@@ -270,4 +275,31 @@ it('the phone bar and the sheet are not drawn from 1024px; under it the bar stic
   // Without JavaScript, in the page under the bar (never over the language notice: nothing is above it).
   expect(sheetCss).toContain('.sheet:target:not([data-js]) { position: static; display: flex;');
   expect(sheetCss).not.toMatch(/z-index/);
+});
+
+// Task 75: the trip's choosing screen's sheet has the search page's sections, in the same order.
+it('the trip\'s choosing screen, first tour: departure dates as on the search page (shortcuts and fields), no travel window, 排除 last', async () => {
+  renderBar({ filters: {}, sort: 'price', page: 1 }, { show: { dates: false, exclude: true }, sheetDates: 'edit', hrefFor: undefined, total: undefined });
+  await user.click(opener());
+  const titles = within(sheet()).getAllByRole('heading', { level: 3 }).map(h => h.textContent);
+  expect(titles).toEqual(['出發日期', '日數', '價錢（每人）', '旅行社']);
+  expect(within(sheet()).getByRole('group', { name: '排除國家：無' })).toBeInTheDocument();
+  const dates = within(sheet()).getByRole('group', { name: '出發日期' });
+  expect(within(dates).getByRole('button', { name: '聖誕' })).toBeInTheDocument();
+  await user.click(within(dates).getByRole('button', { name: '本月' }));
+  await user.click(within(sheet()).getByRole('button', { name: '顯示結果' }));
+  await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+  expect(onChange.mock.calls[0]![0].filters).toEqual({ dateFrom: '2026-11-01', dateTo: '2026-11-30' });
+});
+
+it('the trip\'s choosing screen, a later tour: 出發日期 is one plain line the page writes, with no fields', async () => {
+  renderBar({ filters: {}, sort: 'price', page: 1 }, {
+    show: { dates: false, exclude: true }, sheetDates: { note: '12/24 – 12/26 出發 · 由行程決定' }, hrefFor: undefined, total: undefined, seasons: [],
+  });
+  await user.click(opener());
+  const dates = within(sheet()).getByRole('group', { name: '出發日期' });
+  expect(dates).toHaveTextContent('12/24 – 12/26 出發 · 由行程決定');
+  expect(within(dates).queryByRole('button')).toBeNull();
+  expect(dates.querySelector('input')).toBeNull();
+  expect(within(sheet()).queryByRole('heading', { name: '可出行日期' })).not.toBeInTheDocument();
 });

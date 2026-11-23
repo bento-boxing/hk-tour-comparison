@@ -12,6 +12,8 @@ import {
 } from '../lib/chain-href';
 import { markTripAction } from '../lib/remembered-trip';
 import { requestTripFocus } from '../lib/trip-undo';
+import type { ScreenData } from '../lib/search-screen';
+import type { SeasonWindow } from '../lib/seasons';
 import { ChainStrip } from './ChainStrip';
 import { DestinationPanels } from './DestinationPanels';
 import { DestinationSearch } from './DestinationSearch';
@@ -71,30 +73,37 @@ export function ChainDestinationPanelsConnected({ address }: { address: ChainAdd
 }
 
 /**
- * The phone search box and its full-screen search for the next leg's destination (task 73): the box shows the chosen
- * destination with a clear button (this screen has no band of chosen boxes); no popular destinations or counts (the
- * site's counts are not the tours that fit the trip). It needs JavaScript, as every control on this page does.
+ * The phone search box and its full-screen search for the next leg's destination (task 73): the search page's own
+ * (components/DestinationScreen), its popular destinations given (task 75) and no counts (the site's counts are not
+ * the tours that fit the trip); the box shows the chosen destination with a clear button (this screen has no band of
+ * chosen boxes). It needs JavaScript, as every control on this page does.
  */
-export function ChainDestinationScreenConnected({ address }: { address: ChainAddress }) {
+export function ChainDestinationScreenConnected({ address, screen }: { address: ChainAddress; screen?: ScreenData }) {
   const t = useT();
   const goTo = useGoTo();
   const select = (dest: Destination | null) => goTo(withDestination(address, dest));
   return (
     <DestinationScreen
       places={places} t={t} value={address.search.filters.destination ?? null} onSelect={select}
-      placeholder={t('dest.placeholder')} showValue
+      placeholder={t('dest.placeholder')} showValue screen={screen}
     />
   );
 }
 
-/** The next-leg list's filter bar: no date pill (the gap sets the window), plus the exclusion pill. Legs and gap stay. */
-export function ChainFilterBarConnected({ address, operators, today }: { address: ChainAddress; operators: OperatorInfo[]; today: IsoDate }) {
+/**
+ * The next-leg list's filter bar: no date pill (the gap sets the window), plus the exclusion pill. Legs and gap stay.
+ * Its phone sheet (task 75) is the search page's: the first tour's departure dates as there (`sheetDates` 'edit', with
+ * the season shortcuts), or a later tour's as one line the page writes.
+ */
+export function ChainFilterBarConnected({ address, operators, today, sheetDates, seasons }: {
+  address: ChainAddress; operators: OperatorInfo[]; today: IsoDate; sheetDates: 'edit' | { note: string }; seasons: SeasonWindow[];
+}) {
   const t = useT();
   const goTo = useGoTo();
   return (
     <FilterBar
       state={address.search} operators={operators} places={places} t={t} today={today}
-      show={{ dates: false, exclude: true }}
+      show={{ dates: false, exclude: true }} sheetDates={sheetDates} seasons={seasons}
       onChange={next => goTo(withSearch(address, next))}
     />
   );

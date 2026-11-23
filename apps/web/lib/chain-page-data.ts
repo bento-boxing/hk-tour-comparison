@@ -6,8 +6,12 @@ import { nextWindow, resolveChain, type ResolvedLeg } from './chain';
 import type { ChainAddress } from './chain-href';
 import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { first, type RawParams } from './raw-params';
-import { pageSizeOf, parseSearchParams } from './search-params';
+import { pageSizeOf, parseSearchParams, type SearchState } from './search-params';
 import { filterBarOperators, uncachedReads } from './search-page-data';
+import { sheetSeasons } from './filter-sheet';
+import { seasonCounts } from './season-counts';
+import { screenData, type ScreenData } from './search-screen';
+import type { SeasonWindow } from './seasons';
 
 export interface ChainPageData {
   /** What every link on the page is built from: the legs that resolved, the clean gap, the filters (no dates). */
@@ -42,6 +46,13 @@ export interface ChainPageData {
   operators: OperatorInfo[];
   /** The operators the filter bar offers: see filterBarOperators. */
   filterOperators: OperatorInfo[];
+  /**
+   * The choosing screen's search screen (task 75): the search page's popular destinations, without counts (the site's
+   * counts are not what can follow this trip). Only on the choosing screen.
+   */
+  screen?: ScreenData;
+  /** Choosing the first tour: the seasons the filter sheet offers as one-tap departure windows, as on the search page. */
+  seasons?: SeasonWindow[];
 }
 
 /**
@@ -67,14 +78,14 @@ export async function loadChainPage(
   // A shared link that lost a malformed leg still tells the visitor something was removed.
   const unreadable = Math.max(0, legsAsked(legsText) - decoded.legs.length);
   // The departure window comes from the gap, so neither from/to nor the travel window (tfrom/tto) in the
-  // address is read.
-  const search = parseSearchParams(raw, places, { includeDates: false });
+  // address is read; except from/to for a trip with no tour yet (below).
+  const withoutDates = parseSearchParams(raw, places, { includeDates: false });
 
   const [tours, operators] = await Promise.all([
     reads.getToursByKeys(db, decoded.legs.map(l => l.tourKey), today),
     reads.getOperators(db),
   ]);
-  const filterOperators = filterBarOperators(operators, search.filters.operators);
+  const filterOperators = filterBarOperators(operators, withoutDates.filters.operators);
   // The tours' own names are not shown, so they are not sent to the browser.
   const rows = new Map([...tours].map(([key, tour]) => [key, withoutTitle(tour)]));
   const resolved = resolveChain(decoded, rows, today);
@@ -83,6 +94,13 @@ export async function loadChainPage(
   const full = legs.length >= MAX_CHAIN_LEGS;
   // The phone's screen for choosing the next tour (task 71): there is nothing to choose for a full trip.
   const pick = first(raw, 'pick') === '1' && !full;
+  // The first tour may leave in a window of the visitor's (task 75: the filter sheet's 出發日期, as on the search page).
+  const firstTour = legs.length === 0;
+  const { dateFrom, dateTo } = firstTour ? parseSearchParams(raw, places).filters : {};
+  const search: SearchState = {
+    ...withoutDates,
+    filters: { ...withoutDates.filters, ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) },
+  };
   const address: ChainAddress = {
     chain: { legs: legs.map(l => ({ tourKey: l.tour.key, departure: l.departure })), gap: decoded.gap },
     search,
@@ -96,6 +114,17 @@ export async function loadChainPage(
     // Choosing the first tour: any tour that leaves after today, with the visitor's filters.
     : pick && legs.length === 0 ? await reads.searchTours(db, { filters: search.filters, ...page }, locale) : null;
   const next = found && { tours: found.tours.map(withoutTitle), total: found.total };
+  // The choosing screen's popular destinations, and the first tour's season shortcuts: both from the shared cached reads
+  // the search pages make (one answer per build and day).
+  const [counts, seasons] = await Promise.all([
+    pick ? reads.countToursByDestination(db, today) : null,
+    pick && firstTour ? seasonCounts(db, today, reads) : null,
+  ]);
+  const screen = counts ? screenData(counts, null, places) : undefined;
 
-  return { address, legs, droppedCount, departWindow, next, full, operators, filterOperators, bare: legsText === undefined && first(raw, 'gap') === undefined, requested: decoded };
+  return {
+    address, legs, droppedCount, departWindow, next, full, operators, filterOperators,
+    bare: legsText === undefined && first(raw, 'gap') === undefined, requested: decoded,
+    ...(screen ? { screen } : {}), ...(seasons ? { seasons: sheetSeasons(search, seasons) } : {}),
+  };
 }
