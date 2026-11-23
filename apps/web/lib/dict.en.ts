@@ -60,6 +60,7 @@ const en = {
   'dates.mode': 'These dates are',
   'dates.modeLeave': 'When I leave',
   'dates.modeWithin': 'My whole trip',
+  'dates.modeLeaveHint': 'Leave within these dates; coming back can be later',
   'dates.modeWithinHint': 'Leave and come back within these dates',
   'dates.clearAll': 'Clear',
   'tours.title': 'Tour destinations',

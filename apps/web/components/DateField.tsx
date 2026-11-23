@@ -167,7 +167,7 @@ function DateSheetForm({ t, places, state, choices, onDone }: {
               <Chip pressed={!draft.travel} onClick={() => set({ travel: false })}>{t('dates.modeLeave')}</Chip>
               <Chip pressed={draft.travel} onClick={() => set({ travel: true })}>{t('dates.modeWithin')}</Chip>
             </div>
-            <p id={hintId} className={sheetStyles.hint}>{t('dates.modeWithinHint')}</p>
+            <p id={hintId} className={sheetStyles.hint}>{t(draft.travel ? 'dates.modeWithinHint' : 'dates.modeLeaveHint')}</p>
           </Section>
         )}
       </div>

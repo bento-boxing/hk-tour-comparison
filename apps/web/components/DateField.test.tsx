@@ -60,7 +60,12 @@ it('the field opens the sheet: 節日 (days and counts; none here faded, not pre
   const festivals = within(within(sheet()).getByRole('group', { name: '節日' })).getAllByRole('button');
   expect(festivals.map(b => [b.textContent, b.hasAttribute('disabled')])).toEqual([['聖誕12/19–27 · 58 團', false], ['農曆新年2/3–10 · 0 團', true]]);
   expect(within(within(sheet()).getByRole('group', { name: '這段日子是' })).getByRole('button', { name: '這幾天出發' })).toHaveAttribute('aria-pressed', 'true');
+  // The line under the switch says what the chosen option means, and changes with it.
+  expect(within(sheet()).getByText('在這幾天內出發，回程可以在之後')).toBeInTheDocument();
+  expect(within(sheet()).queryByText('出發和回程都在這幾天之內')).not.toBeInTheDocument();
+  await user.click(within(sheet()).getByRole('button', { name: '整個旅程都在這幾天內' }));
   expect(within(sheet()).getByText('出發和回程都在這幾天之內')).toBeInTheDocument();
+  expect(within(sheet()).queryByText('在這幾天內出發，回程可以在之後')).not.toBeInTheDocument();
 });
 
 it('a festival leaving in its days: its window as the departure window, and the festival (its season page)', async () => {

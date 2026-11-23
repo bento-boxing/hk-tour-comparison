@@ -60,6 +60,7 @@ const zhHans = {
   'dates.mode': '这段日子是',
   'dates.modeLeave': '这几天出发',
   'dates.modeWithin': '整个旅程都在这几天内',
+  'dates.modeLeaveHint': '在这几天内出发，回程可以在之后',
   'dates.modeWithinHint': '出发和回程都在这几天之内',
   'dates.clearAll': '清除',
   'tours.title': '旅行团目的地',

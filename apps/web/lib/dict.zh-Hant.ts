@@ -87,6 +87,7 @@ const zh = {
   'dates.mode': '這段日子是',
   'dates.modeLeave': '這幾天出發',
   'dates.modeWithin': '整個旅程都在這幾天內',
+  'dates.modeLeaveHint': '在這幾天內出發，回程可以在之後',
   'dates.modeWithinHint': '出發和回程都在這幾天之內',
   'dates.clearAll': '清除',
   // The destinations index (/tours).
