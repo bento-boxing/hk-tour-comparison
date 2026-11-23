@@ -1,5 +1,7 @@
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
+import { isObject } from '../shared/json';
+import { urlOn } from '../shared/url';
 
 const ORIGIN = 'https://www.charming-online.com';
 /**
@@ -62,13 +64,8 @@ export function isNotAGroupTour(url: string): boolean {
 
 /** The page's URL as `https://www.charming-online.com/?tour=<slug>`, or null if it is not a tour page. */
 export function tourPageUrl(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.origin !== ORIGIN || parsed.pathname !== '/' || PAGE_ID.test(parsed.search)) return null;
+  const parsed = urlOn(url, ORIGIN);
+  if (parsed === null || parsed.pathname !== '/' || PAGE_ID.test(parsed.search)) return null;
   const slug = TOUR_QUERY.exec(parsed.search)?.[1];
   return slug === undefined ? null : `${ORIGIN}/?tour=${slug}`;
 }
@@ -79,9 +76,6 @@ export function isTourUrl(url: string): boolean {
 }
 
 interface ListPage { posts: unknown[]; totalPages: unknown; total: unknown }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * One list page, asked for with `_envelope` (a documented WordPress REST parameter): the answer is always

@@ -1,6 +1,5 @@
-import { readSitemapUrls } from '../../sitemap';
-import type { LogView } from '../../public-log';
-import type { Fetcher } from '../../types';
+import { sitemapDiscover } from '../../sitemap';
+import { urlOn } from '../shared/url';
 
 const ORIGIN = 'https://bigline.hk';
 const SITEMAP_URL = `${ORIGIN}/sitemap.xml`;
@@ -13,7 +12,7 @@ const TOUR_PATH = /^\/tour-group\/([1-9][0-9]{0,9})\/?$/;
 /** A Big Line tour id: the only text that goes into a request URL or body. */
 const TOUR_ID = /^[1-9][0-9]{0,9}$/;
 /** `YYYY-MM`, a real month. */
-const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
+export const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
 
 /** The site's data host (docs/operators/bigline.md, "The API"). */
 export const API_HOST = 'api.biglinehk.com';
@@ -31,14 +30,8 @@ export const ALLOWED_HOSTS = ['bigline.hk', 'www.bigline.hk', API_HOST] as const
 
 /** The page's id, or null if it is not a single-tour page on https://bigline.hk. */
 export function tourIdOf(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.origin !== ORIGIN) return null;
-  return TOUR_PATH.exec(parsed.pathname)?.[1] ?? null;
+  const parsed = urlOn(url, ORIGIN);
+  return parsed === null ? null : TOUR_PATH.exec(parsed.pathname)?.[1] ?? null;
 }
 
 /** True for a single-tour page on https://bigline.hk. */
@@ -50,17 +43,14 @@ export function isTourUrl(url: string): boolean {
  * Every tour page in the sitemap (an index with one child), as the public page URL, each once. `log`: the run's (see
  * readSitemapUrls).
  */
-export async function discover(
-  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
-): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
-  const tours = new Set<string>();
-  for (const url of urls) {
+export const discover = sitemapDiscover({
+  sitemapUrl: SITEMAP_URL,
+  allowedHosts: ALLOWED_HOSTS,
+  tourUrl: url => {
     const id = tourIdOf(url);
-    if (id !== null) tours.add(`${ORIGIN}/tour-group/${id}`);
-  }
-  return [...tours];
-}
+    return id === null ? null : `${ORIGIN}/tour-group/${id}`;
+  },
+});
 
 function checkedId(id: string): string {
   if (!TOUR_ID.test(id)) throw new Error(`not a Big Line tour id (${id.length} characters)`);

@@ -1,4 +1,5 @@
 import type { OperatorScraper } from '../../types';
+import { tourOrThrow } from '../shared/joined';
 import { ALLOWED_HOSTS, discover } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
@@ -20,11 +21,7 @@ export const yummyScraper: OperatorScraper = {
   fetchPage: createFetchPage(),
   // A rejected page throws its reason (a fixed text, see readTour): the runner counts it as a parse failure
   // either way, and the crawl log then says why.
-  parse: (text, url) => {
-    const tour = readTour(text, url);
-    if ('why' in tour) throw new Error(tour.why);
-    return tour;
-  },
+  parse: (text, url) => tourOrThrow(readTour(text, url)),
   allowedHosts: ALLOWED_HOSTS,
   // First-run floor: a third of the 312 tours the 2026-11-14 practice crawl would have saved (329 pages
   // fetched; 10 parse failures, 7 with no departures). docs/operators/yummy.md, "Practice crawl".

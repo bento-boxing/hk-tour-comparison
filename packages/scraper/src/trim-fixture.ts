@@ -1,5 +1,6 @@
 import { load, type CheerioAPI } from 'cheerio';
 import type { AnyNode, Element } from 'domhandler';
+import { FLIGHT_CHUNK } from './next-flight';
 
 /** Elements removed with everything inside them. */
 const REMOVED_ELEMENTS = 'style, svg, img, picture, video, iframe, noscript, link';
@@ -115,8 +116,6 @@ function keptText($: CheerioAPI, selectors: string[]): Kept {
 
 /** Marks the one flight data script `keepFlightData` already trimmed, so it is left alone. */
 const FLIGHT_MARK = 'data-trim-fixture-flight';
-/** A Next.js flight data chunk: `self.__next_f.push([1,"<payload as a JSON string>"])`. */
-const FLIGHT_CHUNK = /^\s*self\.__next_f\.push\(\[1,("(?:[^"\\]|\\[\s\S])*")\]\)\s*;?\s*$/;
 /** A flight data text row header at the start of a row: `<id>:T<byte length in hex>,`. */
 const FLIGHT_TEXT_ROW = /^([0-9a-f]+):T([0-9a-f]+),/;
 

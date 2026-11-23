@@ -1,4 +1,5 @@
 import type { Fetcher } from '../../types';
+import { isCount } from '../shared/json';
 import { publicListing } from './public';
 
 /**
@@ -56,8 +57,6 @@ export function isTourUrl(url: string): boolean {
   return tourIdOf(url) !== null;
 }
 
-const isWholeNumber = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value);
-
 /**
  * Every tour the listing holds, as its tour page, each once, in the listing's order. One request. Discovery
  * throws (the run then fails as `discover-error` and last night's tours stay) unless the listing answers code 1
@@ -76,19 +75,19 @@ export async function discover(fetcher: Fetcher): Promise<string[]> {
   }
   const listing = publicListing(json);
   if (listing.code !== 1) {
-    throw new Error(`yummy: the listing answered code ${isWholeNumber(listing.code) ? listing.code : 'none'}`);
+    throw new Error(`yummy: the listing answered code ${isCount(listing.code) ? listing.code : 'none'}`);
   }
   if (listing.data === null) throw new Error('yummy: the listing has no list of tours');
   const { total, last_page: lastPage, rows } = listing.data;
   if (lastPage !== 1) {
-    throw new Error(`yummy: the listing has ${isWholeNumber(lastPage) ? lastPage : 'an unknown number of'} pages; only one is read`);
+    throw new Error(`yummy: the listing has ${isCount(lastPage) ? lastPage : 'an unknown number of'} pages; only one is read`);
   }
-  if (!isWholeNumber(total)) throw new Error('yummy: the listing gives no tour count');
+  if (!isCount(total)) throw new Error('yummy: the listing gives no tour count');
   if (rows.length !== total) throw new Error(`yummy: the listing holds ${rows.length} rows, but says it has ${total}`);
 
   const tours = new Set<string>();
   for (const row of rows) {
-    const id = isWholeNumber(row.id) && row.id > 0 ? String(row.id) : '';
+    const id = isCount(row.id) && row.id > 0 ? String(row.id) : '';
     if (!TOUR_ID.test(id)) throw new Error('yummy: the listing has a row without a tour id');
     tours.add(tourPageUrl(id));
   }

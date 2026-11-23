@@ -1,15 +1,16 @@
 import {
-  isIsoDate, parsePriceHkd, TOUR_CODE_PATTERN,
+  isIsoDate, TOUR_CODE_PATTERN,
   type IsoDate, type ScrapedDeparture, type ScrapedTour,
 } from '@hktours/core';
+import { isCount, jsonPrice, objectAt, type JsonObject } from '../shared/json';
+import { jsonText } from '../shared/text';
 import { tourIdOf, tourPageUrl } from './discover';
+import { tourOrNull } from '../shared/joined';
 import { splitTour } from './fetch-page';
 
 // Sources: docs/operators/yummy.md, "Where each fact comes from". The text is fetchPage's join of the tour's
 // detail and dates answers. Only the paths below are read; the API's other fields (booking counts, prose, image
 // and PDF paths) never are, even in an answer that was not trimmed.
-
-type JsonObject = Record<string, unknown>;
 
 const OK = 1;
 /**
@@ -26,25 +27,10 @@ const SHOWN_FIRST = [2, 1, 0, 3];
 /** Between the names of `dist_list`: ASCII and full-width commas. */
 const LIST_SEPARATOR = /[,，]/;
 
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const objectAt = (value: unknown): JsonObject => (isObject(value) ? value : {});
-const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value);
-
-/** Text with runs of whitespace (line breaks included) as one space. */
-function clean(text: unknown): string {
-  return typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
-}
-
-/** A price given as a JSON number (`5699`), as whole HKD; null below 100 or if absent. */
-function price(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? parsePriceHkd(String(Math.trunc(value))) : null;
-}
-
 /** The title the tour page shows: `website_name` when `is_website_name` is 1 and it has text, else `name`. */
 function title(data: JsonObject): string {
-  const websiteName = clean(data.website_name);
-  return data.is_website_name === 1 && websiteName !== '' ? websiteName : clean(data.name);
+  const websiteName = jsonText(data.website_name);
+  return data.is_website_name === 1 && websiteName !== '' ? websiteName : jsonText(data.name);
 }
 
 /**
@@ -55,7 +41,7 @@ function title(data: JsonObject): string {
  */
 function cityList(distList: unknown): string[] {
   return typeof distList === 'string'
-    ? distList.split(LIST_SEPARATOR).map(name => clean(name)).filter(name => name !== '')
+    ? distList.split(LIST_SEPARATOR).map(name => jsonText(name)).filter(name => name !== '')
     : [];
 }
 
@@ -86,7 +72,7 @@ function readDepartures(dates: unknown): ScrapedDeparture[] | string {
     if (!isCount(status) || status < 0 || status > CANCELLED) return 'a group has an unknown status (not 0 to 4)';
     const date = row.start_date;
     if (status === CANCELLED || typeof date !== 'string' || !isIsoDate(date)) continue;
-    byDate.set(date, [...(byDate.get(date) ?? []), { date, status, priceHkd: price(row.price) }]);
+    byDate.set(date, [...(byDate.get(date) ?? []), { date, status, priceHkd: jsonPrice(row.price) }]);
   }
   return [...byDate.values()]
     .map(shownGroup)
@@ -109,7 +95,7 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   if (detail.code !== OK) return { why: 'the detail answered a code other than 1' };
   if (!isCount(data.id) || String(data.id) !== id) return { why: 'the detail is for another tour' };
 
-  const code = clean(data.code);
+  const code = jsonText(data.code);
   if (!TOUR_CODE_PATTERN.test(code)) return { why: 'the detail has no valid tour code' };
   const days = data.daycount;
   if (!isCount(days) || days < 1) return { why: 'the detail has no day count of at least 1' };
@@ -128,7 +114,7 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
     // or end, which the shared rules read as Hong Kong, as for any operator that does not state one.
     startPoint: null,
     endPoint: null,
-    fromPriceHkd: price(data.price),
+    fromPriceHkd: jsonPrice(data.price),
     departures,
     // Owner decision 2026-11-14: the list is a set of place tags, and a province given beside its own cities
     // (`雲南,大理,瀘沽湖,麗江,昆明`) is not a stop of its own; normaliseTour drops it, wherever it sits.
@@ -141,6 +127,5 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
  * accepted for the shared parser signature; every date carries its year.
  */
 export function parse(text: string, url: string, _today?: IsoDate): ScrapedTour | null {
-  const tour = readTour(text, url);
-  return 'why' in tour ? null : tour;
+  return tourOrNull(readTour(text, url));
 }

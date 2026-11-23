@@ -1,5 +1,6 @@
 import { load } from 'cheerio';
 import type { AnyNode, Element } from 'domhandler';
+import { isObject } from '../shared/json';
 
 /**
  * The allow-list: the only parts of Sunflower's answers this scraper keeps (docs/operators/sunflower.md, "Where
@@ -29,8 +30,6 @@ export interface PublicEntry {
   tdp_confirm: Plain; tdp_hardpush: Plain;
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 const plain = (value: unknown): Plain =>
   (typeof value === 'string' || value === null || (typeof value === 'number' && Number.isFinite(value)) ? value : null);

@@ -1,4 +1,5 @@
 import type { OperatorScraper } from '../../types';
+import { tourOrThrow } from '../shared/joined';
 import { ALLOWED_HOSTS, API_HOST, discover } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
@@ -19,11 +20,7 @@ export const biglineScraper: OperatorScraper = {
   fetchPage: createFetchPage(),
   // A rejected page throws its reason (a fixed text, see readTour): the runner counts it as a parse failure
   // either way, and the crawl log then says why (the 2026-11-14 crawl could not: 19259, 19261).
-  parse: (text, url) => {
-    const tour = readTour(text, url);
-    if ('why' in tour) throw new Error(tour.why);
-    return tour;
-  },
+  parse: (text, url) => tourOrThrow(readTour(text, url)),
   // The one header the API needs (a fixed site key from the site's public JavaScript, the same for every
   // visitor). Owner approval 2026-11-13: this header, and Content-Type on the POST, to this host only;
   // no device id, cookie, Referer or anything else.

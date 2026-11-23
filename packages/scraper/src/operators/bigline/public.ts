@@ -8,18 +8,8 @@
  */
 
 import { CHUNK_SEPARATORS, DAY_MARKER } from '@hktours/core';
-
-type JsonObject = Record<string, unknown>;
-type Plain = string | number | boolean | null;
-
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const objectAt = (value: unknown): JsonObject => (isObject(value) ? value : {});
-const arrayAt = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-/** The value when it is a plain JSON value, else null. */
-const plain = (value: unknown): Plain =>
-  (typeof value === 'string' || typeof value === 'boolean' || value === null
-    || (typeof value === 'number' && Number.isFinite(value)) ? value : null);
+import { arrayAt, isObject, objectAt, plainJson, type JsonObject, type PlainJson as Plain } from '../shared/json';
+import { collapseWhitespace } from '../shared/text';
 
 /** Notes in round brackets (either width, mixed, nested) or angle brackets 〈〉: removed. */
 const NOTE = /[(（][^()（）]*[)）]|〈[^〈〉]*〉/g;
@@ -75,7 +65,7 @@ export function routeChunks(tripContent: unknown): string[] {
   }
   line = line.replace(DAY_MARKER, ''); // again: a note may have come before it (`(早餐)D2 酒店`)
   return line.split(ROUTE_SEPARATOR)
-    .map(chunk => withoutLongPieces(chunk.split(SENTENCE_MARK)[0].replace(LEADING_MARKS, '').replace(/\s+/g, ' ').trim()))
+    .map(chunk => withoutLongPieces(collapseWhitespace(chunk.split(SENTENCE_MARK)[0].replace(LEADING_MARKS, ''))))
     .filter(chunk => chunk !== '' && [...chunk].length <= MAX_CHUNK_CHARS);
 }
 
@@ -97,7 +87,7 @@ export interface PublicDetail {
 /** The public facts of a tour detail answer (`GET …/product/tour/frontend/detail?id=<id>`). */
 export function publicDetail(response: unknown): PublicDetail {
   const answer = objectAt(response);
-  const code = plain(answer.code);
+  const code = plainJson(answer.code);
   if (!isObject(answer.data)) return { code, data: null };
   const data = answer.data;
   const basic = objectAt(data.basic);
@@ -105,19 +95,19 @@ export function publicDetail(response: unknown): PublicDetail {
   return {
     code,
     data: {
-      id: plain(data.id),
-      memberFee: plain(data.memberFee),
-      availableMonths: arrayAt(data.availableMonths).map(plain),
-      basic: { tourNo: plain(basic.tourNo), nameCn: plain(basic.nameCn), tourDays: plain(basic.tourDays) },
+      id: plainJson(data.id),
+      memberFee: plainJson(data.memberFee),
+      availableMonths: arrayAt(data.availableMonths).map(plainJson),
+      basic: { tourNo: plainJson(basic.tourNo), nameCn: plainJson(basic.nameCn), tourDays: plainJson(basic.tourDays) },
       projectItinerary: {
         dailyTripList: arrayAt(objectAt(data.projectItinerary).dailyTripList).map(day => ({
-          days: plain(objectAt(day).days),
+          days: plainJson(objectAt(day).days),
           tripContent: routeChunks(objectAt(day).tripContent).join(' | '),
         })),
       },
       signUp: {
-        settlementCurrencyCode: plain(signUp.settlementCurrencyCode),
-        locationGroupList: arrayAt(signUp.locationGroupList).map(place => ({ locationName: plain(objectAt(place).locationName) })),
+        settlementCurrencyCode: plainJson(signUp.settlementCurrencyCode),
+        locationGroupList: arrayAt(signUp.locationGroupList).map(place => ({ locationName: plainJson(objectAt(place).locationName) })),
       },
     },
   };
@@ -134,7 +124,7 @@ export interface PublicDates { code: Plain; data: { list: PublicDeparture[] } | 
 /** The public facts of one month's dates answer (`POST …/product/release/page`). */
 export function publicDates(response: unknown): PublicDates {
   const answer = objectAt(response);
-  const code = plain(answer.code);
+  const code = plainJson(answer.code);
   const list = objectAt(answer.data).list;
   if (!Array.isArray(list)) return { code, data: null };
   return {
@@ -143,15 +133,15 @@ export function publicDates(response: unknown): PublicDates {
       list: list.map(item => {
         const row = objectAt(item);
         return {
-          productId: plain(row.productId),
-          scheduleDate: plain(row.scheduleDate),
-          memberFee: plain(row.memberFee),
-          seatRemain: plain(row.seatRemain),
-          soldTotal: plain(row.soldTotal),
-          maxPersonTotal: plain(row.maxPersonTotal),
-          registrationStatus: plain(row.registrationStatus),
-          tourFlag: plain(row.tourFlag),
-          isCutofftour: plain(row.isCutofftour),
+          productId: plainJson(row.productId),
+          scheduleDate: plainJson(row.scheduleDate),
+          memberFee: plainJson(row.memberFee),
+          seatRemain: plainJson(row.seatRemain),
+          soldTotal: plainJson(row.soldTotal),
+          maxPersonTotal: plainJson(row.maxPersonTotal),
+          registrationStatus: plainJson(row.registrationStatus),
+          tourFlag: plainJson(row.tourFlag),
+          isCutofftour: plainJson(row.isCutofftour),
         };
       }),
     },

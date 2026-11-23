@@ -1,16 +1,17 @@
 import {
-  isIsoDate, parsePriceHkd, TOUR_CODE_PATTERN,
+  isIsoDate, TOUR_CODE_PATTERN,
   type IsoDate, type ScrapedDeparture, type ScrapedTour,
 } from '@hktours/core';
+import { arrayAt, isCount, jsonPrice, objectAt, type JsonObject } from '../shared/json';
+import { collapseWhitespace, jsonText, withoutQueryOrFragment } from '../shared/text';
 import { tourIdOf } from './discover';
+import { tourOrNull } from '../shared/joined';
 import { splitTour } from './fetch-page';
 import { routeChunks } from './public';
 
 // Sources: docs/operators/bigline.md, "Where each fact is in the API". The text is fetchPage's join of the
 // tour detail and one dates answer per month requested. Only the paths below are read; the API's other
 // fields (tour leaders, staff notes, suppliers, costs) never are, even in an answer that was not trimmed.
-
-type JsonObject = Record<string, unknown>;
 
 const OK = 200;
 const CURRENCY = 'HKD';
@@ -19,17 +20,6 @@ const STOP_SEPARATOR = ' → ';
 const FULL_FLAG = '5';
 /** `registrationStatus` 1: seen on every full departure (0 on every open one). */
 const REGISTRATION_CLOSED = 1;
-
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const objectAt = (value: unknown): JsonObject => (isObject(value) ? value : {});
-const arrayAt = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value);
-
-/** Text with runs of whitespace (line breaks included) as one space. */
-function clean(text: unknown): string {
-  return typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
-}
 
 /** The brackets of a title read as spaces in its fallback route (`【入住中山溫泉酒店】`). */
 const TITLE_BRACKETS = /[【】]/g;
@@ -40,12 +30,7 @@ const TITLE_BRACKETS = /[【】]/g;
  * Other brackets stay, so the shared rules still drop `(…)` and `[…]` notes with their text.
  */
 export function titleRouteLine(title: string): string {
-  return title.replace(TITLE_BRACKETS, ' ').replace(/\s+/g, ' ').trim();
-}
-
-/** A price given as a JSON number (`6199.0`), as whole HKD; null below 100 or if absent. */
-function price(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? parsePriceHkd(String(Math.trunc(value))) : null;
+  return collapseWhitespace(title.replace(TITLE_BRACKETS, ' '));
 }
 
 /** True when the id (a number or digits as text) is this tour's. */
@@ -81,7 +66,7 @@ function readDepartures(months: { dates: unknown }[], id: string): ScrapedDepart
       if (!sameId(row.productId, id)) return 'a dates answer lists a departure of another tour';
       const date = row.scheduleDate;
       if (typeof date !== 'string' || !isIsoDate(date) || isFullOrClosed(row)) continue;
-      departures.push({ date, priceHkd: price(row.memberFee) });
+      departures.push({ date, priceHkd: jsonPrice(row.memberFee) });
     }
   }
   return departures;
@@ -98,7 +83,7 @@ function dayHeadings(itinerary: unknown): string[] {
 /** The first gathering place the detail lists, or null. */
 function gatheringPlace(signUp: JsonObject): string | null {
   for (const place of arrayAt(signUp.locationGroupList)) {
-    const name = clean(objectAt(place).locationName);
+    const name = jsonText(objectAt(place).locationName);
     if (name !== '') return name;
   }
   return null;
@@ -119,7 +104,7 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   if (!sameId(data.id, id)) return { why: 'the detail is for another tour' };
 
   const basic = objectAt(data.basic);
-  const code = clean(basic.tourNo);
+  const code = jsonText(basic.tourNo);
   if (!TOUR_CODE_PATTERN.test(code)) return { why: 'the detail has no valid tour code' };
   const days = basic.tourDays;
   if (!isCount(days) || days < 1) return { why: 'the detail has no day count of at least 1' };
@@ -131,19 +116,19 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   return {
     operatorId: 'bigline',
     code,
-    url: url.replace(/[?#].*$/, ''),
-    title: clean(basic.nameCn),
+    url: withoutQueryOrFragment(url),
+    title: jsonText(basic.nameCn),
     days,
     nights: null,
     dayHeadings: dayHeadings(data.projectItinerary),
     startPoint: gatheringPlace(signUp),
     endPoint: null,
-    fromPriceHkd: price(data.memberFee),
+    fromPriceHkd: jsonPrice(data.memberFee),
     departures,
     // Owner decision 2026-11-14: about a third of the tours name no place in their day lines (coach tours
     // whose town is only in the title, cruises, empty lines), so their stops are read from the title,
     // with the day-line rules, when the day lines give none (normaliseTour). Text inside 【】 is read too.
-    fallbackRoute: titleRouteLine(clean(basic.nameCn)),
+    fallbackRoute: titleRouteLine(jsonText(basic.nameCn)),
   };
 }
 
@@ -152,6 +137,5 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
  * accepted for the shared parser signature; every date carries its year.
  */
 export function parse(text: string, url: string, _today?: IsoDate): ScrapedTour | null {
-  const tour = readTour(text, url);
-  return 'why' in tour ? null : tour;
+  return tourOrNull(readTour(text, url));
 }

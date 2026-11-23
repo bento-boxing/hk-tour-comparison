@@ -8,7 +8,7 @@
 import { pathToFileURL } from 'node:url';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import {
-  OPERATOR_IDS, places, resolveSiteIdentity, SiteIdentityError, todayInHongKong, type OperatorId, type SiteIdentity,
+  isOperatorId, OPERATOR_IDS, places, resolveSiteIdentity, SiteIdentityError, todayInHongKong, type OperatorId, type SiteIdentity,
 } from '@hktours/core';
 import { createPgDb, normaliseCaCert, type Db } from '@hktours/db';
 import { unexpectedErrorLines } from '@hktours/db/public-error';
@@ -47,8 +47,6 @@ export interface CliDeps {
 
 const USAGE = 'usage: pnpm scrape --operator <id> [--dry-run] [--limit N]\n'
   + `  <id> is one of ${OPERATOR_IDS.join(', ')}. --limit N (a whole number from 1) is allowed only with --dry-run.`;
-
-const isOperatorId = (value: string): value is OperatorId => (OPERATOR_IDS as readonly string[]).includes(value);
 
 export function parseArgs(argv: string[]): CliArgs | { error: string } {
   let operator: string | undefined;

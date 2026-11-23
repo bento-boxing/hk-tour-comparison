@@ -34,22 +34,187 @@ function jobOf(workflow: string, id: string): string {
   return lines.slice(start, end === -1 ? undefined : end).join('\n');
 }
 
+/** One line of a workflow file as yamlLines reads it. */
+interface YamlLine {
+  /** Its line number, from 1. */
+  n: number;
+  /** The keys leading to the line, its own key last; `-<n>` stands for the list item that starts on line n. */
+  path: string[];
+  /** The line's own key; null for a list item without one (`- a`, `- { … }`) and for a line inside a block scalar. */
+  key: string | null;
+  /** What follows the key (or the `- `), without a trailing comment; for a line inside a block scalar, its text. */
+  value: string;
+  /** True for a line inside a block scalar (the shell lines of `run: |`). */
+  inBlock: boolean;
+}
+
 /**
- * The matrix of a job, which must be a list of `include` entries `- { operator: <id>, minutes: <n> }` and nothing
- * else: any other line in it fails the test, rather than being skipped.
+ * Each line of a workflow file that is not blank or a comment, with the keys leading to it: enough of YAML for the
+ * forms the workflows use (block mappings and lists, one-line values, flow lists and mappings on one line, block
+ * scalars), without a YAML library. Malformed files are workflowProblems' concern.
+ */
+function yamlLines(text: string): YamlLine[] {
+  const lines: YamlLine[] = [];
+  const stack: { indent: number; name: string }[] = [];
+  const popTo = (indent: number) => {
+    while (stack.length > 0 && stack[stack.length - 1].indent >= indent) stack.pop();
+  };
+  let block: { indent: number; path: string[] } | null = null;
+  text.split('\n').forEach((line, i) => {
+    const indent = line.length - line.trimStart().length;
+    if (block !== null) {
+      if (line.trim() === '') return;
+      if (indent > block.indent) {
+        lines.push({ n: i + 1, path: block.path, key: null, value: line.trim(), inBlock: true });
+        return;
+      }
+      block = null;
+    }
+    if (line.trim() === '' || line.trimStart().startsWith('#')) return;
+    let rest = line.slice(indent);
+    let keyIndent = indent;
+    if (rest === '-' || rest.startsWith('- ')) {
+      popTo(indent);
+      stack.push({ indent, name: `-${i + 1}` });
+      keyIndent = indent + 2;
+      rest = rest.slice(2);
+    }
+    const key = /^([A-Za-z_][\w-]*):(?: +|$)(.*)$/.exec(rest);
+    const value = (key ? key[2] : rest).replace(/(^| )#.*$/, '').trim();
+    if (key) {
+      popTo(keyIndent);
+      stack.push({ indent: keyIndent, name: key[1] });
+    }
+    const path = stack.map(entry => entry.name);
+    lines.push({ n: i + 1, path, key: key ? key[1] : null, value, inBlock: false });
+    if (key && /^[|>][-+]?$/.test(value)) block = { indent: keyIndent, path };
+  });
+  return lines;
+}
+
+/**
+ * The matrix of a job, which must be a list of `include` entries, each with an `operator` (an id) and `minutes` (a
+ * whole number) and nothing else, written on one line (`- { operator: egl, minutes: 170 }`, a comment after it
+ * allowed) or as a block (`- operator: egl` and `minutes: 170` below it). Any other line in the matrix fails the test,
+ * rather than being skipped.
  */
 function matrixEntries(job: string): { operator: string; minutes: number }[] {
-  const lines = job.split('\n');
-  const at = lines.indexOf('      matrix:');
-  if (at === -1) throw new Error('no matrix');
-  const block = lines.slice(at + 1, lines.findIndex((line, i) => i > at && /^ {0,6}\S/.test(line)));
-  const body = block.filter(line => !/^\s*(#.*)?$/.test(line));
-  expect(body[0]).toBe('        include:');
-  return body.slice(1).map(line => {
-    const entry = /^ {10}- \{ operator: ([a-z]+), minutes: ([1-9]\d*) \}$/.exec(line);
-    if (!entry) throw new Error(`not a matrix entry: ${line}`);
-    return { operator: entry[1], minutes: Number(entry[2]) };
+  const lines = yamlLines(job);
+  const matrix = lines.find(line => line.key === 'matrix' && line.path.at(-2) === 'strategy');
+  if (matrix === undefined) throw new Error('no matrix');
+  const depth = matrix.path.length;
+  const inside = lines.filter(line => line.path.length > depth && line.path.slice(0, depth).join('\n') === matrix.path.join('\n'));
+  const entries = new Map<string, Record<string, string>>();
+  const add = (line: YamlLine, item: string, key: string, value: string) => {
+    const fields = entries.get(item) ?? {};
+    entries.set(item, fields);
+    if (Object.hasOwn(fields, key)) throw new Error(`line ${line.n}: ${key} given twice in one matrix entry`);
+    fields[key] = value;
+  };
+  for (const line of inside) {
+    const [list, item, field, ...more] = line.path.slice(depth);
+    if (list !== 'include' || more.length > 0) throw new Error(`line ${line.n}: not a matrix entry`);
+    if (item === undefined) {
+      if (line.value !== '') throw new Error(`line ${line.n}: include is not a list`);
+    } else if (!item.startsWith('-')) {
+      throw new Error(`line ${line.n}: include is not a list`);
+    } else if (field !== undefined) {
+      add(line, item, field, line.value);
+    } else {
+      const flow = /^\{(.*)\}$/.exec(line.value);
+      if (!flow) throw new Error(`line ${line.n}: not a matrix entry`);
+      for (const pair of flow[1].split(',')) {
+        const entry = /^\s*([A-Za-z_][\w-]*):\s*(\S+)\s*$/.exec(pair);
+        if (!entry) throw new Error(`line ${line.n}: not a matrix entry`);
+        add(line, item, entry[1], entry[2]);
+      }
+    }
+  }
+  if (entries.size === 0) throw new Error('an empty matrix');
+  return [...entries.values()].map(fields => {
+    const keys = Object.keys(fields).sort().join(', ');
+    if (keys !== 'minutes, operator' || !/^[a-z]+$/.test(fields.operator) || !/^[1-9]\d*$/.test(fields.minutes)) {
+      throw new Error(`not a matrix entry: ${JSON.stringify(fields)}`);
+    }
+    return { operator: fields.operator, minutes: Number(fields.minutes) };
   });
+}
+
+/** Each job of a workflow with the jobs it needs, in any of YAML's forms (`needs: a`, `needs: [a, b]`, a block list). */
+function needsOf(workflow: string): Record<string, string[]> {
+  const lines = yamlLines(workflow);
+  const needs: Record<string, string[]> = {};
+  for (const line of lines) {
+    if (line.path[0] !== 'jobs' || line.path.length < 2) continue;
+    const job = line.path[1];
+    needs[job] ??= [];
+    if (line.path[2] !== 'needs') continue;
+    if (line.path.length === 3) {
+      const list = /^\[(.*)\]$/.exec(line.value);
+      if (list) needs[job].push(...list[1].split(',').map(id => id.trim()).filter(id => id !== ''));
+      else if (line.value !== '') needs[job].push(line.value);
+    } else if (line.path.length === 4 && line.key === null) {
+      needs[job].push(line.value);
+    } else {
+      throw new Error(`line ${line.n}: not a job id under needs`);
+    }
+  }
+  return needs;
+}
+
+/**
+ * What the workflows must keep for the owner's safety rules (task 61 review, finding I1): a secret only in a step's
+ * `env` (never at job or workflow level, in `with`, or in a command); top-level permissions `contents: read` and no
+ * other permissions anywhere; every action pinned to a 40-character commit hash; no command that prints a secret's
+ * variable (a test such as `[ -n "$X" ]` or `test -n "$X"` reads it without printing it) or runs `env`, `set` or
+ * `printenv` bare, `printenv` at all, or `set -x`. For the nightly workflow also: `fail-fast: false` on every job with a
+ * strategy, `cancel-in-progress: false`, and `persist-credentials: false` on every checkout. Returns the problems.
+ */
+function safetyProblems(text: string, opts: { nightly: boolean }): string[] {
+  const problems: string[] = [];
+  const lines = yamlLines(text);
+  const isStepEnv = (path: string[]) =>
+    path.length === 6 && path[0] === 'jobs' && path[2] === 'steps' && path[3].startsWith('-') && path[4] === 'env';
+  const secretVariables = new Set<string>();
+  for (const line of lines) {
+    if (!/\bsecrets\./.test(line.value)) continue;
+    if (line.inBlock || line.key === null || !isStepEnv(line.path)) problems.push(`line ${line.n}: a secret outside a step's env`);
+    else secretVariables.add(line.key);
+  }
+  const permissions = lines.filter(line => line.path.includes('permissions')).map(line => `${line.path.join('.')}: ${line.value}`);
+  if (permissions.join('\n') !== 'permissions: \npermissions.contents: read') {
+    problems.push(`permissions other than contents: read at the top (${permissions.join('; ')})`);
+  }
+  for (const line of lines) {
+    if (line.key === 'uses' && !line.inBlock && !/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/.test(line.value)) {
+      problems.push(`line ${line.n}: an action not pinned to a commit`);
+    }
+  }
+  const START = String.raw`(?:^|[;&|(){}]|\b(?:then|do|else)\b)\s*`;
+  const BARE = new RegExp(`${START}(?:env|set|printenv)\\s*(?:$|[;&|)}])`);
+  const TRACE = new RegExp(`${START}set\\s+(?:-[A-Za-z]*[xv]|-o\\s+(?:xtrace|verbose))`);
+  const commands = lines.filter(line => (line.inBlock && line.path.at(-1) === 'run') || (line.key === 'run' && !/^[|>]/.test(line.value)));
+  for (const line of commands) {
+    const shell = line.value;
+    if (BARE.test(shell) || /\bprintenv\b/.test(shell) || TRACE.test(shell)) problems.push(`line ${line.n}: env, set or printenv`);
+    const shown = shell.replace(/\[\[.*?\]\]/g, '').replace(/\[\s.*?\s\]/g, '').replace(/\btest\s[^;&|)]*/g, '');
+    const printsSecret = [...secretVariables].some(name => new RegExp(String.raw`\$\{?${name}\b`).test(shown));
+    if (printsSecret && /\b(?:echo|printf|cat|tee)\b/.test(shown)) problems.push(`line ${line.n}: prints a secret`);
+  }
+  if (opts.nightly) {
+    const value = (path: string[]) => lines.find(line => line.path.join('\n') === path.join('\n'))?.value;
+    for (const job of new Set(lines.filter(line => line.path[2] === 'strategy').map(line => line.path[1]))) {
+      if (value(['jobs', job, 'strategy', 'fail-fast']) !== 'false') problems.push(`job ${job}: no fail-fast: false`);
+    }
+    if (value(['concurrency', 'cancel-in-progress']) !== 'false') problems.push('no cancel-in-progress: false');
+    for (const line of lines) {
+      if (line.key !== 'uses' || !line.value.startsWith('actions/checkout@')) continue;
+      if (value([...line.path.slice(0, -1), 'with', 'persist-credentials']) !== 'false') {
+        problems.push(`line ${line.n}: a checkout without persist-credentials: false`);
+      }
+    }
+  }
+  return problems;
 }
 
 /** Each URL's page: the JSON of a ScrapedTour, or the string "null" for a page the parser rejects. */
@@ -789,8 +954,95 @@ describe('the workflow files', () => {
     expect(workflow.replace(scrape, '')).not.toMatch(/\bmatrix\./);
     const jobs = [...workflow.slice(workflow.indexOf('\njobs:\n')).matchAll(/^ {2}([a-z][\w-]*):$/gm)].map(match => match[1]);
     expect(jobs).toEqual(['migrate', 'scrape', 'refresh']);
-    expect([...workflow.matchAll(/^ {4}needs: (\S+)$/gm)].map(match => match[1])).toEqual(['migrate', 'scrape']);
+    const needs = needsOf(workflow);
+    expect(needs).toEqual({ migrate: [], scrape: ['migrate'], refresh: ['scrape'] });
+    for (const [i, job] of jobs.entries()) for (const need of needs[job]) expect(jobs.slice(0, i), job).toContain(need);
     for (const job of jobs) expect(jobOf(workflow, job), job).toMatch(/^ {4}timeout-minutes: (?:\d+|\$\{\{ matrix\.minutes \}\})$/m);
     expect([...workflow.matchAll(/^([a-z][\w-]*):/gm)].map(match => match[1])).toEqual(['name', 'on', 'permissions', 'concurrency', 'jobs']);
+  });
+
+  it.each(['ci.yml', 'check-settings.yml', 'nightly-scrape.yml'])(
+    '%s sets secrets only in a step\'s env, reads nothing more than contents, pins its actions and prints no secret',
+    async name => {
+      expect(safetyProblems(await readFile(new URL(name, dir), 'utf8'), { nightly: name === 'nightly-scrape.yml' })).toEqual([]);
+    },
+  );
+
+  it('the nightly workflow sets each secret in the steps that need it', async () => {
+    const lines = yamlLines(await nightlyWorkflow()).filter(line => /\bsecrets\./.test(line.value));
+    expect(lines.map(line => `${line.path[1]}: ${line.key}`)).toEqual([
+      'migrate: DATABASE_URL', 'migrate: DATABASE_CA_CERT', 'migrate: SITE_URL', 'migrate: CONTACT_EMAIL',
+      'scrape: DATABASE_URL', 'scrape: DATABASE_CA_CERT', 'scrape: SITE_URL', 'scrape: CONTACT_EMAIL',
+      'refresh: SITE_URL',
+    ]);
+  });
+
+  describe('the safety checks themselves, on the nightly workflow changed in memory', () => {
+    /** The nightly workflow with the `nth` (from 1) occurrence of `from` replaced; throws when there is none. */
+    const changed = async (from: string, to: string, nth = 1) => {
+      const text = await nightlyWorkflow();
+      let at = -1;
+      for (let i = 0; i < nth; i++) {
+        at = text.indexOf(from, at + 1);
+        if (at === -1) throw new Error(`not found: ${from}`);
+      }
+      return text.slice(0, at) + to + text.slice(at + from.length);
+    };
+    const LIMIT = '    timeout-minutes: ${{ matrix.minutes }}\n';
+    const PERSIST = '        with:\n          persist-credentials: false\n';
+    const IDENTITY_ECHO = '          echo "CONTACT_EMAIL set:';
+    const INSTALL = '      - run: pnpm install --frozen-lockfile\n';
+    const CHECKOUT = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
+
+    it.each<[string, string, string, number?]>([
+      ['a secret at job level', LIMIT, `${LIMIT}    env:\n      DATABASE_URL: \${{ secrets.DATABASE_URL }}\n`],
+      ['a secret at workflow level', 'permissions:\n', 'env:\n  DATABASE_URL: ${{ secrets.DATABASE_URL }}\n\npermissions:\n'],
+      ['a secret moved to the job', LIMIT, `${LIMIT}    env:\n      CONTACT_EMAIL: \${{ secrets.CONTACT_EMAIL }}\n`],
+      ['a secret in a step\'s with', PERSIST, `${PERSIST}          token: \${{ secrets.SITE_URL }}\n`],
+      ['a secret in a command', INSTALL, `${INSTALL}      - run: echo \${{ secrets.SITE_URL }}\n`],
+      ['fail-fast removed', '      fail-fast: false # one operator failing must not stop the others\n', ''],
+      ['fail-fast true', 'fail-fast: false', 'fail-fast: true'],
+      ['persist-credentials removed from the scrape checkout', PERSIST, '', 2],
+      ['persist-credentials true', 'persist-credentials: false', 'persist-credentials: true'],
+      ['permissions to write', '  contents: read\n', '  contents: write\n'],
+      ['permissions widened at job level', LIMIT, `${LIMIT}    permissions:\n      contents: write\n`],
+      ['cancel-in-progress true', 'cancel-in-progress: false', 'cancel-in-progress: true'],
+      ['a secret echoed', IDENTITY_ECHO, `          echo "$DATABASE_URL"\n${IDENTITY_ECHO}`],
+      ['a secret printed with printf', IDENTITY_ECHO, `          printf '%s' "\${CONTACT_EMAIL}"\n${IDENTITY_ECHO}`],
+      ['a bare env step', INSTALL, `${INSTALL}      - run: env\n`],
+      ['a printenv step', INSTALL, `${INSTALL}      - run: printenv DATABASE_URL\n`],
+      ['a bare set in a script', IDENTITY_ECHO, `          set\n${IDENTITY_ECHO}`],
+      ['tracing turned on', IDENTITY_ECHO, `          set -ex\n${IDENTITY_ECHO}`],
+      ['an action by tag', CHECKOUT, 'actions/checkout@v7'],
+      ['an action by a short hash', CHECKOUT, 'actions/checkout@3d3c42e'],
+    ])('%s is found', async (_name, from, to, nth) => {
+      expect(safetyProblems(await changed(from, to, nth), { nightly: true })).not.toEqual([]);
+    });
+
+    it.each<[string, string, string]>([
+      ['needs as a list', '    needs: migrate\n', '    needs: [migrate]\n'],
+      ['needs as a block list', '    needs: migrate\n', '    needs:\n      - migrate\n'],
+      ['a block-style matrix entry', '          - { operator: egl, minutes: 170 }\n', '          - operator: egl\n            minutes: 170\n'],
+      ['a comment after a matrix entry', '          - { operator: taste, minutes: 170 }\n', '          - { operator: taste, minutes: 170 } # since task 48\n'],
+      ['set -euo pipefail', IDENTITY_ECHO, `          set -euo pipefail\n${IDENTITY_ECHO}`],
+    ])('%s passes', async (_name, from, to) => {
+      const text = await changed(from, to);
+      expect(workflowProblems(text)).toEqual([]);
+      expect(safetyProblems(text, { nightly: true })).toEqual([]);
+      expect(needsOf(text)).toEqual(needsOf(await nightlyWorkflow()));
+      expect(matrixEntries(jobOf(text, 'scrape'))).toEqual(matrixEntries(jobOf(await nightlyWorkflow(), 'scrape')));
+    });
+
+    it.each([
+      '          - { operator: egl, minutes: 170, extra: 1 }\n',
+      '          - { operator: egl, operator: jetour, minutes: 170 }\n',
+      '          - { operator: egl }\n',
+      '          - operator: egl\n',
+      '          - { operator: egl, minutes: soon }\n',
+      '          - egl\n',
+    ])('a matrix entry %j is not one', async to => {
+      const text = await changed('          - { operator: egl, minutes: 170 }\n', to);
+      expect(() => matrixEntries(jobOf(text, 'scrape'))).toThrow();
+    });
   });
 });

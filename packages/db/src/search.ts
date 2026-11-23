@@ -1,5 +1,5 @@
 import {
-  OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, comparePrice, isPageSize,
+  OPERATOR_IDS, PAGE_SIZE, PAGE_SIZES, comparePrice, groupBy, isPageSize,
   type Destination, type PageSize, type IsoDate, type OperatorId, type PriceChange,
   type ScrapedDeparture, type StartKind, type Stop, type TourPoint,
 } from '@hktours/core';
@@ -255,9 +255,10 @@ async function toCards(db: Db, rows: TourRow[], params: Params): Promise<TourCar
     [ids],
   );
 
-  const stopsById = groupBy(stops, s => ({ countryId: s.country_id, regionId: s.region_id, cityId: s.city_id }));
-  const departuresById = groupBy(departures, d => ({ date: d.date, priceHkd: d.price_hkd }));
-  const snapshotsById = groupBy(snapshots, s => ({ date: s.date, priceHkd: s.price_hkd }));
+  const byId = (row: { id: string }) => row.id;
+  const stopsById = groupBy(stops, byId, s => ({ countryId: s.country_id, regionId: s.region_id, cityId: s.city_id }));
+  const departuresById = groupBy(departures, byId, d => ({ date: d.date, priceHkd: d.price_hkd }));
+  const snapshotsById = groupBy(snapshots, byId, s => ({ date: s.date, priceHkd: s.price_hkd }));
   const today = params[0];
 
   return rows.map(r => ({
@@ -274,16 +275,6 @@ async function toCards(db: Db, rows: TourRow[], params: Params): Promise<TourCar
     priceChange: comparePrice(r.from_price, snapshotsById.get(r.id) ?? [], today),
     lastUpdated: r.last_updated,
   }));
-}
-
-function groupBy<R extends { id: string }, T>(rows: R[], map: (row: R) => T): Map<string, T[]> {
-  const groups = new Map<string, T[]>();
-  for (const row of rows) {
-    const group = groups.get(row.id);
-    if (group) group.push(map(row));
-    else groups.set(row.id, [map(row)]);
-  }
-  return groups;
 }
 
 /**

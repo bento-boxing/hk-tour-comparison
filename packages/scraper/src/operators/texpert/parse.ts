@@ -1,39 +1,29 @@
 import { load, type CheerioAPI } from 'cheerio';
-import { isIsoDate, parsePriceHkd, type IsoDate, type ScrapedDeparture, type ScrapedTour } from '@hktours/core';
+import { BRACKETED, isIsoDate, type IsoDate, type ScrapedDeparture, type ScrapedTour } from '@hktours/core';
+import { FLIGHT_CHUNK } from '../../next-flight';
+import { dayCount, isObject, jsonPrice, type JsonObject } from '../shared/json';
+import { ISO_DATE } from '../shared/patterns';
+import { collapseWhitespace, withoutQueryOrFragment } from '../shared/text';
 
 // Sources: docs/operators/texpert.md, "Where each fact comes from".
 // HTML: title (`h1`), day headings (`details summary h3`). JSON-LD: days, "from" price.
 // Next.js flight data: tour code, departure dates and prices (also the fallback for days and price).
 
-type JsonObject = Record<string, unknown>;
-
-/** One `self.__next_f.push([1,"…"])` script; the captured part is a JSON string literal. */
-const FLIGHT_CHUNK = /^\s*self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)\s*;?\s*$/s;
 /** `T<hex byte length>,` after a row id: a text row, whose text has no closing newline. */
 const TEXT_ROW = /^T([0-9a-f]+),/;
 const COLON = 0x3a;
 const NEWLINE = 0x0a;
-/** A departure date, optionally followed by a time. */
-const ISO_DATE = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
 /** Highlighted-date types that mean the date cannot be booked (seen so far: `HotRecommended`, `AlreadyFormed`). */
 const FULL_TYPE = /full|sold\s*out/i;
 const DAY_LABEL = /^day\s*\d+$/i;
 const SEGMENT_SEPARATOR = /[→>＞]/;
-const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
 const GATHERING = '集合';
 const DISMISSAL = /解散|散團/;
 const MAX_POINT_LENGTH = 20;
 /** A space between two Chinese characters: the page's line wraps break words with one (`江 門`, `從化溫 泉`). */
 const SPACE_INSIDE_WORD = /(?<=\p{Script=Han})\s+(?=\p{Script=Han})/gu;
 
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : value === undefined ? [] : [value]);
-
-/** Text with runs of whitespace (including no-break spaces) as one space. */
-function clean(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
 
 /** Every object inside a JSON value, in document order. */
 function* objectsIn(value: unknown): Generator<JsonObject> {
@@ -133,29 +123,17 @@ function touristTrip($: CheerioAPI): JsonObject | null {
   return null;
 }
 
-/** A positive whole number of days, or null. */
-function dayCount(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
-}
-
 function jsonLdDays(trip: JsonObject | null): number | null {
   const property = asArray(trip?.additionalProperty)
     .find(p => isObject(p) && p.propertyID === 'tourDurationDays');
   return isObject(property) ? dayCount(property.value) : null;
 }
 
-/** A price given as a JSON number (or, in JSON-LD, a numeric string), as whole HKD; null below 100 or if absent. */
-function price(value: unknown, allowText = false): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return parsePriceHkd(String(Math.trunc(value)));
-  if (allowText && typeof value === 'string') return parsePriceHkd(value);
-  return null;
-}
-
 /** JSON-LD `offers`: `AggregateOffer.lowPrice`, or `Offer.price` when every date costs the same. */
 function jsonLdFromPrice(trip: JsonObject | null): number | null {
   const offer = asArray(trip?.offers).find(isObject);
   if (!offer) return null;
-  return price(offer.lowPrice, true) ?? price(offer.price, true);
+  return jsonPrice(offer.lowPrice, true) ?? jsonPrice(offer.price, true);
 }
 
 /** True when the tour as a whole cannot be booked: sold out (`售罄`), purchase paused, or ended. */
@@ -177,7 +155,7 @@ function departures(flight: Flight): ScrapedDeparture[] {
       const date = typeof row.date === 'string' ? ISO_DATE.exec(row.date)?.[1] : undefined;
       if (date === undefined || !isIsoDate(date) || fullDates.has(date)) continue;
       if (typeof row.inventory === 'number' && row.inventory <= 0) continue;
-      result.push({ date, priceHkd: price(row.sellingPrice) });
+      result.push({ date, priceHkd: jsonPrice(row.sellingPrice) });
     }
   }
   return result;
@@ -191,8 +169,8 @@ function dayHeadings($: CheerioAPI): string[] {
   return $('details summary h3').toArray()
     .map(h3 => {
       const heading = $(h3).clone();
-      heading.find('*').filter((_, element) => DAY_LABEL.test(clean($(element).text()))).remove();
-      return clean(heading.text()).replace(SPACE_INSIDE_WORD, '');
+      heading.find('*').filter((_, element) => DAY_LABEL.test(collapseWhitespace($(element).text()))).remove();
+      return collapseWhitespace(heading.text()).replace(SPACE_INSIDE_WORD, '');
     })
     .filter(heading => heading !== '');
 }
@@ -235,20 +213,20 @@ export function parse(html: string, url: string, _today?: IsoDate): ScrapedTour 
   const days = jsonLdDays(trip) ?? dayCount(flight.tour?.duration);
   if (days === null) return null;
 
-  const flightTitle = typeof flight.tour?.title === 'string' ? clean(flight.tour.title) : '';
+  const flightTitle = typeof flight.tour?.title === 'string' ? collapseWhitespace(flight.tour.title) : '';
   const headings = dayHeadings($);
 
   return {
     operatorId: 'texpert',
     code,
-    url: url.replace(/[?#].*$/, ''),
-    title: clean($('h1').first().text()) || flightTitle,
+    url: withoutQueryOrFragment(url),
+    title: collapseWhitespace($('h1').first().text()) || flightTitle,
     days,
     nights: null,
     dayHeadings: headings,
     startPoint: gatheringPoint(headings[0]),
     endPoint: dismissalPoint(headings.at(-1)),
-    fromPriceHkd: jsonLdFromPrice(trip) ?? price(flight.tour?.minSalePrice),
+    fromPriceHkd: jsonLdFromPrice(trip) ?? jsonPrice(flight.tour?.minSalePrice),
     departures: departures(flight),
   };
 }

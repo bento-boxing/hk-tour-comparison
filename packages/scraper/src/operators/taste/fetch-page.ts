@@ -1,6 +1,7 @@
 import { isIsoDate, type IsoDate } from '@hktours/core';
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
+import { joinJson, splitJson } from '../shared/joined';
 import { eventUrl, SAME_SITE, tourIdOf, tourPageUrl } from './discover';
 import { codeOf, isBookable, publicDates, publicTourPage, type PublicDate } from './public';
 
@@ -8,22 +9,13 @@ import { codeOf, isBookable, publicDates, publicTourPage, type PublicDate } from
 export interface TourPage { today: IsoDate; page: string; dates: PublicDate[] }
 
 export function joinPage(tour: TourPage): string {
-  return JSON.stringify(tour);
+  return joinJson(tour);
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The parts of a joinPage text (or a fixture written as one); null for any other text. */
 export function splitPage(text: string): TourPage | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (!isObject(value) || typeof value.today !== 'string' || typeof value.page !== 'string' || !Array.isArray(value.dates)) return null;
-  return value as unknown as TourPage;
+  return splitJson(text, value => (typeof value.today === 'string' && typeof value.page === 'string' && Array.isArray(value.dates)
+    ? value as unknown as TourPage : null));
 }
 
 /**

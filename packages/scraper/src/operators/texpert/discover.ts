@@ -1,6 +1,5 @@
-import { readSitemapUrls } from '../../sitemap';
-import type { LogView } from '../../public-log';
-import type { Fetcher } from '../../types';
+import { sitemapDiscover } from '../../sitemap';
+import { urlOn } from '../shared/url';
 
 const ORIGIN = 'https://www.texpert.com';
 const SITEMAP_URL = `${ORIGIN}/sitemap/sitemap_tour_zh-hk.xml`;
@@ -19,13 +18,8 @@ const TOUR_PATH = /^\/zh-hk\/tour\/(\d+(?:-[A-Za-z0-9]+)*)\/?$/;
 
 /** The page's URL as `https://www.texpert.com/zh-hk/tour/<id>-<slug>`, or null if it is not a single-tour page. */
 function tourPageUrl(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.origin !== ORIGIN) return null;
+  const parsed = urlOn(url, ORIGIN);
+  if (parsed === null) return null;
   const match = TOUR_PATH.exec(parsed.pathname);
   return match ? `${ORIGIN}/zh-hk/tour/${match[1]}` : null;
 }
@@ -36,14 +30,4 @@ export function isTourUrl(url: string): boolean {
 }
 
 /** Every single-tour page in the tour sitemap, without query strings, each once. `log`: the run's (see readSitemapUrls). */
-export async function discover(
-  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
-): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
-  const tours = new Set<string>();
-  for (const url of urls) {
-    const tour = tourPageUrl(url);
-    if (tour !== null) tours.add(tour);
-  }
-  return [...tours];
-}
+export const discover = sitemapDiscover({ sitemapUrl: SITEMAP_URL, allowedHosts: ALLOWED_HOSTS, tourUrl: tourPageUrl });

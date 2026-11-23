@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { parseSitemapXml, readSitemapUrls } from './sitemap';
+import { parseSitemapXml, readSitemapUrls, sitemapDiscover } from './sitemap';
 import type { Fetcher } from './types';
 
 /** A Fetcher that serves fixed pages and records what was asked for. */
@@ -140,4 +140,23 @@ it('readSitemapUrls logs nothing when every child sitemap is on the operator\'s 
 
 it('readSitemapUrls needs the operator\'s hosts', async () => {
   await expect(readSitemapUrls(fakeFetcher({}), 'https://x.test/sitemap.xml', [], noLog)).rejects.toThrow('at least one host');
+});
+
+it('sitemapDiscover returns each address its rule accepts, as the rule gives it, once, in the sitemap\'s order', async () => {
+  const fetcher = fakeFetcher({
+    'https://x.test/sitemap.xml': '<sitemapindex><sitemap><loc>https://x.test/s1.xml</loc></sitemap>'
+      + '<sitemap><loc>https://elsewhere.test/s2.xml</loc></sitemap></sitemapindex>',
+    'https://x.test/s1.xml': '<urlset><url><loc>https://x.test/tour/B?x=1</loc></url><url><loc>https://x.test/about</loc></url>'
+      + '<url><loc>https://x.test/tour/A</loc></url><url><loc>https://x.test/tour/B</loc></url></urlset>',
+  });
+  const lines: string[] = [];
+  const discover = sitemapDiscover({
+    sitemapUrl: 'https://x.test/sitemap.xml',
+    allowedHosts: HOSTS,
+    tourUrl: url => (url.startsWith('https://x.test/tour/') ? url.replace(/\?.*$/, '') : null),
+  });
+  expect(await discover(fetcher, undefined, line => lines.push(line))).toEqual(['https://x.test/tour/B', 'https://x.test/tour/A']);
+  expect(fetcher.asked).toEqual(['https://x.test/sitemap.xml', 'https://x.test/s1.xml']);
+  expect(lines).toEqual(['sitemap: skipped 1 child sitemap not on the operator\'s hosts (elsewhere.test)']);
+  expect(await discover(fakeFetcher({}))).toEqual([]);
 });

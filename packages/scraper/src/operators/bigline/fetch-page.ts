@@ -1,7 +1,9 @@
 import type { IsoDate } from '@hktours/core';
 import { MAX_CONSECUTIVE_PUSHBACK } from '../../polite-fetch';
 import type { Fetcher, PageSkip } from '../../types';
-import { DATES_URL, datesBody, detailUrl, tourIdOf } from './discover';
+import { isObject } from '../shared/json';
+import { joinJson, splitJson } from '../shared/joined';
+import { DATES_URL, datesBody, detailUrl, tourIdOf, YEAR_MONTH } from './discover';
 import { publicDates, publicDetail, type PublicDates, type PublicDetail } from './public';
 
 /**
@@ -12,7 +14,6 @@ import { publicDates, publicDetail, type PublicDates, type PublicDetail } from '
  */
 export const MAX_MONTHS_PER_TOUR = 2;
 
-const YEAR_MONTH = /^[0-9]{4}-(?:0[1-9]|1[0-2])$/;
 /**
  * JSON `code`s (inside an HTTP 200) that mean the API will not serve us or asks us to slow down. They,
  * a JSON answer with no code, a 200 answer that is not JSON (a block page) and no answer at all count
@@ -27,24 +28,17 @@ export interface TourResponses { detail: PublicDetail; months: { yearMonth: stri
 
 /** The tour's answers as the one text the pipeline hands to `parse`. */
 export function joinTour(tour: TourResponses): string {
-  return JSON.stringify(tour);
+  return joinJson(tour);
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The answers of a `joinTour` text (or a fixture written as one); null for any other text. */
 export function splitTour(text: string): TourResponses | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (!isObject(value) || !isObject(value.detail) || !Array.isArray(value.months)) return null;
-  const monthsOk = value.months.every(month =>
-    isObject(month) && typeof month.yearMonth === 'string' && isObject(month.dates));
-  return monthsOk ? (value as unknown as TourResponses) : null;
+  return splitJson(text, value => {
+    if (!isObject(value.detail) || !Array.isArray(value.months)) return null;
+    const monthsOk = value.months.every(month =>
+      isObject(month) && typeof month.yearMonth === 'string' && isObject(month.dates));
+    return monthsOk ? (value as unknown as TourResponses) : null;
+  });
 }
 
 /**

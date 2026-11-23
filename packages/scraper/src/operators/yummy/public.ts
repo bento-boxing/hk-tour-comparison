@@ -8,16 +8,7 @@
  * committed fixtures are made with it.
  */
 
-type JsonObject = Record<string, unknown>;
-type Plain = string | number | boolean | null;
-
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const objectAt = (value: unknown): JsonObject => (isObject(value) ? value : {});
-/** The value when it is a plain JSON value, else null. */
-const plain = (value: unknown): Plain =>
-  (typeof value === 'string' || typeof value === 'boolean' || value === null
-    || (typeof value === 'number' && Number.isFinite(value)) ? value : null);
+import { isObject, objectAt, plainJson, type JsonObject, type PlainJson as Plain } from '../shared/json';
 
 /** A tour's public facts, as both the listing row and the detail give them. */
 export interface PublicTour {
@@ -27,8 +18,9 @@ export interface PublicTour {
 }
 
 const publicTour = (row: JsonObject): PublicTour => ({
-  id: plain(row.id), code: plain(row.code), name: plain(row.name), is_website_name: plain(row.is_website_name),
-  website_name: plain(row.website_name), daycount: plain(row.daycount), price: plain(row.price),
+  id: plainJson(row.id), code: plainJson(row.code), name: plainJson(row.name),
+  is_website_name: plainJson(row.is_website_name), website_name: plainJson(row.website_name),
+  daycount: plainJson(row.daycount), price: plainJson(row.price),
 });
 
 export interface PublicDetail {
@@ -40,9 +32,9 @@ export interface PublicDetail {
 /** The public facts of a detail answer (`GET /bussiness/line/detail?id=<id>`). */
 export function publicDetail(response: unknown): PublicDetail {
   const answer = objectAt(response);
-  const code = plain(answer.code);
+  const code = plainJson(answer.code);
   if (!isObject(answer.data)) return { code, data: null };
-  return { code, data: { ...publicTour(answer.data), dist_list: plain(answer.data.dist_list) } };
+  return { code, data: { ...publicTour(answer.data), dist_list: plainJson(answer.data.dist_list) } };
 }
 
 /** One group's public facts: one bus or flight of one departure date, with its booking status and price. */
@@ -53,7 +45,7 @@ export interface PublicDates { code: Plain; data: { list: PublicGroup[] } | null
 /** The public facts of a dates answer (`GET /bussiness/group/list?line_id=<id>`). */
 export function publicDates(response: unknown): PublicDates {
   const answer = objectAt(response);
-  const code = plain(answer.code);
+  const code = plainJson(answer.code);
   const list = objectAt(answer.data).list;
   if (!Array.isArray(list)) return { code, data: null };
   return {
@@ -62,8 +54,8 @@ export function publicDates(response: unknown): PublicDates {
       list: list.map(item => {
         const group = objectAt(item);
         return {
-          id: plain(group.id), start_date: plain(group.start_date), return_date: plain(group.return_date),
-          group_enroll_status: plain(group.group_enroll_status), price: plain(group.price),
+          id: plainJson(group.id), start_date: plainJson(group.start_date), return_date: plainJson(group.return_date),
+          group_enroll_status: plainJson(group.group_enroll_status), price: plainJson(group.price),
         };
       }),
     },
@@ -79,13 +71,13 @@ export interface PublicListing { code: Plain; data: { total: Plain; last_page: P
  */
 export function publicListing(response: unknown): PublicListing {
   const answer = objectAt(response);
-  const code = plain(answer.code);
+  const code = plainJson(answer.code);
   const data = objectAt(answer.data);
   if (!Array.isArray(data.rows)) return { code, data: null };
   return {
     code,
     data: {
-      total: plain(data.total), last_page: plain(data.last_page),
+      total: plainJson(data.total), last_page: plainJson(data.last_page),
       rows: data.rows.map(row => publicTour(objectAt(row))),
     },
   };

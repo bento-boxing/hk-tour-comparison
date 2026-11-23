@@ -1,6 +1,8 @@
 import { load } from 'cheerio';
 import { isIsoDate, parsePriceHkd, type IsoDate, type ScrapedDeparture, type ScrapedTour } from '@hktours/core';
+import { collapseWhitespace, collapseWhitespaceNfc } from '../shared/text';
 import { bookingUrl, codeOf } from './discover';
+import { tourOrNull } from '../shared/joined';
 import { splitPage } from './fetch-page';
 import { CALENDAR, DAYS, MONTH, PRICE } from './public';
 
@@ -33,15 +35,10 @@ const GUANGDONG_SHORT_TRIPS = '中國短線';
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoOf = (year: number, month: number, day: number) => `${year}-${pad(month)}-${pad(day)}`;
 
-/** Text with runs of whitespace as one space, compatibility ideographs as their ordinary characters (峇里島 → 峇里島). */
-function clean(text: string): string {
-  return text.normalize('NFC').replace(/\s+/g, ' ').trim();
-}
-
 /** The title without HTML: tags and entities as the browser reads them (`<br>` a space; `<環島>` is not a tag). */
 function titleText(html: string): string {
   const $ = load(html.replace(/<br\s*\/?>/gi, ' '), null, false);
-  return clean($.root().text());
+  return collapseWhitespaceNfc($.root().text());
 }
 
 /**
@@ -53,7 +50,7 @@ const TITLE_MARKS = /[【】《》「」『』〔〕\[\]()（）<>＜＞“”"�
 
 /** The title as a route line for the shared rules. */
 function routeLine(title: string): string {
-  return title.replace(TITLE_MARKS, ' ').replace(/\s+/g, ' ').trim();
+  return collapseWhitespace(title.replace(TITLE_MARKS, ' '));
 }
 
 /** A listing price, given as a number (`2699`) or text (`2,699`): whole HKD, or null under 100 or absent. */
@@ -109,7 +106,7 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   const $ = load(joined.page);
   const days = DAYS_TEXT.exec($(DAYS).first().text());
   if (!days || Number(days[1]) < 1) return { why: 'the booking page has no day count (#Content_lbtnday)' };
-  const month = MONTH_TEXT.exec(clean($(CALENDAR).find(MONTH).first().text()));
+  const month = MONTH_TEXT.exec(collapseWhitespaceNfc($(CALENDAR).find(MONTH).first().text()));
   if (!month) return { why: 'the booking page has no calendar month' };
   const shownMonth = `${month[1]}-${pad(Number(month[2]))}`;
 
@@ -135,8 +132,8 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
   const guangdong = entry.region === GUANGDONG_SHORT_TRIPS;
   const gathering = guangdong ? GATHERING[code.slice(-2)] ?? null : null;
   const title = titleText(entry.Title);
-  const subarea = clean(entry.subarea).split(SUBAREA_SEPARATOR).map(name => name.trim()).filter(name => name !== '');
-  const area = clean(entry.area);
+  const subarea = collapseWhitespaceNfc(entry.subarea).split(SUBAREA_SEPARATOR).map(name => name.trim()).filter(name => name !== '');
+  const area = collapseWhitespaceNfc(entry.area);
   // No day headings (the itinerary is a PDF robots.txt disallows). The region is a sales grouping, never read. Which
   // text gives a stop is left to normaliseTour, which reads the fallback texts in order under the title rules, so a
   // text the rules empty falls through to the next one (the parser never matches places itself):
@@ -169,6 +166,5 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
 
 /** One Sunflower tour as a ScrapedTour; null when it is not one (see readTour for the reasons). */
 export function parse(text: string, url: string): ScrapedTour | null {
-  const tour = readTour(text, url);
-  return 'why' in tour ? null : tour;
+  return tourOrNull(readTour(text, url));
 }

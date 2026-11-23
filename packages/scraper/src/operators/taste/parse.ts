@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { isIsoDate, parsePriceHkd, type IsoDate, type ScrapedTour } from '@hktours/core';
 import { tourIdOf, tourPageUrl } from './discover';
+import { tourOrNull } from '../shared/joined';
 import { splitPage } from './fetch-page';
 import {
   codeOf, DAY_LINE, FROM_PRICE, gatheringOptions, isBookable, NOTICE, noticeLines, PRODUCT_INFO, textOf, TITLE,
@@ -86,6 +87,5 @@ export function readTour(text: string, url: string): ScrapedTour | { why: string
 
 /** One Taste Travel tour as a ScrapedTour; null when it is not one (see readTour for the reasons). */
 export function parse(text: string, url: string): ScrapedTour | null {
-  const tour = readTour(text, url);
-  return 'why' in tour ? null : tour;
+  return tourOrNull(readTour(text, url));
 }

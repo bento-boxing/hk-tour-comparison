@@ -1,6 +1,7 @@
 import type { IsoDate, NormalisedTour, ScrapedDeparture, ScrapedTour, Stop, TourPoint } from './types';
 import { normaliseName, type PlacesIndex } from './places/index';
 import { extractDayLineStops, extractFallbackStops, withoutAreasOfListedMembers, withoutRegionsOfListedCities, type RouteDrop } from './stops';
+import { cityNameKeys } from './per-index';
 import { normaliseStartPoint } from './start-point';
 
 /**
@@ -37,12 +38,7 @@ function lowerPrice(a: number | null, b: number | null): number | null {
 function citiesNamedBy(point: TourPoint, index: PlacesIndex): Set<string> {
   if (point.kind !== 'other' || point.label === null) return new Set();
   const label = normaliseName(point.label);
-  return new Set(index.data.cities
-    .filter(city => [city.nameZh, ...city.aliases].some(name => {
-      const key = normaliseName(name);
-      return [...key].length >= 2 && label.includes(key);
-    }))
-    .map(city => city.id));
+  return new Set(cityNameKeys(index).filter(city => city.keys.some(key => label.includes(key))).map(city => city.id));
 }
 
 /**

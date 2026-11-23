@@ -1,6 +1,7 @@
 import type { Stop } from './types';
 import { normaliseName } from './places/index';
 import type { City, PlacesIndex, Region } from './places/index';
+import { perIndex } from './per-index';
 import { SHORT_TRIP_MAX_DAYS, SHORT_TRIP_REGION_IDS, SHORT_TRIP_REGION_IDS_WITHOUT_CHINA } from './places/short-trips';
 
 export interface StopsResult { stops: Stop[]; unmatched: string[] }
@@ -9,11 +10,15 @@ const DEFAULT_EXCLUDED_CITY_IDS = ['hongkong-hongkong-hongkong'];
 
 /** `第一天`, `第1天`, `第 1 日`, `Day 1`, `DAY1`, `D1`, then any `:` `：` `-` or spaces. */
 export const DAY_MARKER = /^\s*(?:第\s*[0-9０-９一二三四五六七八九十〇零兩]+\s*[天日]|d(?:ay)?\s*[0-9０-９]+)[\s:：-]*/i;
-const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
+/**
+ * Bracketed notes, `(…)` `（…）` `【…】` `[…]`, dropped with their text before a heading is read. Global: for `replace`
+ * (or `.source`), not for `test` or `exec`, which would carry `lastIndex` from one call to the next.
+ */
+export const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
 /** Separators between heading chunks: arrow-type marks, list marks and whitespace, plus U+FE0F so ✈️ splits like ✈. */
 export const CHUNK_SEPARATORS = /[→➝⇒✈～~\-－–—>＞｜|、，,\s\uFE0F]+/;
 /** Separators between the alternatives of one chunk (`深圳北/廣州南`). */
-const ALTERNATIVE_SEPARATORS = /[/／]+/;
+export const ALTERNATIVE_SEPARATORS = /[/／]+/;
 /** A chunk naming a connection (`途經巴黎轉機`, `中轉深圳北/廣州南`) is not a visit, nor are its alternatives. */
 const TRANSIT_WORDS = ['轉機', '中轉', '轉乘', '過境'];
 const CJK = /\p{Script=Han}/u;
@@ -33,8 +38,11 @@ function tokensOf(heading: string): string[] {
     .filter(token => token !== '');
 }
 
-/** Every normalised name a city is matched by (PlacesIndex.matchNames) of at least 2 characters, longest first. */
-function containedNameList(index: PlacesIndex): string[] {
+/**
+ * Every normalised name a city is matched by (PlacesIndex.matchNames) of at least 2 characters, longest first. Built
+ * once per index (perIndex); never changed by its readers.
+ */
+const containedNameList = perIndex((index): readonly string[] => {
   const names = new Set<string>();
   for (const city of index.data.cities) {
     for (const name of index.matchNames(city)) {
@@ -43,17 +51,16 @@ function containedNameList(index: PlacesIndex): string[] {
     }
   }
   return [...names].sort((a, b) => [...b].length - [...a].length);
-}
+});
 
-/** Every normalised notPlaces entry. */
-function notPlaceList(index: PlacesIndex): string[] {
-  return (index.data.notPlaces ?? []).map(normaliseName).filter(name => name !== '');
-}
+/** Every normalised notPlaces entry. Built once per index (perIndex). */
+const notPlaceList = perIndex((index): readonly string[] =>
+  (index.data.notPlaces ?? []).map(normaliseName).filter(name => name !== ''));
 
 type Span = [start: number, end: number];
 
 /** Where each notPlaces entry occurs in `key`. */
-function notPlaceSpans(key: string, notPlaces: string[]): Span[] {
+function notPlaceSpans(key: string, notPlaces: readonly string[]): Span[] {
   const spans: Span[] = [];
   for (const entry of notPlaces) {
     for (let at = key.indexOf(entry); at !== -1; at = key.indexOf(entry, at + 1)) spans.push([at, at + entry.length]);
@@ -101,8 +108,8 @@ const AFTER_A_PLACE_ONLY = '版';
 /** The longest place name looked for before 版, in characters. */
 const MAX_NAME_LENGTH = 12;
 
-/** Every normalised country, region and city name and alias of at least 2 characters. */
-function placeNameSet(index: PlacesIndex): Set<string> {
+/** Every normalised country, region and city name and alias of at least 2 characters. Built once per index (perIndex). */
+const placeNameSet = perIndex((index): ReadonlySet<string> => {
   const names = new Set<string>();
   for (const place of [...index.data.countries, ...index.data.regions, ...index.data.cities]) {
     for (const name of [place.nameZh, ...place.aliases]) {
@@ -111,10 +118,10 @@ function placeNameSet(index: PlacesIndex): Set<string> {
     }
   }
   return names;
-}
+});
 
 /** True when `text` ends with a place name. */
-function endsWithPlaceName(text: string, placeNames: Set<string>): boolean {
+function endsWithPlaceName(text: string, placeNames: ReadonlySet<string>): boolean {
   for (let length = 2; length <= Math.min(MAX_NAME_LENGTH, text.length); length++) {
     if (placeNames.has(text.slice(-length))) return true;
   }
@@ -127,7 +134,7 @@ function endsWithPlaceName(text: string, placeNames: Set<string>): boolean {
  * where the tour goes (review of task 33, 2026-11-14).
  */
 const comparisonRule = (index: PlacesIndex): Skip => {
-  let placeNames: Set<string> | undefined;
+  let placeNames: ReadonlySet<string> | undefined;
   return (key, at, name) => {
     const before = key.slice(0, at).replace(OPENING_QUOTES, '');
     if (COMPARISON_SUFFIXES.some(marker => key.startsWith(marker, at + name.length))) return true;
@@ -170,7 +177,9 @@ const anyOf = (rules: Skip[]): Skip | undefined =>
  * Cities whose name is the longest city name contained in the token; ties go to the earliest in the token.
  * A city name lying inside a notPlaces entry in the token does not count, nor one the skip rule passes over.
  */
-function citiesContainedIn(token: string, index: PlacesIndex, cityNames: string[], notPlaces: string[], skip?: Skip): City[] {
+function citiesContainedIn(
+  token: string, index: PlacesIndex, cityNames: readonly string[], notPlaces: readonly string[], skip?: Skip,
+): City[] {
   const key = normaliseName(token);
   const spans = notPlaceSpans(key, notPlaces);
   let best: string | undefined;

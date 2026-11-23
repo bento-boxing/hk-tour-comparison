@@ -1,4 +1,5 @@
 import type { OperatorScraper } from '../../types';
+import { tourOrThrow } from '../shared/joined';
 import { ALLOWED_HOSTS, bookingUrl, discoverTours } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
@@ -30,11 +31,7 @@ export function createSunflowerScraper(opts: { log?: (line: string) => void } = 
     fetchPage: createFetchPage(code => entries.get(code)),
     allowedHosts: ALLOWED_HOSTS,
     // A rejected page throws its reason (a fixed text, see readTour), so the crawl log says why.
-    parse: (text, url) => {
-      const tour = readTour(text, url);
-      if ('why' in tour) throw new Error(tour.why);
-      return tour;
-    },
+    parse: (text, url) => tourOrThrow(readTour(text, url)),
     // First-run floor: a third of the 350 tours the 2026-11-14 measured crawl would save with the task 34 changes
     // (370 pages fetched; 18 parse failures, 2 with no departures, re-processed offline). docs/operators/sunflower.md,
     // "Measured crawl and task 34".

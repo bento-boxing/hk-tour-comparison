@@ -1,5 +1,6 @@
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { Fetcher } from '../../types';
+import { isObject } from '../shared/json';
 import { publicEntry, type PublicEntry } from './public';
 
 /**
@@ -56,9 +57,6 @@ export interface Listing {
   /** Codes that appeared on more than one entry. */
   repeated: string[];
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * The listing's tours, or an error with a fixed text (never the answer's own): discovery then fails as

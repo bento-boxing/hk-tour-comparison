@@ -1,15 +1,16 @@
 import { load, type CheerioAPI } from 'cheerio';
 import {
-  isIsoDate, parsePriceHkd, TOUR_CODE_PATTERN,
+  isIsoDate, TOUR_CODE_PATTERN,
   type IsoDate, type ScrapedDeparture, type ScrapedTour,
 } from '@hktours/core';
+import { arrayAt, dayCount, isObject, jsonPrice, type JsonObject } from '../shared/json';
+import { ISO_DATE, withoutEitherOr } from '../shared/patterns';
+import { collapseWhitespace, withoutQueryOrFragment } from '../shared/text';
 
 // Sources: docs/operators/egl.md, "Where each fact comes from".
 // Page HTML: tour code (`[data-tour-code]`), day count (hero `6天．`), day plans (a JSON attribute),
 // start and end places (the transport blocks). JSON-LD: title, "from" price.
 // The dates JSON (a second request, see fetch-page.ts): departure dates, prices, full and offline flags.
-
-type JsonObject = Record<string, unknown>;
 
 const CODE_ELEMENT = '.block-item--daily-itinerary-calendar-picker[data-tour-code]';
 const HERO_PRICE = '.block-item--itinerary-hero-price';
@@ -24,22 +25,9 @@ const TRANSPORT_PLACE = 'p.egl-h5';
 const BRACKETED = /\([^)]*\)|（[^）]*）/g;
 /** A note marker on a stop (`香港〔註〕`, `佛牙寺〔註1〕`). */
 const NOTE = /〔[^〕]*〕/g;
-/** `大阪/東京`: either city, as in a flight leg into or out of one of two airports. */
-const EITHER_OR = /^[^/／]+(?:[/／][^/／]+)+$/;
 const HONG_KONG = '香港';
 const STOP_SEPARATOR = ' → ';
-/** A departure date, optionally followed by a time. */
-const ISO_DATE = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
 const CURRENCY = 'HKD';
-
-const isObject = (value: unknown): value is JsonObject =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-
-/** Text with runs of whitespace (including no-break spaces) as one space. */
-function clean(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
 
 function parseJson(text: string | null | undefined): unknown {
   if (text === null || text === undefined) return undefined;
@@ -71,18 +59,6 @@ function product($: CheerioAPI): JsonObject | null {
   return null;
 }
 
-/** A positive whole number of days, or null. */
-function dayCount(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
-}
-
-/** A price given as a JSON number (or numeric text when allowed), as whole HKD; null below 100 or if absent. */
-function price(value: unknown, allowText = false): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return parsePriceHkd(String(Math.trunc(value)));
-  if (allowText && typeof value === 'string') return parsePriceHkd(value);
-  return null;
-}
-
 interface DayPlan {
   dayNumber: number; title: string; stops: string[];
   /** True when the day lists a meal or a hotel (any text in `breakfast`, `lunch`, `dinner` or `accomodation`). */
@@ -94,7 +70,7 @@ const MEAL_AND_HOTEL_FIELDS = ['breakfast', 'lunch', 'dinner', 'accomodation'] a
 
 /** True when the HTML value has any text once its tags are removed. */
 function hasText(value: unknown): boolean {
-  return typeof value === 'string' && clean(value.replace(/<[^>]*>/g, '')) !== '';
+  return typeof value === 'string' && collapseWhitespace(value.replace(/<[^>]*>/g, '')) !== '';
 }
 
 /** The day plans in day order, or null when the attribute is missing or not a JSON array. */
@@ -104,9 +80,9 @@ function dayPlans($: CheerioAPI): DayPlan[] | null {
   return data.filter(isObject)
     .map(plan => ({
       dayNumber: dayCount(plan.dayNumber) ?? 0,
-      title: typeof plan.title === 'string' ? clean(plan.title) : '',
-      stops: asArray(plan.journeyTextRows).flatMap(row => asArray(row))
-        .map(stop => (isObject(stop) && typeof stop.location === 'string' ? clean(stop.location.replace(NOTE, '')) : ''))
+      title: typeof plan.title === 'string' ? collapseWhitespace(plan.title) : '',
+      stops: arrayAt(plan.journeyTextRows).flatMap(row => arrayAt(row))
+        .map(stop => (isObject(stop) && typeof stop.location === 'string' ? collapseWhitespace(stop.location.replace(NOTE, '')) : ''))
         .filter(stop => stop !== ''),
       hasMealsOrHotel: MEAL_AND_HOTEL_FIELDS.some(field => hasText(plan[field])),
     }))
@@ -134,7 +110,7 @@ function ownVariant(plans: DayPlan[], code: string, days: number | null): DayPla
   if (days === null) return null; // which untagged days are this tour's cannot be told
   const untag = (text: string) => text.replace(VARIANT_TAG, '');
   return plans
-    .filter((plan, i) => (tags[i] === null ? days === null || plan.dayNumber <= days : ours(tags[i])))
+    .filter((plan, i) => (tags[i] === null ? plan.dayNumber <= days : ours(tags[i])))
     .map(plan => ({ ...plan, title: untag(plan.title), stops: plan.stops.map(untag).filter(stop => stop !== '') }));
 }
 
@@ -156,21 +132,16 @@ function withoutArrivalDay(plans: DayPlan[], days: number | null, end: string | 
 
 /** The places of the transport block under the heading (`出發交通資料` or `回程交通資料`), in order. */
 function transportPlaces($: CheerioAPI, heading: string): string[] {
-  const label = $('[data-hiifly-fill-tile] > p').filter((_, p) => clean($(p).text()) === heading).first();
+  const label = $('[data-hiifly-fill-tile] > p').filter((_, p) => collapseWhitespace($(p).text()) === heading).first();
   return label.parent().next().find(TRANSPORT_PLACE).toArray()
-    .map(p => clean($(p).text()))
+    .map(p => collapseWhitespace($(p).text()))
     .filter(place => place !== '');
 }
 
 /** A start or end place without its bracketed notes (`深圳羅湖口岸(地面)門前廣場(EGL旗號集合)` → `深圳羅湖口岸門前廣場`). */
 function point(place: string | undefined): string | null {
   if (place === undefined) return null;
-  return clean(place.replace(BRACKETED, '')) || null;
-}
-
-/** Removes the stop at `index` if there is one and it is an either/or leg (`大阪/東京`). */
-function withoutEitherOr(stops: string[], index: number): string[] {
-  return index >= 0 && EITHER_OR.test(stops[index] ?? '') ? stops.filter((_, i) => i !== index) : stops;
+  return collapseWhitespace(place.replace(BRACKETED, '')) || null;
 }
 
 /**
@@ -215,9 +186,9 @@ function readDates(datesJson: string | null, code: string): Dates | null {
   for (const row of data.dates.filter(isObject)) {
     const date = typeof row.departureDate === 'string' ? ISO_DATE.exec(row.departureDate)?.[1] : undefined;
     if (date === undefined || !isIsoDate(date) || row.isFull === true || row.isOffline === true) continue;
-    departures.push({ date, priceHkd: price(row.sellingPrice) });
+    departures.push({ date, priceHkd: jsonPrice(row.sellingPrice) });
   }
-  return { departures, fromPriceHkd: price(data.sellingPrice) };
+  return { departures, fromPriceHkd: jsonPrice(data.sellingPrice) };
 }
 
 /**
@@ -235,7 +206,7 @@ export function parse(html: string, datesJson: string | null, url: string, _toda
 
   const listed = dayPlans($);
   if (listed === null) return null;
-  const hero = HERO_DAYS.exec(clean($(`p:has(> ${HERO_PRICE})`).first().text()))?.[1];
+  const hero = HERO_DAYS.exec(collapseWhitespace($(`p:has(> ${HERO_PRICE})`).first().text()))?.[1];
   const heroDays = hero !== undefined ? Number(hero) : null;
   const own = ownVariant(listed, code, heroDays);
   if (own === null) return null;
@@ -252,14 +223,14 @@ export function parse(html: string, datesJson: string | null, url: string, _toda
   return {
     operatorId: 'egl',
     code,
-    url: url.replace(/[?#].*$/, ''),
-    title: typeof trip?.name === 'string' ? clean(trip.name) : '',
+    url: withoutQueryOrFragment(url),
+    title: typeof trip?.name === 'string' ? collapseWhitespace(trip.name) : '',
     days,
     nights: null,
     dayHeadings: dayHeadings(plans, startPoint, endPoint),
     startPoint,
     endPoint,
-    fromPriceHkd: price(isObject(trip?.offers) ? trip.offers.price : undefined, true) ?? dates.fromPriceHkd,
+    fromPriceHkd: jsonPrice(isObject(trip?.offers) ? trip.offers.price : undefined, true) ?? dates.fromPriceHkd,
     departures: dates.departures,
   };
 }

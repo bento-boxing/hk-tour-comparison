@@ -1,6 +1,8 @@
 import type { IsoDate } from '@hktours/core';
 import { MAX_CONSECUTIVE_PUSHBACK } from '../../polite-fetch';
 import type { Fetcher } from '../../types';
+import { isObject } from '../shared/json';
+import { joinJson, splitJson } from '../shared/joined';
 import { datesUrl, detailUrl, tourIdOf } from './discover';
 import { publicDates, publicDetail, type PublicDates, type PublicDetail } from './public';
 
@@ -12,22 +14,12 @@ export interface TourResponses { detail: PublicDetail; dates: PublicDates }
 
 /** The tour's answers as the one text the pipeline hands to `parse`. */
 export function joinTour(tour: TourResponses): string {
-  return JSON.stringify(tour);
+  return joinJson(tour);
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The answers of a `joinTour` text (or a fixture written as one); null for any other text. */
 export function splitTour(text: string): TourResponses | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (!isObject(value) || !isObject(value.detail) || !isObject(value.dates)) return null;
-  return value as unknown as TourResponses;
+  return splitJson(text, value => (isObject(value.detail) && isObject(value.dates) ? value as unknown as TourResponses : null));
 }
 
 /**

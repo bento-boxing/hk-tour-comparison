@@ -1,9 +1,11 @@
 import { load, type Cheerio, type CheerioAPI } from 'cheerio';
 import type { Element } from 'domhandler';
 import {
-  isIsoDate, parsePriceHkd, TOUR_CODE_PATTERN,
+  BRACKETED, isIsoDate, parsePriceHkd, TOUR_CODE_PATTERN,
   type IsoDate, type ScrapedDeparture, type ScrapedTour,
 } from '@hktours/core';
+import { EITHER_OR } from '../shared/patterns';
+import { collapseWhitespace } from '../shared/text';
 import { tourPageUrl } from './discover';
 
 // Sources: docs/operators/charming.md, "Where each fact comes from". Everything is in the server-rendered HTML:
@@ -46,20 +48,12 @@ const ADULT_PRICE = '.reservation-table-td.adt_price';
 const PRICE_NOW = '.detail-discount-price';
 const PRICE_BEFORE_DISCOUNT = '.detail-original-price';
 const PLACE_SEPARATOR = /[~～]/;
-const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/g;
 /** `原居地` ("home city"): a tour joined at its first stop, from wherever the traveller lives. Not a place. */
 const HOME_CITY = '原居地';
 const HONG_KONG = '香港';
 /** A start or end naming either is home (kind hk or sz), whatever else the page says. */
 const HOME_PLACES = ['香港', '深圳'];
-/** `杭州/ 上海`, `無錫/南京/上海`, `杭州/上海機場`: either city, as in a flight leg into or out of one of them. */
-const EITHER_OR = /^[^/／]+(?:[/／][^/／]+)+$/;
 const MAX_POINT_LENGTH = 12;
-
-/** Text with runs of whitespace (including no-break spaces) as one space. */
-function clean(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
 
 /** Full-width digits as ASCII (`４` → `4`). */
 function asciiDigits(text: string): string {
@@ -114,10 +108,10 @@ interface Day {
 function days($: CheerioAPI): Day[] {
   const result: Day[] = [];
   for (const title of $(DAY_TITLE).toArray()) {
-    const text = asciiDigits(clean($(title).find('h3').first().text()));
+    const text = asciiDigits(collapseWhitespace($(title).find('h3').first().text()));
     const label = DAY_LABEL.exec(text);
     if (label === null) continue;
-    const heading = clean($(title).next('.tour-journeys-detail').find(DAY_HEADING).first().text());
+    const heading = collapseWhitespace($(title).next('.tour-journeys-detail').find(DAY_HEADING).first().text());
     const tagged = [label[1], VARIANT_TAG.exec(text)?.[1]].filter((tag): tag is string => tag !== undefined);
     result.push({ last: Number(label[3] ?? label[2]), heading, tags: tagged.flatMap(expandCodes) });
   }
@@ -127,7 +121,7 @@ function days($: CheerioAPI): Day[] {
 /** A heading's places, `~`-separated, without bracketed notes (removed first: `羅馬(鬥獸場 ~ 許願池)`); `原居地` is not one. */
 function places(heading: string): string[] {
   return heading.replace(BRACKETED, ' ').split(PLACE_SEPARATOR)
-    .map(part => clean(part))
+    .map(part => collapseWhitespace(part))
     .filter(part => part !== '' && part !== HOME_CITY);
 }
 
@@ -151,8 +145,8 @@ function point(place: string | undefined, heading: string, joinedAbroad: boolean
 function withoutFlightLegs(headings: string[], start: string | null, end: string | null): string[] {
   const last = headings.length - 1;
   return headings.map((heading, i) => {
-    const parts = heading.split(PLACE_SEPARATOR).map(part => clean(part));
-    const place = (part: string) => clean(part.replace(BRACKETED, ' '));
+    const parts = heading.split(PLACE_SEPARATOR).map(part => collapseWhitespace(part));
+    const place = (part: string) => collapseWhitespace(part.replace(BRACKETED, ' '));
     const isLeg = (at: number) => at >= 0 && at < parts.length && EITHER_OR.test(place(parts[at]));
     const drop = new Set<number>();
     if (i === 0) {
@@ -179,8 +173,8 @@ function tableDate(text: string): IsoDate | null {
 /** The row's adult price: after the early-booking discount when there is one. */
 function adultPrice(row: Cheerio<Element>): number | null {
   const cell = row.find(ADULT_PRICE).first();
-  const now = clean(cell.find(PRICE_NOW).first().text());
-  return parsePriceHkd(now !== '' ? now : clean(cell.find(PRICE_BEFORE_DISCOUNT).first().text()));
+  const now = collapseWhitespace(cell.find(PRICE_NOW).first().text());
+  return parsePriceHkd(now !== '' ? now : collapseWhitespace(cell.find(PRICE_BEFORE_DISCOUNT).first().text()));
 }
 
 /** True when the departure's code is the variant's by letters and day count (`WVJ04O` for WVJ4: WVJ, 4 days). */
@@ -203,11 +197,11 @@ function tableRows($: CheerioAPI): Row[] {
   const rows: Row[] = [];
   for (const element of $(ROW).toArray()) {
     const row = $(element);
-    const date = tableDate(clean(row.find(ROW_DATE).first().text()));
+    const date = tableDate(collapseWhitespace(row.find(ROW_DATE).first().text()));
     if (date === null) continue;
     const full = row.find('.reservation-table-status').toArray().some(status => $(status).hasClass(FULL));
     const price = adultPrice(row);
-    rows.push({ date, code: clean(row.find(ROW_CODE).first().text()), price, departure: full ? null : { date, priceHkd: price } });
+    rows.push({ date, code: collapseWhitespace(row.find(ROW_CODE).first().text()), price, departure: full ? null : { date, priceHkd: price } });
   }
   return rows;
 }
@@ -282,7 +276,7 @@ function chosenVariant(list: Variant[], byVariant: Map<Variant, Row[]>): Variant
  */
 export function parse(html: string, url: string, today?: IsoDate): ScrapedTour | null {
   const $ = load(html);
-  const title = clean($(TITLE).first().text());
+  const title = collapseWhitespace($(TITLE).first().text());
   const itinerary = days($);
   const list = variants(title, itinerary.at(-1)?.last ?? null);
   if (list === null) return null;
@@ -307,7 +301,7 @@ export function parse(html: string, url: string, today?: IsoDate): ScrapedTour |
   const isOurs = (day: Day) => !day.tags.some(tag => list.some(v => sameCode(v.code, tag)))
     || day.tags.some(tag => sameCode(tag, variant.code));
   const headings = itinerary.filter(isOurs).map(day => day.heading);
-  const joinedAbroad = $(DAY_TITLE).toArray().some(entry => clean($(entry).find('h3').first().text()).startsWith(GATHERING));
+  const joinedAbroad = $(DAY_TITLE).toArray().some(entry => collapseWhitespace($(entry).find('h3').first().text()).startsWith(GATHERING));
   const first = headings[0] ?? '';
   const last = headings.at(-1) ?? '';
   const startPoint = point(places(first)[0], first, joinedAbroad);

@@ -4,13 +4,14 @@ import {
   isIsoDate, parsePriceHkd, todayInHongKong,
   type IsoDate, type ScrapedDeparture, type ScrapedTour,
 } from '@hktours/core';
+import { withoutEitherOr } from '../shared/patterns';
+import { collapseWhitespaceWithoutZeroWidth, withoutQueryOrFragment } from '../shared/text';
 
 // Selectors and formats: docs/operators/jetour.md, "Where each fact comes from".
 
 /** Status classes of a booking row that mean the date cannot be booked. Any other status counts as open. */
 const FULL_STATUS_CLASSES = new Set(['FULLED']);
 const FULL_STATUS_TEXT = '額滿';
-const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g;
 const DAYS_IN_TITLE = /^(\d+)\s*天/;
 /** `2026年12月22日 (二)`; the year is optional. */
 const DATE = /(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日/;
@@ -24,32 +25,21 @@ const MAX_GATHERING_LENGTH = 12;
 const STOP_SEPARATOR = /[~～]/;
 const ACTIVITIES = /[：:].*$/;
 const BRACKETED = /\([^)]*\)/g;
-/** `杭州/上海` or `杭州／上海`: either city, as in a flight leg into or out of one of two airports. */
-const EITHER_OR = /^[^/／]+(?:[/／][^/／]+)+$/;
 const HONG_KONG = '香港';
-
-/** Text without zero-width characters, with runs of whitespace (including no-break spaces) as one space. */
-function clean(text: string): string {
-  return text.replace(ZERO_WIDTH, '').replace(/\s+/g, ' ').trim();
-}
 
 /**
  * A day's stops, e.g. `哈爾濱 ~ 漠河 ~ 北極村`, without bracketed notes or the activity list after a colon.
  * Brackets may be half- or full-width, even mixed (`(含…）`). Falls back to the day title when the page gives no stop line.
  */
 function dayStops(day: Cheerio<Element>): string[] {
-  const line = clean(day.find('.day--trip-work').first().text()) || clean(day.find('.day--title').first().text());
+  const line = collapseWhitespaceWithoutZeroWidth(day.find('.day--trip-work').first().text())
+    || collapseWhitespaceWithoutZeroWidth(day.find('.day--title').first().text());
   return line
     .replace(/（/g, '(').replace(/）/g, ')')
     .replace(BRACKETED, ' ')
     .split(STOP_SEPARATOR)
-    .map(stop => clean(stop.replace(ACTIVITIES, '')))
+    .map(stop => collapseWhitespaceWithoutZeroWidth(stop.replace(ACTIVITIES, '')))
     .filter(stop => stop !== '');
-}
-
-/** Removes the stop at `index` if there is one and it is an either/or leg (`杭州/上海`). */
-function withoutEitherOr(stops: string[], index: number): string[] {
-  return index >= 0 && EITHER_OR.test(stops[index] ?? '') ? stops.filter((_, i) => i !== index) : stops;
 }
 
 /**
@@ -89,14 +79,14 @@ function departureDate(text: string, today: IsoDate): IsoDate | null {
 function isFull(row: Cheerio<Element>): boolean {
   const status = row.find('.booking-table--status.visible-desktop').first();
   const statusClass = (status.attr('class') ?? '').trim().split(/\s+/).at(-1) ?? '';
-  return FULL_STATUS_CLASSES.has(statusClass) || clean(status.text()).includes(FULL_STATUS_TEXT);
+  return FULL_STATUS_CLASSES.has(statusClass) || collapseWhitespaceWithoutZeroWidth(status.text()).includes(FULL_STATUS_TEXT);
 }
 
 /** The row's offer price: the desktop price cell without its struck-through original. */
 function rowPrice(row: Cheerio<Element>): number | null {
   const cell = row.find('.booking-table--price.visible-desktop').first().clone();
   cell.find('.text-decoration-line-through').remove();
-  const match = PRICE.exec(clean(cell.text()));
+  const match = PRICE.exec(collapseWhitespaceWithoutZeroWidth(cell.text()));
   return match ? parsePriceHkd(match[1]) : null;
 }
 
@@ -104,7 +94,8 @@ function departures($: CheerioAPI, today: IsoDate): ScrapedDeparture[] {
   const result: ScrapedDeparture[] = [];
   $('.booking-table--body .booking-table--row').each((_, element) => {
     const row = $(element);
-    const date = departureDate(clean(row.find('.booking-table--start--date span:last-child').first().text()), today);
+    const dateText = collapseWhitespaceWithoutZeroWidth(row.find('.booking-table--start--date span:last-child').first().text());
+    const date = departureDate(dateText, today);
     if (date === null || isFull(row)) return;
     result.push({ date, priceHkd: rowPrice(row) });
   });
@@ -114,29 +105,29 @@ function departures($: CheerioAPI, today: IsoDate): ScrapedDeparture[] {
 /** One Jetour `/tour/<CODE>` page as a ScrapedTour; null when it has no tour code, no day count, or two that disagree. */
 export function parse(html: string, url: string, today: IsoDate = todayInHongKong()): ScrapedTour | null {
   const $ = load(html);
-  const code = clean($('.tour_location .card_tag').first().text());
+  const code = collapseWhitespaceWithoutZeroWidth($('.tour_location .card_tag').first().text());
   if (code === '') return null;
 
-  const title = clean($('h1.title').first().text());
+  const title = collapseWhitespaceWithoutZeroWidth($('h1.title').first().text());
   const dayItems = $('.days__list--works .days__items').toArray().map(element => $(element));
   const titleDays = DAYS_IN_TITLE.exec(title)?.[1];
   const days = titleDays === undefined ? dayItems.length : Number(titleDays);
   if (!(days > 0)) return null;
   if (dayItems.length > 0 && dayItems.length !== days) return null; // title and itinerary disagree
 
-  const firstDayDetails = dayItems.length > 0 ? clean(dayItems[0].find('.days_items--details').text()) : '';
+  const firstDayDetails = dayItems.length > 0 ? collapseWhitespaceWithoutZeroWidth(dayItems[0].find('.days_items--details').text()) : '';
 
   return {
     operatorId: 'jetour',
     code,
-    url: url.replace(/[?#].*$/, ''),
+    url: withoutQueryOrFragment(url),
     title,
     days,
     nights: null,
     dayHeadings: dayHeadings(dayItems),
     startPoint: gatheringPoint(firstDayDetails),
     endPoint: null,
-    fromPriceHkd: parsePriceHkd(clean($('.booking--price').first().text())),
+    fromPriceHkd: parsePriceHkd(collapseWhitespaceWithoutZeroWidth($('.booking--price').first().text())),
     departures: departures($, today),
   };
 }

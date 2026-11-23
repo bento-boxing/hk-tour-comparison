@@ -1,5 +1,7 @@
 import type { IsoDate } from '@hktours/core';
 import type { Fetcher } from '../../types';
+import { isObject } from '../shared/json';
+import { joinJson, splitJson } from '../shared/joined';
 import { bookingUrl, codeOf, SAME_SITE } from './discover';
 import { publicBookingPage, type PublicEntry } from './public';
 
@@ -10,22 +12,13 @@ import { publicBookingPage, type PublicEntry } from './public';
 export interface TourPage { today: IsoDate; entry: PublicEntry; page: string }
 
 export function joinPage(tour: TourPage): string {
-  return JSON.stringify(tour);
+  return joinJson(tour);
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The parts of a joinPage text (or a fixture written as one); null for any other text. */
 export function splitPage(text: string): TourPage | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (!isObject(value) || typeof value.today !== 'string' || !isObject(value.entry) || typeof value.page !== 'string') return null;
-  return value as unknown as TourPage;
+  return splitJson(text, value => (typeof value.today === 'string' && isObject(value.entry) && typeof value.page === 'string'
+    ? value as unknown as TourPage : null));
 }
 
 /**

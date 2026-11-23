@@ -1,5 +1,6 @@
 import rawData from './data.json';
 import zhHansNames from './names.zh-Hans.json';
+import { groupBy } from '../group-by';
 
 /**
  * The parts of the world the country lists are arranged under, in display order, with their public labels.
@@ -73,17 +74,6 @@ type Named = { nameZh: string; aliases: string[] };
 
 function byId<T extends { id: string }>(items: T[]): Map<string, T> {
   return new Map(items.map(item => [item.id, item]));
-}
-
-function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
-  const groups = new Map<string, T[]>();
-  for (const item of items) {
-    const k = key(item);
-    const group = groups.get(k);
-    if (group) group.push(item);
-    else groups.set(k, [item]);
-  }
-  return groups;
 }
 
 /** Maps every normalised name of each item (nameZh and aliases by default) to the entries carrying it, each entry at most once per name. */

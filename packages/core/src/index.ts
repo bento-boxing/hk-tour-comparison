@@ -14,3 +14,4 @@ export * from './destination';
 export * from './suggest';
 export * from './site';
 export * from './page-size';
+export * from './group-by';

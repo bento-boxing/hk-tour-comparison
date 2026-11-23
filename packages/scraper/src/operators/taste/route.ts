@@ -1,4 +1,6 @@
-import { CHUNK_SEPARATORS, extractStops, places as sharedPlaces, type PlacesIndex, type Stop } from '@hktours/core';
+import {
+  ALTERNATIVE_SEPARATORS, BRACKETED, CHUNK_SEPARATORS, extractStops, places as sharedPlaces, type PlacesIndex, type Stop,
+} from '@hktours/core';
 
 /**
  * Taste Travel's day lines name a choice with `/`: of the hub a flight connects through (`香港 → 杜拜/多哈/伊斯坦堡 →
@@ -25,13 +27,12 @@ import { CHUNK_SEPARATORS, extractStops, places as sharedPlaces, type PlacesInde
  * (`自由活動/購物`).
  */
 
-/** Bracketed notes, exactly as the shared rules drop them before reading (core stops.ts, BRACKETED). */
-const BRACKETED = /\([^)]*\)|（[^）]*）|【[^】]*】|\[[^\]]*\]/;
-/** The marks between alternatives, as the shared rules split them (core stops.ts, ALTERNATIVE_SEPARATORS). */
-const ALTERNATIVE_SEPARATORS = /[/／]+/;
 /** A `/` with spaces around it (`廣州南站 / 深圳北站`): the shared rules would split the alternatives apart at the spaces. */
 const SPACED_SLASH = /[^\S\n]*([/／]+)[^\S\n]*/g;
-/** A bracketed note or a run of the shared rules' chunk separators: what stands between two chunks. */
+/**
+ * A bracketed note (as the shared rules drop them before reading, core stops.ts BRACKETED) or a run of the shared rules'
+ * chunk separators: what stands between two chunks.
+ */
 const BETWEEN_CHUNKS = new RegExp(`${BRACKETED.source}|${CHUNK_SEPARATORS.source}`, 'g');
 
 type Piece = { text: string; chunk: boolean };
@@ -53,6 +54,7 @@ function piecesOf(line: string): Piece[] {
   return pieces;
 }
 
+/** The alternatives of a chunk, split at the marks the shared rules split them at (core stops.ts, ALTERNATIVE_SEPARATORS). */
 const alternativesOf = (chunk: string) => chunk.split(ALTERNATIVE_SEPARATORS).map(part => part.trim()).filter(part => part !== '');
 const stopKey = (stop: Stop) => stop.cityId ?? `region:${stop.regionId}`;
 

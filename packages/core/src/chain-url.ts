@@ -1,4 +1,4 @@
-import { OPERATOR_IDS, tourKey, type IsoDate, type OperatorId } from './types';
+import { isOperatorId, tourKey, type IsoDate } from './types';
 import { isIsoDate, TOUR_CODE_PATTERN } from './schema';
 import { DEFAULT_GAP, sanitiseGap } from './chain';
 
@@ -18,8 +18,6 @@ export const MAX_CHAIN_LEGS = 8;
 // schema) and the date are checked further below.
 const LEG_PATTERN = /^([a-z]+):([^@]*)@(\d{4}-\d{2}-\d{2})$/;
 const GAP_PATTERN = /^(\d+)-(\d+)$/;
-
-const isOperatorId = (s: string): s is OperatorId => (OPERATOR_IDS as readonly string[]).includes(s);
 
 /** Returns e.g. { legs: 'egl:HTBKOK06@2026-12-18,jetour:THB@2026-12-24', gap: '1-3' }. Omits `legs` when empty. */
 export function encodeChain(state: ChainState): { legs?: string; gap: string } {

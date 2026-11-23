@@ -1,5 +1,6 @@
 import { PUBLIC_LOG, type LogView } from '../../public-log';
 import type { OperatorScraper } from '../../types';
+import { tourOrThrow } from '../shared/joined';
 import { ALLOWED_HOSTS, discoverTours } from './discover';
 import { createFetchPage } from './fetch-page';
 import { readTour } from './parse';
@@ -29,11 +30,7 @@ export function createTasteScraper(opts: { log?: (line: string) => void } = {}):
     fetchPage: createFetchPage(log, () => view),
     allowedHosts: ALLOWED_HOSTS,
     // A rejected page throws its reason (a fixed text, see readTour), so the crawl log says why.
-    parse: (text, url) => {
-      const tour = readTour(text, url);
-      if ('why' in tour) throw new Error(tour.why);
-      return tour;
-    },
+    parse: (text, url) => tourOrThrow(readTour(text, url)),
     // First-run floor: a third of the 279 tours the 2026-11-20 practice crawl would save with the task 48 changes
     // (311 pages fetched; 274 saved as crawled, re-processed offline; 30 with no departures, 2 with no stops).
     // docs/operators/taste.md, "Practice crawl (2026-11-20) and task 48".

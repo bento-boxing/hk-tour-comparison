@@ -1,5 +1,6 @@
 import { load, type Cheerio, type CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
+import { collapseWhitespaceNfc } from '../shared/text';
 
 /**
  * The allow-list: the only parts of Taste Travel's answers this scraper keeps (docs/operators/taste.md, "Where each
@@ -33,25 +34,20 @@ const TIME = /(?:早上|上午|中午|下午|晚上|凌晨)?\s*\d{1,2}\s*[:：]\
 const PLACE_END = /【|出門|，|,|。|；|;|\*/;
 const MAX_PLACE_LENGTH = 40;
 
-/** Text with runs of whitespace (line breaks, no-break spaces) as one space, compatibility ideographs as ordinary ones. */
-export function clean(text: string): string {
-  return text.normalize('NFC').replace(/\s+/g, ' ').trim();
-}
-
 /** An element's text, a `<br>` read as a line break. */
 function linesOf($: CheerioAPI, element: Cheerio<AnyNode>): string[] {
   if (element.length === 0) return [];
-  return (element.html() ?? '').split(/<br\s*\/?>/i).map(part => clean(load(part, null, false).root().text()));
+  return (element.html() ?? '').split(/<br\s*\/?>/i).map(part => collapseWhitespaceNfc(load(part, null, false).root().text()));
 }
 
 /** An element's text on one line, a `<br>` read as a space. */
 export function textOf($: CheerioAPI, element: Cheerio<AnyNode>): string {
-  return clean(linesOf($, element).join(' '));
+  return collapseWhitespaceNfc(linesOf($, element).join(' '));
 }
 
 /** One gathering option's place: without its letter, its time, and anything after the place. */
 function optionPlace(line: string): string {
-  const place = clean(line.replace(OPTION, '').replace(TIME, ' ').split(PLACE_END)[0]);
+  const place = collapseWhitespaceNfc(line.replace(OPTION, '').replace(TIME, ' ').split(PLACE_END)[0]);
   return [...place].slice(0, MAX_PLACE_LENGTH).join('');
 }
 
@@ -63,7 +59,7 @@ function optionPlace(line: string): string {
 export function gatheringOptions(lines: string[]): string[] {
   const at = lines.findIndex(line => line.includes(GATHERING_LABEL));
   if (at < 0) return [];
-  const own = clean(lines[at].slice(lines[at].indexOf(GATHERING_LABEL) + GATHERING_LABEL.length).replace(/^[\s:：]+/, ''));
+  const own = collapseWhitespaceNfc(lines[at].slice(lines[at].indexOf(GATHERING_LABEL) + GATHERING_LABEL.length).replace(/^[\s:：]+/, ''));
   const options: string[] = [];
   if (own !== '') options.push(optionPlace(own));
   else for (const line of lines.slice(at + 1)) {
@@ -136,7 +132,7 @@ export function codeOf(html: string): string | null {
 export const BOOKABLE_STATUSES: readonly string[] = ['已成團', '快成團', '收客中'];
 
 export function isBookable(status: string): boolean {
-  return BOOKABLE_STATUSES.includes(clean(status));
+  return BOOKABLE_STATUSES.includes(collapseWhitespaceNfc(status));
 }
 
 /** One element of the dates answer: its date and status, as text ('' when not text). */
@@ -158,7 +154,7 @@ export function publicDates(text: string): PublicDate[] | null {
     const entry = typeof item === 'object' && item !== null ? item as Record<string, unknown> : {};
     return {
       date: typeof entry.date === 'string' ? entry.date.trim() : '',
-      title: typeof entry.title === 'string' ? clean(entry.title) : '',
+      title: typeof entry.title === 'string' ? collapseWhitespaceNfc(entry.title) : '',
     };
   });
 }

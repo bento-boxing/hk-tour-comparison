@@ -1,7 +1,6 @@
 import { TOUR_CODE_PATTERN } from '@hktours/core';
-import { readSitemapUrls } from '../../sitemap';
-import type { LogView } from '../../public-log';
-import type { Fetcher } from '../../types';
+import { sitemapDiscover } from '../../sitemap';
+import { urlOn } from '../shared/url';
 
 const ORIGIN = 'https://www.egltours.com';
 const SITEMAP_URL = `${ORIGIN}/sitemap.xml`;
@@ -21,13 +20,8 @@ const CRUISE_CODE = /^hc/i;
 
 /** The page's URL as `https://www.egltours.com/website/itinerary/<CODE>`, or null if it is not a single-tour page. */
 function tourPageUrl(url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.origin !== ORIGIN) return null;
+  const parsed = urlOn(url, ORIGIN);
+  if (parsed === null) return null;
   const code = TOUR_PATH.exec(parsed.pathname)?.[1];
   if (code === undefined || !TOUR_CODE_PATTERN.test(code) || CRUISE_CODE.test(code)) return null;
   return `${ORIGIN}/website/itinerary/${code}`;
@@ -39,17 +33,7 @@ export function isTourUrl(url: string): boolean {
 }
 
 /** Every single-tour page in the sitemap, without query strings, each once. `log`: the run's (see readSitemapUrls). */
-export async function discover(
-  fetcher: Fetcher, _logView?: LogView, log?: (line: string) => void,
-): Promise<string[]> {
-  const urls = await readSitemapUrls(fetcher, SITEMAP_URL, ALLOWED_HOSTS, log);
-  const tours = new Set<string>();
-  for (const url of urls) {
-    const tour = tourPageUrl(url);
-    if (tour !== null) tours.add(tour);
-  }
-  return [...tours];
-}
+export const discover = sitemapDiscover({ sitemapUrl: SITEMAP_URL, allowedHosts: ALLOWED_HOSTS, tourUrl: tourPageUrl });
 
 /**
  * The tour's departure dates and prices, as JSON (the request the page's own calendar makes; robots.txt

@@ -1,4 +1,5 @@
 import type { Fetcher } from '../../types';
+import { joinJson, splitJson } from '../shared/joined';
 import { datesUrl } from './discover';
 import { pageTourCode } from './parse';
 
@@ -7,21 +8,13 @@ export interface FetchedPage { html: string; datesJson: string | null }
 
 /** The page and its dates as the one text the pipeline hands to `parse`. */
 export function joinPage(html: string, datesJson: string | null): string {
-  return JSON.stringify({ html, datesJson });
+  return joinJson({ html, datesJson });
 }
 
 /** The page and dates of a `joinPage` text; null for any other text. */
 export function splitPage(text: string): FetchedPage | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  if (typeof value !== 'object' || value === null) return null;
-  const { html, datesJson } = value as Record<string, unknown>;
-  if (typeof html !== 'string' || (datesJson !== null && typeof datesJson !== 'string')) return null;
-  return { html, datesJson };
+  return splitJson(text, ({ html, datesJson }) =>
+    (typeof html === 'string' && (datesJson === null || typeof datesJson === 'string') ? { html, datesJson } : null));
 }
 
 /**

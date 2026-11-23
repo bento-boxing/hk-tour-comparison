@@ -1,6 +1,7 @@
 import type { TourPoint } from './types';
 import { normaliseName, places } from './places/index';
 import type { PlacesIndex } from './places/index';
+import { cityNameKeys } from './per-index';
 
 /** "Join locally": the tour starts at the destination, whatever else the text names. */
 const JOIN_LOCALLY = '當地';
@@ -17,12 +18,7 @@ const other = (text: string): TourPoint =>
 /** True when the text names any city (nameZh or alias of 2+ characters) other than Hong Kong and Shenzhen. */
 function namesAwayCity(text: string, index: PlacesIndex): boolean {
   const key = normaliseName(text);
-  return index.data.cities.some(city =>
-    !HOME_CITY_IDS.has(city.id) &&
-    [city.nameZh, ...city.aliases].some(name => {
-      const cityKey = normaliseName(name);
-      return [...cityKey].length >= 2 && key.includes(cityKey);
-    }));
+  return cityNameKeys(index).some(city => !HOME_CITY_IDS.has(city.id) && city.keys.some(cityKey => key.includes(cityKey)));
 }
 
 /** Classifies a tour's stated start or end point; no stated point means Hong Kong. */

@@ -1,5 +1,5 @@
 import { allowedOriginsOf, offAllowedHosts } from './polite-fetch';
-import type { Fetcher } from './types';
+import type { Fetcher, OperatorScraper } from './types';
 
 /** `<url>…</url>` and `<sitemap>…</sitemap>` entries; `\b` keeps `<urlset>` and `<sitemapindex>` out. */
 const ENTRY = /<(url|sitemap)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
@@ -84,4 +84,31 @@ export async function readSitemapUrls(
       + `(${hosts.slice(0, MAX_HOSTS_LOGGED).join(', ')}${more})`);
   }
   return [...found];
+}
+
+/** What sitemapDiscover reads: one operator's sitemap, hosts and tour page rule. */
+export interface SitemapDiscoverOptions {
+  /** The sitemap, or sitemap index, listing the tour pages. */
+  sitemapUrl: string;
+  /** The operator's allowed hosts (OperatorScraper.allowedHosts): child sitemaps are read only on them. */
+  allowedHosts: readonly string[];
+  /** A listed address as the tour page URL to fetch, or null when it is not a tour page. */
+  tourUrl: (url: string) => string | null;
+}
+
+/**
+ * An operator's `discover` that reads its sitemap (readSitemapUrls, `log` being the run's) and returns every listed
+ * address `tourUrl` accepts, as `tourUrl` gives it, each once, in the sitemap's order. For the operators whose tours are
+ * all in a sitemap (EGL, Jetour, Travel Expert, Big Line).
+ */
+export function sitemapDiscover(opts: SitemapDiscoverOptions): OperatorScraper['discover'] {
+  return async (fetcher, _logView, log) => {
+    const urls = await readSitemapUrls(fetcher, opts.sitemapUrl, opts.allowedHosts, log);
+    const tours = new Set<string>();
+    for (const url of urls) {
+      const tour = opts.tourUrl(url);
+      if (tour !== null) tours.add(tour);
+    }
+    return [...tours];
+  };
 }

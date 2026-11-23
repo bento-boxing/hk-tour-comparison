@@ -1,5 +1,7 @@
 export const OPERATOR_IDS = ['egl', 'jetour', 'texpert', 'bigline', 'charming', 'yummy', 'sunflower', 'taste'] as const;
 export type OperatorId = (typeof OPERATOR_IDS)[number];
+/** True for the id of an approved operator (OPERATOR_IDS). */
+export const isOperatorId = (value: string): value is OperatorId => (OPERATOR_IDS as readonly string[]).includes(value);
 export type IsoDate = string; // 'YYYY-MM-DD'
 
 export interface ScrapedDeparture { date: IsoDate; priceHkd: number | null }
