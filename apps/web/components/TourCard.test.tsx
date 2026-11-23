@@ -164,12 +164,12 @@ describe('what a row shows, column by column', () => {
     const row = cells();
     expect(row).toHaveLength(7);
     expect(row[0]).toHaveTextContent('東瀛遊');
-    expect(row[1]).toHaveTextContent(/^5日$/); // the days only: the nights are in the link's name
+    expect(row[1]).toHaveTextContent(/^5天$/); // the days only: the nights are in the link's name
     expect(row[2]).toHaveTextContent(/^日本 · 關西$/);
     expect(within(row[3]).getByRole('heading')).toHaveTextContent('大阪 → 京都 → 奈良 → 神戶');
     expect(within(row[4]).getAllByRole('link')).toHaveLength(6);
     expect(within(row[5]).getByText(/HK\$7,999/, priceDiv)).toHaveTextContent('HK$7,999 起');
-    expect(within(row[5]).getByText('↓ 比7日前平 HK$500')).toBeInTheDocument();
+    expect(within(row[5]).getByText('↓ 比7天前平 HK$500')).toBeInTheDocument();
     expect(within(row[6]).getByRole('link')).toHaveTextContent('去旅行社網站 ↗');
     expect(within(row[6]).getAllByRole('button').map(b => b.querySelector(`.${styles.wideText}`)?.textContent ?? b.textContent)).toEqual(['加入行程 +', '收藏']);
     // On a phone the same buttons with the short words (the names stay): 網站 ↗ and ＋ 加入.
@@ -201,7 +201,7 @@ describe('what a row shows, column by column', () => {
     unmount();
     // Under the price, and on a phone under the dates: each in its colour.
     const up = render(<TourCard {...props} tour={{ ...tour, priceChange: { kind: 'higher', diffHkd: 2000, sinceDate: '2026-11-05' } }} />);
-    expect(screen.getAllByText('↑ 比7日前貴 HK$2,000').map(el => el.className)).toEqual([expect.stringMatching(/up/), expect.stringMatching(/up/)]);
+    expect(screen.getAllByText('↑ 比7天前貴 HK$2,000').map(el => el.className)).toEqual([expect.stringMatching(/up/), expect.stringMatching(/up/)]);
     up.unmount();
     const en = render(<TourCard {...props} t={makeT('en')} />);
     expect(screen.getAllByText('↓ HK$500 less than 7 days ago').map(el => el.className)).toEqual([expect.stringMatching(/down/), expect.stringMatching(/down/)]);
@@ -225,26 +225,26 @@ describe('what a row shows, column by column', () => {
 
   it('hides the price change when the window price differs from the from-price', () => {
     render(<TourCard {...props} tour={{ ...tour, windowPriceHkd: 8999 }} />);
-    expect(screen.queryByText(/比7日前/)).toBeNull();
+    expect(screen.queryByText(/比7天前/)).toBeNull();
     expect(screen.getByText(/HK\$8,999/, priceDiv)).toBeInTheDocument();
   });
 
   it('a note (the chain page\'s rest) goes under the region, where the column has room; on a phone the last of the notes under the dates', () => {
-    render(<TourCard {...props} footNote="休息 1–2 日後出發" />);
-    const [note, onPhone] = screen.getAllByText('休息 1–2 日後出發');
-    expect(note.closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西休息 1–2 日後出發$/);
+    render(<TourCard {...props} footNote="休息 1–2 天後出發" />);
+    const [note, onPhone] = screen.getAllByText('休息 1–2 天後出發');
+    expect(note.closest('[role="cell"]')).toHaveTextContent(/^日本 · 關西休息 1–2 天後出發$/);
     expect(onPhone.parentElement).toHaveClass(styles.notes);
     expect(onPhone.parentElement!.lastElementChild).toBe(onPhone);
   });
 
   it('on a phone the notes are one small line each under the dates, in this order: start and end, old data, price change, rest', () => {
     const first = render(<TourCard
-      {...props} now="2026-11-13T07:11:00Z" footNote="休息 1 日後出發"
+      {...props} now="2026-11-13T07:11:00Z" footNote="休息 1 天後出發"
       tour={{ ...tour, start: { kind: 'other', label: '澳門' }, end: { kind: 'other', label: '珠海' } }}
     />);
     const notes = first.container.querySelector(`.${styles.notes}`)!;
     expect(notes.closest('[role="cell"]')).toBe(cells()[4]);
-    expect([...notes.children].map(n => n.textContent)).toEqual(['澳門出發 · 珠海解散', '資料為 11月12日', '↓ 比7日前平 HK$500', '休息 1 日後出發']);
+    expect([...notes.children].map(n => n.textContent)).toEqual(['澳門出發 · 珠海解散', '資料為 11月12日', '↓ 比7天前平 HK$500', '休息 1 天後出發']);
     // Not drawn from 1024px; on a phone the notes' other places are not drawn.
     expect(rule(BASE, '.notes')).toEqual({ display: 'none' });
     expect(rule(PHONE, '.notes')).toMatchObject({ display: 'flex', 'flex-direction': 'column' });
@@ -747,7 +747,7 @@ describe('rows opened this session are tinted', () => {
     expect(screen.getByText('上次打開').className).toMatch(/visuallyHidden/);
     expect(cardLink()).toHaveTextContent('再看一次 ↗');
     // Its name (operator, route, length, price) is unchanged.
-    expect(cardLink()).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
+    expect(cardLink()).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5天4夜，HK$7,999起');
     expect(JSON.parse(window.sessionStorage.getItem(OPENED_KEY)!)).toEqual(['egl:KIX5']);
   });
 
@@ -1131,7 +1131,7 @@ describe('收藏 (save)', () => {
     expect(button).toHaveAttribute('type', 'button');
     expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(button).toHaveTextContent(/^收藏$/);
-    expect(button).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5日4夜」');
+    expect(button).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5天4夜」');
     const star = button.querySelector('svg')!;
     expect(star).toHaveAttribute('aria-hidden', 'true');
     expect(star).toHaveClass(styles.star);
@@ -1144,10 +1144,10 @@ describe('收藏 (save)', () => {
     await user.click(save());
     expect(save()).toHaveAttribute('aria-pressed', 'true');
     expect(save()).toHaveTextContent(/^已收藏$/);
-    expect(save()).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5日4夜」');
+    expect(save()).toHaveAccessibleName('收藏「東瀛遊：大阪、京都、奈良、神戶，5天4夜」');
     expect(stored()).toEqual(['egl:KIX5']);
     // The label kept beside the key is the site's own text: the same as the name's, no code, no tour title.
-    expect(JSON.parse(window.localStorage.getItem(SAVED_KEY)!)[0].label).toBe('東瀛遊：大阪、京都、奈良、神戶，5日4夜');
+    expect(JSON.parse(window.localStorage.getItem(SAVED_KEY)!)[0].label).toBe('東瀛遊：大阪、京都、奈良、神戶，5天4夜');
     await user.click(save());
     expect(save()).toHaveAttribute('aria-pressed', 'false');
     expect(stored()).toEqual([]);
@@ -1271,13 +1271,13 @@ describe('收藏 (save)', () => {
 });
 
 describe('the row link', () => {
-  it('links to the operator in a new tab, with a short accessible name instead of the whole row\'s text', () => {
+  it('links to the operator in a new tab (on the wide layout: no matchMedia here), with a short accessible name instead of the whole row\'s text', () => {
     render(<TourCard {...props} />);
     const link = cardLink();
     expect(link).toHaveAttribute('href', 'https://example.test/egl/KIX5');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
-    expect(link).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5日4夜，HK$7,999起');
+    expect(link).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5天4夜，HK$7,999起');
   });
 
   it('in English it reads "Operator\'s site"', () => {
@@ -1287,7 +1287,7 @@ describe('the row link', () => {
 
   it('is described by the price change (the dates follow it as links of their own)', () => {
     render(<TourCard {...props} />);
-    expect(cardLink()).toHaveAccessibleDescription(/↓ 比7日前平 HK\$500/);
+    expect(cardLink()).toHaveAccessibleDescription(/↓ 比7天前平 HK\$500/);
     expect(cardLink()).not.toHaveAccessibleDescription(/12\/18|出發$|解散/);
   });
 
@@ -1645,4 +1645,50 @@ it('reads in each language: the days in their own words, the price\'s "from" whe
   render(<TourCard {...props} t={makeT('zh-Hans')} />);
   expect(cells()[1]).toHaveTextContent(/^5天$/);
   expect(screen.getByText(/HK\$7,999/, priceDiv)).toHaveTextContent(/^HK\$7,999 起$/);
+});
+
+describe('on the phone layout (task 76)', () => {
+  /** The window as the phone layout's: matchMedia(PHONE_MEDIA) matches. */
+  beforeEach(() => { window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener() {}, removeEventListener() {} }) as unknown as typeof window.matchMedia; });
+  afterEach(() => { delete (window as Partial<Window>).matchMedia; });
+
+  it('the operator\'s page opens in this tab (Back returns here): the row link, the dates and the list of all dates; rel and names as before', async () => {
+    render(<TourCard {...props} tour={eight} />);
+    expect(cardLink()).not.toHaveAttribute('target');
+    expect(cardLink()).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(cardLink()).toHaveAccessibleName('東瀛遊：大阪、京都、奈良、神戶，5天4夜，HK$7,999起');
+    for (const a of dateLinks()) expect(a).not.toHaveAttribute('target');
+    await user.click(screen.getByRole('button', { name: '+3 個出發日' }));
+    for (const a of within(screen.getByRole('dialog')).getAllByRole('link')) expect(a).not.toHaveAttribute('target');
+  });
+
+  it('the opened mark is recorded as the page is left (on the click, before the browser goes), so it shows on return', () => {
+    const { unmount } = render(<TourCard {...props} />);
+    const link = cardLink();
+    // The last moment before the browser follows the link: the click's way up ends at the window.
+    let stored: string | null = null;
+    const atWindow = (e: Event) => { stored = window.sessionStorage.getItem(OPENED_KEY); e.preventDefault(); };
+    window.addEventListener('click', atWindow);
+    fireEvent.click(link);
+    window.removeEventListener('click', atWindow);
+    expect(JSON.parse(stored!)).toEqual(['egl:KIX5']);
+    unmount();
+    resetOpenedCache(); // as after coming back to a page loaded afresh
+    render(<TourCard {...props} />);
+    expect(screen.getByRole('row')).toHaveAttribute('data-opened', 'latest');
+  });
+
+  it('全部 N 站 left open is open again when the page is shown afresh (Back without the back/forward cache)', async () => {
+    window.history.replaceState(null, '', '/tours/japan?page=2');
+    const first = render(<TourCard {...props} />);
+    await user.click(screen.getByText('全部 4 站'));
+    expect(first.container.querySelector('details')).toHaveAttribute('open');
+    first.unmount();
+    const again = render(<TourCard {...props} />);
+    expect(again.container.querySelector('details')).toHaveAttribute('open');
+    await user.click(screen.getByText('全部 4 站'));
+    again.unmount();
+    const closed = render(<TourCard {...props} />);
+    expect(closed.container.querySelector('details')).not.toHaveAttribute('open');
+  });
 });

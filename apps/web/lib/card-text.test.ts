@@ -181,9 +181,9 @@ describe('an operator whose data is old', () => {
 });
 
 it.each([
-  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ 比7日前平 HK$500', 'down'],
-  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-05' }, '↑ 比7日前貴 HK$300', 'up'],
-  [{ kind: 'lower', diffHkd: 200, sinceDate: '2026-11-09' }, '↓ 比3日前平 HK$200', 'down'],
+  [{ kind: 'lower', diffHkd: 500, sinceDate: '2026-11-05' }, '↓ 比7天前平 HK$500', 'down'],
+  [{ kind: 'higher', diffHkd: 300, sinceDate: '2026-11-05' }, '↑ 比7天前貴 HK$300', 'up'],
+  [{ kind: 'lower', diffHkd: 200, sinceDate: '2026-11-09' }, '↓ 比3天前平 HK$200', 'down'],
 ])('priceChangeText(%j): which way, since when, by how much', (change, text, tone) => {
   expect(priceChangeText(change as PriceChange, '2026-11-12', tZh)).toEqual({ text, tone });
 });

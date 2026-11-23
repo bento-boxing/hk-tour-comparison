@@ -123,7 +123,7 @@ it('loads the page from the address and lays it out top to bottom', async () => 
   const panels = screen.getByRole('button', { name: '按國家選擇' });
   const shortcuts = screen.getByRole('navigation', { name: '日本地區' });
   const destPill = screen.getByRole('button', { name: '清除目的地：日本 → 關西' });
-  const sortPill = screen.getByRole('button', { name: '排序：日數 短→長' });
+  const sortPill = screen.getByRole('button', { name: '排序：天數 短→長' });
   const card = oneRow();
   const sizes = screen.getByRole('group', { name: '每頁顯示' });
   const count = screen.getByText('第 1–24 個，共 30 個旅行團');
@@ -306,7 +306,7 @@ const languages = {
 };
 
 it.each([
-  ['zh-Hant', 'https://example.invalid', '香港旅行團比較｜比較 3 間旅行社的旅行團｜跟邊團', '香港旅行團比較及格價：現時列出 3 間旅行社的 40 個旅行團，可按目的地、出發日期、日數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hant', 'https://example.invalid', '香港旅行團比較｜比較 3 間旅行社的旅行團｜跟邊團', '香港旅行團比較及格價：現時列出 3 間旅行社的 40 個旅行團，可按目的地、出發日期、天數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。', 'zh_HK'],
   ['zh-Hans', 'https://example.invalid/zh-hans', '香港旅行团比较｜比较 3 家旅行社的旅行团｜跟邊團', '香港旅行团比较和比价：目前列出 3 家旅行社的 40 个旅行团，可按目的地、出发日期、天数和价格筛选。网站由个人制作，报名请前往旅行社自己的网站。', 'zh_CN'],
   ['en', 'https://example.invalid/en', 'Hong Kong group tour comparison | 3 tour operators | 跟邊團', "Hong Kong group tour comparison: 40 tours from 3 operators, by destination, date, length and price. A personal site: book on the operator's own website.", 'en_GB'],
 ] as const)('in %s: titled and described with the counts (operators and tours listed now), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language', async (locale, canonical, title, description, ogLocale) => {
@@ -443,7 +443,7 @@ it.each([
 });
 
 it.each([
-  ['zh-Hant', '按目的地、出發日期、日數及價錢比較香港旅行團'],
+  ['zh-Hant', '按目的地、出發日期、天數及價錢比較香港旅行團'],
   ['zh-Hans', '按目的地、出发日期、天数和价格比较香港旅行团'],
   ['en', 'Compare by destination, date, length and price'],
 ] as const)('in %s the home page says under its headline and line, in the words people search, what the site does; a destination\'s page does not', async (locale, lede) => {

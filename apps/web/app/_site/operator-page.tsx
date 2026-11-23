@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { OperatorLink } from '../../components/OperatorLink';
 import { SiteLink } from '../../components/SiteLink';
 import { notFound } from 'next/navigation';
 import { places, type OperatorId } from '@hktours/core';
@@ -138,9 +139,10 @@ export async function OperatorPage({ locale, params, searchParams }: { locale: L
 
 /**
  * Under the heading: that this page is not the operator's website and the site is not connected with it (in Chinese,
- * wrapping only between its two clauses); the link to the operator's own home page (a new tab, without a Referer, as
- * the rows' links; the words after the name kept together, so a break comes after the name); and, when the operator's
- * last good run is older than the rows allow (lib/card-text.ts staleSince), the rows' note.
+ * wrapping only between its two clauses); the link to the operator's own home page (as the rows' links: a new tab on
+ * the wide layout, this tab on a phone; without a Referer; the words after the name kept together, so a break comes
+ * after the name); and, when the operator's last good run is older than the rows allow (lib/card-text.ts
+ * staleSince), the rows' note.
  */
 function OperatorNotes({ t, listing, now }: { t: T; listing: OperatorListing; now: string }) {
   const name = operatorName(listing, t.locale);
@@ -155,10 +157,10 @@ function OperatorNotes({ t, listing, now }: { t: T; listing: OperatorListing; no
       {(officialSite !== null || staleDay !== null) && (
         <p className={styles.actions}>
           {officialSite !== null && (
-            <a className={styles.official} href={officialSite} target="_blank" rel="noopener noreferrer">
+            <OperatorLink className={styles.official} href={officialSite}>
               {/* One flex item, so its words wrap as one line of text inside the button. */}
               <span>{before}{name}{gap}<span className={styles.keep}>{after.slice(gap.length)}</span></span>
-            </a>
+            </OperatorLink>
           )}
           {staleDay !== null && <span className={styles.stale}>{t('row.stale', { date: staleDay })}</span>}
         </p>

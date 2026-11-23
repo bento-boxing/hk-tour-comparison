@@ -75,7 +75,7 @@ it('a leg in another year shows the year, as the date chips in the rows do', () 
 
 it('shows the rest between legs', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']));
-  const rest = screen.getByText('休息 1 日');
+  const rest = screen.getByText('休息 1 天');
   const [first, second] = legBoxes();
   expect(first.compareDocumentPosition(rest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(rest.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -113,20 +113,20 @@ it('without a window (a full chain) shows neither the gap selector nor the place
 it('shows the total: the summed price, the tours and the whole span, rest included', () => {
   const { unmount } = renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-24']));
   const total = screen.getByText('目前合計', { exact: false });
-  expect(total).toHaveTextContent('目前合計HK$13,6982 個旅行團 · 11 日');
+  expect(total).toHaveTextContent('目前合計HK$13,6982 個旅行團 · 11 天');
   expect(total).not.toHaveTextContent('起');
   expect(total).not.toHaveTextContent('連休息');
-  expect(within(total).getByText('2 個旅行團 · 11 日')).toHaveClass(/totalCount/);
+  expect(within(total).getByText('2 個旅行團 · 11 天')).toHaveClass(/totalCount/);
   expect(css()).toMatch(/\.totalCount \{ white-space: nowrap; \}/);
   unmount();
 
   renderStrip(legsOf(['egl:KIX5', '2026-12-18'], ['texpert:SEL5', '2026-12-25']));
-  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('HK$13,698 起2 個旅行團 · 12 日');
+  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('HK$13,698 起2 個旅行團 · 12 天');
 });
 
 it('a single leg: one tour and its own days', () => {
   renderStrip(legsOf(['egl:KIX5', '2026-12-18']));
-  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('目前合計HK$7,9991 個旅行團 · 5 日');
+  expect(screen.getByText('目前合計', { exact: false })).toHaveTextContent('目前合計HK$7,9991 個旅行團 · 5 天');
 });
 
 it.each([

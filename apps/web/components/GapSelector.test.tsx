@@ -24,7 +24,7 @@ const typeInto = async (field: HTMLElement, text: string) => {
 };
 
 describe('the fields', () => {
-  it('shows the current gap as [1] – [3] 日, grouped under 休息', () => {
+  it('shows the current gap as [1] – [3] 天, grouped under 休息', () => {
     renderGap();
     expect(min()).toHaveValue('1');
     expect(max()).toHaveValue('3');
@@ -32,7 +32,7 @@ describe('the fields', () => {
     expect(group).toContainElement(min());
     expect(group).toContainElement(max());
     expect(screen.getByText('–')).toBeInTheDocument();
-    expect(screen.getByText('日')).toBeInTheDocument();
+    expect(screen.getByText('天')).toBeInTheDocument();
     expect(min().compareDocumentPosition(max()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -263,5 +263,5 @@ it('in English the unit after the fields follows the larger number', () => {
   rerender(<GapSelector gap={{ min: 1, max: 3 }} onChange={onChange} t={makeT('en')} />);
   expect(screen.getByRole('group')).toHaveTextContent(/days$/);
   rerender(<GapSelector gap={{ min: 1, max: 1 }} onChange={onChange} t={t} />);
-  expect(screen.getByRole('group')).toHaveTextContent(/日$/);
+  expect(screen.getByRole('group')).toHaveTextContent(/天$/);
 });

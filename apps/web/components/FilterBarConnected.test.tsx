@@ -22,8 +22,8 @@ it('a change goes into the address on the destination\'s page, with the page dro
       <FilterBarConnected state={{ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'days', page: 3 }} operators={operators} today="2026-11-12" />
     </I18nProvider>,
   );
-  await user.click(screen.getByRole('button', { name: '日數：全部' }));
-  await user.click(screen.getByRole('button', { name: '4–6日' }));
+  await user.click(screen.getByRole('button', { name: '天數：全部' }));
+  await user.click(screen.getByRole('button', { name: '4–6天' }));
   expect(push).toHaveBeenCalledWith('/tours/japan-kansai?dmin=4&dmax=6&sort=days', { scroll: false });
 });
 
@@ -96,7 +96,7 @@ describe('on an operator\'s page (FixedOperatorProvider)', () => {
   const onEgl = (filters: SearchState['filters']): SearchState => ({ filters: { ...filters, operators: ['egl'] }, sort: 'days', page: 3 });
 
   it.each([
-    ['zh-Hant', '日數：全部', '4–6日', '/operators/egl?dmin=4&dmax=6&sort=days'],
+    ['zh-Hant', '天數：全部', '4–6天', '/operators/egl?dmin=4&dmax=6&sort=days'],
     ['zh-Hans', '天数：不限', '4–6天', '/zh-hans/operators/egl?dmin=4&dmax=6&sort=days'],
     ['en', 'Length: Any', '4–6 days', '/en/operators/egl?dmin=4&dmax=6&sort=days'],
   ] as const)('in %s a change stays on the operator\'s page, with no op in the address', async (locale, pill, option, href) => {
@@ -110,7 +110,7 @@ describe('on an operator\'s page (FixedOperatorProvider)', () => {
   it('offers no operator filter: the operator is the page\'s', () => {
     renderOn('zh-Hant', onEgl({}));
     expect(screen.queryByRole('button', { name: /^旅行社：/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '日數：全部' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '天數：全部' })).toBeInTheDocument();
   });
 
   it('the destination is a filter here: its ✕ stays on the page, and a typed value keeps it in the query', async () => {
@@ -138,7 +138,7 @@ describe('on a season\'s page (FixedSeasonProvider)', () => {
     ({ filters: { ...filters, dateFrom: christmas.from, dateTo: christmas.to }, sort: 'days', page: 3 });
 
   it.each([
-    ['zh-Hant', '日數：全部', '4–6日', '/seasons/christmas?dmin=4&dmax=6&sort=days'],
+    ['zh-Hant', '天數：全部', '4–6天', '/seasons/christmas?dmin=4&dmax=6&sort=days'],
     ['zh-Hans', '天数：不限', '4–6天', '/zh-hans/seasons/christmas?dmin=4&dmax=6&sort=days'],
     ['en', 'Length: Any', '4–6 days', '/en/seasons/christmas?dmin=4&dmax=6&sort=days'],
   ] as const)('in %s a change that keeps the season\'s days stays on its page, with no from or to in the address', async (locale, pill, option, href) => {

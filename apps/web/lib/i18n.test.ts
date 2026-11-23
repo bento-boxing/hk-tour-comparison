@@ -39,7 +39,7 @@ it('a [name:one|other] word choice only refers to one of its key\'s placeholders
 });
 
 it('translate fills placeholders', () => {
-  expect(translate('zh-Hant', 'length.daysNights', { days: 5, nights: 4 })).toBe('5日4夜');
+  expect(translate('zh-Hant', 'length.daysNights', { days: 5, nights: 4 })).toBe('5天4夜');
   expect(translate('zh-Hans', 'length.daysNights', { days: 5, nights: 4 })).toBe('5天4晚');
   expect(translate('en', 'length.daysNights', { days: 5, nights: 4 })).toBe('5 days, 4 nights');
 });
@@ -79,4 +79,20 @@ it('the band and the row markers read as the owner chose (task 47): colloquial C
 it('the Cantonese notice reads as the owner approved', () => {
   expect(zhHans['notice.cantonese']).toBe('旅行团一般以粤语进行，详情请向旅行社查询。');
   expect(en['notice.cantonese']).toBe('Tours are normally conducted in Cantonese. Check with the operator.');
+});
+
+it('Traditional Chinese says 天 for a length of time (5天, 天數, 休息 2 天) and keeps 日 for calendar days (12月19日, 翌日)', () => {
+  for (const [key, text] of Object.entries(zhHant)) {
+    // A number, a {placeholder} or 數 after 日 is a length; 日本, 日期, 日子, 節日, 翌日, 日後 and the dates' 日 are not.
+    expect(text, key).not.toMatch(/日數/);
+    if (!key.startsWith('date.')) expect(text, key).not.toMatch(/(\d|\})\s?日(?![本期子])/);
+  }
+  expect(zhHant['length.daysNights']).toBe('{days}天{nights}夜');
+  expect(zhHant['chain.totalCount']).toBe('{n} 個旅行團 · {d} 天');
+  expect(zhHant['date.monthDay']).toBe('{monthName}{day}日');
+  expect(zhHant['trip.restNone']).toBe('休息 0 天（翌日出發）');
+  // Simplified already says 天 for lengths.
+  for (const [key, text] of Object.entries(zhHans)) {
+    if (!key.startsWith('date.')) expect(text, key).not.toMatch(/(\d|\})\s?日(?![本期子])|日数/);
+  }
 });

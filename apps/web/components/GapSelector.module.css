@@ -1,4 +1,4 @@
-/* The content of the mockup's .gapbox ('1 – 3 日 ▾'): the box itself is ChainStrip's .gapbox. */
+/* The content of the mockup's .gapbox ('1 – 3 天 ▾'): the box itself is ChainStrip's .gapbox. */
 .gap { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .field { display: inline-flex; }
 /* 最少 / 最多 name the fields for screen readers; the mockup shows only the numbers. */

@@ -98,12 +98,28 @@ function onStorage(event: StorageEvent) {
 }
 
 /** Subscribes to changes here and in the site's other tabs. */
+/**
+ * Back on this page from the back/forward cache (after an operator's page opened in this tab, task 76): another tab
+ * may have changed the list meanwhile, unheard (no storage event reaches a cached page). Read it again.
+ */
+function onPageShow(event: PageTransitionEvent) {
+  if (!event.persisted) return;
+  cache = undefined;
+  notify();
+}
+
 export function subscribeTrip(listener: () => void): () => void {
-  if (listeners.size === 0) window.addEventListener('storage', onStorage);
+  if (listeners.size === 0) {
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', onPageShow);
+  }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) window.removeEventListener('storage', onStorage);
+    if (listeners.size === 0) {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('pageshow', onPageShow);
+    }
   };
 }
 

@@ -16,6 +16,8 @@ import { operatorTagStyle } from '../lib/contrast';
 import { chipDay, formatChipDate, formatLength, formatPrice } from '../lib/format';
 import { operatorName } from '../lib/place-names';
 import { recordOpened } from '../lib/opened-tours';
+import { useOperatorLinkTarget } from '../lib/link-target';
+import { useRouteDisclosure } from '../lib/open-routes';
 import {
   getRememberedTrip, isHistoryTraversal, markTripAction, peekTripAction, rememberTrip, takeTripAction, tripToRemember, useTripMemory,
 } from '../lib/remembered-trip';
@@ -118,6 +120,9 @@ function TourStep({ leg, operator, today, removable, onRemove }: {
   const routeRef = useRef<HTMLParagraphElement>(null);
   const cut = useRouteCut(routeRef);
   const { tour } = leg;
+  // 全部 N 站 reopens on coming back with Back (lib/open-routes); the operator's page opens in this tab (lib/link-target).
+  const allStops = useRouteDisclosure(`trip:${tour.key}@${leg.departure}`);
+  const linkTarget = useOperatorLinkTarget();
   const route = routeNames(tour.stops, places, t.locale);
   const operatorText = operator ? operatorName(operator, t.locale) : tour.operatorId;
   const { style, dark } = operatorTagStyle(operator?.color);
@@ -147,7 +152,7 @@ function TourStep({ leg, operator, today, removable, onRemove }: {
           <div className={styles.routeBox}>
             <p ref={routeRef} className={styles.route}>{route.join(' → ')}</p>
             {route.length > 1 && (
-              <details className={styles.allStops} hidden={cut === false}>
+              <details className={styles.allStops} hidden={cut === false} {...allStops}>
                 <summary className={styles.allStopsToggle}>
                   {t('card.allStops', { n: route.length })}
                   <span aria-hidden="true" className={styles.caret} />
@@ -166,7 +171,7 @@ function TourStep({ leg, operator, today, removable, onRemove }: {
       {/* Over the whole tour (CSS), named by it: a press anywhere on the tour opens the operator's page. */}
       {linkable && (
         <a
-          href={tour.url} target="_blank" rel="noopener noreferrer" className={styles.open} aria-label={name}
+          href={tour.url} target={linkTarget} rel="noopener noreferrer" className={styles.open} aria-label={name}
           data-focus-tour="" onClick={noteOpened} onAuxClick={noteOpened}
         />
       )}

@@ -35,7 +35,7 @@ const css = () => readFileSync(join(__dirname, 'FilterBar.module.css'), 'utf8').
 
 it('shows each filter with its current value', () => {
   renderBar({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 1 });
-  expect(pill('日數：4–6日')).toBeInTheDocument();
+  expect(pill('天數：4–6天')).toBeInTheDocument();
   expect(pill('旅行社：全部')).toBeInTheDocument();
   expect(pill('排序：價錢 低→高')).toBeInTheDocument();
   expect(pill('出發日期：全部')).toBeInTheDocument();
@@ -47,7 +47,7 @@ it('shows the pills in the brief order, destination first', () => {
   renderBar({ filters: { destination: { countryId: 'japan', regionId: 'japan-kansai' } }, sort: 'price', page: 1 });
   const names = screen.getAllByRole('button').map(b => b.getAttribute('aria-label') ?? b.textContent);
   // First the phones' 篩選 (not drawn from 1024px: see the phone bar's tests).
-  expect(names).toEqual(['篩選', '清除目的地：日本 → 關西', '出發日期：全部', '可出行日期：全部', '日數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
+  expect(names).toEqual(['篩選', '清除目的地：日本 → 關西', '出發日期：全部', '可出行日期：全部', '天數：全部', '價錢：全部', '旅行社：全部', '排序：價錢 低→高']);
   expect(pill('清除目的地：日本 → 關西')).toHaveTextContent('日本 → 關西 ✕');
 });
 
@@ -59,24 +59,24 @@ it('labels a set value in each pill', () => {
   expect(pill('出發日期：12/1 – 12/31')).toBeInTheDocument();
   expect(pill('價錢：HK$5,000–12,000')).toBeInTheDocument();
   expect(pill('旅行社：東瀛遊、捷旅')).toBeInTheDocument();
-  expect(pill('排序：日數 短→長')).toBeInTheDocument();
+  expect(pill('排序：天數 短→長')).toBeInTheDocument();
 });
 
 it('labels one-sided ranges', () => {
   const { unmount } = renderBar({ filters: { daysMin: 10, priceMin: 5000, dateFrom: '2026-12-01' }, sort: 'price', page: 1 });
-  expect(pill('日數：10日以上')).toBeInTheDocument();
+  expect(pill('天數：10天以上')).toBeInTheDocument();
   expect(pill('價錢：HK$5,000以上')).toBeInTheDocument();
   expect(pill('出發日期：12/1 –')).toBeInTheDocument();
   unmount();
   renderBar({ filters: { daysMax: 6, priceMax: 12000, dateTo: '2026-12-31' }, sort: 'price', page: 1 });
-  expect(pill('日數：1–6日')).toBeInTheDocument();
+  expect(pill('天數：1–6天')).toBeInTheDocument();
   expect(pill('價錢：HK$0–12,000')).toBeInTheDocument();
   expect(pill('出發日期：– 12/31')).toBeInTheDocument();
 });
 
 it('fills the boxes whose filter is set and outlines the rest', () => {
   renderBar({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 1 });
-  expect(pill('日數：4–6日')).toHaveAttribute('data-on', 'true');
+  expect(pill('天數：4–6天')).toHaveAttribute('data-on', 'true');
   expect(pill('價錢：全部')).not.toHaveAttribute('data-on');
   // jsdom does not apply CSS modules, so pin the rules that paint a filled box.
   expect(css()).toMatch(/\.f\[data-on='true'\] \{ background: var\(--selected-bg\); color: var\(--on-selected\);/);
@@ -85,13 +85,13 @@ it('fills the boxes whose filter is set and outlines the rest', () => {
 it('the sort control comes last, at the right end of the row, set apart by a heavier outline, bold text and an icon; never filled', () => {
   renderBar({ filters: { daysMin: 4 }, sort: 'days-desc', page: 1 });
   const buttons = screen.getAllByRole('button');
-  const sort = pill('排序：日數 長→短');
+  const sort = pill('排序：天數 長→短');
   expect(buttons.at(-1)).toBe(sort);
   expect(sort).not.toHaveAttribute('data-on'); // not filled, even when not the default order
   // The icon is drawn, hidden from screen readers: the name is the text alone.
   expect(sort.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-  expect(sort).toHaveAccessibleName('排序：日數 長→短');
-  expect(pill('日數：4日以上').querySelector('svg')).toBeNull();
+  expect(sort).toHaveAccessibleName('排序：天數 長→短');
+  expect(pill('天數：4天以上').querySelector('svg')).toBeNull();
   expect(css()).toMatch(/\.sortSlot \{ margin-left: auto; \}/);
   expect(css()).toMatch(/\.sort \{[^}]*border: 2px solid var\(--ink\); font-weight: 700;/);
   expect(css()).toMatch(/\.sortSlot \.popover \{ left: auto; right: 0; \}/);
@@ -99,26 +99,26 @@ it('the sort control comes last, at the right end of the row, set apart by a hea
 
 it('choosing a length preset calls onChange with page reset to 1', async () => {
   renderBar({ ...base, page: 3 });
-  await user.click(pill('日數：全部'));
-  await user.click(screen.getByRole('button', { name: '4–6日' }));
+  await user.click(pill('天數：全部'));
+  await user.click(screen.getByRole('button', { name: '4–6天' }));
   expect(onChange).toHaveBeenCalledTimes(1);
   expect(onChange).toHaveBeenCalledWith({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 1 });
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(pill('日數：全部')).toHaveFocus();
+  expect(pill('天數：全部')).toHaveFocus();
 });
 
-it('the 10日以上 preset sets only the minimum', async () => {
+it('the 10天以上 preset sets only the minimum', async () => {
   renderBar({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 2 });
-  await user.click(pill('日數：4–6日'));
-  await user.click(screen.getByRole('button', { name: '10日以上' }));
+  await user.click(pill('天數：4–6天'));
+  await user.click(screen.getByRole('button', { name: '10天以上' }));
   expect(onChange).toHaveBeenCalledWith({ filters: { daysMin: 10 }, sort: 'price', page: 1 });
   expect(onChange.mock.calls[0][0].filters).not.toHaveProperty('daysMax');
 });
 
 it('typed lengths are applied with the address rules: swapped, and out-of-range values dropped', async () => {
   renderBar({ filters: { operators: ['egl'] }, sort: 'days', page: 4 });
-  await user.click(pill('日數：全部'));
-  const dialog = screen.getByRole('dialog', { name: '日數' });
+  await user.click(pill('天數：全部'));
+  const dialog = screen.getByRole('dialog', { name: '天數' });
   await user.type(within(dialog).getByRole('spinbutton', { name: '由' }), '9');
   await user.type(within(dialog).getByRole('spinbutton', { name: '至' }), '5');
   await user.click(within(dialog).getByRole('button', { name: '套用' }));
@@ -190,12 +190,12 @@ it('choosing a sort order calls onChange with page 1', async () => {
   const rows = within(dialog).getAllByRole('listitem');
   expect(rows.map(r => [r.querySelector('[data-sort-name]')?.textContent, ...within(r).getAllByRole('button').map(b => b.textContent)])).toEqual([
     ['價錢', '低→高', '高→低'],
-    ['日數', '短→長', '長→短'],
+    ['天數', '短→長', '長→短'],
     ['出發日期', '早→遲', '遲→早'],
     ['目的地', '筆劃少→多', '筆劃多→少'],
   ]);
   expect(within(dialog).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual([
-    '價錢 低→高', '價錢 高→低', '日數 短→長', '日數 長→短', '出發日期 早→遲', '出發日期 遲→早', '目的地 筆劃少→多', '目的地 筆劃多→少',
+    '價錢 低→高', '價錢 高→低', '天數 短→長', '天數 長→短', '出發日期 早→遲', '出發日期 遲→早', '目的地 筆劃少→多', '目的地 筆劃多→少',
   ]);
   expect(within(dialog).getByRole('button', { name: '價錢 低→高' })).toHaveAttribute('aria-pressed', 'true');
   expect(within(dialog).getByRole('button', { name: '價錢 高→低' })).toHaveAttribute('aria-pressed', 'false');
@@ -379,10 +379,10 @@ it('a press outside closes the popover and leaves focus where the visitor presse
 
 it('pressing the open pill again closes its popover; opening another closes the first', async () => {
   renderBar(base);
-  await user.click(pill('日數：全部'));
-  await user.click(pill('日數：全部'));
+  await user.click(pill('天數：全部'));
+  await user.click(pill('天數：全部'));
   expect(screen.queryByRole('dialog')).toBeNull();
-  await user.click(pill('日數：全部'));
+  await user.click(pill('天數：全部'));
   await user.click(pill('價錢：全部'));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
@@ -392,9 +392,9 @@ it('with React\'s root on the document (as on the site), a press on the open pil
   await renderAtDocument(<FilterBar state={base} operators={operators} places={places} t={t} onChange={onChange} today="2026-11-12" />);
   for (const key of ['[MouseLeft]', '[TouchA]']) {
     const press = (target: Element) => user.pointer({ keys: key, target });
-    const days = pill('日數：全部');
+    const days = pill('天數：全部');
     await press(days);
-    const dialog = screen.getByRole('dialog', { name: '日數' });
+    const dialog = screen.getByRole('dialog', { name: '天數' });
     await press(within(dialog).getByRole('spinbutton', { name: '由' }));
     await user.keyboard('5');
     expect(within(dialog).getByRole('spinbutton', { name: '由' })).toHaveValue(5);
@@ -416,12 +416,12 @@ it('an Escape that ends an IME composition (keyCode 229) leaves the popover open
 
 it('tabbing out of a popover closes it; moving between the popover and its own pill does not', async () => {
   renderBar(base);
-  pill('日數：全部').focus();
+  pill('天數：全部').focus();
   await user.keyboard('{Enter}');
-  expect(screen.getByRole('button', { name: '1–3日' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: '1–3天' })).toHaveFocus();
   await user.tab({ shift: true }); // back to its own pill
-  expect(pill('日數：全部')).toHaveFocus();
-  expect(screen.getByRole('dialog', { name: '日數' })).toBeInTheDocument();
+  expect(pill('天數：全部')).toHaveFocus();
+  expect(screen.getByRole('dialog', { name: '天數' })).toBeInTheDocument();
   await user.tab({ shift: true }); // on to the 可出行日期 pill: outside
   expect(pill('可出行日期：全部')).toHaveFocus();
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -437,12 +437,12 @@ it('focus leaving the window (no new element) keeps the popover open', async () 
 
 it('only one popover is open at a time, however the next pill is opened', async () => {
   renderBar(base);
-  await user.click(pill('日數：全部'));
+  await user.click(pill('天數：全部'));
   // A click with no press and no focus change (e.g. from assistive technology) opens the next popover.
   act(() => { pill('價錢：全部').click(); });
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   expect(screen.getByRole('dialog', { name: '價錢' })).toBeInTheDocument();
-  expect(pill('日數：全部')).toHaveAttribute('aria-expanded', 'false');
+  expect(pill('天數：全部')).toHaveAttribute('aria-expanded', 'false');
 });
 
 it('a 由 date later than the 至 date is swapped, not dropped', async () => {
@@ -486,7 +486,7 @@ it.each([
 });
 
 it.each([
-  ['zh-Hant', '出發日期：12/1 – 2027/1/3', '日數：1日以上', '日數：1日', '日數：4–6日'],
+  ['zh-Hant', '出發日期：12/1 – 2027/1/3', '天數：1天以上', '天數：1天', '天數：4–6天'],
   ['zh-Hans', '出发日期：12/1 – 2027/1/3', '天数：1天以上', '天数：1天', '天数：4–6天'],
   ['en', 'Departure dates: 1 Dec – 3 Jan 2027', 'Length: 1 day or more', 'Length: 1 day', 'Length: 4–6 days'],
 ] as const)('%s: dates and lengths in the pills', (locale, dates, plus, one, range) => {

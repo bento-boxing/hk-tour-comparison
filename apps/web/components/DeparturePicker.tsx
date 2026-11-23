@@ -23,7 +23,7 @@ export interface DeparturePickerProps {
   /** The heading; picker.title (選擇出發日期) when not given. */
   title?: string;
   /** Without onPick: each date links to the operator's page with these attributes (as the card's own dates do). */
-  link?: { href: string; target: string; rel: string };
+  link?: { href: string; target?: string; rel: string };
   /** 'end' (the default): it opens under its opener's right edge, leftwards; 'start': under its left edge, rightwards. */
   placement?: 'start' | 'end';
 }

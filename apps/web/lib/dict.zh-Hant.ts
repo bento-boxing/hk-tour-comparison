@@ -3,7 +3,7 @@
 const zh = {
   'site.name': '跟邊團',
   // What search engines and link previews show under the title (<meta name="description">, og:description).
-  'site.description': '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。',
+  'site.description': '集合多間香港旅行社的旅行團，可按出發日期、天數、目的地及價錢篩選。報名請到旅行社自己的網站。',
   // Task 64 (wording chosen by the owner, 2026-11-22). The site's other name in this language, for search engines
   // only (structured data: the home page's WebSite alternateName); 跟边团 in Simplified, Gan Bin Tuen in English.
   'site.alternateName': '香港旅行團比較',
@@ -11,7 +11,7 @@ const zh = {
   // {tours} tours listed now (with thousands commas); {site} is site.name. The title: the searched words first, the
   // site name last, within about 30 full-width characters (pinned by a test).
   'home.title': '香港旅行團比較｜比較 {operators} 間旅行社的旅行團｜{site}',
-  'home.description': '香港旅行團比較及格價：現時列出 {operators} 間旅行社的 {tours} 個旅行團，可按目的地、出發日期、日數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。',
+  'home.description': '香港旅行團比較及格價：現時列出 {operators} 間旅行社的 {tours} 個旅行團，可按目的地、出發日期、天數及價錢篩選。網站由個人製作，報名請到旅行社自己的網站。',
   // The sharing image (public/share/, made by scripts/make-share-images.mjs from this line): its line under the name,
   // and its description for screen readers (og:image:alt).
   'share.line': '香港旅行團比較',
@@ -40,14 +40,14 @@ const zh = {
   'dest.regionOf': '{country}{region}',
   'dest.heading': '{place}旅行團', // the page's <h1>
   'dest.title': '{place}旅行團比較', // the page's <title>, before ' | 跟邊團'
-  'dest.description': '比較香港多間旅行社的{place}旅行團，可按出發日期、日數及價錢篩選，再到旅行社自己的網站報名。',
+  'dest.description': '比較香港多間旅行社的{place}旅行團，可按出發日期、天數及價錢篩選，再到旅行社自己的網站報名。',
   // Task 67: the description with the destination's own facts before any filter (the canonical page's): {tours} listed
   // now, from {operators} operators, {days} their lengths (dest.daysRange or dest.daysOne), {price} the lowest
   // (HK$3,999). dest.descriptionCounts when the lengths and price are not known; dest.description with no tours.
-  'dest.descriptionFacts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團，行程 {days}，團費由 {price} 起。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。',
-  'dest.descriptionCounts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團。可按出發日期、日數及價錢篩選，報名請到旅行社自己的網站。',
-  'dest.daysRange': '{min} 至 {max} 日',
-  'dest.daysOne': '{days} 日',
+  'dest.descriptionFacts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團，行程 {days}，團費由 {price} 起。可按出發日期、天數及價錢篩選，報名請到旅行社自己的網站。',
+  'dest.descriptionCounts': '比較香港 {operators} 間旅行社的 {tours} 個{place}旅行團。可按出發日期、天數及價錢篩選，報名請到旅行社自己的網站。',
+  'dest.daysRange': '{min} 至 {max} 天',
+  'dest.daysOne': '{days} 天',
   'dest.count': '現時列出 {tours} 個旅行團，來自 {operators} 間旅行社。', // under the <h1>, before any filter
   'dest.countNone': '現時沒有列出旅行團。',
   'dest.tours': '{n} 團', // a destination's count beside its link
@@ -58,7 +58,7 @@ const zh = {
   'band.subline': '現有 {tours} 個旅行團 · 報名請到旅行社自己的網站',
   // Under them, what the site does in the words people search (task 64, the owner's): one line on a phone 360px wide
   // in Chinese (the English may take two).
-  'band.lede': '按目的地、出發日期、日數及價錢比較香港旅行團',
+  'band.lede': '按目的地、出發日期、天數及價錢比較香港旅行團',
   'band.placeholder': '想去邊？輸入國家、地區或城市', // the band's search box (colloquial on purpose, the owner's wish)
   // Task 68: the label of the row of destination shortcuts, which names it (shown on phones; on wide screens it only
   // names the row for screen readers). The seasons' row is labelled tours.seasons.
@@ -124,9 +124,9 @@ const zh = {
   // The about page (/about). The wording follows 給旅行社的說明 in README.md.
   'about.title': '關於本網站',
   'about.description': '跟邊團是一個由個人製作的非牟利網站。本頁說明網站顯示甚麼、資料如何收集，以及如何更正或移除資料。',
-  'about.intro': '「跟邊團」是一個由個人製作的非牟利網站，把香港多間旅行社的旅行團放在一起，方便用戶按出發日期、日數、目的地和價錢比較。網站不設廣告、不收佣金、不代售任何產品；所有報名均經連結返回旅行社自己的網頁進行。本網站與各旅行社並無任何關連。',
+  'about.intro': '「跟邊團」是一個由個人製作的非牟利網站，把香港多間旅行社的旅行團放在一起，方便用戶按出發日期、天數、目的地和價錢比較。網站不設廣告、不收佣金、不代售任何產品；所有報名均經連結返回旅行社自己的網頁進行。本網站與各旅行社並無任何關連。',
   'about.showHeading': '網站顯示甚麼',
-  'about.show1': '只顯示事實資料：旅行社名稱、日數、途經城市、集合及解散地點、出發日期及團費。',
+  'about.show1': '只顯示事實資料：旅行社名稱、天數、途經城市、集合及解散地點、出發日期及團費。',
   'about.show2': '每個旅行團均連結到旅行社網站上的該團頁面。',
   'about.show3': '不會儲存或顯示行程描述、圖片或宣傳文字，亦不會使用旅行社的標誌。',
   'about.collectHeading': '資料如何收集',
@@ -141,8 +141,8 @@ const zh = {
   'about.remove': '旅行社如不希望被列出，請電郵至同一地址；我們會移除有關資料，並停止讀取該旅行社的網站。',
   'footer.disclaimer': '本網站與各旅行社並無任何關連。價錢及出發日期以旅行社網站為準。',
   'footer.contact': '如有意見或查詢，或旅行社需要更正或移除旅行團資料，請電郵至 {email}。', // {email} becomes a mailto link
-  'length.daysNights': '{days}日{nights}夜',
-  'length.days': '{days}日',
+  'length.daysNights': '{days}天{nights}夜',
+  'length.days': '{days}天',
   'dest.placeholder': '輸入國家、地區或城市',
   'dest.none': '沒有相符地區',
   'dest.includes': '包括 {cities}',
@@ -166,8 +166,8 @@ const zh = {
   'countryGroup.oceania': '大洋洲',
   'countryGroup.polar': '南北極',
   'card.priceFrom': '{price} 起', // a lowest price; components split it around {price} to style the marker
-  'card.lower': '↓ 比{days}日前平 {amount}', // the price change under the price: one line in its column (the drawing's wording)
-  'card.higher': '↑ 比{days}日前貴 {amount}',
+  'card.lower': '↓ 比{days}天前平 {amount}', // the price change under the price: one line in its column (the drawing's wording)
+  'card.higher': '↑ 比{days}天前貴 {amount}',
   'card.moreDates': '+{n} 個出發日',
   'card.dates': '出發日期', // the accessible name of a card's row of dates (each shows its price on hover or focus)
   'card.openedEarlier': '已看過', // on a row whose operator page the visitor opened earlier in this tab
@@ -178,7 +178,7 @@ const zh = {
   'list.updated': '資料更新：{date} · 各旅行社每晚更新一次 · 價錢及出發日期以旅行社網站為準', // under the list
   // The list's column names, for screen readers only (the columns have no visible headings).
   'col.operator': '旅行社',
-  'col.days': '日數',
+  'col.days': '天數',
   'col.region': '地區',
   'col.route': '路線',
   'col.dates': '出發日期',
@@ -236,14 +236,14 @@ const zh = {
   'search.clearAll': '清除所有篩選',
   'search.error': '暫時未能載入資料，請稍後再試。',
   'filter.dates': '出發日期',
-  'filter.days': '日數',
+  'filter.days': '天數',
   'filter.price': '價錢',
   'filter.operators': '旅行社',
   'filter.sort': '排序',
   'filter.all': '全部',
-  'filter.daysRange': '{min}–{max}日',
-  'filter.daysPlus': '{min}日以上',
-  'filter.label': '{name}：{value}', // a pill: '日數：4–6日'
+  'filter.daysRange': '{min}–{max}天',
+  'filter.daysPlus': '{min}天以上',
+  'filter.label': '{name}：{value}', // a pill: '天數：4–6天'
   'filter.pricePlus': '{min}以上', // {min} is a formatted price: 'HK$5,000以上'
   'filter.exclude': '排除',
   // Task 75: the filter sheet's 排除 list behind one row (none / how many ticked), and the trip's later tours' fixed
@@ -276,8 +276,8 @@ const zh = {
   'filter.travelTo': '最遲回來',
   'sort.price': '價錢 低→高',
   'sort.price-desc': '價錢 高→低',
-  'sort.days': '日數 短→長',
-  'sort.days-desc': '日數 長→短',
+  'sort.days': '天數 短→長',
+  'sort.days-desc': '天數 長→短',
   'sort.date': '出發日期 早→遲',
   'sort.date-desc': '出發日期 遲→早',
   'sort.destination': '目的地 筆劃少→多',
@@ -285,7 +285,7 @@ const zh = {
   // The sort popover: one row per order (sort.by.*), with its two directions (sort.dir.*); each button's
   // accessible name is the full sort.* text.
   'sort.by.price': '價錢',
-  'sort.by.days': '日數',
+  'sort.by.days': '天數',
   'sort.by.date': '出發日期',
   'sort.by.destination': '目的地',
   'sort.dir.price': '低→高',
@@ -299,8 +299,8 @@ const zh = {
   // The phone bar's sort control, where the full name may not fit: the current order in short (sort.* stays its name).
   'sort.short.price': '價錢 低→高',
   'sort.short.price-desc': '價錢 高→低',
-  'sort.short.days': '日數 短→長',
-  'sort.short.days-desc': '日數 長→短',
+  'sort.short.days': '天數 短→長',
+  'sort.short.days-desc': '天數 長→短',
   'sort.short.date': '出發日期 早→遲',
   'sort.short.date-desc': '出發日期 遲→早',
   'sort.short.destination': '目的地 筆劃少→多',
@@ -338,22 +338,22 @@ const zh = {
   'saved.noscript': '收藏保存在瀏覽器內，需要開啟 JavaScript 才能顯示。',
   'chain.yours': '你的行程',
   'chain.rest': '休息',
-  'chain.restDays': '休息 {n} 日',
+  'chain.restDays': '休息 {n} 天',
   'chain.gapMin': '最少',
   'chain.gapMax': '最多',
-  'chain.days': '日', // the unit after the gap fields; called with { max } so English can say day or days
+  'chain.days': '天', // the unit after the gap fields; called with { max } so English can say day or days
   'chain.pickNext': '＋ 從下方選擇下一個旅行團',
   'chain.window': '可出發日：{from} – {to}',
   'chain.total': '目前合計',
   'chain.removeLast': '移除最後一程',
   'chain.nextHeading': '可接續的旅行團（{from} – {to} 出發）',
-  'chain.afterRest': '休息 {n} 日後出發',
-  'chain.afterRestRange': '休息 {a}–{b} 日後出發',
+  'chain.afterRest': '休息 {n} 天後出發',
+  'chain.afterRestRange': '休息 {a}–{b} 天後出發',
   'chain.full': '行程已達上限（8 程）。', // 8 is MAX_CHAIN_LEGS (pinned by a test)
-  'chain.noNext': '這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。',
+  'chain.noNext': '這段休息期內沒有可接續的旅行團，可嘗試延長休息天數。',
   // Task 71: the total, at every width: the tours, and the days from the first departure to the last return, rest
   // included (with the summed from-price beside it).
-  'chain.totalCount': '{n} 個旅行團 · {d} 日',
+  'chain.totalCount': '{n} 個旅行團 · {d} 天',
   // The trip on a phone (under 1024px; the owner's drawings Mobile16Trip, Mobile20TripLong, Mobile17Pick): the gold
   // strip's label; 清空 and its accessible name; a tour's × ({tour} is save.tour); the message after a removal or 清空
   // with its undo button; the rest between two tours when it is none (a tour may leave the day after the last one
@@ -366,7 +366,7 @@ const zh = {
   'trip.removed': '已移除',
   'trip.cleared': '已清空',
   'trip.undo': '還原',
-  'trip.restNone': '休息 0 日（翌日出發）',
+  'trip.restNone': '休息 0 天（翌日出發）',
   'trip.addNext': '加入下一個旅行團',
   'trip.addFirst': '選擇第一個旅行團',
   'trip.addWindow': '{from} – {to} 出發，可以不加',
@@ -379,7 +379,7 @@ const zh = {
   'trip.pickTitle': '選擇第 {n} 個旅行團',
   'trip.back': '返回你的行程',
   'trip.window': '{from} – {to} 出發', // the dates the next tour may leave, beside the rest control
-  'trip.restChip': '休息 {min} 至 {max} 日',
+  'trip.restChip': '休息 {min} 至 {max} 天',
   'trip.restDone': '完成',
   // A trip shown that is not the one this browser remembers (a link someone shared, an older state reached with Back):
   // the line above its steps, when another trip is remembered or none is, and its button, which remembers this one.

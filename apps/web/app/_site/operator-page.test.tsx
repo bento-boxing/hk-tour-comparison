@@ -191,7 +191,7 @@ it.each([
 it('the filter row has no operator filter', async () => {
   await renderPage('zh-Hant', 'texpert');
   expect(screen.queryByRole('button', { name: /^旅行社：/ })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '日數：全部' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '天數：全部' })).toBeInTheDocument();
 });
 
 it.each([

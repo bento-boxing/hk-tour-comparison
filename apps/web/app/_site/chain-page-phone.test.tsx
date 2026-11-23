@@ -102,11 +102,11 @@ it('the trip is numbered steps: each tour, the real rest between two, then the d
   expect(container.firstElementChild).toHaveAttribute('data-view', 'trip');
   const items = steps();
   expect(items.map(li => li.textContent)).toEqual([
-    expect.stringMatching(/^1東瀛遊5日HK\$7,999大阪12\/18 \(五\) – 12\/22 \(二\)/),
-    '2休息 1 日',
-    expect.stringMatching(/^3專業旅運5日HK\$5,699大阪12\/24 \(四\) – 12\/28 \(一\)$/),
-    '4休息 0 日（翌日出發）', // 12/29, the day after the second ends: no rest, never the same day
-    expect.stringMatching(/^5大航假期4日HK\$3,980大阪12\/29 \(二\) – 2027\/1\/1 \(五\)/),
+    expect.stringMatching(/^1東瀛遊5天HK\$7,999大阪12\/18 \(五\) – 12\/22 \(二\)/),
+    '2休息 1 天',
+    expect.stringMatching(/^3專業旅運5天HK\$5,699大阪12\/24 \(四\) – 12\/28 \(一\)$/),
+    '4休息 0 天（翌日出發）', // 12/29, the day after the second ends: no rest, never the same day
+    expect.stringMatching(/^5大航假期4天HK\$3,980大阪12\/29 \(二\) – 2027\/1\/1 \(五\)/),
     '6＋ 加入下一個旅行團 12/24 – 12/26 出發，可以不加›',
   ]);
   // Each tour opens its operator's page, named by the tour; the dashed button is one link, to the choosing screen.
@@ -119,7 +119,7 @@ it('the trip is numbered steps: each tour, the real rest between two, then the d
 it('a × on the first and on the last tour only, named by the tour; one × for a single tour', async () => {
   const { unmount } = await renderPage(pageFor(THREE));
   const removes = screen.getAllByRole('button', { name: /^移除「/ });
-  expect(removes.map(b => b.getAttribute('aria-label'))).toEqual(['移除「東瀛遊：大阪，5日4夜」', '移除「大航假期：大阪，4日3夜」']);
+  expect(removes.map(b => b.getAttribute('aria-label'))).toEqual(['移除「東瀛遊：大阪，5天4夜」', '移除「大航假期：大阪，4天3夜」']);
   expect(within(steps()[2]).queryByRole('button')).toBeNull();
   unmount();
   await renderPage(pageFor([['egl:KIX5', '2026-12-18']]));
@@ -129,7 +129,7 @@ it('a × on the first and on the last tour only, named by the tour; one × for a
 it('the gold total: the tours, the whole span with the rest, and the summed price; then the small print', async () => {
   await renderPage(pageFor(THREE));
   const total = document.querySelector('[data-total]')!;
-  expect(total).toHaveTextContent('合計 3 個旅行團 · 15 日HK$17,678'); // 12/18 to 1/1
+  expect(total).toHaveTextContent('合計 3 個旅行團 · 15 天HK$17,678'); // 12/18 to 1/1
   expect(total).not.toHaveTextContent('起'); // every departure has its own price
   expect(screen.getByText('按旅行團可開啟旅行社的網頁。報名請到每間旅行社的網站分別辦理。')).toBeInTheDocument();
 });
@@ -137,7 +137,7 @@ it('the gold total: the tours, the whole span with the rest, and the summed pric
 it('removing the first tour makes the second the first; the message offers to undo it, and undoing goes back', async () => {
   const user = userEvent.setup();
   const { unmount } = await renderPage(pageFor(THREE));
-  await user.click(screen.getByRole('button', { name: '移除「東瀛遊：大阪，5日4夜」' }));
+  await user.click(screen.getByRole('button', { name: '移除「東瀛遊：大阪，5天4夜」' }));
   const after = '/chain?legs=texpert%3ASEL5%402026-12-24%2Cbigline%3ATPE4%402026-12-29&gap=1-3&ex=japan';
   expect(mocks.push).toHaveBeenLastCalledWith(after, { scroll: false });
   unmount();
@@ -145,7 +145,7 @@ it('removing the first tour makes the second the first; the message offers to un
   await renderPage(pageFor(THREE.slice(1)));
   const status = undoStatus();
   expect(status).toHaveAttribute('role', 'status');
-  expect(status).toHaveTextContent('已移除 東瀛遊：大阪，5日4夜·還原');
+  expect(status).toHaveTextContent('已移除 東瀛遊：大阪，5天4夜·還原');
   const undo = within(status).getByRole('button', { name: '還原' });
   expect(undo).toHaveFocus();
   await user.click(undo);
@@ -156,7 +156,7 @@ it('removing the first tour makes the second the first; the message offers to un
 it('removing the last tour, then any other change, ends the offer to undo', async () => {
   const user = userEvent.setup();
   const { unmount } = await renderPage(pageFor(THREE));
-  await user.click(screen.getByRole('button', { name: '移除「大航假期：大阪，4日3夜」' }));
+  await user.click(screen.getByRole('button', { name: '移除「大航假期：大阪，4天3夜」' }));
   expect(mocks.push).toHaveBeenLastCalledWith(HERE.replace('%2Cbigline%3ATPE4%402026-12-29', ''), { scroll: false });
   unmount();
   // Somewhere else instead (another removal, Back): no message there.
@@ -200,7 +200,7 @@ it('the visitor\'s own changes are remembered: adding, ×, 還原', async () => 
   one.unmount();
   const two = await renderPage(pageFor(THREE.slice(0, 2)));
   expect(storedLegs()).toBe('egl:KIX5@2026-12-18,texpert:SEL5@2026-12-24');
-  await user.click(screen.getByRole('button', { name: '移除「東瀛遊：大阪，5日4夜」' }));
+  await user.click(screen.getByRole('button', { name: '移除「東瀛遊：大阪，5天4夜」' }));
   two.unmount();
   const after = await renderPage(pageFor(THREE.slice(1, 2)));
   expect(storedLegs()).toBe('texpert:SEL5@2026-12-24');
@@ -296,19 +296,19 @@ it('the choosing screen: its bar with ← back to the trip, the trip so far in g
   expect(container.firstElementChild).toHaveAttribute('data-view', 'pick');
   expect(screen.getByRole('heading', { name: '選擇第 2 個旅行團' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '返回你的行程' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
-  expect(document.querySelector('[data-total]')).toHaveTextContent('你的行程 1 個旅行團 · 5 日HK$7,999');
+  expect(document.querySelector('[data-total]')).toHaveTextContent('你的行程 1 個旅行團 · 5 天HK$7,999');
   expect(screen.getByText('12/24 – 12/26 出發')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '休息 1 至 3 日' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByRole('button', { name: '休息 1 至 3 天' })).toHaveAttribute('aria-expanded', 'false');
   // The trip's steps are not on this screen; the list is, with its rest notes and paging that keeps the screen.
   expect(screen.queryByRole('button', { name: /^移除「/ })).toBeNull();
   expect(screen.getAllByRole('row').length).toBeGreaterThan(2);
-  expect(screen.getAllByText('休息 1–2 日後出發').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('休息 1–2 天後出發').length).toBeGreaterThan(0);
 });
 
 it('the rest control opens the two fields; 完成 applies them and keeps the screen; Escape changes nothing', async () => {
   const user = userEvent.setup();
   await renderPage(pageFor(THREE.slice(0, 1), {}, true));
-  const chip = screen.getByRole('button', { name: '休息 1 至 3 日' });
+  const chip = screen.getByRole('button', { name: '休息 1 至 3 天' });
   await user.click(chip);
   expect(chip).toHaveAttribute('aria-expanded', 'true');
   const panel = () => screen.getByRole('button', { name: '完成' }).parentElement!;

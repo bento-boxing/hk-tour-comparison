@@ -79,10 +79,10 @@ it('篩選 opens a modal sheet with every section, a history entry for Back, and
   expect(opener()).toHaveAttribute('aria-expanded', 'true');
   expect(window.history.state).toMatchObject({ filterSheet: true });
   const groups = within(dialog).getAllByRole('group').map(g => g.getAttribute('aria-labelledby') && within(g).getByRole('heading').textContent);
-  expect(groups).toEqual(['出發日期', '日數', '價錢（每人）', '旅行社', '可出行日期']);
+  expect(groups).toEqual(['出發日期', '天數', '價錢（每人）', '旅行社', '可出行日期']);
   const chips = within(dialog).getAllByRole('button', { pressed: false }).map(b => b.textContent);
   expect(chips).toEqual([
-    '聖誕', '農曆新年', '本月', '下月', '1–3日', '4–6日', '7–9日', '10日以上', 'HK$1,000以下', 'HK$3,000以下', 'HK$5,000以下', 'HK$10,000以下',
+    '聖誕', '農曆新年', '本月', '下月', '1–3天', '4–6天', '7–9天', '10天以上', 'HK$1,000以下', 'HK$3,000以下', 'HK$5,000以下', 'HK$10,000以下',
   ]);
   expect(within(dialog).getByRole('checkbox', { name: '東瀛遊' })).not.toBeChecked();
   expect(within(dialog).getByRole('button', { name: '關閉' })).toBeInTheDocument();
@@ -93,7 +93,7 @@ it('the choices are applied together by 顯示結果: one change, after the shee
   await user.click(opener());
   const dialog = sheet();
   await user.click(within(dialog).getByRole('button', { name: '聖誕' }));
-  await user.click(within(dialog).getByRole('button', { name: '4–6日' }));
+  await user.click(within(dialog).getByRole('button', { name: '4–6天' }));
   await user.click(within(dialog).getByRole('button', { name: 'HK$3,000以下' })); // a ceiling: the lowest price goes
   await user.click(within(dialog).getByRole('checkbox', { name: '捷旅' }));
   await user.type(within(dialog).getByLabelText('最遲回來'), '2027-01-03');
@@ -114,7 +114,7 @@ it('applied on the home page, whose stored copy gives way to a per-request copy 
   window.history.replaceState(null, '', '/');
   const first = renderBar({ filters: {}, sort: 'price', page: 1 });
   await user.click(opener());
-  await user.click(within(sheet()).getByRole('button', { name: '4–6日' }));
+  await user.click(within(sheet()).getByRole('button', { name: '4–6天' }));
   await user.click(within(sheet()).getByRole('button', { name: '顯示結果' }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
   // The old page re-renders on the old address (put back after Back over the sheet's entry): nothing is used up.
@@ -137,7 +137,7 @@ it('a one-tap choice pressed again empties its fields; this month and next month
   renderBar({ filters: { daysMin: 4, daysMax: 6 }, sort: 'price', page: 1 });
   await user.click(opener());
   const dialog = sheet();
-  const days = within(dialog).getByRole('button', { name: '4–6日' });
+  const days = within(dialog).getByRole('button', { name: '4–6天' });
   expect(days).toHaveAttribute('aria-pressed', 'true');
   await user.click(days);
   expect(days).toHaveAttribute('aria-pressed', 'false');
@@ -162,11 +162,11 @@ it('清除全部 empties every field of the sheet (not the destination, not the 
 it('closing without a change (×, or 顯示結果 with nothing changed) navigates nowhere; the next opening starts afresh', async () => {
   renderBar({ filters: { daysMin: 3 }, sort: 'price', page: 1 });
   await user.click(opener());
-  await user.click(within(sheet()).getByRole('button', { name: '1–3日' }));
+  await user.click(within(sheet()).getByRole('button', { name: '1–3天' }));
   await user.click(within(sheet()).getByRole('button', { name: '關閉' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   await user.click(opener());
-  expect(within(sheet()).getByRole('button', { name: '1–3日' })).toHaveAttribute('aria-pressed', 'false');
+  expect(within(sheet()).getByRole('button', { name: '1–3天' })).toHaveAttribute('aria-pressed', 'false');
   expect(within(sheet()).getAllByLabelText('由', { selector: '[type=number]' })[0]).toHaveValue(3);
   await user.click(within(sheet()).getByRole('button', { name: '顯示結果' }));
   await act(() => new Promise(r => setTimeout(r, 30)));
@@ -176,7 +176,7 @@ it('closing without a change (×, or 顯示結果 with nothing changed) navigate
 it('the browser\'s Back closes the sheet and stays on the page; Forward opens it again', async () => {
   renderBar({ filters: {}, sort: 'price', page: 1 });
   await user.click(opener());
-  await user.click(within(sheet()).getByRole('button', { name: '10日以上' }));
+  await user.click(within(sheet()).getByRole('button', { name: '10天以上' }));
   await act(async () => {
     window.history.replaceState(null, ''); // as after the browser goes back to the page's own entry
     window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
@@ -282,7 +282,7 @@ it('the trip\'s choosing screen, first tour: departure dates as on the search pa
   renderBar({ filters: {}, sort: 'price', page: 1 }, { show: { dates: false, exclude: true }, sheetDates: 'edit', hrefFor: undefined, total: undefined });
   await user.click(opener());
   const titles = within(sheet()).getAllByRole('heading', { level: 3 }).map(h => h.textContent);
-  expect(titles).toEqual(['出發日期', '日數', '價錢（每人）', '旅行社']);
+  expect(titles).toEqual(['出發日期', '天數', '價錢（每人）', '旅行社']);
   expect(within(sheet()).getByRole('group', { name: '排除國家：無' })).toBeInTheDocument();
   const dates = within(sheet()).getByRole('group', { name: '出發日期' });
   expect(within(dates).getByRole('button', { name: '聖誕' })).toBeInTheDocument();

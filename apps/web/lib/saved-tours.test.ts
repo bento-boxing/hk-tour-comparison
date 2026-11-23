@@ -211,3 +211,17 @@ it('keeps each tour\'s label (the site\'s own text, for a tour that is no longer
   resetSavedCache();
   expect(getSavedTours().tours).toEqual([{ key: 'egl:T1', savedAt: 1 }, { key: 'egl:T2', savedAt: 2 }]);
 });
+
+it('back from the back/forward cache (pageshow, persisted): read again, since another tab may have changed it unheard', () => {
+  saveTour('egl:T1', { now: 1 });
+  const listener = vi.fn();
+  const unsubscribe = subscribeSaved(listener);
+  // Changed while this page sat in the cache: no storage event reached it.
+  window.localStorage.setItem(SAVED_KEY, JSON.stringify([{ key: 'egl:T1', savedAt: 1 }, { key: 'jetour:T2', savedAt: 2 }]));
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+  expect(listener).not.toHaveBeenCalled();
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(keys()).toEqual(['egl:T1', 'jetour:T2']);
+  unsubscribe();
+});

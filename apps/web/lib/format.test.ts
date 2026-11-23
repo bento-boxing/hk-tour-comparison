@@ -16,7 +16,7 @@ it.each([
   expect(formatChipDate('2027-01-03', '2026-11-12', makeT(locale))).toBe(otherYear);
 });
 
-it('formatLength', () => { expect(formatLength(5, 4, tZh)).toBe('5日4夜'); expect(formatLength(5, null, tZh)).toBe('5日'); });
+it('formatLength', () => { expect(formatLength(5, 4, tZh)).toBe('5天4夜'); expect(formatLength(5, null, tZh)).toBe('5天'); });
 
 it('chipDay: the day without its year and a short weekday; in Chinese the weekday in brackets (a bare 一 reads as a dash)', () => {
   expect(chipDay('2026-11-21', tZh)).toEqual({ day: '11/21', weekday: '(六)' });

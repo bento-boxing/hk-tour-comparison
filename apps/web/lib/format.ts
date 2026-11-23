@@ -22,7 +22,7 @@ export function formatChipDate(date: IsoDate, today: IsoDate, t: T): string {
   return sameYear ? `${month}/${day}` : `${year}/${month}/${day}`;
 }
 
-/** '5日4夜', or '5日' when the number of nights is unknown. */
+/** '5天4夜', or '5天' when the number of nights is unknown. */
 export function formatLength(days: number, nights: number | null, t: T): string {
   return nights === null ? t('length.days', { days }) : t('length.daysNights', { days, nights });
 }

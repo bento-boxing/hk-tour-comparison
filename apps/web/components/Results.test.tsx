@@ -92,9 +92,9 @@ it('picking a date on a card navigates to the chain page with that leg', async (
 });
 
 it('a note per row (the chain page\'s rest) is shown on its own row only; no row shows an update time', () => {
-  render(<Results {...props} footNote={tour => (tour.key === 'egl:KIX5' ? '休息 1 日後出發' : undefined)} />);
+  render(<Results {...props} footNote={tour => (tour.key === 'egl:KIX5' ? '休息 1 天後出發' : undefined)} />);
   const [first, second] = tourRows();
-  expect(first).toHaveTextContent('休息 1 日後出發');
+  expect(first).toHaveTextContent('休息 1 天後出發');
   expect(second).not.toHaveTextContent('休息');
   expect(first).not.toHaveTextContent('更新');
 });
@@ -104,7 +104,7 @@ it('the list is a table for screen readers: a header row naming the seven column
   const table = screen.getByRole('table', { name: '旅行團' });
   const [header, ...rows] = within(table).getAllByRole('row');
   expect(within(header).getAllByRole('columnheader').map(h => h.textContent))
-    .toEqual(['旅行社', '日數', '地區', '路線', '出發日期', '價錢', '操作']);
+    .toEqual(['旅行社', '天數', '地區', '路線', '出發日期', '價錢', '操作']);
   expect(header.className).toMatch(/visuallyHidden/);
   expect(rows).toHaveLength(2);
   for (const row of rows) expect(within(row).getAllByRole('cell')).toHaveLength(7);

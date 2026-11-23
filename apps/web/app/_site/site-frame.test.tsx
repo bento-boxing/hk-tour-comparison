@@ -76,7 +76,7 @@ it.each([
 });
 
 it.each([
-  ['zh-Hant', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。'],
+  ['zh-Hant', '集合多間香港旅行社的旅行團，可按出發日期、天數、目的地及價錢篩選。報名請到旅行社自己的網站。'],
   ['zh-Hans', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。'],
   ['en', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website."],
 ] as const)('%s: the site address as the base of every address, the site name as the title and its pattern for pages, and the description in that language', (locale, description) => {

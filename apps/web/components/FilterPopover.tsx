@@ -25,9 +25,9 @@ export function fitShift(naturalLeft: number, width: number, viewport: number): 
 }
 
 export interface FilterPopoverProps {
-  /** The pill's text, e.g. '日數：4–6日'; also its accessible name. */
+  /** The pill's text, e.g. '天數：4–6天'; also its accessible name. */
   label: string;
-  /** The popover's heading and accessible name, e.g. '日數'. */
+  /** The popover's heading and accessible name, e.g. '天數'. */
   title: string;
   /** Filled (the chosen colour) when the box's filter is set. */
   on: boolean;

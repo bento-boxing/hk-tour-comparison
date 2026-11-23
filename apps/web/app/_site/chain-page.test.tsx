@@ -157,8 +157,8 @@ it('each card says how many days of rest come before it', async () => {
   await renderPage({});
   const [sel, tpe] = tourRows();
   // 12/24 and 12/25 after a tour ending 12/22: under the region, and on a phone among the notes under the dates.
-  expect(within(sel).getAllByText('休息 1–2 日後出發')).toHaveLength(2);
-  expect(within(tpe).getAllByText('休息 1 日後出發')).toHaveLength(2);
+  expect(within(sel).getAllByText('休息 1–2 天後出發')).toHaveLength(2);
+  expect(within(tpe).getAllByText('休息 1 天後出發')).toHaveLength(2);
 });
 
 it('adding a card appends the leg and navigates, keeping the gap and filters', async () => {
@@ -233,7 +233,7 @@ it(`a full chain (${MAX_CHAIN_LEGS} legs) shows the limit message instead of the
 it('an empty list says to try a longer rest', async () => {
   mocks.loadChainPage.mockResolvedValue({ ...data, next: { tours: [], total: 0 } });
   await renderPage({});
-  expect(screen.getByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。')).toBeInTheDocument();
+  expect(screen.getByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息天數。')).toBeInTheDocument();
   expect(screen.queryByText('找不到符合條件的旅行團')).toBeNull();
   expect(screen.queryByRole('link', { name: '清除所有篩選' })).toBeNull(); // that link would go to the search page and lose the chain
   expect(screen.getByRole('textbox', { name: '最多' })).toBeInTheDocument();
@@ -299,7 +299,7 @@ it('a page past the last says so neutrally, with the link back to page 1 that ke
   mocks.loadChainPage.mockResolvedValue({ ...data, address: { ...data.address, search: { ...data.address.search, page: 9 } }, next: { tours: [], total: 30 } });
   await renderPage({});
   expect(screen.getByText('這一頁沒有內容。')).toBeInTheDocument();
-  expect(screen.queryByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息日數。')).toBeNull();
+  expect(screen.queryByText('這段休息期內沒有可接續的旅行團，可嘗試延長休息天數。')).toBeNull();
   expect(screen.getByRole('link', { name: '回到第 1 頁' })).toHaveAttribute('href', '/chain?legs=egl%3AKIX5%402026-12-18&gap=1-3&ex=japan');
 });
 
@@ -334,7 +334,7 @@ const languages = {
 };
 
 it.each([
-  ['zh-Hant', 'https://example.invalid/chain', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、日數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
+  ['zh-Hant', 'https://example.invalid/chain', '連續行程', '集合多間香港旅行社的旅行團，可按出發日期、天數、目的地及價錢篩選。報名請到旅行社自己的網站。', 'zh_HK'],
   ['zh-Hans', 'https://example.invalid/zh-hans/chain', '连续行程', '汇集多家香港旅行社的旅行团，可按出发日期、天数、目的地和价格筛选。报名请前往旅行社自己的网站。', 'zh_CN'],
   ['en', 'https://example.invalid/en/chain', 'Plan a trip', "Group tours from several Hong Kong tour operators in one place. Filter by departure date, length, destination and price, then book on the operator's own website.", 'en_GB'],
 ] as const)('in %s: titled with the nav bar\'s name for it (the layout adds " | 跟邊團"), canonical: its own language\'s address without the query string, the three languages and x-default, Open Graph in that language', async (locale, canonical, name, description, ogLocale) => {

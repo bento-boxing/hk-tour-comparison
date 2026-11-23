@@ -19,7 +19,7 @@ export interface ResultsProps {
   onAdd?: (tour: TourRow, departure: IsoDate) => void;
   /** The lower of each card's two buttons on a phone: 收藏 ('save', the default) or ＋ 加入 ('add', with onAdd). */
   phoneAction?: 'save' | 'add';
-  /** When given, each row's note (shown under its price), e.g. '休息 1–2 日後出發'. */
+  /** When given, each row's note (shown under its price), e.g. '休息 1–2 天後出發'. */
   footNote?: (tour: TourRow) => string | undefined;
   /** When given, shown instead of the default empty message and its clear-all link (only when total is 0). */
   empty?: ReactNode;

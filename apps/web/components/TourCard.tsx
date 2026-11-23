@@ -16,6 +16,8 @@ import {
 import { getNoOpenedTours, getOpenedTours, recordOpened, subscribeOpened } from '../lib/opened-tours';
 import { getNoSavedTours, getSavedTours, saveTour, subscribeSaved, unsaveTour } from '../lib/saved-tours';
 import { useUpcomingAfter } from '../lib/browser-today';
+import { useOperatorLinkTarget } from '../lib/link-target';
+import { useRouteDisclosure } from '../lib/open-routes';
 import { operatorName } from '../lib/place-names';
 import { DeparturePicker, type PickerCloseReason } from './DeparturePicker';
 import { PriceWithFrom } from './PriceWithFrom';
@@ -30,7 +32,7 @@ export interface TourCardProps {
   now?: string;
   /** When given, the 加入行程 button is shown and calls this with the chosen date. */
   onAdd?: (departure: IsoDate) => void;
-  footNote?: string;   // shown under the region, e.g. '休息 1–2 日後出發' on the chain page
+  footNote?: string;   // shown under the region, e.g. '休息 1–2 天後出發' on the chain page
   /**
    * The page's own action, the lower of the card's two buttons on a phone (under 1024px): 'save' (收藏, the default:
    * the search pages and the saved page) or 'add' (＋ 加入, which needs onAdd: the trip page's list of tours that can
@@ -192,6 +194,9 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
   const dateRefs = useRef<(HTMLElement | null)[]>([]);
   const routeRef = useRef<HTMLHeadingElement>(null);
   const routeCut = useRouteCut(routeRef);
+  // 全部 N 站 reopens on coming back to this page with Back (lib/open-routes).
+  const allStops = useRouteDisclosure(tour.key);
+  const linkTarget = useOperatorLinkTarget();
   const id = useId();
   const noteId = `${id}-note`;
   const changeId = `${id}-change`;
@@ -250,7 +255,8 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
     dateRefs.current[to]?.focus();
   };
 
-  const linkProps = { href: tour.url, target: '_blank', rel: 'noopener noreferrer' };
+  // On the phone layout the operator's page opens in this tab (Back returns here); on the wide one in a new tab.
+  const linkProps = { href: tour.url, target: linkTarget, rel: 'noopener noreferrer' };
 
   // Any link in the row opens the operator's page: a primary click (also Enter, which clicks) or a middle click.
   const noteOpened = (e: MouseEvent) => {
@@ -331,7 +337,7 @@ export function TourCard({ tour, operator, places, today, t, now, onAdd, footNot
           (useRouteCut). A native disclosure: it works without JavaScript. Not shown from 1024px.
         */}
         {route.length > 1 && (
-          <details className={styles.allStops} hidden={routeCut === false}>
+          <details className={styles.allStops} hidden={routeCut === false} {...allStops}>
             <summary className={styles.allStopsToggle}>
               {t('card.allStops', { n: route.length })}
               <span aria-hidden="true" className={styles.caret} />
