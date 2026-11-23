@@ -5,7 +5,7 @@ import { makeT, type Locale, type T } from '../../lib/i18n';
 import { pageMetadata } from '../../lib/site-metadata';
 import { places } from '@hktours/core';
 import { TOURS_PATH, countOf, destinationName } from '../../lib/destinations';
-import { bandRows } from '../../lib/band-rows';
+import { bandDates, bandRows } from '../../lib/band-rows';
 import { formatCount, formatDayRange, formatPrice } from '../../lib/format';
 import { SEASON_NAME_KEYS, seasonFromId, seasonPath, seasonSearchHref, type SeasonWindow } from '../../lib/seasons';
 import { breadcrumbJsonLd } from '../../lib/structured-data';
@@ -95,7 +95,8 @@ export async function SeasonPage({ locale, params, searchParams }: { locale: Loc
       </>
     );
   }
-  const { search, count, seasons } = load.data;
+  const { search, count, seasons, months } = load.data;
+  const rows = bandRows(t, search.state, search.counts, seasons);
   // With a destination chosen: the combination's own heading and numbers (the season's read counts each destination).
   const place = search.state.filters.destination ?? null;
   const own = seasons.find(s => s.window.season === window.season);
@@ -113,11 +114,14 @@ export async function SeasonPage({ locale, params, searchParams }: { locale: Loc
     // The band's destination search and the filter row record their choices on this page (lib/search-address.tsx).
     <FixedSeasonProvider season={window}>
       {trail}
-      <SearchBand t={t} heading={bandHeading} line={line} state={search.state} rows={bandRows(t, search.state, search.counts, seasons)} />
+      <SearchBand
+        t={t} heading={bandHeading} line={line} state={search.state} rows={rows}
+        dates={bandDates(t, search.state, rows, seasons, months, load.today)}
+      />
       <SearchList
         t={t} data={search} today={load.today} now={load.now} clearPath={path}
         hrefFor={state => seasonSearchHref(window, state)}
-        seasons={seasons}
+        seasons={seasons} dateField
       />
     </FixedSeasonProvider>
   );

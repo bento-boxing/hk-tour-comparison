@@ -31,6 +31,13 @@ export interface FilterBarProps {
    * tour's, as on the search page (no travel window); or a plain line saying the dates the trip sets for a later tour.
    */
   sheetDates?: 'edit' | { note: string };
+  /**
+   * The page has the phone's 幾時出發？ field above (task 78): the phone sheet, once the page runs, has no date sections
+   * (one place for one thing) and the 篩選 badge does not count dates; except that with both windows set (from a wide
+   * screen, an old link) the field shows the departure window and the sheet keeps 可出行日期, so the other can be seen
+   * and cleared (and counted). Without JavaScript the sheet's in-page form keeps its date fields: the field leads there.
+   */
+  dateField?: boolean;
   /** Hong Kong today, for the date pill's year rule; pass the server's, so server and browser render the same label. */
   today?: IsoDate;
   // Phones only (under 1024px), for the bar and its filter sheet; a page that does not know one leaves it out.
@@ -103,7 +110,7 @@ function priceText(f: TourFilters, t: T): string | null {
  * sort control showing the current order, and the number of tours. 篩選 opens the filter sheet (FilterSheet), which
  * holds every box of the row; the destination stays with the band. Both are drawn at every width and shown by CSS.
  */
-export function FilterBar({ state, operators, places, t, onChange, show, sheetDates, today = todayInHongKong(), total, seasons = [], fixedDates = null, hrefFor }: FilterBarProps) {
+export function FilterBar({ state, operators, places, t, onChange, show, sheetDates, dateField = false, today = todayInHongKong(), total, seasons = [], fixedDates = null, hrefFor }: FilterBarProps) {
   const showDates = show?.dates ?? true;
   const showExclude = show?.exclude ?? false;
   const showOperators = show?.operators ?? true;
@@ -121,7 +128,9 @@ export function FilterBar({ state, operators, places, t, onChange, show, sheetDa
   const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
   useStickBelowNotice();
   const clearHref = hrefFor?.(clearedState(state, sections, fixedDates));
-  const onCount = activeFilterCount(state, sections, fixedDates);
+  const bothWindows = (f.dateFrom !== undefined || f.dateTo !== undefined) && (f.travelFrom !== undefined || f.travelTo !== undefined);
+  const fieldSections: SheetSections = dateField ? { ...sections, dates: false, travel: sections.travel !== false && bothWindows } : sections;
+  const onCount = activeFilterCount(state, fieldSections, fixedDates);
 
   // At most one popover is open: opening a pill closes any other.
   const [openPill, setOpenPill] = useState<PillId | null>(null);
@@ -372,7 +381,8 @@ export function FilterBar({ state, operators, places, t, onChange, show, sheetDa
     </div>
     <FilterSheet
       control={sheet} state={state} operators={operators} places={places} t={t} today={today}
-      sections={sections} seasons={seasons} fixedDates={fixedDates} clearHref={clearHref} datesNote={datesNote} hydrated={hydrated} barId={BAR_ID}
+      sections={hydrated ? fieldSections : sections} seasons={seasons} fixedDates={fixedDates} clearHref={clearHref}
+      datesNote={dateField ? undefined : datesNote} hydrated={hydrated} barId={BAR_ID}
     />
     </>
   );

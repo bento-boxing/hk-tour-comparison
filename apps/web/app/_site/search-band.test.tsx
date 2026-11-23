@@ -8,7 +8,7 @@ import { I18nProvider } from '../../lib/i18n-client';
 import { makeT, type Locale } from '../../lib/i18n';
 import { parseSearchParams } from '../../lib/search-params';
 import { seasonWindow } from '../../lib/seasons';
-import { bandRows } from '../../lib/band-rows';
+import { bandDates, bandRows } from '../../lib/band-rows';
 import type { SeasonCount } from '../../lib/season-counts';
 import styles from './search-band.module.css';
 
@@ -37,9 +37,10 @@ const seasons: SeasonCount[] = [
 function renderBand(locale: Locale, query: Record<string, string>) {
   const t = makeT(locale);
   const state = parseSearchParams(query, places);
+  const rows = bandRows(t, state, site, seasons);
   return render(
     <I18nProvider locale={locale}>
-      <SearchBand t={t} heading="h" state={state} rows={bandRows(t, state, site, seasons)} />
+      <SearchBand t={t} heading="h" state={state} rows={rows} dates={bandDates(t, state, rows, seasons, [], '2026-11-22')} />
     </I18nProvider>,
   );
 }
@@ -123,23 +124,27 @@ const chips = (container: HTMLElement, locale: Locale = 'zh-Hant') => [...within
 const phoneLists = (container: HTMLElement) => [...container.querySelectorAll(`.${styles.phoneRows} > ul`)].map(ul => ul.getAttribute('aria-label'));
 
 describe('phones', () => {
-  it('nothing chosen (home): the seasons only, no destination boxes (they are on the search screen); the search box opens it', () => {
+  /** The phone date field's button and its ✕ (task 78). */
+  const dateBox = (container: HTMLElement) => [...container.querySelectorAll<HTMLElement>(`.${styles.phoneOnly} button[aria-haspopup="dialog"]`)]
+    .find(b => !b.textContent?.includes('⌕')) ?? null;
+
+  it('nothing chosen (home): the search box, then the 幾時出發？ field; no destination or festival boxes (task 78: they are in their sheets)', () => {
     const { container } = renderBand('zh-Hant', {});
-    expect(phoneLists(container)).toEqual(['節日旅行團']);
-    expect(phoneItems(within(container).getByRole('list', { name: '節日旅行團' }))).toEqual([
-      ['聖誕', '1,306 團', '/seasons/christmas', null], ['農曆新年', '353 團', '/seasons/lunar-new-year', null],
-    ]);
-    expect(container.querySelector(`.${styles.phoneOnly} button[aria-haspopup="dialog"]`)).toHaveTextContent('想去邊？輸入國家、地區或城市');
-    // The wide search row is still there (hidden on phones by CSS).
+    expect(phoneLists(container)).toEqual([]);
+    const openers = [...container.querySelectorAll(`.${styles.phoneOnly} button[aria-haspopup="dialog"]`)].map(b => b.textContent);
+    expect(openers).toEqual(['⌕想去邊？輸入國家、地區或城市', '幾時出發？']);
+    // The wide search row and season row are still there (hidden on phones by CSS).
     expect(container.querySelector(`.${styles.searchRow}.${styles.wideOnly}`)).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: '節日旅行團' })).toHaveClass(styles.wideOnly);
+    expect(dateBox(container)).not.toBeNull();
   });
 
   it.each([
     ['zh-Hant', '日本 157 團，已選取，按此取消', '日本地區', '全部 7', '全部 7 個地區'],
     ['en', 'Japan, 157 tours, selected: press to remove', 'Regions of Japan', 'All 7', 'All 7 regions'],
-  ] as const)('in %s, a country chosen: its chip first, then three regions and 全部 {n} ▾ (the rest once opened), then the seasons', (locale, chosenName, label, short, full) => {
+  ] as const)('in %s, a country chosen: its chip first, then three regions and 全部 {n} ▾ (the rest once opened); then the date field', (locale, chosenName, label, short, full) => {
     const { container } = renderBand(locale, { dest: 'japan' });
-    expect(phoneLists(container)).toEqual([locale === 'en' ? 'Chosen' : '已選取', label, locale === 'en' ? 'Holiday tours' : '節日旅行團']);
+    expect(phoneLists(container)).toEqual([locale === 'en' ? 'Chosen' : '已選取', label]);
     const chosen = within(container).getByRole('list', { name: locale === 'en' ? 'Chosen' : '已選取' });
     expect(within(chosen).getByRole('link')).toHaveAccessibleName(chosenName);
     expect(within(chosen).getByRole('link')).toHaveClass(styles.pchip);
@@ -153,8 +158,10 @@ describe('phones', () => {
       .toEqual(['shown', 'shown', 'shown', 'more', 'hidden', 'hidden', 'hidden', 'hidden']);
     expect(phoneItems(regions)[0]).toEqual([locale === 'en' ? 'Kansai' : '關西', locale === 'en' ? '36 tours' : '36 團', locale === 'en' ? '/en/tours/japan-kansai' : '/tours/japan-kansai', null]);
     const summary = regions.querySelector('summary')!;
-    expect(summary.textContent).toContain(`${short}\u00a0▾`);
+    expect(summary.textContent).toContain(`${short} ▾`);
     expect(summary).toHaveTextContent(full);
+    // The date field comes after the regions.
+    expect(regions.compareDocumentPosition(dateBox(container)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('a region chosen (task 77): the country\'s chip (to no destination) and the region\'s (to its country); the others in the regions row', () => {
@@ -169,29 +176,27 @@ describe('phones', () => {
     expect(phoneItems(regions).some(i => i[0] === '日本')).toBe(false);
   });
 
-  it('both chosen: the two chips, the country\'s regions, and no seasons row', () => {
-    const { container } = renderBand('zh-Hant', { dest: 'japan', from: christmas.from, to: christmas.to });
-    expect(phoneLists(container)).toEqual(['已選取', '日本地區']);
-    expect(chips(container)).toEqual([
-      ['日本', '/seasons/christmas', '日本 48 團，已選取，按此取消'], ['聖誕', '/tours/japan', '聖誕 48 團，已選取，按此取消'],
-    ]);
-  });
-
-  it('a country, a region and a season (task 77): three chips; ✕ on the region keeps the season, on the country drops the region too', () => {
+  it('a country, a region and a season (task 78): the two chips (the season is no chip); the field shows the season, its ✕ keeps the destination', () => {
     const { container } = renderBand('en', { dest: 'japan-kansai', from: christmas.from, to: christmas.to });
     expect(chips(container, 'en')).toEqual([
       ['Japan', '/en/seasons/christmas', 'Japan, 48 tours, selected: press to remove'],
       ['Kansai', '/en/seasons/christmas?dest=japan', 'Kansai, 12 tours, selected: press to remove'],
-      ['Christmas', '/en/tours/japan-kansai', 'Christmas, 12 tours, selected: press to remove'],
     ]);
+    expect(dateBox(container)).toHaveTextContent('Christmas · 19 Dec – 27 Dec');
+    expect(screen.getByRole('link', { name: 'Clear dates: Christmas · 19 Dec – 27 Dec' })).toHaveAttribute('href', '/en/tours/japan-kansai');
     // The chosen region is not repeated in the regions row.
     expect(phoneItems(within(container).getByRole('list', { name: 'Regions of Japan' })).some(i => i[0] === 'Kansai')).toBe(false);
   });
 
-  it('a season chosen alone: its chip only (no destination boxes, no other seasons)', () => {
-    const { container } = renderBand('zh-Hant', { from: christmas.from, to: christmas.to });
-    expect(phoneLists(container)).toEqual(['已選取']);
-    expect(chips(container)).toEqual([['聖誕', '/', '聖誕 1,306 團，已選取，按此取消']]);
+  it.each([
+    [{ from: '2026-12-01', to: '2026-12-31', dmin: '3' }, '12/1 – 12/31 出發', '/?dmin=3'],
+    [{ tfrom: '2026-12-01', tto: '2026-12-31' }, '12/1 – 12/31 內來回', '/'],
+    // Both windows (a wide screen, an old link): the departure window; ✕ clears both.
+    [{ from: '2026-12-01', to: '2026-12-31', tfrom: '2026-12-01', tto: '2027-01-05' }, '12/1 – 12/31 出發', '/'],
+  ] as const)('dates chosen %#: the field shows them in words, ✕ goes to the page without them', (query, text, clear) => {
+    const { container } = renderBand('zh-Hant', { ...query });
+    expect(dateBox(container)).toHaveTextContent(text);
+    expect(screen.getByRole('link', { name: `清除日期：${text}` })).toHaveAttribute('href', clear);
   });
 });
 
@@ -233,7 +238,7 @@ describe('the look', () => {
     expect(media('max-width: 1023px')).toContain('.lede, .wideOnly { display: none; }');
   });
 
-  it('phones (task 73, drawings Mobile6Home and Mobile4Results): 20px heading, 13px line, rows 10px apart; boxes 40px, name and count side by side; chips, then four and three columns (two in English)', () => {
+  it('phones (task 73, drawings Mobile6Home and Mobile4Results): 20px heading, 13px line, rows 10px apart; boxes 40px, name and count side by side; chips, then four columns (two in English)', () => {
     const phone = media('max-width: 1023px');
     expect(phone).toContain('.inner { padding-top: 12px; padding-bottom: 14px; gap: 10px; }');
     expect(phone).toContain('.heading { font-size: 20px; letter-spacing: 0; line-height: 1.3; }');
@@ -244,8 +249,7 @@ describe('the look', () => {
     expect(phone).toContain('.pchips { display: flex; flex-wrap: wrap; gap: 8px;');
     expect(phone).toMatch(/\.pchip \{[^}]*min-width: 44px;[^}]*min-height: 40px;[^}]*border: 2px solid var\(--on-gold\);[^}]*background: var\(--band-field-bg\); box-shadow: 0 0 0 2px var\(--on-gold\);/);
     expect(phone).toContain(".pchip::before { content: ''; position: absolute; inset: -4px 0; }");
-    expect(phone).toContain('.pseasonRow { grid-template-columns: repeat(3, minmax(0, 1fr)); }');
-    expect(phone).toContain('.band:lang(en) .pregionRow, .band:lang(en) .pseasonRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
+    expect(phone).toContain('.band:lang(en) .pregionRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
     expect(phone).toMatch(/\.pbox \{[^}]*min-height: 40px; display: flex; flex-wrap: wrap;[^}]*border: 2px solid var\(--on-gold\);/);
     expect(phone).toContain('.pregion { background: var(--header-bg); border-color: var(--header-bg); color: var(--header-text); }');
     // The count's unit for screen readers only.

@@ -4,9 +4,10 @@ import type { T } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import type { SearchState } from '../../lib/search-params';
 import { formatCount } from '../../lib/format';
-import type { BandBox, BandRows } from '../../lib/band-rows';
+import type { BandBox, BandDates, BandRows } from '../../lib/band-rows';
 import type { ScreenData } from '../../lib/search-screen';
 import { DestinationPanelsConnected, DestinationScreenConnected, DestinationSearchConnected } from '../../components/DestinationConnected';
+import { BandDateFieldConnected } from '../../components/DateFieldConnected';
 import frame from './site-frame.module.css';
 import styles from './search-band.module.css';
 
@@ -26,6 +27,8 @@ export interface SearchBandProps {
   rows?: BandRows;
   /** The phone search screen's popular destinations and counts, where there are no rows (an operator's page). */
   screen?: ScreenData;
+  /** The phone's 幾時出發？ field and its sheet (task 78: lib/band-rows.ts bandDates); with rows only. */
+  dates?: BandDates;
 }
 
 /**
@@ -71,56 +74,69 @@ function whereItemClass(box: BandBox): string | undefined {
 }
 
 /**
- * A box on phones (task 73, drawings Mobile6Home and Mobile4Results): a region or a season not chosen (the chosen
- * ones are chips: PhoneChip). One line, 40px tall, its name and count side by side (the count's unit for screen
- * readers only); a name too long for its column wraps inside the box, the count after it or under it, and the box
- * grows. A link, or faded plain text, as on wide screens.
+ * A region's box on phones (task 73, drawings Mobile6Home and Mobile4Results), not chosen (the chosen one is a chip:
+ * PhoneChips). One line, 40px tall, its name and count side by side (the count's unit for screen readers only); a name
+ * too long for its column wraps inside the box, the count after it or under it, and the box grows. A link, or faded
+ * plain text, as on wide screens.
  */
-function PhoneBox({ t, box, kind }: { t: T; box: BandBox; kind: 'region' | 'season' }) {
-  const className = [styles.pbox, styles[kind === 'region' ? 'pregion' : 'pseason'], box.path === null && styles.faded].filter(Boolean).join(' ');
+function PhoneBox({ t, box }: { t: T; box: BandBox }) {
+  const className = [styles.pbox, styles.pregion, box.path === null && styles.faded].filter(Boolean).join(' ');
   const text = <><span className={styles.pname}>{box.name}</span>{' '}<BoxCount t={t} tours={box.tours} /></>;
   if (box.path === null) return <span className={className}>{text}</span>;
   return <SiteLink className={className} href={localeHref(t.locale, box.path)}>{text}</SiteLink>;
 }
 
+/** A chip: its name, where its ✕ goes (a path without a language), and its accessible name. */
+export interface PhoneChip { key: string; name: string; path: string; label: string }
+
+/** The band's chips from its rows (task 77): named band.selected, with the count, as the chosen boxes are. */
+export function bandChips(t: T, boxes: BandBox[]): PhoneChip[] {
+  return boxes.map(box => ({
+    key: box.key, name: box.name, path: box.path!,
+    label: t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) }),
+  }));
+}
+
 /**
- * A choice on phones (task 77): a chip as wide as its name, white with an ink border and ring, ✕ after the name (the
- * count is in the heading's line; screen readers hear it in the name, band.selected), 40px tall and 44px to touch.
- * Pressing it un-chooses it (lib/band-rows.ts chips).
+ * The chosen country and region on phones (task 77; task 78 also on the trip's choosing screen): one row of chips as
+ * wide as their names, white with an ink border and ring, ✕ after the name (the count is in the heading's line;
+ * screen readers hear the chip's label), 40px tall and 44px to touch. Pressing one un-chooses it. Phones only.
  */
-function PhoneChip({ t, box }: { t: T; box: BandBox }) {
-  const name = t('band.selected', { name: box.name, count: t('dest.tours', { n: formatCount(box.tours) }) });
+export function PhoneChips({ t, chips }: { t: T; chips: PhoneChip[] }) {
+  if (chips.length === 0) return null;
   return (
-    <SiteLink className={styles.pchip} href={localeHref(t.locale, box.path!)} aria-label={name}>
-      <span className={styles.pname}>{box.name}</span>
-      <span className={styles.pclear} aria-hidden="true">✕</span>
-    </SiteLink>
+    <ul className={`${styles.pchips} ${styles.phoneOnly}`} aria-label={t('band.chosen')}>
+      {chips.map(chip => (
+        <li key={chip.key}>
+          <SiteLink className={styles.pchip} href={localeHref(t.locale, chip.path)} aria-label={chip.label}>
+            <span className={styles.pname}>{chip.name}</span>
+            <span className={styles.pclear} aria-hidden="true">✕</span>
+          </SiteLink>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 /**
- * The band's boxes on phones (task 73; the owner's drawings Mobile6Home and Mobile4Results), one row each, from the
- * same rows as wide screens (the same boxes, counts, fading and addresses): first every choice as a chip (task 77: the
- * country, the region, the season, as wide as their names, wrapping only when they do not fit); then, with a country (or one of its regions) chosen, its other regions (four columns:
- * the first three, and 全部 {n} ▾ to show the rest in place, unless four fit); then, with no season chosen, the seasons
- * (three columns). No other destination boxes: they are on the search screen. English: two columns for each.
+ * The band's boxes on phones (task 73; the owner's drawings Mobile6Home, Mobile4Results and M25), from the same rows
+ * as wide screens (the same boxes, counts, fading and addresses): first the destination's choices as chips (task 77:
+ * the country, the region, as wide as their names, wrapping only when they do not fit); then, with a country (or one
+ * of its regions) chosen, its other regions (four columns: the first three, and 全部 {n} ▾ to show the rest in place,
+ * unless four fit; two in English). No other destination boxes: they are on the search screen; and no festival boxes
+ * or festival chip: the date field under these holds the dates (task 78).
  */
 function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
   const chosen = rows.chips;
   const regions = rows.where.regions ? rows.where.boxes.slice(1).filter(b => !b.chosen) : [];
   const more = rows.where.moreRegions?.onPhone ? rows.where.moreRegions : null;
-  const seasons = rows.when.some(b => b.chosen) ? [] : rows.when;
-  if (chosen.length === 0 && regions.length === 0 && seasons.length === 0) return null;
+  if (chosen.length === 0 && regions.length === 0) return null;
   return (
     <div className={`${styles.phoneOnly} ${styles.phoneRows}`}>
-      {chosen.length > 0 && (
-        <ul className={styles.pchips} aria-label={t('band.chosen')}>
-          {chosen.map(box => <li key={box.key}><PhoneChip t={t} box={box} /></li>)}
-        </ul>
-      )}
+      <PhoneChips t={t} chips={bandChips(t, chosen)} />
       {regions.length > 0 && (
         <ul className={`${styles.prow} ${styles.pregionRow}`} aria-label={rows.where.label}>
-          {regions.filter(b => !b.moreOnPhone).map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="region" /></li>)}
+          {regions.filter(b => !b.moreOnPhone).map(box => <li key={box.key}><PhoneBox t={t} box={box} /></li>)}
           {more && (
             // The boxes it shows are this list's own items, already in the HTML: it only stops hiding them.
             <li>
@@ -136,13 +152,8 @@ function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
             </li>
           )}
           {regions.filter(b => b.moreOnPhone).map(box => (
-            <li key={box.key} className={styles.pmoreItem}><PhoneBox t={t} box={box} kind="region" /></li>
+            <li key={box.key} className={styles.pmoreItem}><PhoneBox t={t} box={box} /></li>
           ))}
-        </ul>
-      )}
-      {seasons.length > 0 && (
-        <ul className={`${styles.prow} ${styles.pseasonRow}`} aria-label={t('tours.seasons')}>
-          {seasons.map(box => <li key={box.key}><PhoneBox t={t} box={box} kind="season" /></li>)}
         </ul>
       )}
     </div>
@@ -164,7 +175,7 @@ function PhoneRows({ t, rows }: { t: T; rows: BandRows }) {
  * JavaScript a link to the destinations directory), then the same boxes in rows of their own (PhoneRows). An operator's
  * page has no rows; its search screen gets the popular destinations without counts (`screen`).
  */
-export function SearchBand({ t, heading, line, lede, related, state, rows, screen }: SearchBandProps) {
+export function SearchBand({ t, heading, line, lede, related, state, rows, screen, dates }: SearchBandProps) {
   const more = rows?.where.moreRegions?.onWide ? rows.where.moreRegions : null;
   return (
     <section className={styles.band} aria-labelledby="page-heading">
@@ -187,6 +198,7 @@ export function SearchBand({ t, heading, line, lede, related, state, rows, scree
           </div>
         )}
         {rows && <PhoneRows t={t} rows={rows} />}
+        {state && dates && <div className={styles.phoneOnly}><BandDateFieldConnected state={state} dates={dates} /></div>}
         {rows && rows.where.boxes.length > 0 && (
           <nav className={`${styles.shortcuts} ${styles.wideOnly}`} aria-labelledby="band-where">
             <p id="band-where" className={`${styles.label} ${styles.whereLabel}`}>{rows.where.label}</p>

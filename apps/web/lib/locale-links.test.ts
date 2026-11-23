@@ -41,7 +41,12 @@ const EXTERNAL_HREFS: Record<string, string[]> = {
   // The phone filter bar and sheet without JavaScript: 篩選 and × jump within the page (#filter-sheet, #filter-bar);
   // 清除全部 is the address the page's own hrefFor gives (FilterBarConnected: localeHref(t.locale, …)).
   'components/FilterBar.tsx': ['href={`#${SHEET_ID}`}'],
-  'components/FilterSheet.tsx': ['href={`#${barId}`}', 'href={clearHref}'],
+  // Task 78: the sheets' shared head and foot (SheetHead's × is the filter sheet's '#filter-bar'; SheetFoot's
+  // 清除全部 its clearHref, as above).
+  'components/FilterSheet.tsx': ['href={closeHref}', 'href={clearHref}'],
+  // Task 78: the phone date field without JavaScript, a jump to the filter sheet's in-page form ('#filter-sheet'); its
+  // ✕, the band's address with no dates (DateFieldConnected: localeHref(t.locale, …)).
+  'components/DateField.tsx': ['href={fallbackHref}', 'href={clearHref}'],
   // The phone search box without JavaScript: the destinations directory, as the band gives it (DestinationConnected:
   // localeHref(t.locale, TOURS_PATH)).
   'components/DestinationScreen.tsx': ['href={fallbackHref}'],

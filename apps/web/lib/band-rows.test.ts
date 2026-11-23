@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { places } from '@hktours/core';
 import type { DestinationCount, DestinationCounts } from '@hktours/db/read';
 import { makeT } from './i18n';
-import { bandHref, bandRows, REGIONS_PHONE, REGIONS_WIDE, WIDE_BOXES } from './band-rows';
+import { bandDates, bandHref, bandRows, REGIONS_PHONE, REGIONS_WIDE, SHEET_MONTHS, shortDays, WIDE_BOXES } from './band-rows';
 import { parseSearchParams } from './search-params';
 import { seasonWindow } from './seasons';
-import type { SeasonCount } from './season-counts';
+import type { MonthCount, SeasonCount } from './season-counts';
 
 // Task 69 (drawing W3): the band's two rows, worked out from a page's state and invented counts. Every address is a
 // path without a language; the pages put the language on (and the band tests check that).
@@ -235,9 +235,9 @@ describe('the chips', () => {
     expect(chips.map(c => c.name)).toEqual(['日本', '關西']);
   });
 
-  it('a region, a country and a season: three chips; ✕ on either destination keeps the season, on the season keeps the destination', () => {
+  it('a region, a country and a season: the two destination chips, ✕ on either keeping the season (task 78: the season is no chip)', () => {
     expect(chipsOf({ dest: 'japan-kansai', from: christmas.from, to: christmas.to })).toEqual([
-      ['japan', '/seasons/christmas', true], ['japan-kansai', '/seasons/christmas?dest=japan', true], ['christmas', '/tours/japan-kansai', true],
+      ['japan', '/seasons/christmas', true], ['japan-kansai', '/seasons/christmas?dest=japan', true],
     ]);
   });
 
@@ -247,7 +247,56 @@ describe('the chips', () => {
     expect(chips[1].name).not.toContain('中國');
   });
 
-  it('a season alone: its chip, to home', () => {
-    expect(chipsOf({ from: christmas.from, to: christmas.to })).toEqual([['christmas', '/', true]]);
+  it('a season alone: no chip (task 78: the date field shows it)', () => {
+    expect(chipsOf({ from: christmas.from, to: christmas.to })).toEqual([]);
+  });
+});
+
+// Task 78: the phone date field and its sheet, from the same rows and the months' counts.
+describe('bandDates', () => {
+  const month = (from: string, to: string, japan: number, tours: number): MonthCount => ({
+    window: { from, to }, count: { tours, operators: 1, destinations: japan ? [line('japan', null, japan)] : [] },
+  });
+  const months = [
+    month('2026-11-01', '2026-11-30', 0, 5), month('2026-12-01', '2026-12-31', 4, 20), month('2027-01-01', '2027-01-31', 0, 0),
+    month('2027-02-01', '2027-02-28', 2, 9),
+  ];
+  const datesOf = (query: Record<string, string>) => bandDates(t, stateOf(query), rowsOf(query), seasons, months, '2026-11-22');
+
+  it('nothing chosen: the placeholder; the festivals with tours, their days and counts, as the band\'s season boxes; the months with tours', () => {
+    const d = datesOf({});
+    expect([d.value, d.clearPath]).toEqual([null, null]);
+    expect(d.festivals.map(f => [f.key, f.days, f.tours, f.enabled])).toEqual([['christmas', '12/19–27', 30, true], ['lunar-new-year', '2/3–10', 7, true]]);
+    expect(d.months.map(m => [m.label, m.from, m.to])).toEqual([['11月', '2026-11-01', '2026-11-30'], ['12月', '2026-12-01', '2026-12-31'], ['2月', '2027-02-01', '2027-02-28']]);
+  });
+
+  it('a destination chosen: counted for it (a festival without its tours is faded); the months with its tours only', () => {
+    const d = datesOf({ dest: 'japan' });
+    expect(d.festivals.map(f => [f.key, f.tours, f.enabled])).toEqual([['christmas', 12, true], ['lunar-new-year', 0, false]]);
+    expect(d.months.map(m => m.label)).toEqual(['12月', '2月']);
+  });
+
+  it('a season: its name and days; ✕ to the page with no dates (the destination kept)', () => {
+    const d = datesOf({ dest: 'japan', from: christmas.from, to: christmas.to });
+    expect(d.value).toBe('聖誕 · 12/19 – 12/27');
+    expect(d.clearPath).toBe('/tours/japan');
+  });
+
+  it('a departure window, a travel window, both: the departure window first; ✕ clears both, keeping every other filter', () => {
+    expect(datesOf({ from: '2026-12-01', to: '2026-12-31', dmin: '3' })).toMatchObject({ value: '12/1 – 12/31 出發', clearPath: '/?dmin=3' });
+    expect(datesOf({ tfrom: '2026-12-01', tto: '2027-01-03' })).toMatchObject({ value: '12/1 – 2027/1/3 內來回', clearPath: '/' });
+    expect(datesOf({ from: '2026-12-01', tfrom: '2026-12-01', tto: '2026-12-09' })).toMatchObject({ value: '12/1 – 出發', clearPath: '/' });
+  });
+
+  it('at most eight months', () => {
+    const many = Array.from({ length: 12 }, (_, i) => month(`2027-${String(i + 1).padStart(2, '0')}-01`, `2027-${String(i + 1).padStart(2, '0')}-28`, 0, 1));
+    expect(bandDates(t, stateOf({}), rowsOf({}), seasons, many, '2026-11-22').months).toHaveLength(SHEET_MONTHS);
+  });
+
+  it('shortDays: one month, two months, in English', () => {
+    expect(shortDays('2026-12-19', '2026-12-27', t)).toBe('12/19–27');
+    expect(shortDays('2026-12-30', '2027-01-03', t)).toBe('12/30–1/3');
+    expect(shortDays('2026-12-19', '2026-12-27', makeT('en'))).toBe('19–27 Dec');
+    expect(shortDays('2026-12-30', '2027-01-03', makeT('en'))).toBe('30 Dec – 3 Jan');
   });
 });

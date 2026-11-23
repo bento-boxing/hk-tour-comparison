@@ -13,7 +13,7 @@ import {
 import { markTripAction } from '../lib/remembered-trip';
 import { requestTripFocus } from '../lib/trip-undo';
 import type { ScreenData } from '../lib/search-screen';
-import type { SeasonWindow } from '../lib/seasons';
+import { DateField, type DateChoices } from './DateField';
 import { ChainStrip } from './ChainStrip';
 import { DestinationPanels } from './DestinationPanels';
 import { DestinationSearch } from './DestinationSearch';
@@ -75,8 +75,8 @@ export function ChainDestinationPanelsConnected({ address }: { address: ChainAdd
 /**
  * The phone search box and its full-screen search for the next leg's destination (task 73): the search page's own
  * (components/DestinationScreen), its popular destinations given (task 75) and no counts (the site's counts are not
- * the tours that fit the trip); the box shows the chosen destination with a clear button (this screen has no band of
- * chosen boxes). It needs JavaScript, as every control on this page does.
+ * the tours that fit the trip), its placeholder as on the band; the chosen destination is shown by the chips under it
+ * (task 78). It needs JavaScript, as every control on this page does.
  */
 export function ChainDestinationScreenConnected({ address, screen }: { address: ChainAddress; screen?: ScreenData }) {
   const t = useT();
@@ -85,9 +85,20 @@ export function ChainDestinationScreenConnected({ address, screen }: { address: 
   return (
     <DestinationScreen
       places={places} t={t} value={address.search.filters.destination ?? null} onSelect={select}
-      placeholder={t('dest.placeholder')} showValue screen={screen}
+      placeholder={t('band.placeholder')} screen={screen}
     />
   );
+}
+
+/**
+ * The first tour's 幾時出發？ field on a phone (task 78): the search page's field and date sheet, setting this page's
+ * own departure window (from/to, kept while the trip has no tour: lib/chain-href.ts); no season pages here, and no
+ * travel window (the planner has none), so no 這段日子是 switch. ✕ clears it. Trip, screen and filters stay.
+ */
+export function ChainDateFieldConnected({ address, choices }: { address: ChainAddress; choices: DateChoices }) {
+  const t = useT();
+  const goTo = useGoTo();
+  return <DateField t={t} places={places} state={address.search} choices={choices} onApply={next => goTo(withSearch(address, next))} />;
 }
 
 /**
@@ -95,15 +106,17 @@ export function ChainDestinationScreenConnected({ address, screen }: { address: 
  * Its phone sheet (task 75) is the search page's: the first tour's departure dates as there (`sheetDates` 'edit', with
  * the season shortcuts), or a later tour's as one line the page writes.
  */
-export function ChainFilterBarConnected({ address, operators, today, sheetDates, seasons }: {
-  address: ChainAddress; operators: OperatorInfo[]; today: IsoDate; sheetDates: 'edit' | { note: string }; seasons: SeasonWindow[];
+export function ChainFilterBarConnected({ address, operators, today, sheetDates, dateField }: {
+  address: ChainAddress; operators: OperatorInfo[]; today: IsoDate; sheetDates: 'edit' | { note: string };
+  /** The first tour's 幾時出發？ field is above (task 78): the phone sheet leaves the dates to it. */
+  dateField: boolean;
 }) {
   const t = useT();
   const goTo = useGoTo();
   return (
     <FilterBar
       state={address.search} operators={operators} places={places} t={t} today={today}
-      show={{ dates: false, exclude: true }} sheetDates={sheetDates} seasons={seasons}
+      show={{ dates: false, exclude: true }} sheetDates={sheetDates} dateField={dateField}
       onChange={next => goTo(withSearch(address, next))}
     />
   );

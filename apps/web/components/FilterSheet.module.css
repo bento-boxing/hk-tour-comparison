@@ -71,6 +71,9 @@
 }
 .chip:hover, .checkChip:hover { background: var(--hit); }
 .chip[aria-pressed='true'] { background: var(--selected-bg); border-color: var(--selected-bg); color: var(--on-selected); font-weight: 700; }
+/* A one-tap choice with nothing to list (task 78: a festival without tours here): faded, not pressable. */
+.chip:disabled { opacity: 0.4; cursor: default; }
+.chip:disabled:hover { background: var(--surface); }
 
 /* A tickable chip: the checkbox itself is unseen (still focusable and read out); the chip shows its state. */
 .checkChip { position: relative; padding: 0 12px; }

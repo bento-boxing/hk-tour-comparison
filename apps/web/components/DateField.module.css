@@ -1,0 +1,15 @@
+/*
+ * The phone's 幾時出發？ field (task 78, the owner's drawings M22 and M25): the search box's own look and height
+ * (DestinationScreen.module.css .box, read through the band's --search-* hooks), with a calendar for its mark. Its text
+ * keeps one line, cut with … where it does not fit (a 320px phone in English).
+ */
+.icon { flex: none; }
+.oneLine { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The date sheet (drawing M24): a festival's name over its days and count. */
+.festival { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 0; line-height: 1.25; }
+.festivalName { font-weight: 700; }
+.festivalDays { font-size: 12px; font-weight: 500; }
+/* 這幾天出發 / 整個旅程都在這幾天內: two choices side by side, each half the row (they stack when one does not fit). */
+.modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.modes > * { flex: 1 1 9em; justify-content: center; text-align: center; }

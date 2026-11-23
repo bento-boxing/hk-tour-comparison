@@ -241,7 +241,8 @@ describe('the choosing screen (pick=1)', () => {
     expect(data.address.search.filters).toEqual({ dateFrom: '2026-12-20', dateTo: '2026-12-24' });
     expect(nextKeys(data)).toEqual(['bigline:TPE4', 'texpert:SEL5', 'jetour:OSA6']);
     expect(chainPageHref(data.address)).toBe('/chain?gap=1-3&pick=1&from=2026-12-20&to=2026-12-24');
-    expect(data.seasons?.map(s => s.season)).toContain('christmas');
+    expect(data.firstTour?.seasons.map(s => s.window.season)).toContain('christmas');
+    expect(data.firstTour?.months).toHaveLength(12);
     // Popular destinations, without counts (the site's counts are not what can follow a trip).
     expect(data.screen?.tours).toBeNull();
     expect(data.screen?.popular[0]).toBe('japan');
@@ -249,12 +250,12 @@ describe('the choosing screen (pick=1)', () => {
 
   it('task 75, a later tour: no season shortcuts (the trip sets the dates); the popular destinations still; none off the choosing screen', async () => {
     const pick = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3&pick=1&from=2026-12-01&to=2026-12-02'), today);
-    expect(pick.seasons).toBeUndefined();
+    expect(pick.firstTour).toBeUndefined();
     expect(pick.address.search.filters).toEqual({});
     expect(pick.screen).toEqual({ popular: expect.arrayContaining(['japan']), tours: null });
     const trip = await loadChainPage(db, query('legs=egl:KIX5@2026-12-18&gap=1-3'), today);
     expect(trip.screen).toBeUndefined();
-    expect(trip.seasons).toBeUndefined();
+    expect(trip.firstTour).toBeUndefined();
   });
 
   it('anything but pick=1 is the trip; a full trip has nothing to choose', async () => {

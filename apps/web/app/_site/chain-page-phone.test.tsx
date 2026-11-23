@@ -385,7 +385,7 @@ it('the choosing screen\'s phone search box opens the full-screen search; a choi
   };
   window.history.replaceState(null, '');
   await renderPage(pageFor(THREE.slice(0, 1), { screen: { popular: ['japan', 'korea', 'taiwan'], tours: null } }, true));
-  const box = screen.getByRole('button', { name: '輸入國家、地區或城市' });
+  const box = screen.getByRole('button', { name: '想去邊？輸入國家、地區或城市' });
   expect(box.closest(`.${styles.phoneOnly}`)).not.toBeNull();
   expect(screen.getByRole('button', { name: '按國家選擇' }).closest(`.${styles.wideOnly}`)).not.toBeNull();
   await user.click(box);
@@ -408,20 +408,43 @@ it('the choosing screen\'s phone search box opens the full-screen search; a choi
 // Task 75: the choosing screen's filter sheet is the search page's, with the trip's own dates.
 it.each([
   ['a later tour: 出發日期 is the trip\'s window, one line', THREE.slice(0, 1), '12/24 – 12/26 出發 · 由行程決定'],
-  ['the first tour: 出發日期 as on the search page', [], null],
+  ['the first tour (task 78): no 出發日期, the 幾時出發？ field above has the dates', [], null],
 ] as const)('the choosing screen\'s sheet, %s', async (_, legs, note) => {
   const user = userEvent.setup();
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); };
-  await renderPage(pageFor([...legs], legs.length ? {} : { seasons: [] }, true));
+  const firstTour = { counts: { all: { tours: 0, operators: 0 }, destinations: [] }, seasons: [], months: [] };
+  await renderPage(pageFor([...legs], legs.length ? {} : { firstTour }, true));
   await user.click(screen.getByRole('button', { name: /^篩選/ }));
   const sheet = screen.getByRole('dialog', { name: '篩選' });
-  const dates = within(sheet).getByRole('group', { name: '出發日期' });
   if (note) {
+    const dates = within(sheet).getByRole('group', { name: '出發日期' });
     expect(dates).toHaveTextContent(note);
     expect(dates.querySelector('input')).toBeNull();
+    expect(screen.queryByRole('button', { name: '幾時出發？' })).toBeNull();
   } else {
-    expect(dates.querySelectorAll('input[type=date]')).toHaveLength(2);
+    expect(within(sheet).queryByRole('group', { name: '出發日期' })).toBeNull();
+    expect(screen.getByRole('button', { name: '幾時出發？' })).toHaveAttribute('aria-haspopup', 'dialog');
   }
   expect(within(sheet).queryByRole('group', { name: '可出行日期' })).toBeNull();
   expect(within(sheet).getByRole('group', { name: '排除國家：1 個' })).toBeInTheDocument();
+});
+
+// Task 78: the choosing screen shows the chosen destination with the band's chips; the search box keeps its placeholder.
+it('the choosing screen\'s chips: the country (✕ to no destination) and the region (✕ to its country), the trip and the screen kept', async () => {
+  const data = pageFor(THREE.slice(0, 1), {}, true);
+  const withDest = { ...data, address: { ...data.address, search: { ...data.address.search, filters: { ...data.address.search.filters, destination: { countryId: 'japan', regionId: 'japan-kansai' } } } } };
+  await renderPage(withDest);
+  const chips = within(screen.getByRole('list', { name: '已選取' })).getAllByRole('link');
+  const read = (a: HTMLElement) => {
+    const href = a.getAttribute('href')!;
+    const q = new URLSearchParams(href.slice(href.indexOf('?')));
+    return [a.textContent, a.getAttribute('aria-label'), q.get('legs'), q.get('dest'), q.get('pick'), q.get('ex')];
+  };
+  expect(chips.map(read)).toEqual([
+    ['日本✕', '日本，已選取，按此取消', 'egl:KIX5@2026-12-18', null, '1', 'japan'],
+    ['關西✕', '關西，已選取，按此取消', 'egl:KIX5@2026-12-18', 'japan', '1', 'japan'],
+  ]);
+  expect(screen.getByRole('button', { name: '想去邊？輸入國家、地區或城市' })).toBeInTheDocument();
+  // A later tour: no date field (the trip sets the dates).
+  expect(screen.queryByRole('button', { name: '幾時出發？' })).toBeNull();
 });

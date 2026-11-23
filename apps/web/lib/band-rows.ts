@@ -1,11 +1,12 @@
-import { places as allPlaces, type Destination, type PlacesIndex } from '@hktours/core';
+import { places as allPlaces, type Destination, type IsoDate, type PlacesIndex } from '@hktours/core';
 import type { DestinationCounts } from '@hktours/db/read';
 import type { T } from './i18n';
 import { countOf, destinationId, destinationName, isListed, SHORTCUT_COUNT, topDestinations } from './destinations';
 import { placeName } from './place-names';
-import { SEASON_NAME_KEYS, isSeasonState, seasonSearchHref, type SeasonWindow } from './seasons';
+import { SEASON_NAME_KEYS, isSeasonState, seasonSearchHref, type SeasonId, type SeasonWindow } from './seasons';
 import { searchHref, withFilters, type SearchState } from './search-params';
-import type { SeasonCount } from './season-counts';
+import type { MonthCount, SeasonCount } from './season-counts';
+import { formatChipDate, monthName } from './format';
 import { screenData, type ScreenData } from './search-screen';
 
 // The gold band's two rows of boxes (drawing W3), on the home page, a destination's page and a season's page: row 1
@@ -60,9 +61,10 @@ export interface BandRows {
   where: WhereRow;
   when: BandBox[];
   /**
-   * The phone band's chips (task 77): every choice, in this order: the country, the region (a region chosen: both),
-   * the season. Each is chosen (✕): the country's goes to no destination, the region's to its country, the season's
-   * keeps the destination; every other choice stays. The region's and the season's are their row's own chosen boxes.
+   * The phone band's chips (task 77): the destination's choices, in this order: the country, the region (a region
+   * chosen: both). Each is chosen (✕): the country's goes to no destination, the region's to its country; every other
+   * choice stays (the season too). The region's is its row's own chosen box. The season is not a chip: the phone's
+   * date field shows it (task 78, bandDates).
    */
   chips: BandBox[];
   /** The phone search screen's popular destinations and counts, in the same context as row 1 (task 73). */
@@ -174,7 +176,7 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
   });
 
   // The chips: the country first, chosen, ✕ to no destination (on a country's page, the same as its chosen box); then a
-  // chosen region by its own name, ✕ to its country (in the regions row, its own chosen box); then the season's.
+  // chosen region by its own name, ✕ to its country (in the regions row, its own chosen box).
   const chips: BandBox[] = [];
   if (chosenPlace && country) {
     chips.push(box(country, true, choose(undefined)));
@@ -184,7 +186,96 @@ export function bandRows(t: T, state: SearchState, siteCounts: DestinationCounts
       chips.push(inRow ?? box(chosenPlace, true, choose(country), { name: region ? placeName(region, t.locale) : chosenPlace.regionId }));
     }
   }
-  chips.push(...when.filter(b => b.chosen));
 
   return { where, when, chips, screen: screenData(siteCounts, scope, places) };
+}
+
+/** How many months the phone date sheet offers at most (task 78). */
+export const SHEET_MONTHS = 8;
+
+/** A festival in the phone date sheet: the band's season box, with its dates. */
+export interface DateFestival {
+  key: SeasonId; name: string;
+  /** Its days, short: '12/19–27' (English '19–27 Dec'). */
+  days: string;
+  window: SeasonWindow;
+  /** As the band's season box counts it: in the chosen destination, or in all; null to show none. */
+  tours: number | null;
+  /** No tours (and not the page's own): faded, not choosable, as the band's box was. */
+  enabled: boolean;
+}
+
+/** A month in the phone date sheet: '12月' (English 'Dec'), and its days. */
+export interface DateMonth { key: string; label: string; from: IsoDate; to: IsoDate }
+
+/**
+ * The phone band's date field and its sheet (task 78), from the page's state, its rows (the season boxes: their counts
+ * and addresses) and the months' counts. Every address is one the site already makes: a festival leaving in its days
+ * is its season's page (the season box's address), anything else the page's own address with from/to or tfrom/tto
+ * (the client builds those, as the filter sheet does).
+ */
+export interface BandDates {
+  /**
+   * What the field shows, or null for its placeholder: a season ('聖誕 · 12/19 – 12/27'), else the departure window
+   * ('12/19 – 12/27 出發'), else the travel window ('12/19 – 12/27 內來回'). With both windows set (from a wide
+   * screen, an old link) it shows the departure window, and the filter sheet keeps a section for the other.
+   */
+  value: string | null;
+  /** Where ✕ goes: the same page with no dates at all (neither window), every other choice kept; null with none set. */
+  clearPath: string | null;
+  festivals: DateFestival[];
+  /** This month and the next ones with tours here (in the chosen destination, or in all), at most SHEET_MONTHS. */
+  months: DateMonth[];
+}
+
+/** '12/19–27', '12/30–1/3' (English '19–27 Dec', '30 Dec – 3 Jan'): a festival's days, without the year. */
+export function shortDays(from: IsoDate, to: IsoDate, t: T): string {
+  const [, fm, fd] = from.split('-').map(Number);
+  const [, tm, td] = to.split('-').map(Number);
+  if (t.locale === 'en') return fm === tm ? `${fd}–${td} ${monthName(fm, t)}` : `${fd} ${monthName(fm, t)} – ${td} ${monthName(tm, t)}`;
+  return fm === tm ? `${fm}/${fd}–${td}` : `${fm}/${fd}–${tm}/${td}`;
+}
+
+/** '12/19 – 12/27', '12/19 –', '– 12/27' (a date outside today's year with its year), as the filter row's date pill. */
+function rangeText(from: IsoDate | undefined, to: IsoDate | undefined, today: IsoDate, t: T): string {
+  const date = (d: IsoDate) => formatChipDate(d, today, t);
+  if (from && to) return `${date(from)} – ${date(to)}`;
+  return from ? `${date(from)} –` : `– ${date(to!)}`;
+}
+
+/** The phone band's date field and sheet (BandDates) for a page with these rows. */
+export function bandDates(
+  t: T, state: SearchState, rows: BandRows, seasons: SeasonCount[], months: MonthCount[], today: IsoDate,
+): BandDates {
+  const f = state.filters;
+  const windows = seasons.map(s => s.window);
+  const chosenSeason = seasons.find(s => isSeasonState(s.window, state)) ?? null;
+  let value: string | null = null;
+  if (chosenSeason) {
+    value = `${t(SEASON_NAME_KEYS[chosenSeason.window.season].name)} · ${rangeText(chosenSeason.window.from, chosenSeason.window.to, today, t)}`;
+  } else if (f.dateFrom || f.dateTo) {
+    value = t('dates.leaving', { dates: rangeText(f.dateFrom, f.dateTo, today, t) });
+  } else if (f.travelFrom || f.travelTo) {
+    value = t('dates.within', { dates: rangeText(f.travelFrom, f.travelTo, today, t) });
+  }
+  const set = Boolean(f.dateFrom || f.dateTo || f.travelFrom || f.travelTo);
+  const clearPath = set
+    ? bandHref(withFilters(state, { dateFrom: undefined, dateTo: undefined, travelFrom: undefined, travelTo: undefined }), windows)
+    : null;
+
+  const festivals = rows.when.flatMap(box => {
+    const season = seasons.find(s => s.window.season === box.key);
+    if (!season) return [];
+    const w = season.window;
+    return [{ key: w.season, name: box.name, days: shortDays(w.from, w.to, t), window: w, tours: box.tours, enabled: box.path !== null }];
+  });
+
+  const place = state.filters.destination ?? null;
+  const toursIn = (m: MonthCount) => (place
+    ? countOf(place, { all: { tours: m.count.tours, operators: m.count.operators }, destinations: m.count.destinations ?? [] }).tours
+    : m.count.tours);
+  const monthList = months.filter(m => toursIn(m) > 0).slice(0, SHEET_MONTHS).map(m => ({
+    key: m.window.from.slice(0, 7), label: monthName(Number(m.window.from.slice(5, 7)), t), from: m.window.from, to: m.window.to,
+  }));
+  return { value, clearPath, festivals, months: monthList };
 }

@@ -25,25 +25,26 @@ const HISTORY_KEY = 'filterSheet';
 const HIDDEN_COUNTRY_IDS = ['hongkong'];
 
 /**
- * Set when the sheet's choices are applied, to the address they were applied on. The next address may be another
- * route (the home page's stored copy and its per-request copy are two), whose new bar then puts the focus back on
- * 篩選; on the same route the bar keeps it. Only a render on another address uses it up: the renders on the old one
- * (the page put back after going back over the sheet's entry) leave it for the new page.
+ * Set when a sheet's choices are applied: which sheet (its history key: the filter sheet's, or the date sheet's, task
+ * 78) and the address they were applied on. The next address may be another route (the home page's stored copy and its
+ * per-request copy are two), whose new opener of that same sheet then takes the focus back; on the same route the
+ * opener keeps it. Only a render of that sheet's hook on another address uses it up: the renders on the old one (the
+ * page put back after going back over the sheet's entry), and the other sheet's, leave it.
  */
-let focusOpenerAfterLeaving: string | null = null;
+let focusOpenerAfterLeaving: { key: string; at: string } | null = null;
 
 const currentAddress = () => window.location.pathname + window.location.search;
 
-const onSheetEntry = () => (window.history.state as Record<string, unknown> | null)?.[HISTORY_KEY] === true;
+const onEntry = (key: string) => (window.history.state as Record<string, unknown> | null)?.[key] === true;
 
-export interface FilterSheetControl {
+export interface FilterSheetControl<S = SearchState> {
   open: boolean;
   /** Counts the openings: each one starts from the page's filters (unapplied choices are not kept). */
   round: number;
   /** Opens the sheet, adding a history entry (Back closes it again). */
   openSheet: () => void;
   /** Ask to apply `next` (null: nothing changed) once the sheet has closed. */
-  setPending: (next: SearchState | null) => void;
+  setPending: (next: S | null) => void;
   /** The dialog has closed, however it was closed. */
   closed: () => void;
 }
@@ -56,11 +57,16 @@ export interface FilterSheetControl {
  * while it is open comes back with it open (the entry keeps its mark), on the page's applied filters. Focus goes back
  * to `opener` once it is closed.
  */
-export function useFilterSheet(apply: (next: SearchState) => void, opener: RefObject<HTMLElement | null>): FilterSheetControl {
+export function useFilterSheet<S = SearchState>(
+  apply: (next: S) => void, opener: RefObject<HTMLElement | null>,
+  /** The mark on its history entry: one per sheet on a page (task 78: the date sheet has its own). */
+  historyKey: string = HISTORY_KEY,
+): FilterSheetControl<S> {
+  const onSheetEntry = useCallback(() => onEntry(historyKey), [historyKey]);
   const [open, setOpen] = useState(false);
   const [round, setRound] = useState(0);
   const openRef = useRef(false);
-  const pending = useRef<SearchState | null>(null);
+  const pending = useRef<S | null>(null);
   const waitingForBack = useRef(false);
   const applyRef = useRef(apply);
   useEffect(() => { applyRef.current = apply; });
@@ -76,14 +82,15 @@ export function useFilterSheet(apply: (next: SearchState) => void, opener: RefOb
     const next = pending.current;
     pending.current = null;
     if (!next) return;
-    focusOpenerAfterLeaving = currentAddress();
+    focusOpenerAfterLeaving = { key: historyKey, at: currentAddress() };
     applyRef.current(next);
-  }, []);
+  }, [historyKey]);
 
-  // The first render on the new address after the choices were applied (this bar's, or a new route's bar's) puts the
-  // focus on 篩選.
+  // The first render on the new address after this sheet's choices were applied (this bar's, or a new route's bar's)
+  // puts the focus on its opener (篩選, or the date field).
   useEffect(() => {
-    if (focusOpenerAfterLeaving === null || focusOpenerAfterLeaving === currentAddress() || !opener.current) return;
+    const leaving = focusOpenerAfterLeaving;
+    if (leaving === null || leaving.key !== historyKey || leaving.at === currentAddress() || !opener.current) return;
     focusOpenerAfterLeaving = null;
     if (document.activeElement !== opener.current) opener.current.focus({ preventScroll: true });
   });
@@ -100,12 +107,12 @@ export function useFilterSheet(apply: (next: SearchState) => void, opener: RefOb
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [show, finish]);
+  }, [show, finish, onSheetEntry]);
 
   return {
     open, round,
     openSheet: () => {
-      if (!onSheetEntry()) window.history.pushState({ ...(window.history.state as object | null), [HISTORY_KEY]: true }, '');
+      if (!onSheetEntry()) window.history.pushState({ ...(window.history.state as object | null), [historyKey]: true }, '');
       show();
     },
     setPending: next => { pending.current = next; },
@@ -157,9 +164,27 @@ export interface FilterSheetProps {
  */
 export function FilterSheet(props: FilterSheetProps) {
   const { control, hydrated } = props;
-  const ref = useRef<HTMLDialogElement>(null);
   // Fixed ids (one sheet per page), not useId: the stored home page and its per-request copy render the same text.
   const titleId = `${SHEET_ID}-title`;
+  return (
+    <SheetDialog id={SHEET_ID} titleId={titleId} control={control} hydrated={hydrated}>
+      {/* A fresh form for each opening, filled from the page's filters. */}
+      {close => <SheetForm key={control.round} {...props} titleId={titleId} onDone={close} />}
+    </SheetDialog>
+  );
+}
+
+/**
+ * A sheet's dialog (the filter sheet's, and the phone date sheet's: task 78): the whole window on a phone (a panel from
+ * 640px), modal (the browser's own: focus moves in and stays in, the page behind is inert and does not scroll, Escape
+ * closes it), opened and closed by `control` (useFilterSheet). Its content gets `close(next)`: close, and apply `next`
+ * (null: nothing) once closed. Without JavaScript (no `data-js`) it shows itself as its id's link target (CSS).
+ */
+export function SheetDialog<S>({ id, titleId, control, hydrated, children }: {
+  id: string; titleId: string; control: FilterSheetControl<S>; hydrated: boolean;
+  children: (close: (next: S | null) => void) => ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -168,7 +193,7 @@ export function FilterSheet(props: FilterSheetProps) {
     else if (!control.open && dialog.open) dialog.close();
   }, [control.open]);
 
-  const close = (next: SearchState | null) => {
+  const close = (next: S | null) => {
     control.setPending(next);
     ref.current?.close();
   };
@@ -176,15 +201,42 @@ export function FilterSheet(props: FilterSheetProps) {
   return (
     <dialog
       ref={ref}
-      id={SHEET_ID}
+      id={id}
       className={styles.sheet}
       aria-labelledby={titleId}
       data-js={hydrated ? '' : undefined}
       onClose={control.closed}
     >
-      {/* A fresh form for each opening, filled from the page's filters. */}
-      <SheetForm key={control.round} {...props} titleId={titleId} onDone={close} />
+      {children(close)}
     </dialog>
+  );
+}
+
+/** A sheet's head: its title and × (without JavaScript, × is a link to `closeHref`, where the page goes on). */
+export function SheetHead({ titleId, title, closeLabel, hydrated, closeHref, onClose }: {
+  titleId: string; title: string; closeLabel: string; hydrated: boolean; closeHref: string; onClose: () => void;
+}) {
+  return (
+    <div className={styles.head}>
+      <h2 id={titleId} className={styles.title}>{title}</h2>
+      {hydrated
+        ? <button type="button" className={styles.close} aria-label={closeLabel} onClick={onClose}>×</button>
+        : <a className={styles.close} href={closeHref} aria-label={closeLabel}>×</a>}
+    </div>
+  );
+}
+
+/** A sheet's foot: its clear control (a button, or without JavaScript a link when there is one) and its submit button. */
+export function SheetFoot({ hydrated, clearLabel, onClear, clearHref, applyLabel }: {
+  hydrated: boolean; clearLabel: string; onClear: () => void; clearHref?: string; applyLabel: string;
+}) {
+  return (
+    <div className={styles.foot}>
+      {hydrated
+        ? <button type="button" className={styles.clear} onClick={onClear}>{clearLabel}</button>
+        : clearHref !== undefined && <a className={styles.clear} href={clearHref}>{clearLabel}</a>}
+      <button type="submit" className={styles.apply}>{applyLabel}</button>
+    </div>
   );
 }
 
@@ -223,12 +275,10 @@ function SheetForm({ state, operators, places, t, today, sections, seasons, fixe
     >
       {target && [...target.searchParams].map(([n, v]) => <input key={n} type="hidden" name={n} value={v} />)}
 
-      <div className={styles.head}>
-        <h2 id={titleId} className={styles.title}>{t('filter.sheet')}</h2>
-        {hydrated
-          ? <button type="button" className={styles.close} aria-label={t('filter.close')} onClick={() => onDone(null)}>×</button>
-          : <a className={styles.close} href={`#${barId}`} aria-label={t('filter.close')}>×</a>}
-      </div>
+      <SheetHead
+        titleId={titleId} title={t('filter.sheet')} closeLabel={t('filter.close')} hydrated={hydrated} closeHref={`#${barId}`}
+        onClose={() => onDone(null)}
+      />
 
       <div className={styles.body}>
         {sections.dates && (
@@ -359,12 +409,10 @@ function SheetForm({ state, operators, places, t, today, sections, seasons, fixe
         )}
       </div>
 
-      <div className={styles.foot}>
-        {hydrated
-          ? <button type="button" className={styles.clear} onClick={() => setDraft(draftOf(clearedState(state, sections, fixedDates)))}>{t('filter.clearAll')}</button>
-          : clearHref !== undefined && <a className={styles.clear} href={clearHref}>{t('filter.clearAll')}</a>}
-        <button type="submit" className={styles.apply}>{t('filter.showResults')}</button>
-      </div>
+      <SheetFoot
+        hydrated={hydrated} clearLabel={t('filter.clearAll')} clearHref={clearHref} applyLabel={t('filter.showResults')}
+        onClear={() => setDraft(draftOf(clearedState(state, sections, fixedDates)))}
+      />
     </form>
   );
 }
@@ -374,7 +422,7 @@ function toggle<V extends string>(list: V[], value: V): V[] {
 }
 
 /** A section: its name over its choices, read out as a group with that name. */
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+export function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <div role="group" aria-labelledby={id} className={styles.section}>
       <h3 id={id} className={styles.sectionTitle}>{title}</h3>
@@ -383,13 +431,18 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
-function Chips({ children }: { children: ReactNode }) {
+export function Chips({ children }: { children: ReactNode }) {
   return <div className={styles.chips}>{children}</div>;
 }
 
 /** A one-tap choice: pressed while the fields hold exactly its values; pressed again, it empties them. */
-function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
-  return <button type="button" className={styles.chip} aria-pressed={pressed} onClick={onClick}>{children}</button>;
+export function Chip({ pressed, onClick, disabled, children }: { pressed: boolean; onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  return <button type="button" className={styles.chip} aria-pressed={pressed} disabled={disabled} onClick={onClick}>{children}</button>;
+}
+
+/** A date field of a sheet (the filter sheet's, the date sheet's). */
+export function DateInput({ name, value, onChange, describedBy }: { name?: string; value: string; onChange: (v: string) => void; describedBy?: string }) {
+  return <input className={styles.input} type="date" name={name} aria-describedby={describedBy} value={value} onChange={e => onChange(e.target.value)} />;
 }
 
 /** A tickable chip (an operator, a country): a real checkbox inside, so it works the same without JavaScript. */
@@ -406,12 +459,12 @@ function CheckChip({ name, value, checked, onChange, dotStyle, children }: {
   );
 }
 
-function Pair({ children }: { children: ReactNode }) {
+export function Pair({ children }: { children: ReactNode }) {
   return <div className={styles.pair}>{children}</div>;
 }
 
 /** A labelled field; a date field (`date`) needs more room, so a pair of them stacks sooner on a narrow screen. */
-function Field({ label, date, children }: { label: string; date?: boolean; children: ReactNode }) {
+export function Field({ label, date, children }: { label: string; date?: boolean; children: ReactNode }) {
   return (
     <label className={date ? `${styles.field} ${styles.dateField}` : styles.field}>
       <span className={styles.fieldLabel}>{label}</span>

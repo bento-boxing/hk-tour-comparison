@@ -8,10 +8,9 @@ import { DEFAULT_LOCALE, type Locale } from './i18n';
 import { first, type RawParams } from './raw-params';
 import { pageSizeOf, parseSearchParams, type SearchState } from './search-params';
 import { filterBarOperators, uncachedReads } from './search-page-data';
-import { sheetSeasons } from './filter-sheet';
-import { seasonCounts } from './season-counts';
+import { monthCounts, seasonCounts, type MonthCount, type SeasonCount } from './season-counts';
 import { screenData, type ScreenData } from './search-screen';
-import type { SeasonWindow } from './seasons';
+import type { DestinationCounts } from '@hktours/db/read';
 
 export interface ChainPageData {
   /** What every link on the page is built from: the legs that resolved, the clean gap, the filters (no dates). */
@@ -51,8 +50,12 @@ export interface ChainPageData {
    * counts are not what can follow this trip). Only on the choosing screen.
    */
   screen?: ScreenData;
-  /** Choosing the first tour: the seasons the filter sheet offers as one-tap departure windows, as on the search page. */
-  seasons?: SeasonWindow[];
+  /**
+   * Choosing the first tour (task 78): what the phone's 幾時出發？ field offers, as the search page's band does: the
+   * site's counts, the seasons' and the months' (the shared cached reads, one answer per build and day). A first tour
+   * may leave on any date, so these counts are what its list holds in each window.
+   */
+  firstTour?: { counts: DestinationCounts; seasons: SeasonCount[]; months: MonthCount[] };
 }
 
 /**
@@ -114,17 +117,19 @@ export async function loadChainPage(
     // Choosing the first tour: any tour that leaves after today, with the visitor's filters.
     : pick && legs.length === 0 ? await reads.searchTours(db, { filters: search.filters, ...page }, locale) : null;
   const next = found && { tours: found.tours.map(withoutTitle), total: found.total };
-  // The choosing screen's popular destinations, and the first tour's season shortcuts: both from the shared cached reads
-  // the search pages make (one answer per build and day).
-  const [counts, seasons] = await Promise.all([
+  // The choosing screen's popular destinations, and the first tour's festivals and months: all from the shared cached
+  // reads the search pages make (one answer per build and day).
+  const [counts, seasons, months] = await Promise.all([
     pick ? reads.countToursByDestination(db, today) : null,
     pick && firstTour ? seasonCounts(db, today, reads) : null,
+    pick && firstTour ? monthCounts(db, today, reads) : null,
   ]);
   const screen = counts ? screenData(counts, null, places) : undefined;
 
   return {
     address, legs, droppedCount, departWindow, next, full, operators, filterOperators,
     bare: legsText === undefined && first(raw, 'gap') === undefined, requested: decoded,
-    ...(screen ? { screen } : {}), ...(seasons ? { seasons: sheetSeasons(search, seasons) } : {}),
+    ...(screen ? { screen } : {}),
+    ...(counts && seasons && months ? { firstTour: { counts, seasons, months } } : {}),
   };
 }

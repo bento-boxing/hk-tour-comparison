@@ -74,6 +74,21 @@ const zh = {
   // of the row of chosen boxes.
   'band.allRegionsShort': '全部 {n}',
   'band.chosen': '已選取',
+  'band.selectedName': '{name}，已選取，按此取消', // a chip where no count is at hand (the trip's choosing screen)
+  // Task 78: the phone band's date field and its sheet (drawings M22, M24, M25). The field's text once dates are chosen:
+  // a departure window ('12/19 – 12/27 出發') or a travel window ('12/19 – 12/27 內來回'); ✕'s accessible name.
+  'dates.placeholder': '幾時出發？',
+  'dates.leaving': '{dates} 出發',
+  'dates.within': '{dates} 內來回',
+  'dates.clear': '清除日期：{value}',
+  'dates.festivals': '節日',
+  'dates.months': '月份',
+  'dates.custom': '自訂日期',
+  'dates.mode': '這段日子是',
+  'dates.modeLeave': '這幾天出發',
+  'dates.modeWithin': '整個旅程都在這幾天內',
+  'dates.modeWithinHint': '出發和回程都在這幾天之內',
+  'dates.clearAll': '清除',
   // The destinations index (/tours).
   'tours.title': '旅行團目的地',
   'tours.description': '按國家及地區瀏覽香港多間旅行社的旅行團，並查看每個目的地現時列出多少個旅行團。',

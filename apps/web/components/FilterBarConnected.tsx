@@ -19,8 +19,10 @@ import { FilterBar } from './FilterBar';
  * offers no operator filter because its path fixes the operator. On phones its bar shows `total` (the tours found) and
  * its sheet offers `seasons` as one-tap departure windows; on a season's page the season's days are the page's own.
  */
-export function FilterBarConnected({ state, operators, today, total, seasons }: {
+export function FilterBarConnected({ state, operators, today, total, seasons, dateField }: {
   state: SearchState; operators: OperatorInfo[]; today: IsoDate; total?: number; seasons?: SeasonWindow[];
+  /** The band has the phone's date field (task 78). */
+  dateField?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -32,7 +34,7 @@ export function FilterBarConnected({ state, operators, today, total, seasons }: 
     <FilterBar
       state={state} operators={operators} places={places} t={t} today={today}
       show={fixedOperator === null ? undefined : { operators: false }}
-      total={total} seasons={seasons} fixedDates={fixedSeason} hrefFor={addressOf}
+      total={total} seasons={seasons} fixedDates={fixedSeason} hrefFor={addressOf} dateField={dateField}
       // scroll: false keeps the bar where it is while the list below changes.
       onChange={next => router.push(localeHref(t.locale, hrefFor(next)), { scroll: false })}
     />

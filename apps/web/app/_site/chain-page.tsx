@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
 import { SiteLink } from '../../components/SiteLink';
-import { makeT, type Locale } from '../../lib/i18n';
+import { makeT, type Locale, type T } from '../../lib/i18n';
 import { localeHref } from '../../lib/locale-path';
 import { pageMetadata } from '../../lib/site-metadata';
 import { formatChipDate } from '../../lib/format';
-import { chainPageHref } from '../../lib/chain-href';
+import { places, type Destination } from '@hktours/core';
+import { bandDates, bandRows } from '../../lib/band-rows';
+import { chainPageHref, withDestination, type ChainAddress } from '../../lib/chain-href';
+import { placeName } from '../../lib/place-names';
+import { PhoneChips, type PhoneChip } from './search-band';
 import { loadChain, queryOf, type SearchParams } from './page-data';
 import {
-  ChainDestinationPanelsConnected, ChainDestinationScreenConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
+  ChainDateFieldConnected, ChainDestinationPanelsConnected, ChainDestinationScreenConnected, ChainDestinationSearchConnected, ChainFilterBarConnected, ChainResultsConnected, ChainStripConnected,
 } from '../../components/ChainConnected';
 import { TripClear, TripMemory, TripPickHead, TripSteps } from '../../components/TripPhone';
 import { ListFooter, UpdatedNote } from '../../components/ListFooter';
@@ -48,6 +52,9 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
   const lastLeg = legs.at(-1);
   const date = (d: string) => formatChipDate(d, today, t);
   const pick = address.pick === true;
+  // Choosing the first tour on a phone: the 幾時出發？ field's choices, as the search page's band makes them (task 78).
+  const ft = data.firstTour;
+  const dates = ft ? bandDates(t, address.search, bandRows(t, address.search, ft.counts, ft.seasons), ft.seasons, ft.months, today) : null;
 
   return (
     <div className={`${frame.wrap} ${frame.page} ${styles.view}`} data-view={pick ? 'pick' : 'trip'}>
@@ -116,10 +123,29 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
             <div className={styles.searchBox}><ChainDestinationSearchConnected address={address} /></div>
             <ChainDestinationPanelsConnected address={address} />
           </div>
-          {/* On a phone, the search box that opens the full-screen search (task 73), in place of both. */}
-          <div className={`${styles.phoneSearch} ${styles.phoneOnly}`}><ChainDestinationScreenConnected address={address} screen={data.screen} /></div>
+          {/*
+            On a phone, the home band's controls (tasks 73, 77, 78): the search box that opens the full-screen search, in
+            place of both; the chosen country and region as chips; for the first tour, the 幾時出發？ field.
+          */}
+          <div className={`${styles.phoneSearch} ${styles.phoneOnly}`}>
+            <ChainDestinationScreenConnected address={address} screen={data.screen} />
+            <PhoneChips t={t} chips={chainChips(t, address)} />
+            {dates && ft && (
+              <ChainDateFieldConnected
+                address={address}
+                choices={{
+                  value: dates.value, months: dates.months, travel: false,
+                  // No counts here, as the popular boxes (the next tour is chosen with the trip's other filters); a
+                  // festival with no tours at all, site-wide, stays faded.
+                  festivals: dates.festivals.map(f => ({
+                    ...f, tours: null, enabled: (ft.seasons.find(s => s.window.season === f.key)?.count.tours ?? 0) > 0,
+                  })),
+                }}
+              />
+            )}
+          </div>
           <ChainFilterBarConnected
-            address={address} operators={filterOperators} today={today} seasons={data.seasons ?? []}
+            address={address} operators={filterOperators} today={today} dateField={dates !== null}
             // Its phone sheet's departure dates (task 75): the first tour's, as on the search page; a later one's, set by the trip.
             sheetDates={departWindow
               ? { note: `${t('trip.window', { from: date(departWindow.from), to: date(departWindow.to) })} · ${t('filter.setByTrip')}` }
@@ -138,4 +164,23 @@ export async function ChainPage({ locale, searchParams }: { locale: Locale; sear
       )}
     </div>
   );
+}
+
+/**
+ * The choosing screen's chips on a phone (task 78, as the band's: task 77): the chosen country, ✕ to no destination,
+ * then a chosen region by its own name, ✕ to its country; the trip, the screen and every other filter kept.
+ */
+function chainChips(t: T, address: ChainAddress): PhoneChip[] {
+  const dest = address.search.filters.destination;
+  if (!dest) return [];
+  const country = places.country(dest.countryId);
+  const chip = (key: string, name: string, to: Destination | null): PhoneChip => ({
+    key, name, path: chainPageHref(withDestination(address, to)), label: t('band.selectedName', { name }),
+  });
+  const chips = [chip(dest.countryId, country ? placeName(country, t.locale) : dest.countryId, null)];
+  if (dest.regionId !== null) {
+    const region = places.region(dest.regionId);
+    chips.push(chip(dest.regionId, region ? placeName(region, t.locale) : dest.regionId, { countryId: dest.countryId, regionId: null }));
+  }
+  return chips;
 }

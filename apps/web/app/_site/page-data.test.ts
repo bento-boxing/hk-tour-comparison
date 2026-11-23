@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { monthWindow } from '../../lib/filter-sheet';
 import { it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { notFound } from 'next/navigation';
 import { isIsoDate } from '@hktours/core';
@@ -83,7 +84,9 @@ it('the operators index reads the listings through the stored pages\' handle, an
 it('the home page reads its data (the page without any filter) through the stored pages\' handle, in its language, never the per-request one', async () => {
   const load = await loadStoredSearch('zh-Hans');
   const seasons = currentWindows(load.today).map(window => ({ window, count: { tours: 0, operators: 0 } }));
-  expect(load).toEqual({ ok: true, today: expect.any(String), now: expect.any(String), data: { ...searchData, seasons } });
+  // Task 78: and the months' for the phone date sheet, through the same handle.
+  const months = Array.from({ length: 12 }, (_, i) => ({ window: monthWindow(load.today, i), count: { tours: 0, operators: 0 } }));
+  expect(load).toEqual({ ok: true, today: expect.any(String), now: expect.any(String), data: { ...searchData, seasons, months } });
   expect(isIsoDate(load.today)).toBe(true);
   // No query string at all: the stored copy is the page without filters (its filtered addresses have their own copy).
   expect(mocks.loadSearchPage).toHaveBeenCalledWith(fakeDb, {}, load.today, 'zh-Hans', cachedReads);

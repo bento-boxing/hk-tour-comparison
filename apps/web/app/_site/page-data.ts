@@ -10,7 +10,7 @@ import { loadChainPage, type ChainPageData } from '../../lib/chain-page-data';
 import { loadSavedPage, type SavedPageData } from '../../lib/saved-page-data';
 import { shownOperators } from '../../lib/operators';
 import { currentWindow, type SeasonId, type SeasonWindow } from '../../lib/seasons';
-import { seasonCounts, type SeasonCount } from '../../lib/season-counts';
+import { monthCounts, seasonCounts, type MonthCount, type SeasonCount } from '../../lib/season-counts';
 
 // Each page's database load, made once per render. For the pages rendered per request, the page renders from it, and
 // its metadata marks the page noindex when it failed (or, for a destination, when it has no tours); the stored pages
@@ -71,12 +71,16 @@ async function attempt<T>(page: string, today: IsoDate, load: () => Promise<T>):
 export interface SearchViewData extends SearchPageData {
   /** Every season with a current window (lib/season-counts.ts), with or without tours, in SEASON_IDS order. */
   seasons: SeasonCount[];
+  /** This month and the next eleven with their tours, for the phone date sheet's 月份 (task 78; the shared cached read). */
+  months: MonthCount[];
 }
 
 /** The search page's data and the seasons' counts, read side by side (the seasons through the shared cached read). */
 async function searchViewData(db: Db, raw: RawParams, today: IsoDate, locale: Locale): Promise<SearchViewData> {
-  const [search, seasons] = await Promise.all([loadSearchPage(db, raw, today, locale, cachedReads), seasonCounts(db, today, cachedReads)]);
-  return { ...search, seasons };
+  const [search, seasons, months] = await Promise.all([
+    loadSearchPage(db, raw, today, locale, cachedReads), seasonCounts(db, today, cachedReads), monthCounts(db, today, cachedReads),
+  ]);
+  return { ...search, seasons, months };
 }
 
 /**
@@ -141,6 +145,8 @@ export interface SeasonPageData {
   count: ListedCount;
   /** Every season with a current window, with its count (lib/season-counts.ts), this one among them. */
   seasons: SeasonCount[];
+  /** This month and the next eleven with their tours, for the phone date sheet (task 78). */
+  months: MonthCount[];
 }
 
 /** A season's page: its current window on the server's Hong Kong today, and the page's load. */
@@ -161,12 +167,13 @@ export const loadSeason = cache(async (locale: Locale, seasonId: SeasonId, query
   const { from: _from, to: _to, ...rest } = paramsOf(query);
   const load = await attempt('season page', today, async () => {
     const db = await requestDb();
-    const [search, seasons] = await Promise.all([
+    const [search, seasons, months] = await Promise.all([
       loadSearchPage(db, { ...rest, from: window.from, to: window.to }, today, locale, cachedReads),
       seasonCounts(db, today, cachedReads),
+      monthCounts(db, today, cachedReads),
     ]);
     const count = seasons.find(s => s.window.season === seasonId)?.count ?? { tours: 0, operators: 0 };
-    return { search, count, seasons };
+    return { search, count, seasons, months };
   });
   return { window, load };
 });

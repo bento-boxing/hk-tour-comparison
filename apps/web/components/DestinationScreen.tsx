@@ -9,7 +9,7 @@ import { choosesWholeCountry, offeredCountryGroups, regionChoices } from '../lib
 import { destinationFromId, destinationId } from '../lib/destinations';
 import { placeName } from '../lib/place-names';
 import type { ScreenData } from '../lib/search-screen';
-import { DestinationSearch, destinationLabel } from './DestinationSearch';
+import { DestinationSearch } from './DestinationSearch';
 import { SiteLink } from './SiteLink';
 import styles from './DestinationScreen.module.css';
 
@@ -24,7 +24,7 @@ const onScreenEntry = () => (window.history.state as Record<string, unknown> | n
 export interface DestinationScreenProps {
   places: PlacesIndex; t: T;
   value: Destination | null;
-  /** A destination chosen (or, with showValue, cleared: null). */
+  /** A destination chosen. */
   onSelect: (dest: Destination | null) => void;
   /** 熱門目的地 and the counts (lib/search-screen.ts); none: neither (the trip's choosing screen). */
   screen?: ScreenData;
@@ -35,11 +35,6 @@ export interface DestinationScreenProps {
    * runs it is plain text (the trip's choosing screen, whose addresses need JavaScript as all its controls do).
    */
   fallbackHref?: string;
-  /**
-   * The box shows the chosen destination ('日本 → 全部地區') with a clear button: on the trip's choosing screen, which has
-   * no chosen boxes. On the band the chosen box (white, ✕) shows and clears it, so the box keeps its placeholder.
-   */
-  showValue?: boolean;
 }
 
 /**
@@ -60,7 +55,7 @@ export interface DestinationScreenProps {
  * Without JavaScript (and until the page runs) the box is a link to the destinations directory (fallbackHref), where
  * every destination is a link.
  */
-export function DestinationScreen({ places, t, value, onSelect, screen, placeholder, fallbackHref, showValue = false }: DestinationScreenProps) {
+export function DestinationScreen({ places, t, value, onSelect, screen, placeholder, fallbackHref }: DestinationScreenProps) {
   const id = SCREEN_ID;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const boxRef = useRef<HTMLButtonElement>(null);
@@ -144,11 +139,11 @@ export function DestinationScreen({ places, t, value, onSelect, screen, placehol
   const isCurrent = (dest: Destination) =>
     value !== null && value.countryId === dest.countryId && value.regionId === dest.regionId ? 'true' : undefined;
 
-  const shown = showValue && value ? destinationLabel(value, places, t) : null;
+  // The box keeps its placeholder: the chosen destination is shown, and cleared, by the chips under it (tasks 77, 78).
   const boxContent = (
     <>
       <span className={styles.icon} aria-hidden="true">⌕</span>
-      <span className={shown ? styles.value : styles.placeholder}>{shown ?? placeholder}</span>
+      <span className={styles.placeholder}>{placeholder}</span>
     </>
   );
   let box: ReactNode;
@@ -165,16 +160,8 @@ export function DestinationScreen({ places, t, value, onSelect, screen, placehol
   const blank = text.trim() === '';
 
   return (
-    <div className={shown && hydrated ? `${styles.searchBox} ${styles.withClear}` : styles.searchBox}>
+    <div className={styles.searchBox}>
       {box}
-      {shown && hydrated && (
-        <button
-          type="button" className={styles.clear} aria-label={t('filter.clearDestination', { dest: shown })}
-          onClick={() => onSelect(null)}
-        >
-          <span aria-hidden="true">✕</span>
-        </button>
-      )}
       {hydrated && (
         <dialog ref={dialogRef} className={styles.screen} aria-labelledby={titleId} onClose={onClose}>
           <h2 id={titleId} className={styles.title}>{t('screen.title')}</h2>

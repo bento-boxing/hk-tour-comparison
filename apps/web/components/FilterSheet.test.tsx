@@ -10,6 +10,7 @@ import { makeT } from '../lib/i18n';
 import { searchHref, type SearchState } from '../lib/search-params';
 import { seasonSearchHref, seasonWindow } from '../lib/seasons';
 import { FilterBar, type FilterBarProps } from './FilterBar';
+import { DateField } from './DateField';
 
 const t = makeT('zh-Hant');
 const operators: OperatorInfo[] = [
@@ -302,4 +303,62 @@ it('the trip\'s choosing screen, a later tour: 出發日期 is one plain line th
   expect(within(dates).queryByRole('button')).toBeNull();
   expect(dates.querySelector('input')).toBeNull();
   expect(within(sheet()).queryByRole('heading', { name: '可出行日期' })).not.toBeInTheDocument();
+});
+
+// Task 78: a page with the phone's 幾時出發？ field leaves the dates to it.
+it('with the date field: no date sections once the page runs, dates not counted on 篩選; without JavaScript the form keeps them', async () => {
+  const dated: SearchState = { filters: { dateFrom: '2026-12-01', dateTo: '2026-12-31', daysMin: 3 }, sort: 'price', page: 1 };
+  const html = renderToString(<FilterBar {...props(dated, { dateField: true })} />);
+  expect(html).toContain('name="from"');
+  expect(html).toContain('name="tfrom"');
+  renderBar(dated, { dateField: true });
+  expect(opener()).toHaveAccessibleName('篩選（已選 1 項）');
+  await user.click(opener());
+  expect(within(sheet()).queryByRole('heading', { name: '出發日期' })).not.toBeInTheDocument();
+  expect(within(sheet()).queryByRole('heading', { name: '可出行日期' })).not.toBeInTheDocument();
+  // 清除全部 there keeps the dates (the field holds them).
+  await user.click(within(sheet()).getByRole('button', { name: '清除全部' }));
+  await user.click(within(sheet()).getByRole('button', { name: '顯示結果' }));
+  await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+  expect(onChange.mock.calls[0]![0].filters).toEqual({ dateFrom: '2026-12-01', dateTo: '2026-12-31' });
+});
+
+it('with the date field and both windows set (a wide screen, an old link): the field shows the departure window; the sheet keeps 可出行日期 to see and clear the other', async () => {
+  renderBar({ filters: { dateFrom: '2026-12-01', dateTo: '2026-12-31', travelFrom: '2026-12-01', travelTo: '2027-01-05' }, sort: 'price', page: 1 }, { dateField: true });
+  expect(opener()).toHaveAccessibleName('篩選（已選 1 項）');
+  await user.click(opener());
+  expect(within(sheet()).queryByRole('heading', { name: '出發日期' })).not.toBeInTheDocument();
+  expect(within(sheet()).getByRole('heading', { name: '可出行日期' })).toBeInTheDocument();
+});
+
+// Task 78 fix round: two sheets on one page (the date field above, 篩選 below): after either is applied, the focus goes
+// back to that sheet's own opener on the new address, whichever renders first.
+it('two sheets on one page: applying 篩選 puts the focus on 篩選, applying the date sheet on the date field', async () => {
+  let current: SearchState = { filters: {}, sort: 'price', page: 1 };
+  const go = (next: SearchState) => {
+    current = next;
+    window.history.pushState(null, '', `/new-${Math.random().toString(36).slice(2)}`);
+    view.rerender(page());
+  };
+  const dateChoices = { value: null, festivals: [], months: [{ key: '2026-12', label: '12月', from: '2026-12-01', to: '2026-12-31' }], travel: true };
+  // The date field first, so its sheet's hook renders before the bar's (the order that showed the fault).
+  const page = () => (
+    <>
+      <DateField t={t} places={places} state={current} choices={dateChoices} onApply={next => go(next)} />
+      <FilterBar {...props(current, { dateField: true, onChange: next => go(next) })} />
+    </>
+  );
+  const view = render(page());
+  await user.click(opener());
+  await user.click(within(sheet()).getByRole('button', { name: '1–3天' }));
+  await user.click(within(sheet()).getByRole('button', { name: '顯示結果' }));
+  await waitFor(() => expect(current.filters.daysMax).toBe(3));
+  await waitFor(() => expect(opener()).toHaveFocus());
+  await user.click(screen.getByRole('button', { name: '幾時出發？' }));
+  const dates = screen.getByRole('dialog', { name: '幾時出發？' });
+  await user.click(within(dates).getByRole('button', { name: '12月' }));
+  await user.click(within(dates).getByRole('button', { name: '顯示結果' }));
+  await waitFor(() => expect(current.filters.dateFrom).toBe('2026-12-01'));
+  await waitFor(() => expect(screen.getByRole('button', { name: '幾時出發？' })).toHaveFocus());
+  window.history.replaceState(null, '', '/');
 });

@@ -1,3 +1,4 @@
+import { monthWindow } from '../../lib/filter-sheet';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { places } from '@hktours/core';
@@ -103,8 +104,12 @@ it('the departure window comes from the path and today: a from or to in the quer
   expect(mocks.loadSearchPage).toHaveBeenCalledTimes(1);
   expect(mocks.loadSearchPage.mock.calls[0][1]).toEqual({ dest: 'japan', dmin: '5', from: '2026-12-19', to: '2026-12-27' });
   expect(mocks.loadSearchPage.mock.calls[0][2]).toBe('2026-11-22');
-  // The season's own count: one read of the three seasons' current windows on the same today.
-  expect(mocks.countToursInWindows.mock.calls).toEqual([[fakeDb, '2026-11-22', SEASON_IDS.map(id => seasonWindowNow(id))]]);
+  // The season's own count: one read of the three seasons' current windows on the same today; and (task 78) one of the
+  // twelve months' for the phone date sheet.
+  expect(mocks.countToursInWindows.mock.calls).toEqual([
+    [fakeDb, '2026-11-22', SEASON_IDS.map(id => seasonWindowNow(id))],
+    [fakeDb, '2026-11-22', Array.from({ length: 12 }, (_, i) => monthWindow('2026-11-22', i))],
+  ]);
   // The band's search box shows the destination from the query.
   expect(screen.getByRole('combobox')).toHaveValue('日本 → 全部地區');
 });

@@ -177,16 +177,14 @@ it('the chosen destination is marked in both lists', async () => {
   expect(within(dialog()).getByRole('button', { name: '全部地區 157 團' })).not.toHaveAttribute('aria-current');
 });
 
-it('without counts (the trip\'s choosing screen): no 熱門目的地, no counts; the box shows the destination and clears it', async () => {
-  renderScreen({ screen: undefined, showValue: true, fallbackHref: undefined, value: { countryId: 'japan', regionId: null }, placeholder: '輸入國家、地區或城市' });
-  const opener = screen.getByRole('button', { name: '日本 → 全部地區' });
+it('without counts: no 熱門目的地, no counts; with a destination chosen the box keeps its placeholder (the chips show it: task 78)', async () => {
+  renderScreen({ screen: undefined, fallbackHref: undefined, value: { countryId: 'japan', regionId: null } });
+  const opener = box();
+  expect(screen.queryByRole('button', { name: /清除/ })).toBeNull();
   await user.click(opener);
   expect(within(dialog()).queryByRole('region', { name: '熱門目的地' })).toBeNull();
   await user.click(within(dialog()).getByRole('button', { name: '日本及韓國' }));
   expect(within(dialog()).getByRole('button', { name: '日本' })).toBeInTheDocument();
-  await user.click(within(dialog()).getByRole('button', { name: '關閉' }));
-  await user.click(screen.getByRole('button', { name: '清除目的地：日本 → 全部地區' }));
-  expect(onSelect).toHaveBeenCalledExactlyOnceWith(null);
 });
 
 it('without JavaScript on the trip\'s choosing screen (no fallback): plain text, no link', () => {

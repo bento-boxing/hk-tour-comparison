@@ -8,7 +8,7 @@ import { movedSearchHref } from '../../lib/search-params';
 import type { SearchPageData } from '../../lib/search-page-data';
 import type { ListedCount } from '@hktours/db/read';
 import { countOf, destinationName, destinationPath } from '../../lib/destinations';
-import { bandRows } from '../../lib/band-rows';
+import { bandDates, bandRows } from '../../lib/band-rows';
 import { formatCount, headlineCount } from '../../lib/format';
 import { FilterBarConnected } from '../../components/FilterBarConnected';
 import { ResultsConnected } from '../../components/ResultsConnected';
@@ -120,6 +120,7 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
   const { state, counts } = load.data;
   const { all } = counts;
   const listed = destination ? countOf(destination, counts) : all;
+  const rows = bandRows(t, state, counts, load.data.seasons);
   const [heading, line] = place !== null
     ? [t('dest.heading', { place }), listed.tours > 0 ? t('dest.count', { tours: formatCount(listed.tours), operators: formatCount(listed.operators) }) : t('dest.countNone')]
     : all.tours > 0
@@ -128,9 +129,12 @@ export function SearchView({ t, destination, load }: { t: T; destination: Destin
   return (
     <>
       {site}
-      <SearchBand t={t} heading={heading} line={line} lede={lede} state={state} rows={bandRows(t, state, counts, load.data.seasons)} />
+      <SearchBand
+        t={t} heading={heading} line={line} lede={lede} state={state} rows={rows}
+        dates={bandDates(t, state, rows, load.data.seasons, load.data.months, load.today)}
+      />
       {/* On a destination's page, clearing every filter keeps the destination. */}
-      <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} seasons={load.data.seasons} />
+      <SearchList t={t} data={load.data} today={load.today} now={load.now} clearPath={destinationPath(destination)} seasons={load.data.seasons} dateField />
     </>
   );
 }
@@ -153,14 +157,16 @@ export function SearchError({ t }: { t: T }) {
  * `seasons` the seasons' counts the page has read (for the band), whose seasons with tours the phone filter sheet
  * offers as one-tap dates (none where the page has not read them: an operator's page).
  */
-export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFrom = data.operators, seasons = [] }: {
+export function SearchList({ t, data, today, now, clearPath, hrefFor, updatedFrom = data.operators, seasons = [], dateField = false }: {
   t: T; data: SearchPageData; today: IsoDate; now: string; clearPath: string; hrefFor?: StateHref;
   updatedFrom?: { lastGoodRunAt: string | null }[]; seasons?: SeasonCount[];
+  /** The band above has the phone's date field (task 78): the phone filter sheet leaves the dates to it. */
+  dateField?: boolean;
 }) {
   const { state, tours, total, operators, filterOperators } = data;
   return (
     <div className={`${frame.wrap} ${frame.page}`}>
-      <FilterBarConnected state={state} operators={filterOperators} today={today} total={total} seasons={sheetSeasons(state, seasons)} />
+      <FilterBarConnected state={state} operators={filterOperators} today={today} total={total} seasons={sheetSeasons(state, seasons)} dateField={dateField} />
       <ResultsConnected tours={tours} total={total} operators={operators} today={today} now={now} clearPath={clearPath} />
       <ListFooter state={state} total={total} t={t} hrefFor={hrefFor} />
       <UpdatedNote operators={updatedFrom} t={t} />
